@@ -97,7 +97,8 @@ export default function RelatoriosPage() {
   })();
 
   const totalSpent = transactions.reduce((s, t) => s + t.amount, 0);
-  const totalSaved = accounts.reduce((s, a) => s + a.current_balance, 0);
+  const totalSaved = investments.reduce((s, inv) =>
+    inv.type === "retirada" ? s - inv.amount : s + inv.amount, 0);
   const totalDeposited = investments.filter((i) => i.type === "deposito").reduce((s, i) => s + i.amount, 0);
 
   function handlePrint() {

@@ -57,7 +57,13 @@ export default function DashboardPage() {
   const totalSpent = transactions.reduce((s, t) => s + t.amount, 0);
   const totalLimit = cards.reduce((s, c) => s + c.limit, 0);
   const limitPercent = totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0;
-  const totalSaved = accounts.reduce((s, a) => s + a.current_balance, 0);
+  // Saldo calculado a partir do histórico completo de investimentos
+  const balanceByAccount = investments.reduce<Record<string, number>>((acc, inv) => {
+    const delta = inv.type === "retirada" ? -inv.amount : inv.amount;
+    acc[inv.account_id] = (acc[inv.account_id] ?? 0) + delta;
+    return acc;
+  }, {});
+  const totalSaved = Object.values(balanceByAccount).reduce((s, v) => s + v, 0);
   const monthDeposits = investments
     .filter((i) => i.type === "deposito")
     .reduce((s, i) => s + i.amount, 0);
@@ -226,7 +232,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={accounts.map((a) => ({ name: a.name, saldo: a.current_balance }))}>
+              <BarChart data={accounts.map((a) => ({ name: a.name, saldo: balanceByAccount[a.id] ?? 0 }))}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />

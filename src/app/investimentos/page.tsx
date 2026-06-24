@@ -106,6 +106,12 @@ export default function InvestimentosPage() {
   const activeAccount = accounts.find((a) => a.id === selectedAccount);
   const accountInvestments = investments.filter((i) => i.account_id === selectedAccount);
 
+  // Saldo calculado a partir do histórico — fonte de verdade confiável
+  const computedBalance = accountInvestments.reduce((s, inv) => {
+    if (inv.type === "retirada") return s - inv.amount;
+    return s + inv.amount; // deposito + rendimento
+  }, 0);
+
   const chartData = (() => {
     const sorted = [...accountInvestments].sort((a, b) => a.date.localeCompare(b.date));
     let running = 0;
@@ -229,7 +235,7 @@ export default function InvestimentosPage() {
                 <CardHeader className="pb-2"><CardDescription>Saldo atual</CardDescription></CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(activeAccount.current_balance)}
+                    {formatCurrency(computedBalance)}
                   </p>
                   {activeAccount.institution && (
                     <p className="text-xs text-muted-foreground mt-1">{activeAccount.institution}</p>
