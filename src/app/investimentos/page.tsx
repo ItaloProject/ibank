@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Plus, Trash2, TrendingUp, ArrowUpCircle, ArrowDownCircle, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,9 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { InvestmentAccount, Investment, InvestmentType } from "@/types/database";
 import { format } from "date-fns";
+import { InvestmentRates } from "@/components/investment-rates";
+import { detectCategory, type RateCategory } from "@/lib/investment-rates";
+import { getCurrentUser } from "@/lib/user";
 
 const TYPE_CONFIG: Record<InvestmentType, {
   label: string; icon: typeof TrendingUp; color: string; badgeClass: string
@@ -47,6 +50,8 @@ export default function InvestimentosPage() {
 
   const [accForm, setAccForm] = useState({ name: "", institution: "" });
 
+  // Sem dependências: load é estável e não recria a cada render.
+  // Usa update funcional para selectedAccount evitar capturar o valor atual no closure.
   const load = useCallback(async () => {
     try {
       const [loadedAccounts, loadedInvestments] = await Promise.all([
@@ -57,13 +62,13 @@ export default function InvestimentosPage() {
       const invs = Array.isArray(loadedInvestments) ? loadedInvestments : [];
       setAccounts(accs);
       setInvestments(invs);
-      if (!selectedAccount && accs.length > 0) setSelectedAccount(accs[0].id);
+      setSelectedAccount((prev) => prev ?? (accs.length > 0 ? accs[0].id : null));
     } catch (err) {
       console.error("Erro ao carregar investimentos:", err);
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
 
@@ -103,16 +108,36 @@ export default function InvestimentosPage() {
     load();
   }
 
-  const activeAccount = accounts.find((a) => a.id === selectedAccount);
-  const accountInvestments = investments.filter((i) => i.account_id === selectedAccount);
+  const activeAccount = useMemo(
+    () => accounts.find((a) => a.id === selectedAccount),
+    [accounts, selectedAccount]
+  );
 
-  // Saldo calculado a partir do histórico — fonte de verdade confiável
-  const computedBalance = accountInvestments.reduce((s, inv) => {
-    if (inv.type === "retirada") return s - inv.amount;
-    return s + inv.amount; // deposito + rendimento
-  }, 0);
+  const accountInvestments = useMemo(
+    () => investments.filter((i) => i.account_id === selectedAccount),
+    [investments, selectedAccount]
+  );
 
-  const chartData = (() => {
+  const computedBalance = useMemo(
+    () => accountInvestments.reduce((s, inv) =>
+      inv.type === "retirada" ? s - inv.amount : s + inv.amount, 0),
+    [accountInvestments]
+  );
+
+  // Memoizado: só recalcula quando accounts ou investments mudam
+  const balancesByCategory = useMemo(() =>
+    accounts.reduce<Partial<Record<RateCategory, number>>>((acc, a) => {
+      const cat = detectCategory(a.name);
+      if (!cat) return acc;
+      const bal = investments
+        .filter((i) => i.account_id === a.id)
+        .reduce((s, inv) => (inv.type === "retirada" ? s - inv.amount : s + inv.amount), 0);
+      acc[cat] = (acc[cat] ?? 0) + bal;
+      return acc;
+    }, {}),
+  [accounts, investments]);
+
+  const chartData = useMemo(() => {
     const sorted = [...accountInvestments].sort((a, b) => a.date.localeCompare(b.date));
     let running = 0;
     return sorted.map((inv) => {
@@ -120,7 +145,7 @@ export default function InvestimentosPage() {
       else running += inv.amount;
       return { date: formatDate(inv.date), saldo: running };
     });
-  })();
+  }, [accountInvestments]);
 
   if (loading) {
     return (
@@ -260,6 +285,8 @@ export default function InvestimentosPage() {
               </Card>
             </div>
           )}
+
+          <InvestmentRates balances={balancesByCategory} userId={getCurrentUser()} />
 
           {chartData.length > 1 && (
             <Card>
