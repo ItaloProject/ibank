@@ -6,6 +6,9 @@ import type {
   Investment,
   InvestmentType,
 } from "@/types/database";
+import { getCurrentUser } from "@/lib/user";
+
+function uid() { return getCurrentUser(); }
 
 // Neon retorna numeric como strings e date como ISO datetime — normalizamos na borda.
 
@@ -45,37 +48,32 @@ function toInvestment(r: any): Investment {
 // ─── Cards ────────────────────────────────────────────────────────────────────
 
 export async function getCards(): Promise<CreditCard[]> {
-  const res = await fetch("/api/cards");
+  const res = await fetch(`/api/cards?user=${uid()}`);
   const data = await res.json();
   return Array.isArray(data) ? data.map(toCard) : [];
 }
 
 export async function createCard(data: {
-  name: string;
-  limit: number;
-  closing_day: number;
-  due_day: number;
+  name: string; limit: number; closing_day: number; due_day: number;
 }): Promise<CreditCard> {
   const res = await fetch("/api/cards", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, user_id: uid() }),
   });
   return toCard(await res.json());
 }
 
 export async function deleteCard(id: string): Promise<void> {
-  await fetch(`/api/cards/${id}`, { method: "DELETE" });
+  await fetch(`/api/cards/${id}?user=${uid()}`, { method: "DELETE" });
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
 
 export async function getTransactions(params?: {
-  start?: string;
-  end?: string;
-  cardId?: string;
+  start?: string; end?: string; cardId?: string;
 }): Promise<Transaction[]> {
-  const qs = new URLSearchParams();
+  const qs = new URLSearchParams({ user: uid() });
   if (params?.start) qs.set("start", params.start);
   if (params?.end) qs.set("end", params.end);
   if (params?.cardId) qs.set("card_id", params.cardId);
@@ -84,32 +82,25 @@ export async function getTransactions(params?: {
   return Array.isArray(data) ? data.map(toTransaction) : [];
 }
 
-export async function createTransactions(
-  rows: {
-    credit_card_id: string;
-    description: string;
-    amount: number;
-    category: TransactionCategory;
-    date: string;
-    installments?: number;
-    installment_current?: number;
-  }[]
-): Promise<Transaction[]> {
+export async function createTransactions(rows: {
+  credit_card_id: string; description: string; amount: number;
+  category: TransactionCategory; date: string; installments?: number; installment_current?: number;
+}[]): Promise<Transaction[]> {
   const res = await fetch("/api/transactions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(rows),
+    body: JSON.stringify(rows.map((r) => ({ ...r, user_id: uid() }))),
   });
   const data = await res.json();
   return Array.isArray(data) ? data.map(toTransaction) : [];
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
-  await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+  await fetch(`/api/transactions/${id}?user=${uid()}`, { method: "DELETE" });
 }
 
 export async function clearTransactions(cardId: string, start?: string, end?: string): Promise<void> {
-  const qs = new URLSearchParams({ card_id: cardId });
+  const qs = new URLSearchParams({ card_id: cardId, user: uid() });
   if (start) qs.set("start", start);
   if (end) qs.set("end", end);
   await fetch(`/api/transactions?${qs}`, { method: "DELETE" });
@@ -118,27 +109,23 @@ export async function clearTransactions(cardId: string, start?: string, end?: st
 // ─── Investment Accounts ──────────────────────────────────────────────────────
 
 export async function getInvestmentAccounts(): Promise<InvestmentAccount[]> {
-  const res = await fetch("/api/investment-accounts");
+  const res = await fetch(`/api/investment-accounts?user=${uid()}`);
   const data = await res.json();
   return Array.isArray(data) ? data.map(toAccount) : [];
 }
 
 export async function createInvestmentAccount(data: {
-  name: string;
-  institution: string;
+  name: string; institution: string;
 }): Promise<InvestmentAccount> {
   const res = await fetch("/api/investment-accounts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, user_id: uid() }),
   });
   return toAccount(await res.json());
 }
 
-export async function updateAccountBalance(
-  id: string,
-  current_balance: number
-): Promise<InvestmentAccount> {
+export async function updateAccountBalance(id: string, current_balance: number): Promise<InvestmentAccount> {
   const res = await fetch(`/api/investment-accounts/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -150,11 +137,9 @@ export async function updateAccountBalance(
 // ─── Investments ──────────────────────────────────────────────────────────────
 
 export async function getInvestments(params?: {
-  accountId?: string;
-  start?: string;
-  end?: string;
+  accountId?: string; start?: string; end?: string;
 }): Promise<Investment[]> {
-  const qs = new URLSearchParams();
+  const qs = new URLSearchParams({ user: uid() });
   if (params?.accountId) qs.set("account_id", params.accountId);
   if (params?.start) qs.set("start", params.start);
   if (params?.end) qs.set("end", params.end);
@@ -164,20 +149,16 @@ export async function getInvestments(params?: {
 }
 
 export async function createInvestment(data: {
-  account_id: string;
-  type: InvestmentType;
-  amount: number;
-  description: string;
-  date: string;
+  account_id: string; type: InvestmentType; amount: number; description: string; date: string;
 }): Promise<Investment> {
   const res = await fetch("/api/investments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, user_id: uid() }),
   });
   return toInvestment(await res.json());
 }
 
 export async function deleteInvestment(id: string): Promise<void> {
-  await fetch(`/api/investments/${id}`, { method: "DELETE" });
+  await fetch(`/api/investments/${id}?user=${uid()}`, { method: "DELETE" });
 }
