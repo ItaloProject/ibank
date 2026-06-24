@@ -24,7 +24,7 @@ import {
 import {
   Plus, Pencil, Trash2, FolderPlus, TrendingUp, TrendingDown,
   Wallet, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Copy, FileDown, Loader2,
+  Copy, FileDown, Loader2, LogOut,
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -69,6 +69,8 @@ export default function PlanejamentoPage() {
 }
 
 function PlanejamentoContent({ userId }: { userId: string }) {
+  const { switchUser } = useUser();
+  const currentUser = USERS.find(u => u.id === userId)!;
   const [currentMonth, setCurrentMonth] = useState(() => format(startOfMonth(new Date()), "yyyy-MM"));
   const [groups, setGroups] = useState<ExpenseGroup[]>([]);
   const [items, setItems] = useState<ExpenseItem[]>([]);
@@ -302,7 +304,31 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           <h1 className="text-3xl font-bold">Planejamento</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Organize seus gastos por grupo</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* User switcher */}
+          <button
+            onClick={switchUser}
+            className="group flex items-center gap-2.5 rounded-xl border border-white/10 px-3 py-2 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+            style={{
+              background: `linear-gradient(135deg, ${currentUser.color}22 0%, ${currentUser.color}10 100%)`,
+              borderColor: `${currentUser.color}40`,
+              boxShadow: `0 2px 8px ${currentUser.color}20`,
+            }}
+          >
+            <div
+              className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-inner shrink-0 ring-2 ring-white/20"
+              style={{
+                background: `linear-gradient(135deg, ${currentUser.color} 0%, ${currentUser.color}cc 100%)`,
+              }}
+            >
+              {currentUser.name[0]}
+            </div>
+            <div className="flex flex-col items-start leading-none">
+              <span className="text-[11px] font-medium opacity-50 tracking-wide uppercase" style={{ color: currentUser.color }}>usuário</span>
+              <span className="text-sm font-semibold mt-0.5">{currentUser.name}</span>
+            </div>
+            <LogOut className="h-3.5 w-3.5 ml-1 opacity-40 group-hover:opacity-70 transition-opacity" />
+          </button>
           {items.length === 0 && (
             <Button variant="outline" size="sm" onClick={() => setCopyOpen(true)}>
               <Copy className="h-3.5 w-3.5" />
