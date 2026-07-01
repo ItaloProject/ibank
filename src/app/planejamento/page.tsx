@@ -24,7 +24,7 @@ import {
 import {
   Plus, Pencil, Trash2, FolderPlus, TrendingUp, TrendingDown,
   Wallet, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Copy, FileDown, Loader2, LogOut,
+  Copy, FileDown, Loader2, LogOut, DollarSign,
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -93,6 +93,11 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   // Copy dialog
   const [copyOpen, setCopyOpen] = useState(false);
 
+  // Salary
+  const [salary, setSalary] = useState(0);
+  const [salaryInput, setSalaryInput] = useState("");
+  const [salaryOpen, setSalaryOpen] = useState(false);
+
   // ── Data loading ───────────────────────────────────────────────────────────
 
   const loadGroups = useCallback(async () => {
@@ -116,9 +121,15 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   }, [userId]);
 
   const loadItems = useCallback(async (month: string) => {
-    const res = await fetch(`/api/plan-items?user=${userId}&month=${month}`);
-    const data: Record<string, unknown>[] = await res.json();
+    const [itemsRes, salaryRes] = await Promise.all([
+      fetch(`/api/plan-items?user=${userId}&month=${month}`),
+      fetch(`/api/plan-salary?user=${userId}&month=${month}`),
+    ]);
+    const data: Record<string, unknown>[] = await itemsRes.json();
+    const salaryData = await salaryRes.json();
     setItems(Array.isArray(data) ? data.map(toItem) : []);
+    setSalary(Number(salaryData.salary) || 0);
+    setSalaryInput(salaryData.salary > 0 ? String(salaryData.salary) : "");
   }, [userId]);
 
   useEffect(() => {
@@ -164,6 +175,17 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     );
     await loadItems(currentMonth);
     setCopyOpen(false);
+  }
+
+  async function saveSalary() {
+    const value = parseFloat(salaryInput) || 0;
+    await fetch("/api/plan-salary", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, month: currentMonth, salary: value }),
+    });
+    setSalary(value);
+    setSalaryOpen(false);
   }
 
   // ── Group actions ──────────────────────────────────────────────────────────
@@ -285,6 +307,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   const totalVarActual   = items.filter(i => i.type === "variavel").reduce((s, i) => s + i.actual, 0);
   const totalPlanned = totalFixoPlanned + totalVarPlanned;
   const totalActual  = totalFixoActual  + totalVarActual;
+  const sobra        = salary - totalActual;
+  const sobraPlanned = salary - totalPlanned;
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -367,6 +391,25 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         </Button>
       </div>
 
+      {/* Salário */}
+      <div
+        className="flex items-center justify-between rounded-xl border px-5 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+        onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
+      >
+        <div className="flex items-center gap-2.5">
+          <DollarSign className="h-4 w-4 text-green-600" />
+          <span className="text-sm font-medium">Salário recebido em {monthLabel}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {salary > 0 ? (
+            <span className="text-lg font-bold text-green-600 tabular-nums">{fmt(salary)}</span>
+          ) : (
+            <span className="text-sm text-muted-foreground">Clique para informar</span>
+          )}
+          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+      </div>
+
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
         <Card>
@@ -389,16 +432,25 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             <p className="text-xs text-muted-foreground mt-0.5">planejado: {fmt(totalVarPlanned)}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={`border-2 ${sobra >= 0 ? "border-green-200" : "border-red-200"}`}
+          style={{ background: sobra >= 0 ? "linear-gradient(135deg,#dcfce708,transparent)" : "linear-gradient(135deg,#fee2e208,transparent)" }}>
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center gap-2 mb-1">
-              <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Total Geral</p>
+              <Wallet className={`h-3.5 w-3.5 ${sobra >= 0 ? "text-green-600" : "text-destructive"}`} />
+              <p className="text-xs font-bold uppercase tracking-wide"
+                style={{ color: sobra >= 0 ? "#16a34a" : "hsl(var(--destructive))" }}>Sobra</p>
             </div>
-            <p className={`text-2xl font-bold ${totalActual > totalPlanned && totalPlanned > 0 ? "text-destructive" : ""}`}>
-              {fmt(totalActual)}
+            <p className={`text-2xl font-bold tabular-nums ${sobra >= 0 ? "text-green-600" : "text-destructive"}`}>
+              {salary > 0 ? fmt(sobra) : "—"}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">planejado: {fmt(totalPlanned)}</p>
+            {salary > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                planejado: {fmt(sobraPlanned)}
+              </p>
+            )}
+            {salary === 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5">informe o salário acima</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -531,6 +583,33 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           })}
         </div>
       )}
+
+      {/* ── Dialog: Salário ────────────────────────────────────────────────── */}
+      <Dialog open={salaryOpen} onOpenChange={setSalaryOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Salário de {monthLabel}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Informe o valor líquido recebido neste mês. A &quot;Sobra&quot; será calculada automaticamente.
+          </p>
+          <div className="space-y-3 pt-1">
+            <div className="space-y-1.5">
+              <Label>Valor líquido recebido (R$)</Label>
+              <Input
+                type="number"
+                placeholder="Ex: 5000,00"
+                value={salaryInput}
+                onChange={(e) => setSalaryInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveSalary()}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setSalaryOpen(false)}>Cancelar</Button>
+              <Button className="flex-1" onClick={saveSalary}>Salvar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Dialog: Copiar mês anterior ────────────────────────────────────── */}
       <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
