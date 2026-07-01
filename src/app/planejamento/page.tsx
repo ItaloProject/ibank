@@ -367,6 +367,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
                 monthLabel,
                 userName,
+                salary,
               );
             }}>
               <FileDown className="h-3.5 w-3.5" />

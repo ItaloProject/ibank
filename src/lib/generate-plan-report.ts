@@ -28,7 +28,8 @@ export function generatePlanReport(
   groups: ExpenseGroup[],
   items: ExpenseItem[],
   monthLabel: string,
-  userName: string
+  userName: string,
+  salary = 0
 ) {
   const totalFixoPlanned = items.filter(i => i.type === "fixo").reduce((s, i) => s + i.planned, 0);
   const totalFixoActual  = items.filter(i => i.type === "fixo").reduce((s, i) => s + i.actual, 0);
@@ -36,6 +37,9 @@ export function generatePlanReport(
   const totalVarActual   = items.filter(i => i.type === "variavel").reduce((s, i) => s + i.actual, 0);
   const totalPlanned = totalFixoPlanned + totalVarPlanned;
   const totalActual  = totalFixoActual  + totalVarActual;
+  const sobra        = salary - totalActual;
+  const sobraPlanned = salary - totalPlanned;
+  const hasSalary    = salary > 0;
 
   const groupRows = groups.map((group) => {
     const gItems = items.filter(i => i.groupId === group.id);
@@ -93,7 +97,7 @@ export function generatePlanReport(
     `;
   }).join("");
 
-  const overBudget = totalPlanned > 0 && totalActual > totalPlanned;
+  const overBudget = hasSalary ? sobra < 0 : (totalPlanned > 0 && totalActual > totalPlanned);
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -178,10 +182,10 @@ export function generatePlanReport(
       <div class="summary-value">${fmt(totalVarActual)}</div>
       <div class="summary-planned">planejado: ${fmt(totalVarPlanned)}</div>
     </div>
-    <div class="summary-card">
-      <div class="summary-label">Total Geral</div>
-      <div class="summary-value ${overBudget ? "over" : ""}">${fmt(totalActual)}</div>
-      <div class="summary-planned">planejado: ${fmt(totalPlanned)}</div>
+    <div class="summary-card" style="${hasSalary ? `border-color:${overBudget ? "#fca5a5" : "#86efac"};background:${overBudget ? "#fee2e208" : "#dcfce708"}` : ""}">
+      <div class="summary-label" style="color:${hasSalary ? (overBudget ? "#dc2626" : "#16a34a") : "#6b7280"};font-weight:800">${hasSalary ? "Sobra" : "Total Geral"}</div>
+      <div class="summary-value ${overBudget ? "over" : ""}" style="${hasSalary ? `color:${overBudget ? "#dc2626" : "#16a34a"}` : ""}">${hasSalary ? fmt(sobra) : fmt(totalActual)}</div>
+      <div class="summary-planned">${hasSalary ? `planejado: ${fmt(sobraPlanned)}` : `planejado: ${fmt(totalPlanned)}`}</div>
     </div>
   </div>
 
@@ -189,6 +193,10 @@ export function generatePlanReport(
 
   <div class="totals">
     <div class="totals-header">Resumo Geral</div>
+    ${hasSalary ? `
+    <div class="totals-row" style="background:#f0fdf4">
+      <span style="font-weight:700">Salário recebido</span><span style="font-weight:700;color:#16a34a">${fmt(salary)}</span>
+    </div>` : ""}
     <div class="totals-row">
       <span>Total Fixo — Planejado</span><span>${fmt(totalFixoPlanned)}</span>
     </div>
@@ -202,8 +210,8 @@ export function generatePlanReport(
       <span>Total Variável — Real</span><span><strong>${fmt(totalVarActual)}</strong></span>
     </div>
     <div class="totals-final">
-      <span class="label">Total Geral</span>
-      <span class="value">${fmt(totalActual)} <span style="font-size:13px;font-weight:400;color:#6b7280">/ ${fmt(totalPlanned)} planejado</span></span>
+      <span class="label">${hasSalary ? "Sobra" : "Total Geral"}</span>
+      <span class="value" style="color:${hasSalary ? (overBudget ? "#dc2626" : "#16a34a") : (overBudget ? "#dc2626" : "#111")}">${hasSalary ? fmt(sobra) : fmt(totalActual)} <span style="font-size:13px;font-weight:400;color:#6b7280">/ ${hasSalary ? fmt(sobraPlanned) : fmt(totalPlanned)} planejado</span></span>
     </div>
   </div>
 
