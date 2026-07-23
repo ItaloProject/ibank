@@ -102,7 +102,11 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
   const loadGroups = useCallback(async () => {
     const res = await fetch(`/api/plan-groups?user=${userId}`);
-    const data: ExpenseGroup[] = await res.json();
+    const data = await res.json();
+    if (!Array.isArray(data)) {
+      setGroups([]);
+      return;
+    }
     if (data.length === 0) {
       // Cria grupos padrão na primeira vez
       const created = await Promise.all(
@@ -114,7 +118,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           }).then((r) => r.json())
         )
       );
-      setGroups(created);
+      setGroups(created.filter((g): g is ExpenseGroup => Boolean(g?.id)));
     } else {
       setGroups(data);
     }

@@ -9,6 +9,7 @@ import {
   BarChart3,
   Wallet,
   CalendarRange,
+  ArrowLeftRight,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/investimentos", label: "Investimentos", icon: TrendingUp },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/planejamento", label: "Planejamento", icon: CalendarRange },
+  { href: "/entrada-saida", label: "Entra/Saída", icon: ArrowLeftRight },
 ];
 
 interface SidebarProps {
