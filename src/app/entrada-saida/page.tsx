@@ -195,11 +195,11 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Entra/Saída</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Entra/Saída</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Controle entradas, saídas e meta financeira</p>
         </div>
         <button
@@ -276,7 +276,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
 
       {/* Valor guardado */}
       <div
-        className="flex items-center justify-between rounded-xl border px-5 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+        className="flex flex-col gap-2 rounded-xl border px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors sm:flex-row sm:items-center sm:justify-between sm:px-5"
         onClick={() => { setSavedInput(savedAmount > 0 ? String(savedAmount) : ""); setSavedOpen(true); }}
       >
         <div className="flex items-center gap-2.5">
@@ -322,7 +322,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
                 Progresso com base no valor guardado: <strong className="text-foreground">{formatCurrency(savedAmount)}</strong>
               </p>
               <Progress value={metaProgress} className="h-2 mb-2" />
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                 <span>{metaProgress.toFixed(0)}% da meta</span>
                 {metaAtingida ? (
                   <span className="text-green-600 font-medium flex items-center gap-1">

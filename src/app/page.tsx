@@ -99,9 +99,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground capitalize">{monthLabel}</p>
       </div>
 

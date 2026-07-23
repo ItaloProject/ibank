@@ -133,10 +133,10 @@ export default function RelatoriosPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between" data-no-print>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between" data-no-print>
         <div>
-          <h1 className="text-3xl font-bold">Relatórios</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Relatórios</h1>
           <p className="text-muted-foreground">Análise dos últimos {period} meses</p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -204,7 +204,7 @@ export default function RelatoriosPage() {
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={monthlySpend}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} interval="preserveStartEnd" angle={-25} textAnchor="end" height={50} />
                 <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                 <Tooltip formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)} />
                 <Bar dataKey="total" fill="#ef4444" radius={[4, 4, 0, 0]} name="Gastos" />
@@ -246,7 +246,7 @@ export default function RelatoriosPage() {
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={monthlyComparison}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="mes" tick={{ fontSize: 10 }} interval="preserveStartEnd" angle={-25} textAnchor="end" height={50} />
               <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
               <Tooltip formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)} />
               <Legend />

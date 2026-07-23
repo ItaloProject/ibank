@@ -325,14 +325,14 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Planejamento</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Planejamento</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Organize seus gastos por grupo</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* User switcher */}
           <button
             onClick={switchUser}
@@ -398,7 +398,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
       {/* Salário */}
       <div
-        className="flex items-center justify-between rounded-xl border px-5 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+        className="flex flex-col gap-2 rounded-xl border px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors sm:flex-row sm:items-center sm:justify-between sm:px-5"
         onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
       >
         <div className="flex items-center gap-2.5">
@@ -416,7 +416,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center gap-2 mb-1">
@@ -479,7 +479,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             return (
               <Card key={group.id} className="overflow-hidden">
                 <div
-                  className="flex items-center justify-between px-5 py-4 cursor-pointer select-none hover:bg-muted/30 transition-colors"
+                  className="flex flex-col gap-3 px-4 py-4 cursor-pointer select-none hover:bg-muted/30 transition-colors sm:flex-row sm:items-center sm:justify-between sm:px-5"
                   onClick={() => toggleCollapse(group.id)}
                 >
                   <div className="flex items-center gap-3">
@@ -489,7 +489,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                       {groupItems.length} {groupItems.length === 1 ? "item" : "itens"}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                     <div className="text-right">
                       <p className={`text-sm font-semibold ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</p>
                       {gPlanned > 0 && <p className="text-xs text-muted-foreground">/ {fmt(gPlanned)}</p>}
@@ -510,7 +510,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 {!isCollapsed && (
                   <CardContent className="px-5 pb-4 pt-0">
                     {groupItems.length > 0 && (
-                      <div className="grid grid-cols-[1fr_80px_110px_110px_72px] gap-2 text-xs text-muted-foreground uppercase tracking-wide mb-2 px-1">
+                      <div className="hidden sm:grid grid-cols-[1fr_80px_110px_110px_72px] gap-2 text-xs text-muted-foreground uppercase tracking-wide mb-2 px-1">
                         <span>Descrição</span><span>Tipo</span>
                         <span className="text-right">Planejado</span>
                         <span className="text-right">Real</span>
@@ -518,47 +518,91 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                       </div>
                     )}
 
-                    <div className="space-y-1">
+                    <div className="space-y-2 sm:space-y-1">
                       {groupItems.length === 0 ? (
                         <p className="text-sm text-muted-foreground py-2 px-1">
                           Nenhum item em {monthLabel}. Clique em &quot;Adicionar&quot; para começar.
                         </p>
                       ) : (
                         groupItems.map((item) => (
-                          <div key={item.id}
-                            className="grid grid-cols-[1fr_80px_110px_110px_72px] gap-2 items-center py-1.5 px-1 rounded-lg hover:bg-muted/40 group/row">
-                            <div className="flex items-center gap-2">
-                              {item.type === "fixo"
-                                ? <TrendingDown className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                                : <TrendingUp className="h-3.5 w-3.5 text-orange-400 shrink-0" />}
-                              <span className="text-sm font-medium cursor-pointer hover:underline"
-                                onClick={() => openEditItem(item)}>
-                                {item.name}
-                              </span>
+                          <div key={item.id}>
+                            {/* Mobile layout */}
+                            <div className="rounded-lg border p-3 space-y-2 sm:hidden">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {item.type === "fixo"
+                                    ? <TrendingDown className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                                    : <TrendingUp className="h-3.5 w-3.5 text-orange-400 shrink-0" />}
+                                  <span className="text-sm font-medium cursor-pointer hover:underline"
+                                    onClick={() => openEditItem(item)}>
+                                    {item.name}
+                                  </span>
+                                </div>
+                                <div className="flex gap-0.5 shrink-0">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditItem(item)}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                    onClick={() => deleteItem(item.id)}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <Badge className={`text-xs px-2 py-0 border ${item.type === "fixo" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-orange-100 text-orange-700 border-orange-200"}`}>
+                                  {item.type === "fixo" ? "Fixo" : "Variável"}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  Planejado: {item.planned > 0 ? fmt(item.planned) : "—"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <Label className="text-xs text-muted-foreground">Real</Label>
+                                <Input
+                                  type="number"
+                                  className="h-9 text-sm text-right w-32"
+                                  defaultValue={item.actual || ""}
+                                  placeholder="0,00"
+                                  onBlur={(e) => updateActual(item, e.target.value)}
+                                />
+                              </div>
                             </div>
-                            <Badge className={`text-xs w-fit px-2 py-0 border ${item.type === "fixo" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-orange-100 text-orange-700 border-orange-200"}`}>
-                              {item.type === "fixo" ? "Fixo" : "Variável"}
-                            </Badge>
-                            <p className="text-sm text-right text-muted-foreground">
-                              {item.planned > 0 ? fmt(item.planned) : "—"}
-                            </p>
-                            <div className="flex justify-end">
-                              <Input
-                                type="number"
-                                className="h-7 text-xs text-right w-28"
-                                defaultValue={item.actual || ""}
-                                placeholder="0,00"
-                                onBlur={(e) => updateActual(item, e.target.value)}
-                              />
-                            </div>
-                            <div className="flex justify-end gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditItem(item)}>
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                onClick={() => deleteItem(item.id)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+
+                            {/* Desktop layout */}
+                            <div className="hidden sm:grid grid-cols-[1fr_80px_110px_110px_72px] gap-2 items-center py-1.5 px-1 rounded-lg hover:bg-muted/40 group/row">
+                              <div className="flex items-center gap-2">
+                                {item.type === "fixo"
+                                  ? <TrendingDown className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                                  : <TrendingUp className="h-3.5 w-3.5 text-orange-400 shrink-0" />}
+                                <span className="text-sm font-medium cursor-pointer hover:underline"
+                                  onClick={() => openEditItem(item)}>
+                                  {item.name}
+                                </span>
+                              </div>
+                              <Badge className={`text-xs w-fit px-2 py-0 border ${item.type === "fixo" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-orange-100 text-orange-700 border-orange-200"}`}>
+                                {item.type === "fixo" ? "Fixo" : "Variável"}
+                              </Badge>
+                              <p className="text-sm text-right text-muted-foreground">
+                                {item.planned > 0 ? fmt(item.planned) : "—"}
+                              </p>
+                              <div className="flex justify-end">
+                                <Input
+                                  type="number"
+                                  className="h-7 text-xs text-right w-28"
+                                  defaultValue={item.actual || ""}
+                                  placeholder="0,00"
+                                  onBlur={(e) => updateActual(item, e.target.value)}
+                                />
+                              </div>
+                              <div className="flex justify-end gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditItem(item)}>
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                  onClick={() => deleteItem(item.id)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ))
@@ -566,12 +610,22 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     </div>
 
                     {groupItems.length > 0 && (
-                      <div className="grid grid-cols-[1fr_80px_110px_110px_72px] gap-2 mt-2 pt-2 border-t px-1">
+                      <div className="hidden sm:grid grid-cols-[1fr_80px_110px_110px_72px] gap-2 mt-2 pt-2 border-t px-1">
                         <span className="text-xs font-semibold text-muted-foreground uppercase">Subtotal</span>
                         <span />
                         <span className="text-xs font-semibold text-right text-muted-foreground">{fmt(gPlanned)}</span>
                         <span className={`text-xs font-bold text-right ${over ? "text-destructive" : "text-foreground"}`}>{fmt(gActual)}</span>
                         <span />
+                      </div>
+                    )}
+
+                    {groupItems.length > 0 && (
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t px-1 sm:hidden">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase">Subtotal</span>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Planejado: {fmt(gPlanned)}</p>
+                          <p className={`text-sm font-bold ${over ? "text-destructive" : "text-foreground"}`}>Real: {fmt(gActual)}</p>
+                        </div>
                       </div>
                     )}
 
@@ -708,7 +762,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Valor planejado (R$)</Label>
                 <Input type="number" placeholder="0,00" value={itemForm.planned}

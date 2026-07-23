@@ -156,13 +156,13 @@ export default function InvestimentosPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Investimentos</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Investimentos</h1>
           <p className="text-muted-foreground">Poupança e aplicações financeiras</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Dialog open={accOpen} onOpenChange={setAccOpen}>
             <DialogTrigger asChild>
               <Button variant="outline"><TrendingUp className="h-4 w-4" />Nova conta</Button>
@@ -298,7 +298,7 @@ export default function InvestimentosPage() {
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" angle={-25} textAnchor="end" height={50} />
                     <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)} />
                     <Area type="monotone" dataKey="saldo" stroke="hsl(var(--primary))"

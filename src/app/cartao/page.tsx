@@ -161,10 +161,10 @@ export default function CartaoPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Cartão de Crédito</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Cartão de Crédito</h1>
           <div className="flex items-center gap-2 mt-1">
             <Button variant="ghost" size="icon" className="h-7 w-7"
               onClick={() => setCurrentMonth((m) => subMonths(m, 1))}>
@@ -179,7 +179,7 @@ export default function CartaoPage() {
             </Button>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {activeCard && cardTransactions.length > 0 && (
             <Button variant="outline" onClick={() =>
               generateMonthReport(cardTransactions, activeCard, monthLabel)
@@ -239,7 +239,7 @@ export default function CartaoPage() {
                   <Input type="number" placeholder="5000" value={cardForm.limit}
                     onChange={(e) => setCardForm({ ...cardForm, limit: e.target.value })} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>Dia de fechamento</Label>
                     <Input type="number" min={1} max={31} value={cardForm.closing_day}
@@ -277,7 +277,7 @@ export default function CartaoPage() {
                   <Input placeholder="Ex: Mercado" value={txForm.description}
                     onChange={(e) => setTxForm({ ...txForm, description: e.target.value })} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>Valor total (R$)</Label>
                     <Input type="number" placeholder="0.00" value={txForm.amount}

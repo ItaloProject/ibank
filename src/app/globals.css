@@ -44,8 +44,14 @@
   * {
     @apply border-border;
   }
-  body {
+  html, body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  main {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
