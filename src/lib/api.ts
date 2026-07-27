@@ -5,6 +5,7 @@ import type {
   InvestmentAccount,
   Investment,
   InvestmentType,
+  StockTrade,
 } from "@/types/database";
 import { getCurrentUser } from "@/lib/user";
 
@@ -43,6 +44,17 @@ function toAccount(r: any): InvestmentAccount {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toInvestment(r: any): Investment {
   return { ...r, amount: Number(r.amount), date: normalizeDate(r.date) };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toStockTrade(r: any): StockTrade {
+  return {
+    ...r,
+    quantity: Number(r.quantity),
+    price_per_share: Number(r.price_per_share),
+    total_amount: Number(r.total_amount),
+    date: normalizeDate(r.date),
+  };
 }
 
 // ─── Cards ────────────────────────────────────────────────────────────────────
@@ -161,4 +173,33 @@ export async function createInvestment(data: {
 
 export async function deleteInvestment(id: string): Promise<void> {
   await fetch(`/api/investments/${id}?user=${uid()}`, { method: "DELETE" });
+}
+
+// ─── Stock Trades ─────────────────────────────────────────────────────────────
+
+export async function getStockTrades(): Promise<StockTrade[]> {
+  const res = await fetch(`/api/stock-trades?user=${uid()}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data.map(toStockTrade) : [];
+}
+
+export async function createStockTrade(data: {
+  ticker: string;
+  type?: "compra" | "venda";
+  quantity: number;
+  price_per_share: number;
+  total_amount: number;
+  notes?: string;
+  date: string;
+}): Promise<StockTrade> {
+  const res = await fetch("/api/stock-trades", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...data, user_id: uid() }),
+  });
+  return toStockTrade(await res.json());
+}
+
+export async function deleteStockTrade(id: string): Promise<void> {
+  await fetch(`/api/stock-trades/${id}`, { method: "DELETE" });
 }

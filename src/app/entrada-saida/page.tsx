@@ -17,10 +17,9 @@ import {
 } from "@/components/ui/dialog";
 import {
   Plus, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle, Wallet,
-  Target, ChevronLeft, ChevronRight, Loader2, LogOut, TrendingUp, PiggyBank,
+  Target, Loader2, LogOut, TrendingUp, PiggyBank,
 } from "lucide-react";
-import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { format } from "date-fns";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { USERS } from "@/lib/user";
 
@@ -51,7 +50,6 @@ export default function EntradaSaidaPage() {
 function EntradaSaidaContent({ userId }: { userId: string }) {
   const { switchUser } = useUser();
   const currentUser = USERS.find((u) => u.id === userId)!;
-  const [currentMonth, setCurrentMonth] = useState(() => format(startOfMonth(new Date()), "yyyy-MM"));
   const [flows, setFlows] = useState<CashFlow[]>([]);
   const [goal, setGoal] = useState(0);
   const [savedAmount, setSavedAmount] = useState(0);
@@ -70,12 +68,10 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const [goalInput, setGoalInput] = useState("");
   const [savedInput, setSavedInput] = useState("");
 
-  const monthLabel = format(parseISO(currentMonth + "-01"), "MMMM yyyy", { locale: ptBR });
-
-  const loadData = useCallback(async (month: string) => {
+  const loadData = useCallback(async () => {
     const [flowsRes, goalRes] = await Promise.all([
-      fetch(`/api/cash-flows?user=${userId}&month=${month}`),
-      fetch(`/api/savings-goals?user=${userId}&month=${month}`),
+      fetch(`/api/cash-flows?user=${userId}`),
+      fetch(`/api/savings-goals?user=${userId}`),
     ]);
     const flowsData = await flowsRes.json();
     const goalData = await goalRes.json();
@@ -90,8 +86,8 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
 
   useEffect(() => {
     setLoading(true);
-    loadData(currentMonth).finally(() => setLoading(false));
-  }, [currentMonth, loadData]);
+    loadData().finally(() => setLoading(false));
+  }, [loadData]);
 
   const entradas = flows.filter((f) => f.type === "entrada");
   const saidas = flows.filter((f) => f.type === "saida");
@@ -101,14 +97,6 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const faltaParaMeta = goal > savedAmount ? goal - savedAmount : 0;
   const metaProgress = goal > 0 ? Math.min(Math.max((savedAmount / goal) * 100, 0), 100) : 0;
   const metaAtingida = goal > 0 && savedAmount >= goal;
-
-  function goToPrev() {
-    setCurrentMonth((m) => format(subMonths(parseISO(m + "-01"), 1), "yyyy-MM"));
-  }
-
-  function goToNext() {
-    setCurrentMonth((m) => format(addMonths(parseISO(m + "-01"), 1), "yyyy-MM"));
-  }
 
   function openNew(type: "entrada" | "saida") {
     setEditing(null);
@@ -136,7 +124,6 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
     if (!form.description.trim() || !form.amount) return;
     const body = {
       user_id: userId,
-      month: currentMonth,
       description: form.description.trim(),
       type: form.type,
       amount: parseFloat(form.amount) || 0,
@@ -155,7 +142,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
         body: JSON.stringify(body),
       });
     }
-    await loadData(currentMonth);
+    await loadData();
     setEntryOpen(false);
   }
 
@@ -169,7 +156,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
     await fetch("/api/savings-goals", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, month: currentMonth, goal_amount: value, saved_amount: savedAmount }),
+      body: JSON.stringify({ user_id: userId, goal_amount: value, saved_amount: savedAmount }),
     });
     setGoal(value);
     setGoalOpen(false);
@@ -180,7 +167,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
     await fetch("/api/savings-goals", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, month: currentMonth, goal_amount: goal, saved_amount: value }),
+      body: JSON.stringify({ user_id: userId, goal_amount: goal, saved_amount: value }),
     });
     setSavedAmount(value);
     setSavedOpen(false);
@@ -200,7 +187,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Entra/Saída</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Controle entradas, saídas e meta financeira</p>
+          <p className="text-muted-foreground text-sm mt-0.5">Visão geral de entradas, saídas e meta financeira</p>
         </div>
         <button
           onClick={switchUser}
@@ -223,17 +210,6 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
           </div>
           <LogOut className="h-3.5 w-3.5 ml-1 opacity-40 group-hover:opacity-70 transition-opacity" />
         </button>
-      </div>
-
-      {/* Month navigation */}
-      <div className="flex items-center justify-center gap-4">
-        <Button variant="ghost" size="icon" onClick={goToPrev}>
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <span className="text-lg font-semibold capitalize w-44 text-center">{monthLabel}</span>
-        <Button variant="ghost" size="icon" onClick={goToNext}>
-          <ChevronRight className="h-5 w-5" />
-        </Button>
       </div>
 
       {/* Summary cards */}
@@ -269,7 +245,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
             <p className={`text-2xl font-bold tabular-nums ${saldo >= 0 ? "text-green-600" : "text-destructive"}`}>
               {formatCurrency(saldo)}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">saldo do mês</p>
+            <p className="text-xs text-muted-foreground mt-0.5">saldo geral</p>
           </CardContent>
         </Card>
       </div>
@@ -404,7 +380,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
       <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Meta de {monthLabel}</DialogTitle>
+            <DialogTitle>Meta financeira</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Defina quanto você quer acumular. O progresso considera apenas o valor guardado.

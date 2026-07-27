@@ -5,9 +5,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const { description, type, amount, date } = await request.json();
+    const month = String(date).slice(0, 7);
     const rows = await sql`
       UPDATE cash_flows
-      SET description = ${description}, type = ${type}, amount = ${amount}, date = ${date}
+      SET description = ${description}, type = ${type}, amount = ${amount}, date = ${date}, month = ${month}
       WHERE id = ${id}
       RETURNING *
     `;

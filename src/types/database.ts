@@ -9,6 +9,7 @@ export type TransactionCategory =
   | "outros";
 
 export type InvestmentType = "deposito" | "retirada" | "rendimento";
+export type StockTradeType = "compra" | "venda";
 
 export interface CreditCard {
   id: string;
@@ -45,6 +46,19 @@ export interface Investment {
   type: InvestmentType;
   amount: number;
   description: string;
+  date: string;
+  created_at: string;
+}
+
+export interface StockTrade {
+  id: string;
+  user_id: string;
+  ticker: string;
+  type: StockTradeType;
+  quantity: number;
+  price_per_share: number;
+  total_amount: number;
+  notes: string;
   date: string;
   created_at: string;
 }

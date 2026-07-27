@@ -6,13 +6,18 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const user = searchParams.get("user") ?? "italo";
     const month = searchParams.get("month");
-    if (!month) return NextResponse.json({ error: "month obrigatório" }, { status: 400 });
 
-    const rows = await sql`
-      SELECT * FROM cash_flows
-      WHERE user_id = ${user} AND month = ${month}
-      ORDER BY date DESC, created_at DESC
-    `;
+    const rows = month
+      ? await sql`
+          SELECT * FROM cash_flows
+          WHERE user_id = ${user} AND month = ${month}
+          ORDER BY date DESC, created_at DESC
+        `
+      : await sql`
+          SELECT * FROM cash_flows
+          WHERE user_id = ${user}
+          ORDER BY date DESC, created_at DESC
+        `;
     return NextResponse.json(rows);
   } catch (err) {
     console.error("[GET /api/cash-flows]", err);
@@ -22,7 +27,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { user_id = "italo", month, description, type, amount, date } = await request.json();
+    const { user_id = "italo", description, type, amount, date } = await request.json();
+    const month = String(date).slice(0, 7);
     const rows = await sql`
       INSERT INTO cash_flows (user_id, month, description, type, amount, date)
       VALUES (${user_id}, ${month}, ${description}, ${type}, ${amount ?? 0}, ${date})
