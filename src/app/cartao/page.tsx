@@ -519,11 +519,13 @@ export default function CartaoPage() {
                     {/* Saldo anterior — clicável */}
                     <div
                       className="rounded-lg border p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => { setSaldoInput(saldoAnterior > 0 ? String(saldoAnterior) : ""); setSaldoOpen(true); }}
+                      onClick={() => { setSaldoInput(saldoAnterior !== 0 ? String(saldoAnterior) : ""); setSaldoOpen(true); }}
                     >
                       <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Saldo anterior</p>
                       <div className="flex items-center gap-2">
-                        <p className="text-xl font-bold tabular-nums">{saldoAnterior > 0 ? fmt(saldoAnterior) : "—"}</p>
+                        <p className={`text-xl font-bold tabular-nums ${saldoAnterior < 0 ? "text-green-600" : ""}`}>
+                          {saldoAnterior !== 0 ? (saldoAnterior < 0 ? `crédito ${fmt(Math.abs(saldoAnterior))}` : fmt(saldoAnterior)) : "—"}
+                        </p>
                         <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
                     </div>
@@ -551,12 +553,14 @@ export default function CartaoPage() {
                   <Dialog open={saldoOpen} onOpenChange={setSaldoOpen}>
                     <DialogContent className="max-w-sm">
                       <DialogHeader><DialogTitle>Saldo anterior — {cycleLabel(selectedCycle)}</DialogTitle></DialogHeader>
-                      <p className="text-sm text-muted-foreground">
-                        Informe o valor da fatura anterior que não foi pago integralmente (disponível no resumo da fatura Nubank).
-                      </p>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <p>Valor exibido no resumo da fatura Nubank:</p>
+                        <p className="text-xs">• <span className="text-destructive font-medium">Positivo</span> → dívida que veio da fatura anterior</p>
+                        <p className="text-xs">• <span className="text-green-600 font-medium">Negativo (ex: -207,90)</span> → crédito por ter pago a mais no mês anterior</p>
+                      </div>
                       <div className="space-y-3 pt-1">
                         <div className="space-y-1.5">
-                          <Label>Valor (R$)</Label>
+                          <Label>Valor (R$) — use negativo para crédito</Label>
                           <Input type="number" placeholder="0,00" value={saldoInput}
                             onChange={(e) => setSaldoInput(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && saveSaldoAnterior()} autoFocus />

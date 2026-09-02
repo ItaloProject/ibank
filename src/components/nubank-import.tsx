@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { parseNubankCSV, type NubankRow } from "@/lib/nubank-csv";
+import { parseNubankCSV, type NubankRow, type ParseNubankResult } from "@/lib/nubank-csv";
 import { createTransactions } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CreditCard } from "@/types/database";
@@ -59,6 +59,7 @@ export function NubankImport({ cards, onImported }: Props) {
   const [loading, setLoading] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
   const [billingCycle, setBillingCycle] = useState<string | null>(null);
+  const [saldoAnteriorCSV, setSaldoAnteriorCSV] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -68,6 +69,7 @@ export function NubankImport({ cards, onImported }: Props) {
     setError("");
     setLoading(false);
     setBillingCycle(null);
+    setSaldoAnteriorCSV(null);
     setImportedCount(0);
     if (fileRef.current) fileRef.current.value = "";
   }
@@ -89,11 +91,13 @@ export function NubankImport({ cards, onImported }: Props) {
     reader.onload = async (ev) => {
       try {
         const content = ev.target?.result as string;
-        const parsed = parseNubankCSV(content);
+        const { rows: parsed, saldoAnterior } = parseNubankCSV(content);
         if (parsed.length === 0) {
           setError("Nenhuma transação encontrada no CSV.");
           return;
         }
+
+        setSaldoAnteriorCSV(saldoAnterior);
 
         setStep("checking");
 
@@ -162,6 +166,12 @@ export function NubankImport({ cards, onImported }: Props) {
         }))
       );
       setImportedCount(toImport.length);
+      // Auto-save saldo anterior from CSV to localStorage
+      if (billingCycle && saldoAnteriorCSV !== null) {
+        try {
+          localStorage.setItem(`ibank_saldo_ant_${selectedCard}_${billingCycle}`, String(saldoAnteriorCSV));
+        } catch { /* ignore */ }
+      }
       setStep("done");
       onImported(billingCycle ?? undefined);
     } catch {
@@ -258,6 +268,13 @@ export function NubankImport({ cards, onImported }: Props) {
                   {purchases.length} compras · {credits.length} crédito{credits.length !== 1 ? "s" : ""} —{" "}
                   <span className="font-medium text-foreground">{toImportCount} serão importados</span>
                 </p>
+                {saldoAnteriorCSV !== null && (
+                  <p className="text-xs font-medium text-blue-600 mt-0.5">
+                    Saldo anterior detectado: {saldoAnteriorCSV > 0
+                      ? `R$ ${saldoAnteriorCSV.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} (dívida anterior)`
+                      : `R$ ${Math.abs(saldoAnteriorCSV).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} de crédito`} — será salvo automaticamente
+                  </p>
+                )}
                 {duplicateCount > 0 && (
                   <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
                     <Copy className="h-3 w-3" />

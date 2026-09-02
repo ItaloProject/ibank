@@ -112,9 +112,15 @@ function parseDate(raw: string): string {
   return raw.trim();
 }
 
-export function parseNubankCSV(content: string): NubankRow[] {
+export interface ParseNubankResult {
+  rows: NubankRow[];
+  /** "Valor pendente do mês anterior" found in the CSV — positive = you owe, negative = credit */
+  saldoAnterior: number | null;
+}
+
+export function parseNubankCSV(content: string): ParseNubankResult {
   const lines = content.trim().split("\n").filter((l) => l.trim());
-  if (lines.length < 2) return [];
+  if (lines.length < 2) return { rows: [], saldoAnterior: null };
 
   const headerCols = parseCSVLine(lines[0]).map((c) => c.toLowerCase());
   const dateIdx   = headerCols.findIndex((c) => c === "date"   || c === "data");
@@ -126,6 +132,7 @@ export function parseNubankCSV(content: string): NubankRow[] {
   }
 
   const rows: NubankRow[] = [];
+  let saldoAnterior: number | null = null;
 
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCSVLine(lines[i]);
@@ -141,14 +148,15 @@ export function parseNubankCSV(content: string): NubankRow[] {
     if (!rawDescription) continue;
 
     // Skip PIX delay fees
-    const isPIXDelayFee = /^(multa|iof|juros) de atraso do pix/i.test(rawDescription);
-    if (isPIXDelayFee) continue;
+    if (/^(multa|iof|juros) de atraso do pix/i.test(rawDescription)) continue;
 
-    // Skip "previous balance" line — treated separately as saldo anterior
-    if (/valor pendente do m[eê]s anterior/i.test(rawDescription)) continue;
+    // Capture "Valor pendente do mês anterior" as saldo anterior instead of skipping
+    if (/valor pendente do m[eê]s anterior/i.test(rawDescription)) {
+      saldoAnterior = amount; // positive = you owe from previous invoice
+      continue;
+    }
 
-    // Skip invoice payments ("Pagamento recebido") — these are payments OF a previous invoice,
-    // not charges on the current one; including them would wrongly reduce the fatura total.
+    // Skip invoice payments — these are payments OF a previous invoice.
     if (/^pagamento\s+recebido/i.test(rawDescription)) continue;
 
     const date = parseDate(cols[dateIdx]);
@@ -169,5 +177,5 @@ export function parseNubankCSV(content: string): NubankRow[] {
     });
   }
 
-  return rows;
+  return { rows, saldoAnterior };
 }
