@@ -8,9 +8,27 @@ export async function GET(request: Request) {
     const start = searchParams.get("start");
     const end = searchParams.get("end");
     const cardId = searchParams.get("card_id");
+    const billingCycle = searchParams.get("billing_cycle");
+    const listCycles = searchParams.get("list_cycles") === "true";
+
+    // Return distinct billing cycles for a card
+    if (listCycles && cardId) {
+      const rows = await sql`
+        SELECT DISTINCT billing_cycle FROM transactions
+        WHERE user_id = ${user} AND credit_card_id = ${cardId} AND billing_cycle IS NOT NULL
+        ORDER BY billing_cycle DESC
+      `;
+      return NextResponse.json(rows.map((r) => r.billing_cycle));
+    }
 
     let rows;
-    if (start && end && cardId) {
+    if (billingCycle && cardId) {
+      rows = await sql`
+        SELECT * FROM transactions
+        WHERE user_id = ${user} AND credit_card_id = ${cardId} AND billing_cycle = ${billingCycle}
+        ORDER BY date DESC, created_at DESC
+      `;
+    } else if (start && end && cardId) {
       rows = await sql`
         SELECT * FROM transactions
         WHERE user_id = ${user} AND credit_card_id = ${cardId} AND date >= ${start} AND date <= ${end}
@@ -47,7 +65,13 @@ export async function DELETE(request: Request) {
 
     if (!cardId) return NextResponse.json({ error: "card_id obrigatório" }, { status: 400 });
 
-    if (start && end) {
+    const billingCycleDelete = searchParams.get("billing_cycle");
+    if (billingCycleDelete) {
+      await sql`
+        DELETE FROM transactions
+        WHERE user_id = ${user} AND credit_card_id = ${cardId} AND billing_cycle = ${billingCycleDelete}
+      `;
+    } else if (start && end) {
       await sql`
         DELETE FROM transactions
         WHERE user_id = ${user} AND credit_card_id = ${cardId} AND date >= ${start} AND date <= ${end}
@@ -73,13 +97,15 @@ export async function POST(request: Request) {
         const r = row as {
           credit_card_id: string; description: string; amount: number; category: string;
           date: string; installments?: number; installment_current?: number; user_id?: string;
+          billing_cycle?: string | null;
         };
         return sql`
           INSERT INTO transactions
-            (credit_card_id, description, amount, category, date, installments, installment_current, user_id)
+            (credit_card_id, description, amount, category, date, installments, installment_current, user_id, billing_cycle)
           VALUES
             (${r.credit_card_id}, ${r.description}, ${r.amount}, ${r.category}, ${r.date},
-             ${r.installments ?? 1}, ${r.installment_current ?? 1}, ${r.user_id ?? "italo"})
+             ${r.installments ?? 1}, ${r.installment_current ?? 1}, ${r.user_id ?? "italo"},
+             ${r.billing_cycle ?? null})
           RETURNING *
         `;
       })

@@ -83,20 +83,29 @@ export async function deleteCard(id: string): Promise<void> {
 // ─── Transactions ─────────────────────────────────────────────────────────────
 
 export async function getTransactions(params?: {
-  start?: string; end?: string; cardId?: string;
+  start?: string; end?: string; cardId?: string; billingCycle?: string;
 }): Promise<Transaction[]> {
   const qs = new URLSearchParams({ user: uid() });
   if (params?.start) qs.set("start", params.start);
   if (params?.end) qs.set("end", params.end);
   if (params?.cardId) qs.set("card_id", params.cardId);
+  if (params?.billingCycle) qs.set("billing_cycle", params.billingCycle);
   const res = await fetch(`/api/transactions?${qs}`);
   const data = await res.json();
   return Array.isArray(data) ? data.map(toTransaction) : [];
 }
 
+export async function getAvailableCycles(cardId: string): Promise<string[]> {
+  const qs = new URLSearchParams({ user: uid(), card_id: cardId, list_cycles: "true" });
+  const res = await fetch(`/api/transactions?${qs}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
 export async function createTransactions(rows: {
   credit_card_id: string; description: string; amount: number;
-  category: TransactionCategory; date: string; installments?: number; installment_current?: number;
+  category: TransactionCategory; date: string; installments?: number;
+  installment_current?: number; billing_cycle?: string | null;
 }[]): Promise<Transaction[]> {
   const res = await fetch("/api/transactions", {
     method: "POST",
@@ -111,10 +120,11 @@ export async function deleteTransaction(id: string): Promise<void> {
   await fetch(`/api/transactions/${id}?user=${uid()}`, { method: "DELETE" });
 }
 
-export async function clearTransactions(cardId: string, start?: string, end?: string): Promise<void> {
+export async function clearTransactions(cardId: string, start?: string, end?: string, billingCycle?: string): Promise<void> {
   const qs = new URLSearchParams({ card_id: cardId, user: uid() });
   if (start) qs.set("start", start);
   if (end) qs.set("end", end);
+  if (billingCycle) qs.set("billing_cycle", billingCycle);
   await fetch(`/api/transactions?${qs}`, { method: "DELETE" });
 }
 

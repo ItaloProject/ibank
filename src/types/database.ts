@@ -24,11 +24,12 @@ export interface Transaction {
   id: string;
   credit_card_id: string;
   description: string;
-  amount: number;
+  amount: number; // negative = pagamento/crédito/estorno
   category: TransactionCategory;
   date: string;
   installments: number;
   installment_current: number;
+  billing_cycle?: string | null; // "YYYY-MM" — ciclo de fatura Nubank
   created_at: string;
 }
 

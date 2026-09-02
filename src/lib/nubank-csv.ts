@@ -3,10 +3,11 @@ import type { TransactionCategory } from "@/types/database";
 export interface NubankRow {
   date: string;
   description: string;
-  amount: number;
+  amount: number; // negative = pagamento recebido / estorno / crédito
   category: TransactionCategory;
   installments: number;
   installment_current: number;
+  isCredit: boolean; // true when amount < 0
 }
 
 const CATEGORY_KEYWORDS: Record<TransactionCategory, string[]> = {
@@ -74,21 +75,15 @@ function detectCategory(description: string): TransactionCategory {
   return "outros";
 }
 
-// Properly handles quoted fields and embedded commas
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
-
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
     } else if (ch === ',' && !inQuotes) {
       result.push(current.trim());
       current = "";
@@ -100,16 +95,11 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-// Returns signed value: negative = credit/payment (should be skipped)
 function parseAmount(raw: string): number {
   const cleaned = raw.replace(/"/g, "").trim();
   const isNegative = cleaned.startsWith("-");
-  // Remove leading minus + optional space
   let num = cleaned.replace(/^-\s*/, "");
-  // Brazilian format: "3.612,23" → thousands dot, decimal comma
-  if (num.includes(",")) {
-    num = num.replace(/\./g, "").replace(",", ".");
-  }
+  if (num.includes(",")) num = num.replace(/\./g, "").replace(",", ".");
   const value = parseFloat(num);
   if (isNaN(value) || value === 0) return 0;
   return isNegative ? -value : value;
@@ -127,7 +117,6 @@ export function parseNubankCSV(content: string): NubankRow[] {
   if (lines.length < 2) return [];
 
   const headerCols = parseCSVLine(lines[0]).map((c) => c.toLowerCase());
-
   const dateIdx   = headerCols.findIndex((c) => c === "date"   || c === "data");
   const titleIdx  = headerCols.findIndex((c) => c === "title"  || c === "descrição" || c === "descricao" || c === "description");
   const amountIdx = headerCols.findIndex((c) => c === "amount" || c === "valor"     || c === "value");
@@ -146,17 +135,20 @@ export function parseNubankCSV(content: string): NubankRow[] {
     if (!rawAmount) continue;
 
     const amount = parseAmount(rawAmount);
-    // Skip payments received (negative), estornos, and zero values
-    if (amount <= 0) continue;
+    if (amount === 0) continue;
 
     const rawDescription = cols[titleIdx];
     if (!rawDescription) continue;
 
-    // Skip entries that are clearly fees/interest on delayed payments (very small amounts)
-    const isAdminFee = /multa|iof|juros.*atraso|por fatura atrasada/i.test(rawDescription) && amount < 5;
-    if (isAdminFee) continue;
+    // Skip tiny individual PIX delay fees (very numerous, < R$5 each)
+    const isPIXDelayFee = /^(multa|iof|juros) de atraso do pix/i.test(rawDescription);
+    if (isPIXDelayFee) continue;
+
+    // Skip "previous balance" line — treated separately as saldo anterior
+    if (/valor pendente do m[eê]s anterior/i.test(rawDescription)) continue;
 
     const date = parseDate(cols[dateIdx]);
+    const isCredit = amount < 0;
 
     const installmentMatch = rawDescription.match(/[Pp]arcela\s+(\d+)\/(\d+)/);
     const installment_current = installmentMatch ? parseInt(installmentMatch[1]) : 1;
@@ -166,9 +158,10 @@ export function parseNubankCSV(content: string): NubankRow[] {
       date,
       description: rawDescription,
       amount,
-      category: detectCategory(rawDescription),
+      category: isCredit ? "outros" : detectCategory(rawDescription),
       installments,
       installment_current,
+      isCredit,
     });
   }
 
