@@ -140,12 +140,16 @@ export function parseNubankCSV(content: string): NubankRow[] {
     const rawDescription = cols[titleIdx];
     if (!rawDescription) continue;
 
-    // Skip tiny individual PIX delay fees (very numerous, < R$5 each)
+    // Skip PIX delay fees
     const isPIXDelayFee = /^(multa|iof|juros) de atraso do pix/i.test(rawDescription);
     if (isPIXDelayFee) continue;
 
     // Skip "previous balance" line — treated separately as saldo anterior
     if (/valor pendente do m[eê]s anterior/i.test(rawDescription)) continue;
+
+    // Skip invoice payments ("Pagamento recebido") — these are payments OF a previous invoice,
+    // not charges on the current one; including them would wrongly reduce the fatura total.
+    if (/^pagamento\s+recebido/i.test(rawDescription)) continue;
 
     const date = parseDate(cols[dateIdx]);
     const isCredit = amount < 0;
