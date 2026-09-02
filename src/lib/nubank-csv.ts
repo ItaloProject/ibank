@@ -12,26 +12,27 @@ export interface NubankRow {
 const CATEGORY_KEYWORDS: Record<TransactionCategory, string[]> = {
   alimentacao: [
     "mercado", "supermercado", "restaurante", "lanche", "pizza", "sushi",
-    "ifood", "rappi", "uber eats", "ubereats", "padaria", "açougue",
+    "ifood", "rappi", "uber eats", "ubereats", "padaria", "açougue", "acougue",
     "hortifruti", "burguer", "burger", "mc donalds", "mcdonalds", "subway",
     "bk ", "bob's", "giraffas", "outback", "spoleto", "coxinha", "empada",
     "sorveteria", "sorvete", "acai", "açaí", "pão", "pao de acucar",
     "carrefour", "extra ", "bistek", "condor", "angeloni", "atacadão",
     "atacado", "oba hortifruti", "santa clara", "churrascaria", "delivery",
+    "cantinho", "temperos", "galeteria", "bistro", "magazine",
   ],
   transporte: [
     "uber", "99 ", "taxi", "táxi", "ônibus", "metro ", "metrô", "combustível",
     "posto ", "shell", "petrobras", "ipiranga", "estacionamento", "sem parar",
     "veloe", "move mais", "bilhete único", "bilhete unico", "rodoviaria",
     "passagem", "brt", "trem", "latam", "gol ", "azul ", "tap ", "wamos",
-    "localiza", "movida", "unidas", "hertz", "avis",
+    "localiza", "movida", "unidas", "hertz", "avis", "petrollima",
   ],
   saude: [
     "farmácia", "farmacia", "drogaria", "drogasil", "ultrafarma", "panvel",
     "hospital", "clínica", "clinica", "médico", "medico", "dentista",
     "psicólogo", "psicologo", "laboratório", "laboratorio", "exame",
     "consulta", "plano de saude", "unimed", "amil", "bradesco saude",
-    "sulamerica", "hapvida", "notredame", "optica", "óptica",
+    "sulamerica", "hapvida", "notredame", "optica", "óptica", "skyfit", "suhai",
   ],
   lazer: [
     "netflix", "spotify", "amazon prime", "disney", "hbo", "globoplay",
@@ -40,6 +41,7 @@ const CATEGORY_KEYWORDS: Record<TransactionCategory, string[]> = {
     "viagem", "hotel", "airbnb", "booking", "trivago", "decolar",
     "jogo", "game ", "clube", "academia", "smartfit", "bluefit",
     "ticket", "ingresso", "show", "teatro", "parque", "zoo",
+    "arena", "sunset beach", "elevenlabs", "gamers",
   ],
   educacao: [
     "escola", "faculdade", "universidade", "curso", "udemy", "coursera",
@@ -52,7 +54,7 @@ const CATEGORY_KEYWORDS: Record<TransactionCategory, string[]> = {
     "cemig", "light ", "enel ", "enel energia", "energisa", "cpfl",
     "gás", "gas natural", "comgas", "claro ", "vivo ", "oi ", "tim ",
     "net ", "internet", "sky ", "direct tv", "portão", "portao",
-    "imobiliaria", "imobiliária", "corretor",
+    "imobiliaria", "imobiliária", "corretor", "lavanderi",
   ],
   vestuario: [
     "roupa", "sapato", "calçado", "calcado", "renner", "c&a", "zara",
@@ -72,13 +74,48 @@ function detectCategory(description: string): TransactionCategory {
   return "outros";
 }
 
+// Properly handles quoted fields and embedded commas
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+// Returns signed value: negative = credit/payment (should be skipped)
 function parseAmount(raw: string): number {
-  // Handle both "150.00" and "150,00" and "-150,00"
-  return Math.abs(parseFloat(raw.replace(",", ".")));
+  const cleaned = raw.replace(/"/g, "").trim();
+  const isNegative = cleaned.startsWith("-");
+  // Remove leading minus + optional space
+  let num = cleaned.replace(/^-\s*/, "");
+  // Brazilian format: "3.612,23" → thousands dot, decimal comma
+  if (num.includes(",")) {
+    num = num.replace(/\./g, "").replace(",", ".");
+  }
+  const value = parseFloat(num);
+  if (isNaN(value) || value === 0) return 0;
+  return isNegative ? -value : value;
 }
 
 function parseDate(raw: string): string {
-  // YYYY-MM-DD → ok; DD/MM/YYYY → convert
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) return raw.trim();
   const parts = raw.trim().split("/");
   if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
@@ -89,43 +126,41 @@ export function parseNubankCSV(content: string): NubankRow[] {
   const lines = content.trim().split("\n").filter((l) => l.trim());
   if (lines.length < 2) return [];
 
-  const header = lines[0].toLowerCase().replace(/"/g, "");
-  const columns = header.split(",").map((c) => c.trim());
+  const headerCols = parseCSVLine(lines[0]).map((c) => c.toLowerCase());
 
-  // Map column names to indexes (supports pt-BR and en headers)
-  const dateIdx = columns.findIndex((c) => c === "date" || c === "data");
-  const titleIdx = columns.findIndex(
-    (c) => c === "title" || c === "descrição" || c === "descricao" || c === "description"
-  );
-  const amountIdx = columns.findIndex(
-    (c) => c === "amount" || c === "valor" || c === "value"
-  );
+  const dateIdx   = headerCols.findIndex((c) => c === "date"   || c === "data");
+  const titleIdx  = headerCols.findIndex((c) => c === "title"  || c === "descrição" || c === "descricao" || c === "description");
+  const amountIdx = headerCols.findIndex((c) => c === "amount" || c === "valor"     || c === "value");
 
   if (dateIdx === -1 || titleIdx === -1 || amountIdx === -1) {
-    throw new Error(
-      `Formato de CSV não reconhecido. Colunas encontradas: ${columns.join(", ")}`
-    );
+    throw new Error(`Formato de CSV não reconhecido. Colunas encontradas: ${headerCols.join(", ")}`);
   }
 
   const rows: NubankRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.replace(/"/g, "").trim());
+    const cols = parseCSVLine(lines[i]);
     if (cols.length < 3) continue;
 
     const rawAmount = cols[amountIdx];
     if (!rawAmount) continue;
 
     const amount = parseAmount(rawAmount);
-    if (amount <= 0) continue; // skip payments/credits
+    // Skip payments received (negative), estornos, and zero values
+    if (amount <= 0) continue;
 
     const rawDescription = cols[titleIdx];
+    if (!rawDescription) continue;
+
+    // Skip entries that are clearly fees/interest on delayed payments (very small amounts)
+    const isAdminFee = /multa|iof|juros.*atraso|por fatura atrasada/i.test(rawDescription) && amount < 5;
+    if (isAdminFee) continue;
+
     const date = parseDate(cols[dateIdx]);
 
-    // Extrai "Parcela X/Y" da descrição (case-insensitive, com ou sem acento)
     const installmentMatch = rawDescription.match(/[Pp]arcela\s+(\d+)\/(\d+)/);
     const installment_current = installmentMatch ? parseInt(installmentMatch[1]) : 1;
-    const installments = installmentMatch ? parseInt(installmentMatch[2]) : 1;
+    const installments        = installmentMatch ? parseInt(installmentMatch[2]) : 1;
 
     rows.push({
       date,

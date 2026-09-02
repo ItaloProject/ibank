@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, FileText, Check, X, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, FileText, Check, X, AlertCircle, Loader2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -13,6 +13,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CreditCard } from "@/types/database";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getCurrentUser } from "@/lib/user";
 
 const CATEGORY_LABELS: Record<string, string> = {
   alimentacao: "Alimentação", transporte: "Transporte", saude: "Saúde",
@@ -32,17 +33,27 @@ interface Props {
   onImported: (firstDate?: string) => void;
 }
 
-type Step = "select-file" | "preview" | "done";
+type Step = "select-file" | "checking" | "preview" | "done";
+
+interface ParsedRow extends NubankRow {
+  isDuplicate: boolean;
+}
+
+// Key used to detect duplicates: date + description + amount rounded to cents
+function rowKey(date: string, description: string, amount: number) {
+  return `${date}|${description.toLowerCase().trim()}|${Math.round(amount * 100)}`;
+}
 
 export function NubankImport({ cards, onImported }: Props) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("select-file");
   const [selectedCard, setSelectedCard] = useState(cards[0]?.id ?? "");
-  const [rows, setRows] = useState<NubankRow[]>([]);
+  const [rows, setRows] = useState<ParsedRow[]>([]);
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
   const [filenameMonth, setFilenameMonth] = useState<string | undefined>();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -53,6 +64,8 @@ export function NubankImport({ cards, onImported }: Props) {
     setError("");
     setLoading(false);
     setFilenameMonth(undefined);
+    setImportedCount(0);
+    setSkippedCount(0);
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -61,17 +74,17 @@ export function NubankImport({ cards, onImported }: Props) {
     setOpen(v);
   }
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setError("");
 
-    // Extrai YYYY-MM do nome: Nubank_2026-07-07.csv → "2026-07-01"
     const match = file.name.match(/(\d{4})-(\d{2})/);
-    if (match) setFilenameMonth(`${match[1]}-${match[2]}-01`);
+    const fMonth = match ? `${match[1]}-${match[2]}-01` : undefined;
+    if (fMonth) setFilenameMonth(fMonth);
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const content = ev.target?.result as string;
         const parsed = parseNubankCSV(content);
@@ -79,11 +92,43 @@ export function NubankImport({ cards, onImported }: Props) {
           setError("Nenhuma transação encontrada no CSV. Verifique se é um extrato do Nubank.");
           return;
         }
-        setRows(parsed);
-        setExcluded(new Set());
+
+        setStep("checking");
+
+        // Fetch existing transactions for this card to detect duplicates
+        let existingKeys = new Set<string>();
+        try {
+          const minDate = parsed.reduce((m, r) => r.date < m ? r.date : m, parsed[0].date);
+          const maxDate = parsed.reduce((m, r) => r.date > m ? r.date : m, parsed[0].date);
+          const user = getCurrentUser();
+          const res = await fetch(
+            `/api/transactions?user=${user}&card_id=${selectedCard}&start=${minDate}&end=${maxDate}`
+          );
+          if (res.ok) {
+            const existing: { date: string; description: string; amount: number }[] = await res.json();
+            existingKeys = new Set(
+              existing.map((t) => rowKey(t.date, t.description, Number(t.amount)))
+            );
+          }
+        } catch {
+          // If fetch fails, proceed without dedup
+        }
+
+        const parsedRows: ParsedRow[] = parsed.map((r) => ({
+          ...r,
+          isDuplicate: existingKeys.has(rowKey(r.date, r.description, r.amount)),
+        }));
+
+        // Pre-exclude duplicates
+        const preExcluded = new Set<number>();
+        parsedRows.forEach((r, i) => { if (r.isDuplicate) preExcluded.add(i); });
+
+        setRows(parsedRows);
+        setExcluded(preExcluded);
         setStep("preview");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao processar o arquivo.");
+        setStep("select-file");
       }
     };
     reader.readAsText(file, "UTF-8");
@@ -115,8 +160,8 @@ export function NubankImport({ cards, onImported }: Props) {
         }))
       );
       setImportedCount(toImport.length);
+      setSkippedCount(excluded.size);
       setStep("done");
-      // Prioriza mês do nome do arquivo; fallback para data da primeira transação
       onImported(filenameMonth ?? toImport[0]?.date);
     } catch {
       setError("Erro ao salvar as transações. Tente novamente.");
@@ -125,6 +170,7 @@ export function NubankImport({ cards, onImported }: Props) {
     }
   }
 
+  const duplicateCount = rows.filter((r) => r.isDuplicate).length;
   const toImportCount = rows.length - excluded.size;
 
   return (
@@ -144,7 +190,6 @@ export function NubankImport({ cards, onImported }: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        {/* Sem cartão cadastrado */}
         {cards.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
             <AlertCircle className="h-10 w-10 text-muted-foreground" />
@@ -167,9 +212,7 @@ export function NubankImport({ cards, onImported }: Props) {
             <div className="space-y-1.5">
               <Label>Cartão de destino</Label>
               <Select value={selectedCard} onValueChange={setSelectedCard}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {cards.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -178,9 +221,7 @@ export function NubankImport({ cards, onImported }: Props) {
               </Select>
             </div>
 
-            <label
-              className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors bg-muted/30 hover:bg-muted/50"
-            >
+            <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors bg-muted/30 hover:bg-muted/50">
               <Upload className="h-8 w-8 text-muted-foreground mb-2" />
               <span className="text-sm font-medium">Clique para selecionar o CSV</span>
               <span className="text-xs text-muted-foreground mt-1">Apenas arquivos .csv</span>
@@ -202,6 +243,14 @@ export function NubankImport({ cards, onImported }: Props) {
           </div>
         )}
 
+        {/* Step: checking duplicates */}
+        {cards.length > 0 && step === "checking" && (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="text-sm">Verificando duplicatas...</p>
+          </div>
+        )}
+
         {/* Step: preview */}
         {cards.length > 0 && step === "preview" && (
           <div className="flex flex-col gap-3 min-h-0">
@@ -212,9 +261,15 @@ export function NubankImport({ cards, onImported }: Props) {
                   <span className="font-medium text-foreground">{toImportCount} serão importadas</span>
                   {excluded.size > 0 && `, ${excluded.size} excluídas`}
                 </p>
+                {duplicateCount > 0 && (
+                  <p className="text-xs text-amber-600 font-medium mt-0.5 flex items-center gap-1">
+                    <Copy className="h-3 w-3" />
+                    {duplicateCount} já importada{duplicateCount !== 1 ? "s" : ""} (pré-desmarcada{duplicateCount !== 1 ? "s" : ""})
+                  </p>
+                )}
                 {filenameMonth && (
                   <p className="text-xs text-blue-600 font-medium mt-0.5">
-                    Mês identificado: {format(new Date(filenameMonth + "T12:00:00"), "MMMM yyyy", { locale: ptBR })}
+                    Mês: {format(new Date(filenameMonth + "T12:00:00"), "MMMM yyyy", { locale: ptBR })}
                   </p>
                 )}
               </div>
@@ -246,6 +301,11 @@ export function NubankImport({ cards, onImported }: Props) {
                       <Badge className={`shrink-0 ${CATEGORY_COLORS[row.category]}`}>
                         {CATEGORY_LABELS[row.category]}
                       </Badge>
+                      {row.isDuplicate && (
+                        <Badge className="shrink-0 bg-amber-100 text-amber-700 border-amber-200 text-[10px]">
+                          já importado
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0 ml-2">
                       <p className="text-sm font-semibold text-destructive">
@@ -282,6 +342,8 @@ export function NubankImport({ cards, onImported }: Props) {
             >
               {loading ? (
                 <><Loader2 className="h-4 w-4 animate-spin" />Importando...</>
+              ) : toImportCount === 0 ? (
+                "Todas já importadas"
               ) : (
                 <>Importar {toImportCount} transação{toImportCount !== 1 ? "ões" : ""}</>
               )}
@@ -299,6 +361,7 @@ export function NubankImport({ cards, onImported }: Props) {
               <p className="text-xl font-semibold">Importação concluída!</p>
               <p className="text-muted-foreground text-sm mt-1">
                 {importedCount} transação{importedCount !== 1 ? "ões importadas" : " importada"} com sucesso.
+                {skippedCount > 0 && ` ${skippedCount} ignorada${skippedCount !== 1 ? "s" : ""}.`}
               </p>
             </div>
             <Button onClick={() => handleClose(false)}>Fechar</Button>
