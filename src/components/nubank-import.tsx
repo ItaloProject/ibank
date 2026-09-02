@@ -1,13 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, FileText, Check, X, AlertCircle, Loader2, Copy, ArrowDownCircle } from "lucide-react";
+import { Upload, FileText, Check, X, AlertCircle, Loader2, Copy, ArrowDownCircle, FileDigit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { parseNubankCSV, type NubankRow, type ParseNubankResult } from "@/lib/nubank-csv";
+import { parseNubankPDF } from "@/lib/nubank-pdf";
 import { createTransactions } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CreditCard } from "@/types/database";
@@ -60,7 +61,9 @@ export function NubankImport({ cards, onImported }: Props) {
   const [importedCount, setImportedCount] = useState(0);
   const [billingCycle, setBillingCycle] = useState<string | null>(null);
   const [saldoAnteriorCSV, setSaldoAnteriorCSV] = useState<number | null>(null);
+  const [pagamentosRecebidosCSV, setPagamentosRecebidosCSV] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const pdfRef = useRef<HTMLInputElement>(null);
 
   function reset() {
     setStep("select-file");
@@ -70,13 +73,50 @@ export function NubankImport({ cards, onImported }: Props) {
     setLoading(false);
     setBillingCycle(null);
     setSaldoAnteriorCSV(null);
+    setPagamentosRecebidosCSV(0);
     setImportedCount(0);
     if (fileRef.current) fileRef.current.value = "";
+    if (pdfRef.current) pdfRef.current.value = "";
   }
 
   function handleClose(v: boolean) {
     if (!v) reset();
     setOpen(v);
+  }
+
+  async function handlePDFFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setLoading(true);
+    try {
+      const summary = await parseNubankPDF(file);
+      const cycle = summary.billingCycle ?? extractCycle(file.name);
+      if (!cycle) {
+        setError("Não foi possível identificar o ciclo de fatura no PDF.");
+        return;
+      }
+      setBillingCycle(cycle);
+      // saldo anterior = fatura anterior - pagamentos recebidos (can be negative = credit)
+      const saldoLiquido = summary.faturaAnterior - summary.pagamentosRecebidos;
+      setSaldoAnteriorCSV(null); // will come from PDF
+      setPagamentosRecebidosCSV(summary.pagamentosRecebidos);
+      // Save to localStorage immediately
+      try {
+        localStorage.setItem(`ibank_fatura_ant_${selectedCard}_${cycle}`, String(summary.faturaAnterior));
+        localStorage.setItem(`ibank_pag_rec_${selectedCard}_${cycle}`, String(summary.pagamentosRecebidos));
+        localStorage.setItem(`ibank_saldo_ant_${selectedCard}_${cycle}`, String(saldoLiquido));
+        localStorage.setItem(`ibank_total_nubank_${selectedCard}_${cycle}`, String(summary.totalAPagar));
+        localStorage.setItem(`ibank_iof_int_${selectedCard}_${cycle}`, String(summary.iofInternacional));
+      } catch { /* ignore */ }
+      setStep("done");
+      setImportedCount(0);
+      onImported(cycle);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao processar o PDF.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -91,13 +131,14 @@ export function NubankImport({ cards, onImported }: Props) {
     reader.onload = async (ev) => {
       try {
         const content = ev.target?.result as string;
-        const { rows: parsed, saldoAnterior } = parseNubankCSV(content);
+        const { rows: parsed, saldoAnterior, pagamentosRecebidos } = parseNubankCSV(content);
         if (parsed.length === 0) {
           setError("Nenhuma transação encontrada no CSV.");
           return;
         }
 
         setSaldoAnteriorCSV(saldoAnterior);
+        setPagamentosRecebidosCSV(pagamentosRecebidos);
 
         setStep("checking");
 
@@ -166,10 +207,15 @@ export function NubankImport({ cards, onImported }: Props) {
         }))
       );
       setImportedCount(toImport.length);
-      // Auto-save saldo anterior from CSV to localStorage
-      if (billingCycle && saldoAnteriorCSV !== null) {
+      // Auto-save saldo anterior and pagamentos from CSV to localStorage
+      if (billingCycle) {
         try {
-          localStorage.setItem(`ibank_saldo_ant_${selectedCard}_${billingCycle}`, String(saldoAnteriorCSV));
+          if (saldoAnteriorCSV !== null) {
+            localStorage.setItem(`ibank_saldo_ant_${selectedCard}_${billingCycle}`, String(saldoAnteriorCSV));
+          }
+          if (pagamentosRecebidosCSV > 0) {
+            localStorage.setItem(`ibank_pag_rec_${selectedCard}_${billingCycle}`, String(pagamentosRecebidosCSV));
+          }
         } catch { /* ignore */ }
       }
       setStep("done");
@@ -219,10 +265,6 @@ export function NubankImport({ cards, onImported }: Props) {
         {/* select-file */}
         {cards.length > 0 && step === "select-file" && (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              No app do Nubank: <strong>Cartão → Ver fatura → Exportar extrato</strong>.
-              Escolha o formato <strong>CSV</strong> e envie abaixo.
-            </p>
             <div className="space-y-1.5">
               <Label>Cartão de destino</Label>
               <Select value={selectedCard} onValueChange={setSelectedCard}>
@@ -232,12 +274,33 @@ export function NubankImport({ cards, onImported }: Props) {
                 </SelectContent>
               </Select>
             </div>
-            <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors bg-muted/30 hover:bg-muted/50">
-              <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-              <span className="text-sm font-medium">Clique para selecionar o CSV</span>
-              <span className="text-xs text-muted-foreground mt-1">Apenas arquivos .csv</span>
-              <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
-            </label>
+
+            {/* PDF import */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Opção 1 — Importar PDF da fatura (recomendado)
+              </p>
+              <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-purple-300 rounded-lg cursor-pointer hover:border-purple-500 transition-colors bg-purple-50/30 hover:bg-purple-50/60">
+                <FileDigit className="h-7 w-7 text-purple-500 mb-1" />
+                <span className="text-sm font-medium text-purple-700">Selecionar PDF da fatura Nubank</span>
+                <span className="text-xs text-muted-foreground mt-0.5">Extrai o resumo e as transações automaticamente</span>
+                <input ref={pdfRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={handlePDFFile} />
+              </label>
+            </div>
+
+            {/* CSV import */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Opção 2 — Importar CSV do extrato
+              </p>
+              <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors bg-muted/30 hover:bg-muted/50">
+                <Upload className="h-7 w-7 text-muted-foreground mb-1" />
+                <span className="text-sm font-medium">Selecionar CSV do extrato Nubank</span>
+                <span className="text-xs text-muted-foreground mt-0.5">No Nubank: Cartão → Ver fatura → Exportar extrato → CSV</span>
+                <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
+              </label>
+            </div>
+
             {error && (
               <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 rounded-lg p-3">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /><p>{error}</p>
@@ -346,9 +409,13 @@ export function NubankImport({ cards, onImported }: Props) {
               <Check className="h-8 w-8 text-green-600" />
             </div>
             <div className="text-center">
-              <p className="text-xl font-semibold">Importação concluída!</p>
+              <p className="text-xl font-semibold">
+                {importedCount === 0 ? "PDF processado!" : "Importação concluída!"}
+              </p>
               <p className="text-muted-foreground text-sm mt-1">
-                {importedCount} lançamento{importedCount !== 1 ? "s importados" : " importado"} com sucesso.
+                {importedCount === 0
+                  ? "Resumo da fatura salvo. Importe o CSV para ver as transações."
+                  : `${importedCount} lançamento${importedCount !== 1 ? "s importados" : " importado"} com sucesso.`}
               </p>
               {cycleLabel && (
                 <p className="text-xs text-purple-600 font-medium mt-1">Fatura {cycleLabel}</p>

@@ -94,10 +94,18 @@ export default function CartaoPage() {
   const [selectedCycle, setSelectedCycle] = useState<string>(currentCycleId());
   const [availableCycles, setAvailableCycles] = useState<string[]>([]);
 
-  // Saldo anterior (fatura view)
+  // Fatura resumo fields (from PDF/CSV localStorage)
+  const [faturaAnterior, setFaturaAnterior] = useState(0);
+  const [pagamentosRecebidos, setPagamentosRecebidos] = useState(0);
+  const [iofInternacional, setIofInternacional] = useState(0);
+  const [totalNubank, setTotalNubank] = useState<number | null>(null);
+
+  // Saldo anterior manual override (fatura view)
   const [saldoAnterior, setSaldoAnterior] = useState(0);
   const [saldoInput, setSaldoInput] = useState("");
   const [saldoOpen, setSaldoOpen] = useState(false);
+  const [faturaAntInput, setFaturaAntInput] = useState("");
+  const [faturaAntOpen, setFaturaAntOpen] = useState(false);
 
   const now = new Date();
   const monthStart = format(startOfMonth(currentMonth), "yyyy-MM-dd");
@@ -119,16 +127,24 @@ export default function CartaoPage() {
     due_day: "10",
   });
 
-  // Load saldo anterior from localStorage whenever card/cycle changes
+  // Load fatura fields from localStorage whenever card/cycle changes
   useEffect(() => {
     if (!selectedCard) return;
-    const key = `ibank_saldo_ant_${selectedCard}_${selectedCycle}`;
     try {
-      const raw = localStorage.getItem(key);
-      const val = raw ? parseFloat(raw) : 0;
-      setSaldoAnterior(isNaN(val) ? 0 : val);
-      setSaldoInput(val > 0 ? String(val) : "");
-    } catch { setSaldoAnterior(0); }
+      const load = (key: string) => {
+        const raw = localStorage.getItem(`ibank_${key}_${selectedCard}_${selectedCycle}`);
+        return raw ? (parseFloat(raw) || 0) : 0;
+      };
+      const saldo = load("saldo_ant");
+      setSaldoAnterior(saldo);
+      setSaldoInput(saldo !== 0 ? String(saldo) : "");
+      setFaturaAnterior(load("fatura_ant"));
+      setFaturaAntInput(String(load("fatura_ant") || ""));
+      setPagamentosRecebidos(load("pag_rec"));
+      setIofInternacional(load("iof_int"));
+      const tn = localStorage.getItem(`ibank_total_nubank_${selectedCard}_${selectedCycle}`);
+      setTotalNubank(tn ? parseFloat(tn) : null);
+    } catch { /* ignore */ }
   }, [selectedCard, selectedCycle]);
 
   function saveSaldoAnterior() {
@@ -140,6 +156,21 @@ export default function CartaoPage() {
       } catch { /* ignore */ }
     }
     setSaldoOpen(false);
+  }
+
+  function saveFaturaAnterior() {
+    const val = parseFloat(faturaAntInput) || 0;
+    setFaturaAnterior(val);
+    // recalculate saldo anterior
+    const newSaldo = val - pagamentosRecebidos;
+    setSaldoAnterior(newSaldo);
+    if (selectedCard) {
+      try {
+        localStorage.setItem(`ibank_fatura_ant_${selectedCard}_${selectedCycle}`, String(val));
+        localStorage.setItem(`ibank_saldo_ant_${selectedCard}_${selectedCycle}`, String(newSaldo));
+      } catch { /* ignore */ }
+    }
+    setFaturaAntOpen(false);
   }
 
   const loadMensal = useCallback(async (cardId: string | null) => {
@@ -251,7 +282,7 @@ export default function CartaoPage() {
   const compras = cardTransactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
   const creditos = cardTransactions.reduce((s, t) => s + (t.amount < 0 ? t.amount : 0), 0); // negative
   const totalFatura = saldoAnterior + compras + creditos;
-  const hasFaturaData = cardTransactions.length > 0;
+  const hasFaturaData = cardTransactions.length > 0 || totalNubank !== null || faturaAnterior > 0;
 
   if (loading) {
     return (
@@ -501,55 +532,113 @@ export default function CartaoPage() {
                 </Card>
               ) : (
                 <>
-                  {/* Fatura breakdown */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <Card>
-                      <CardContent className="pt-4 pb-3">
-                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Compras e encargos</p>
-                        <p className="text-xl font-bold text-destructive tabular-nums">{fmt(compras)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-4 pb-3">
-                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Créditos e pagamentos</p>
-                        <p className="text-xl font-bold text-green-600 tabular-nums">{fmt(Math.abs(creditos))}</p>
-                      </CardContent>
-                    </Card>
+                  {/* RESUMO DA FATURA — Nubank style */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Receipt className="h-4 w-4" />
+                        Resumo da Fatura
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="divide-y">
+                        {/* Fatura anterior — editable */}
+                        <button
+                          className="w-full flex justify-between items-center py-2.5 px-1 -mx-1 hover:bg-muted/30 rounded transition-colors text-left"
+                          onClick={() => { setFaturaAntInput(String(faturaAnterior || "")); setFaturaAntOpen(true); }}
+                        >
+                          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            Fatura anterior <Pencil className="h-3 w-3" />
+                          </span>
+                          <span className="text-sm font-medium tabular-nums">
+                            {faturaAnterior > 0 ? fmt(faturaAnterior) : <span className="text-muted-foreground/50">— informar</span>}
+                          </span>
+                        </button>
 
-                    {/* Saldo anterior — clicável */}
-                    <div
-                      className="rounded-lg border p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => { setSaldoInput(saldoAnterior !== 0 ? String(saldoAnterior) : ""); setSaldoOpen(true); }}
-                    >
-                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Saldo anterior</p>
-                      <div className="flex items-center gap-2">
-                        <p className={`text-xl font-bold tabular-nums ${saldoAnterior < 0 ? "text-green-600" : ""}`}>
-                          {saldoAnterior !== 0 ? (saldoAnterior < 0 ? `crédito ${fmt(Math.abs(saldoAnterior))}` : fmt(saldoAnterior)) : "—"}
-                        </p>
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      </div>
-                    </div>
+                        {/* Pagamento recebido */}
+                        <div className="flex justify-between items-center py-2.5">
+                          <span className="text-sm text-muted-foreground">Pagamento recebido</span>
+                          <span className="text-sm font-medium text-green-600 tabular-nums">
+                            {pagamentosRecebidos > 0 ? `− ${fmt(pagamentosRecebidos)}` : "—"}
+                          </span>
+                        </div>
 
-                    {/* Total a pagar */}
-                    <Card className={`border-2 ${totalFatura > 0 ? "border-destructive/40" : "border-green-300"}`}
-                      style={{ background: totalFatura > 0 ? "linear-gradient(135deg,#fee2e208,transparent)" : "linear-gradient(135deg,#dcfce708,transparent)" }}>
-                      <CardContent className="pt-4 pb-3">
-                        <p className="text-xs font-bold uppercase tracking-wide mb-1"
-                          style={{ color: totalFatura > 0 ? "hsl(var(--destructive))" : "#16a34a" }}>
-                          Total a pagar
-                        </p>
-                        <p className="text-2xl font-bold tabular-nums"
-                          style={{ color: totalFatura > 0 ? "hsl(var(--destructive))" : "#16a34a" }}>
-                          {fmt(totalFatura)}
-                        </p>
-                        {saldoAnterior === 0 && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5">informe o saldo anterior ↑</p>
+                        {/* Saldo do período anterior */}
+                        {(faturaAnterior > 0 || pagamentosRecebidos > 0) && (
+                          <div className="flex justify-between items-center py-2 bg-muted/30 rounded px-2 -mx-2 my-0.5">
+                            <span className="text-xs text-muted-foreground font-medium">= Saldo do período anterior</span>
+                            <span className={`text-sm font-semibold tabular-nums ${saldoAnterior < 0 ? "text-green-600" : "text-destructive"}`}>
+                              {saldoAnterior < 0 ? `crédito de ${fmt(Math.abs(saldoAnterior))}` : fmt(saldoAnterior)}
+                            </span>
+                          </div>
                         )}
-                      </CardContent>
-                    </Card>
-                  </div>
 
-                  {/* Dialog: saldo anterior */}
+                        {/* Total de compras */}
+                        <div className="flex justify-between items-center py-2.5">
+                          <span className="text-sm text-muted-foreground">Total de compras</span>
+                          <span className="text-sm font-medium tabular-nums">
+                            {compras > 0 ? fmt(iofInternacional > 0 ? compras - iofInternacional : compras) : "—"}
+                          </span>
+                        </div>
+
+                        {/* IOF de compras internacionais */}
+                        {iofInternacional > 0 && (
+                          <div className="flex justify-between items-center py-2.5">
+                            <span className="text-sm text-muted-foreground">IOF de compras internacionais</span>
+                            <span className="text-sm font-medium tabular-nums">{fmt(iofInternacional)}</span>
+                          </div>
+                        )}
+
+                        {/* Outros lançamentos (estornos) */}
+                        {creditos < 0 && (
+                          <div className="flex justify-between items-center py-2.5">
+                            <span className="text-sm text-muted-foreground">Outros lançamentos</span>
+                            <span className="text-sm font-medium text-green-600 tabular-nums">− {fmt(Math.abs(creditos))}</span>
+                          </div>
+                        )}
+
+                        {/* Total a pagar */}
+                        <div className="flex justify-between items-center pt-3 pb-0.5 border-t-2 border-foreground/20 mt-1">
+                          <span className="font-bold text-base">Total a pagar</span>
+                          <span className={`text-2xl font-bold tabular-nums ${(totalNubank ?? totalFatura) > 0 ? "text-destructive" : "text-green-600"}`}>
+                            {totalNubank !== null ? fmt(totalNubank) : fmt(totalFatura)}
+                          </span>
+                        </div>
+
+                        {/* Discrepancy note */}
+                        {totalNubank !== null && Math.abs(totalNubank - totalFatura) > 0.5 && (
+                          <p className="text-[10px] text-muted-foreground text-right pt-1">
+                            calculado: {fmt(totalFatura)} · oficial Nubank: {fmt(totalNubank)}
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Dialog: fatura anterior */}
+                  <Dialog open={faturaAntOpen} onOpenChange={setFaturaAntOpen}>
+                    <DialogContent className="max-w-sm">
+                      <DialogHeader><DialogTitle>Fatura anterior — {cycleLabel(selectedCycle)}</DialogTitle></DialogHeader>
+                      <p className="text-sm text-muted-foreground">
+                        Total da fatura do mês anterior (antes de qualquer pagamento).
+                        Disponível no PDF da fatura Nubank em &quot;Resumo da Fatura&quot;.
+                      </p>
+                      <div className="space-y-3 pt-1">
+                        <div className="space-y-1.5">
+                          <Label>Valor (R$)</Label>
+                          <Input type="number" placeholder="0,00" value={faturaAntInput}
+                            onChange={(e) => setFaturaAntInput(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && saveFaturaAnterior()} autoFocus />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" className="flex-1" onClick={() => setFaturaAntOpen(false)}>Cancelar</Button>
+                          <Button className="flex-1" onClick={saveFaturaAnterior}>Salvar</Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* Dialog: saldo anterior (manual override) */}
                   <Dialog open={saldoOpen} onOpenChange={setSaldoOpen}>
                     <DialogContent className="max-w-sm">
                       <DialogHeader><DialogTitle>Saldo anterior — {cycleLabel(selectedCycle)}</DialogTitle></DialogHeader>

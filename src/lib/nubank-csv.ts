@@ -114,13 +114,15 @@ function parseDate(raw: string): string {
 
 export interface ParseNubankResult {
   rows: NubankRow[];
-  /** "Valor pendente do mês anterior" found in the CSV — positive = you owe, negative = credit */
+  /** "Valor pendente do mês anterior" found in the CSV — positive = you owe */
   saldoAnterior: number | null;
+  /** Sum of all "Pagamento recebido" entries (stored as positive) */
+  pagamentosRecebidos: number;
 }
 
 export function parseNubankCSV(content: string): ParseNubankResult {
   const lines = content.trim().split("\n").filter((l) => l.trim());
-  if (lines.length < 2) return { rows: [], saldoAnterior: null };
+  if (lines.length < 2) return { rows: [], saldoAnterior: null, pagamentosRecebidos: 0 };
 
   const headerCols = parseCSVLine(lines[0]).map((c) => c.toLowerCase());
   const dateIdx   = headerCols.findIndex((c) => c === "date"   || c === "data");
@@ -133,6 +135,7 @@ export function parseNubankCSV(content: string): ParseNubankResult {
 
   const rows: NubankRow[] = [];
   let saldoAnterior: number | null = null;
+  let pagamentosRecebidos = 0;
 
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCSVLine(lines[i]);
@@ -156,8 +159,11 @@ export function parseNubankCSV(content: string): ParseNubankResult {
       continue;
     }
 
-    // Skip invoice payments — these are payments OF a previous invoice.
-    if (/^pagamento\s+recebido/i.test(rawDescription)) continue;
+    // Capture invoice payments total (for saldo anterior calculation) then skip from transactions.
+    if (/^pagamento\s+(recebido|em\s+\d)/i.test(rawDescription)) {
+      pagamentosRecebidos += Math.abs(amount);
+      continue;
+    }
 
     const date = parseDate(cols[dateIdx]);
     const isCredit = amount < 0;
@@ -177,5 +183,5 @@ export function parseNubankCSV(content: string): ParseNubankResult {
     });
   }
 
-  return { rows, saldoAnterior };
+  return { rows, saldoAnterior, pagamentosRecebidos };
 }
