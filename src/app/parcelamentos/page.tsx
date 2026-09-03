@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, ChevronUp, ChevronDown, Layers, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown, Layers, CheckCircle2, Circle, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -49,6 +49,15 @@ async function updatePaid(id: string, paid_installments: number): Promise<Plan> 
   return res.json();
 }
 
+async function editPlan(id: string, body: Partial<Plan>): Promise<Plan> {
+  const res = await fetch(`/api/parcelamentos/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
 async function deletePlan(id: string): Promise<void> {
   await fetch(`/api/parcelamentos/${id}`, { method: "DELETE" });
 }
@@ -57,6 +66,7 @@ export default function ParcelamentosPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [form, setForm] = useState({
     description: "",
     total_amount: "",
@@ -76,8 +86,37 @@ export default function ParcelamentosPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  function openEdit(plan: Plan) {
+    setEditingPlan(plan);
+    setForm({
+      description: plan.description,
+      total_amount: String(plan.total_amount),
+      installments: String(plan.installments),
+      paid_installments: String(plan.paid_installments),
+      start_date: plan.start_date ? String(plan.start_date).slice(0, 10) : "",
+    });
+  }
+
+  function closeForm() {
+    setOpen(false);
+    setEditingPlan(null);
+    setForm({ description: "", total_amount: "", installments: "", paid_installments: "0", start_date: "" });
+  }
+
   async function handleCreate() {
     if (!form.description || !form.total_amount || !form.installments) return;
+    if (editingPlan) {
+      const updated = await editPlan(editingPlan.id, {
+        description: form.description,
+        total_amount: parseFloat(form.total_amount),
+        installments: parseInt(form.installments),
+        paid_installments: parseInt(form.paid_installments) || 0,
+        start_date: form.start_date || null,
+      });
+      setPlans((prev) => prev.map((p) => (p.id === editingPlan.id ? updated : p)));
+      closeForm();
+      return;
+    }
     await createPlan({
       description: form.description,
       total_amount: parseFloat(form.total_amount),
@@ -85,8 +124,7 @@ export default function ParcelamentosPage() {
       paid_installments: parseInt(form.paid_installments) || 0,
       start_date: form.start_date || null,
     });
-    setOpen(false);
-    setForm({ description: "", total_amount: "", installments: "", paid_installments: "0", start_date: "" });
+    closeForm();
     load();
   }
 
@@ -129,12 +167,14 @@ export default function ParcelamentosPage() {
           <p className="text-muted-foreground text-sm mt-0.5">Acompanhe suas compras parceladas</p>
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open || !!editingPlan} onOpenChange={(v) => { if (!v) closeForm(); }}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4" /> Novo parcelamento</Button>
+            <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Novo parcelamento</Button>
           </DialogTrigger>
           <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>Adicionar parcelamento</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{editingPlan ? "Editar parcelamento" : "Adicionar parcelamento"}</DialogTitle>
+            </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label>Descrição</Label>
@@ -170,7 +210,9 @@ export default function ParcelamentosPage() {
                   {fmt(parseFloat(form.total_amount) / (parseInt(form.installments) || 1))} / mês
                 </p>
               )}
-              <Button className="w-full" onClick={handleCreate}>Salvar</Button>
+              <Button className="w-full" onClick={handleCreate}>
+                {editingPlan ? "Salvar alterações" : "Salvar"}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -224,7 +266,7 @@ export default function ParcelamentosPage() {
             Em andamento ({active.length})
           </h2>
           {active.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} onPay={handlePay} onDelete={handleDelete} />
+            <PlanCard key={plan.id} plan={plan} onPay={handlePay} onDelete={handleDelete} onEdit={openEdit} />
           ))}
         </div>
       )}
@@ -236,7 +278,7 @@ export default function ParcelamentosPage() {
             Quitados ({done.length})
           </h2>
           {done.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} onPay={handlePay} onDelete={handleDelete} />
+            <PlanCard key={plan.id} plan={plan} onPay={handlePay} onDelete={handleDelete} onEdit={openEdit} />
           ))}
         </div>
       )}
@@ -244,14 +286,24 @@ export default function ParcelamentosPage() {
   );
 }
 
+function formatStartDate(raw: string | null): string {
+  if (!raw) return "";
+  const dateStr = String(raw).slice(0, 10); // garante "YYYY-MM-DD"
+  const d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d.getTime())) return "";
+  return ` · desde ${d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}`;
+}
+
 function PlanCard({
   plan,
   onPay,
   onDelete,
+  onEdit,
 }: {
   plan: Plan;
   onPay: (plan: Plan, delta: number) => void;
   onDelete: (id: string) => void;
+  onEdit: (plan: Plan) => void;
 }) {
   const perParcela = plan.total_amount / plan.installments;
   const remaining = plan.installments - plan.paid_installments;
@@ -271,8 +323,7 @@ function PlanCard({
             <div className="min-w-0">
               <CardTitle className="text-base truncate">{plan.description}</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Total: {fmt(plan.total_amount)}
-                {plan.start_date && ` · desde ${new Date(plan.start_date + "T12:00:00").toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}`}
+                Total: {fmt(plan.total_amount)}{formatStartDate(plan.start_date)}
               </CardDescription>
             </div>
           </div>
@@ -281,8 +332,12 @@ function PlanCard({
               ? <Badge className="bg-green-100 text-green-700 border-green-200">Quitado</Badge>
               : <Badge variant="outline">{remaining}x restante{remaining !== 1 ? "s" : ""}</Badge>
             }
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={() => onEdit(plan)} title="Editar">
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
-              onClick={() => onDelete(plan.id)}>
+              onClick={() => onDelete(plan.id)} title="Excluir">
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
