@@ -288,10 +288,30 @@ export default function ParcelamentosPage() {
 
 function formatStartDate(raw: string | null): string {
   if (!raw) return "";
-  const dateStr = String(raw).slice(0, 10); // garante "YYYY-MM-DD"
+  const dateStr = String(raw).slice(0, 10);
   const d = new Date(dateStr + "T12:00:00");
   if (isNaN(d.getTime())) return "";
   return ` · desde ${d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}`;
+}
+
+function calcEndDate(plan: Plan): string {
+  const remaining = plan.installments - plan.paid_installments;
+  if (remaining <= 0) return "Quitado";
+
+  let base: Date;
+  if (plan.start_date) {
+    // última parcela = start_date + (installments - 1) meses
+    const dateStr = String(plan.start_date).slice(0, 10);
+    base = new Date(dateStr + "T12:00:00");
+    if (isNaN(base.getTime())) base = new Date();
+    base = new Date(base.getFullYear(), base.getMonth() + (plan.installments - 1), 1);
+  } else {
+    // sem data de início: conta a partir do mês atual
+    const now = new Date();
+    base = new Date(now.getFullYear(), now.getMonth() + remaining - 1, 1);
+  }
+
+  return base.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
 function PlanCard({
@@ -352,6 +372,11 @@ function PlanCard({
           </div>
           <Progress value={progress}
             className={`h-2 ${isDone ? "[&>div]:bg-green-500" : ""}`} />
+          {!isDone && (
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Previsão de término: <span className="font-medium capitalize">{calcEndDate(plan)}</span>
+            </p>
+          )}
         </div>
 
         {/* Values + controls */}
