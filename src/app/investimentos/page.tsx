@@ -26,8 +26,9 @@ import {
   getStockQuotes, upsertStockQuote, type StockQuote,
   getPortfolioSnapshots, savePortfolioSnapshot,
   getTurboHistory, saveTurboMonth, deleteTurboRecord,
+  getScoreHistory, saveScoreSnapshot,
 } from "@/lib/api";
-import type { TurboRecord, PortfolioSnapshot } from "@/types/database";
+import type { TurboRecord, PortfolioSnapshot, ScoreSnapshot } from "@/types/database";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { InvestmentAccount, Investment, InvestmentType, StockTrade } from "@/types/database";
 import { format } from "date-fns";
@@ -235,22 +236,26 @@ export default function InvestimentosPage() {
 
   const [stockForm, setStockForm] = useState({
     ticker: "",
+    type: "compra" as "compra" | "venda",
     quantity: "",
     price_per_share: "",
     notes: "",
     date: format(now, "yyyy-MM-dd"),
   });
+  const [scoreHistory, setScoreHistory] = useState<ScoreSnapshot[]>([]);
 
   const load = useCallback(async () => {
     try {
-      const [loadedAccounts, loadedInvestments, loadedStocks, loadedQuotes, loadedSnapshots] = await Promise.all([
+      const [loadedAccounts, loadedInvestments, loadedStocks, loadedQuotes, loadedSnapshots, loadedScores] = await Promise.all([
         getInvestmentAccounts(),
         getInvestments(),
         getStockTrades(),
         getStockQuotes(),
         getPortfolioSnapshots(),
+        getScoreHistory(),
       ]);
       setPortfolioSnapshots(Array.isArray(loadedSnapshots) ? loadedSnapshots : []);
+      setScoreHistory(Array.isArray(loadedScores) ? loadedScores : []);
       setStockQuotes(Array.isArray(loadedQuotes) ? loadedQuotes : []);
       const accs = Array.isArray(loadedAccounts) ? loadedAccounts : [];
       setAccounts(accs);
@@ -479,8 +484,22 @@ export default function InvestimentosPage() {
     return { allSources, totalRendaMensal, chartMonths, recommendations, fiiCapital, CDI_MENSAL };
   }, [accounts, investments, stockPositions, quoteMap, grandTotal]);
 
+  function goToStockDialog(ticker: string, type: "compra" | "venda") {
+    setInvestorMode(false);
+    setActiveTab("acoes");
+    setStockForm({ ticker, type, quantity: "", price_per_share: "", notes: "", date: format(new Date(), "yyyy-MM-dd") });
+    setStockOpen(true);
+  }
+
+  function goToDepositDialog(accountId: string) {
+    setInvestorMode(false);
+    setActiveTab(accountId);
+    setInvForm({ account_id: accountId, type: "deposito", amount: "", description: "", date: format(new Date(), "yyyy-MM-dd") });
+    setInvOpen(true);
+  }
+
   const portfolioAnalysis = useMemo(() => {
-    const insights: { level: "critical" | "warning" | "ok" | "suggestion"; title: string; detail: string; action?: string }[] = [];
+    const insights: { level: "critical" | "warning" | "ok" | "suggestion"; title: string; detail: string; action?: string; onAction?: () => void; actionLabel?: string }[] = [];
 
     // 1. Reserva de emergência
     const emerAccounts = accounts.filter((a) => !a.is_turbo && (
@@ -492,7 +511,12 @@ export default function InvestimentosPage() {
     if (emerAccounts.length === 0) {
       insights.push({ level: "critical", title: "Sem reserva de emergência identificada", detail: "Crie uma conta com 'EME' ou 'Reserva' no nome e deposite mínimo R$ 3.000.", action: "Prioridade máxima antes de qualquer aporte variável" });
     } else if (emerTotal < 3000) {
-      insights.push({ level: "warning", title: `Reserva insuficiente — ${formatCurrency(emerTotal)}`, detail: `Recomendado mínimo R$ 3.000 (3 meses de gastos). Faltam ${formatCurrency(3000 - emerTotal)}.`, action: "Direcionar aportes para emergência até completar" });
+      insights.push({
+        level: "warning", title: `Reserva insuficiente — ${formatCurrency(emerTotal)}`,
+        detail: `Recomendado mínimo R$ 3.000 (3 meses de gastos). Faltam ${formatCurrency(3000 - emerTotal)}.`,
+        action: "Direcionar aportes para emergência até completar",
+        onAction: () => goToDepositDialog(emerAccounts[0].id), actionLabel: `Depositar em ${emerAccounts[0].name}`,
+      });
     } else {
       insights.push({ level: "ok", title: `Reserva de emergência adequada — ${formatCurrency(emerTotal)}`, detail: "Proteção básica garantida. Continue investindo normalmente." });
     }
@@ -501,7 +525,12 @@ export default function InvestimentosPage() {
     const turboAccounts = accounts.filter((a) => a.is_turbo);
     for (const t of turboAccounts) {
       if (t.max_rendimento && t.current_balance >= t.max_rendimento * 0.95) {
-        insights.push({ level: "warning", title: `${t.name} no teto — ${formatCurrency(t.current_balance)} / ${formatCurrency(t.max_rendimento)}`, detail: "O rendimento extra do TURBO para quando atinge o teto máximo.", action: "Redirecione novos aportes para FIIs ou ações" });
+        insights.push({
+          level: "warning", title: `${t.name} no teto — ${formatCurrency(t.current_balance)} / ${formatCurrency(t.max_rendimento)}`,
+          detail: "O rendimento extra do TURBO para quando atinge o teto máximo.",
+          action: "Redirecione novos aportes para FIIs ou ações",
+          onAction: () => goToStockDialog("", "compra"), actionLabel: "Ir para Ações/FIIs",
+        });
       }
     }
 
@@ -514,7 +543,13 @@ export default function InvestimentosPage() {
     }
     for (const [, tickers] of companyMap) {
       if (tickers.length > 1) {
-        insights.push({ level: "warning", title: `Duplicidade: ${tickers.join(" + ")}`, detail: "Mesma empresa em classes diferentes. Não diversifica — apenas concentra o risco.", action: `Escolha apenas uma classe e venda a outra` });
+        const [, ...extra] = tickers;
+        insights.push({
+          level: "warning", title: `Duplicidade: ${tickers.join(" + ")}`,
+          detail: "Mesma empresa em classes diferentes. Não diversifica — apenas concentra o risco.",
+          action: "Escolha apenas uma classe e venda a outra",
+          onAction: () => goToStockDialog(extra[0], "venda"), actionLabel: `Vender ${extra[0]}`,
+        });
       }
     }
 
@@ -537,7 +572,12 @@ export default function InvestimentosPage() {
       .reduce((s, p) => { const q = quoteMap.get(p.ticker); return s + (q !== undefined ? q * p.quantity : p.totalInvested); }, 0);
     const fiiPctVariavel = totalStockValue > 0 ? (fiiValue / totalStockValue) * 100 : 0;
     if (stockPositions.length > 0 && fiiPctVariavel < 30) {
-      insights.push({ level: "suggestion", title: `FIIs: apenas ${fiiPctVariavel.toFixed(0)}% da renda variável`, detail: "Para renda passiva consistente, FIIs devem representar 50–60% da carteira variável. Dividendos mensais isentos de IR.", action: "Próximos aportes: MXRF11, XPML11 ou TRXF11" });
+      insights.push({
+        level: "suggestion", title: `FIIs: apenas ${fiiPctVariavel.toFixed(0)}% da renda variável`,
+        detail: "Para renda passiva consistente, FIIs devem representar 50–60% da carteira variável. Dividendos mensais isentos de IR.",
+        action: "Próximos aportes: MXRF11, XPML11 ou TRXF11",
+        onAction: () => goToStockDialog("MXRF11", "compra"), actionLabel: "Comprar MXRF11",
+      });
     } else if (fiiPctVariavel >= 50) {
       insights.push({ level: "ok", title: `Boa exposição a FIIs — ${fiiPctVariavel.toFixed(0)}%`, detail: "Proporção ideal para renda passiva mensal com isenção de IR." });
     }
@@ -564,6 +604,18 @@ export default function InvestimentosPage() {
 
     return { insights, nextMoves, score, emerTotal, fiiPctVariavel, commodityPct, totalStockValue };
   }, [accounts, investments, stockPositions, quoteMap]);
+
+  // Salva o score do dia automaticamente quando o Modo Investidor é aberto (1x por dia)
+  useEffect(() => {
+    if (!investorMode) return;
+    const today = format(new Date(), "yyyy-MM-dd");
+    const existing = scoreHistory.find((s) => s.date === today);
+    if (existing && existing.score === portfolioAnalysis.score) return;
+    saveScoreSnapshot(today, portfolioAnalysis.score).then((saved) => {
+      setScoreHistory((prev) => [...prev.filter((s) => s.date !== today), saved].sort((a, b) => a.date.localeCompare(b.date)));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [investorMode, portfolioAnalysis.score]);
 
   async function addInvestment() {
     if (!invForm.account_id || !invForm.amount) return;
@@ -618,7 +670,7 @@ export default function InvestimentosPage() {
     if (!stockForm.ticker.trim() || !quantity || !price) return;
     await createStockTrade({
       ticker: stockForm.ticker.trim().toUpperCase(),
-      type: "compra",
+      type: stockForm.type,
       quantity,
       price_per_share: price,
       total_amount: quantity * price,
@@ -626,7 +678,7 @@ export default function InvestimentosPage() {
       date: stockForm.date,
     });
     setStockOpen(false);
-    setStockForm({ ticker: "", quantity: "", price_per_share: "", notes: "", date: format(now, "yyyy-MM-dd") });
+    setStockForm({ ticker: "", type: "compra", quantity: "", price_per_share: "", notes: "", date: format(now, "yyyy-MM-dd") });
     load();
   }
 
@@ -1112,6 +1164,46 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                   </div>
                 </div>
 
+                {/* Evolução do score */}
+                {scoreHistory.length > 1 && (
+                  <div className="mb-10">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Evolução do score</h3>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5">
+                      <ResponsiveContainer width="100%" height={160}>
+                        <AreaChart data={scoreHistory.map((s) => ({
+                          label: new Date(s.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
+                          Score: s.score,
+                        }))}>
+                          <defs>
+                            <linearGradient id="gradScoreHistory" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={scoreColor} stopOpacity={0.5} />
+                              <stop offset="95%" stopColor={scoreColor} stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
+                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} width={30} />
+                          <Tooltip
+                            content={({ active, payload, label }) => {
+                              if (!active || !payload?.length) return null;
+                              return (
+                                <div className="bg-[#0a0a12] border border-white/10 rounded-xl shadow-2xl p-3 min-w-[120px]">
+                                  <p className="text-xs font-bold border-b border-white/10 pb-1.5 mb-2 text-white/70">{label}</p>
+                                  <div className="flex justify-between text-sm gap-4">
+                                    <span className="text-white/50">Score</span>
+                                    <span className="font-bold tabular-nums" style={{ color: scoreColor }}>{payload[0].value}</span>
+                                  </div>
+                                </div>
+                              );
+                            }}
+                          />
+                          <Area type="monotone" dataKey="Score" stroke={scoreColor} strokeWidth={2.5} fill="url(#gradScoreHistory)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
                 {/* Insights */}
                 <div className="space-y-3 mb-10">
                   {insights.map((ins, i) => (
@@ -1120,10 +1212,23 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                         <span className="flex-shrink-0 rounded text-[10px] font-black px-1.5 py-0.5 mt-0.5" style={{ background: levelColors[ins.level], color: "white" }}>
                           {levelLabels[ins.level]}
                         </span>
-                        <div>
-                          <p className="text-sm font-semibold text-white/90">{ins.title}</p>
-                          <p className="text-xs text-white/50 mt-0.5">{ins.detail}</p>
-                          {ins.action && <p className="text-xs font-semibold mt-1.5" style={{ color: levelColors[ins.level] }}>→ {ins.action}</p>}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div>
+                              <p className="text-sm font-semibold text-white/90">{ins.title}</p>
+                              <p className="text-xs text-white/50 mt-0.5">{ins.detail}</p>
+                              {ins.action && <p className="text-xs font-semibold mt-1.5" style={{ color: levelColors[ins.level] }}>→ {ins.action}</p>}
+                            </div>
+                            {ins.onAction && (
+                              <button
+                                onClick={ins.onAction}
+                                className="flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-85"
+                                style={{ background: levelColors[ins.level] }}
+                              >
+                                {ins.actionLabel} →
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1336,8 +1441,18 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
               <Button><LineChart className="h-4 w-4" />Comprar ações</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Registrar compra de ações</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Registrar operação de ações</DialogTitle></DialogHeader>
               <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setStockForm({ ...stockForm, type: "compra" })}
+                    className={`rounded-lg border py-2 text-sm font-semibold transition-colors ${stockForm.type === "compra" ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "border-muted text-muted-foreground hover:bg-muted/50"}`}>
+                    Compra
+                  </button>
+                  <button type="button" onClick={() => setStockForm({ ...stockForm, type: "venda" })}
+                    className={`rounded-lg border py-2 text-sm font-semibold transition-colors ${stockForm.type === "venda" ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300" : "border-muted text-muted-foreground hover:bg-muted/50"}`}>
+                    Venda
+                  </button>
+                </div>
                 <div className="space-y-1.5">
                   <Label>Ticker</Label>
                   <Input
@@ -1378,7 +1493,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                   <Input type="date" value={stockForm.date}
                     onChange={(e) => setStockForm({ ...stockForm, date: e.target.value })} />
                 </div>
-                <Button className="w-full" onClick={addStockTrade}>Registrar compra</Button>
+                <Button className="w-full" onClick={addStockTrade}>
+                  Registrar {stockForm.type === "compra" ? "compra" : "venda"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -1555,6 +1672,19 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                       {account.max_rendimento && (
                         <span className="text-xs text-muted-foreground">· teto {formatCurrency(account.max_rendimento)}</span>
                       )}
+                    </div>
+                  )}
+                  {account.is_turbo && account.max_rendimento && account.current_balance >= account.max_rendimento * 0.95 && (
+                    <div className="flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/30">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                          {account.name} está no teto — {formatCurrency(account.current_balance)} / {formatCurrency(account.max_rendimento)}
+                        </p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400/80 mt-0.5">
+                          O rendimento extra para de contar quando atinge o teto. Direcione novos aportes para FIIs ou ações.
+                        </p>
+                      </div>
                     </div>
                   )}
                   {account.is_turbo ? (

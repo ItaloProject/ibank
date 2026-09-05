@@ -76,6 +76,14 @@ export interface PortfolioSnapshot {
   created_at: string;
 }
 
+export interface ScoreSnapshot {
+  id: string;
+  user_id: string;
+  date: string; // "YYYY-MM-DD"
+  score: number;
+  created_at: string;
+}
+
 export interface StockTrade {
   id: string;
   user_id: string;

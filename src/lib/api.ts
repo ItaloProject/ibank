@@ -8,6 +8,7 @@ import type {
   StockTrade,
   TurboRecord,
   PortfolioSnapshot,
+  ScoreSnapshot,
 } from "@/types/database";
 import { getCurrentUser } from "@/lib/user";
 
@@ -339,4 +340,26 @@ export async function savePortfolioSnapshot(data: {
     body: JSON.stringify(data),
   });
   return toSnapshot(await res.json());
+}
+
+// ─── Score History ────────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toScoreSnapshot(r: any): ScoreSnapshot {
+  return { ...r, score: Number(r.score) };
+}
+
+export async function getScoreHistory(): Promise<ScoreSnapshot[]> {
+  const res = await fetch(`/api/score-history?user=${uid()}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data.map(toScoreSnapshot) : [];
+}
+
+export async function saveScoreSnapshot(date: string, score: number): Promise<ScoreSnapshot> {
+  const res = await fetch(`/api/score-history?user=${uid()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ date, score }),
+  });
+  return toScoreSnapshot(await res.json());
 }
