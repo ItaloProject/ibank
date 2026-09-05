@@ -947,46 +947,62 @@ export default function InvestimentosPage() {
                       )}
                     </div>
                   )}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardDescription>{account.is_turbo ? "Total bruto" : "Saldo atual"}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-2xl font-bold text-green-600 tabular-nums">
-                          {formatCurrency(account.is_turbo ? account.current_balance : computedBalance)}
+                  {account.is_turbo ? (
+                    /* ── Cards TURBO modernos ── */
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      {/* Total bruto */}
+                      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-4 text-white shadow-md">
+                        <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
+                        <div className="absolute -right-1 -bottom-4 h-20 w-20 rounded-full bg-white/10" />
+                        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100 mb-2">Total bruto</p>
+                        <p className="text-2xl font-extrabold tabular-nums leading-none">{formatCurrency(account.current_balance)}</p>
+                        <p className="text-xs text-emerald-200 mt-1.5">{account.institution}</p>
+                      </div>
+                      {/* Valor líquido */}
+                      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-4 text-white shadow-md">
+                        <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
+                        <div className="absolute -right-1 -bottom-4 h-20 w-20 rounded-full bg-white/10" />
+                        <p className="text-xs font-semibold uppercase tracking-wide text-blue-100 mb-2">Valor líquido</p>
+                        <p className="text-2xl font-extrabold tabular-nums leading-none">
+                          {account.valor_liquido != null ? formatCurrency(account.valor_liquido) : "—"}
                         </p>
-                        {account.institution && (
-                          <p className="text-xs text-muted-foreground mt-1">{account.institution}</p>
+                        {account.valor_liquido != null && account.current_balance > 0 && (
+                          <p className="text-xs text-blue-200 mt-1.5">IOF/IR est. {formatCurrency(account.current_balance - account.valor_liquido)}</p>
                         )}
-                      </CardContent>
-                    </Card>
-                    {account.is_turbo ? (
-                      <>
-                        <Card className="border-blue-200 bg-blue-50/50">
-                          <CardHeader className="pb-2"><CardDescription className="text-blue-700">Valor líquido</CardDescription></CardHeader>
-                          <CardContent>
-                            <p className="text-2xl font-bold text-blue-700 tabular-nums">
-                              {account.valor_liquido != null ? formatCurrency(account.valor_liquido) : "—"}
-                            </p>
-                            {account.valor_liquido != null && computedBalance > 0 && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                IOF/IR est. {formatCurrency(computedBalance - account.valor_liquido)}
-                              </p>
-                            )}
-                          </CardContent>
-                        </Card>
-                        <Card className="border-emerald-200 bg-emerald-50/50">
-                          <CardHeader className="pb-2"><CardDescription className="text-emerald-700">Líquido real</CardDescription></CardHeader>
-                          <CardContent>
-                            <p className="text-2xl font-bold text-emerald-700 tabular-nums">
-                              {account.valor_liquido != null ? formatCurrency(account.valor_liquido - 5000) : "—"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Líquido − R$ 5.000,00</p>
-                          </CardContent>
-                        </Card>
-                      </>
-                    ) : (
+                      </div>
+                      {/* Líquido real */}
+                      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-violet-600 p-4 text-white shadow-md">
+                        <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
+                        <div className="absolute -right-1 -bottom-4 h-20 w-20 rounded-full bg-white/10" />
+                        <p className="text-xs font-semibold uppercase tracking-wide text-violet-100 mb-2">Líquido real</p>
+                        <p className="text-2xl font-extrabold tabular-nums leading-none">
+                          {account.valor_liquido != null ? formatCurrency(account.valor_liquido - 5000) : "—"}
+                        </p>
+                        <p className="text-xs text-violet-200 mt-1.5">Líquido − R$ 5.000,00</p>
+                      </div>
+                      {/* Total de rendimentos */}
+                      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-4 text-white shadow-md">
+                        <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
+                        <div className="absolute -right-1 -bottom-4 h-20 w-20 rounded-full bg-white/10" />
+                        <p className="text-xs font-semibold uppercase tracking-wide text-amber-100 mb-2">Rendimentos</p>
+                        <p className="text-2xl font-extrabold tabular-nums leading-none">
+                          +{formatCurrency(turboHistory.reduce((s, r) => s + r.rendimento, 0))}
+                        </p>
+                        <p className="text-xs text-amber-100 mt-1.5">
+                          {turboHistory.length} {turboHistory.length === 1 ? "mês registrado" : "meses registrados"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ── Cards conta normal ── */
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Card>
+                        <CardHeader className="pb-2"><CardDescription>Saldo atual</CardDescription></CardHeader>
+                        <CardContent>
+                          <p className="text-2xl font-bold text-green-600 tabular-nums">{formatCurrency(computedBalance)}</p>
+                          {account.institution && <p className="text-xs text-muted-foreground mt-1">{account.institution}</p>}
+                        </CardContent>
+                      </Card>
                       <Card>
                         <CardHeader className="pb-2"><CardDescription>Total depositado</CardDescription></CardHeader>
                         <CardContent>
@@ -995,23 +1011,16 @@ export default function InvestimentosPage() {
                           </p>
                         </CardContent>
                       </Card>
-                    )}
-                    <Card>
-                      <CardHeader className="pb-2"><CardDescription>Total de rendimentos</CardDescription></CardHeader>
-                      <CardContent>
-                        <p className="text-2xl font-bold text-blue-600 tabular-nums">
-                          {account.is_turbo
-                            ? formatCurrency(turboHistory.reduce((s, r) => s + r.rendimento, 0))
-                            : formatCurrency(accountInvestments.filter((i) => i.type === "rendimento").reduce((s, i) => s + i.amount, 0))}
-                        </p>
-                        {account.is_turbo && turboHistory.length > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {turboHistory.length} mês{turboHistory.length !== 1 ? "es" : ""} registrado{turboHistory.length !== 1 ? "s" : ""}
+                      <Card>
+                        <CardHeader className="pb-2"><CardDescription>Total de rendimentos</CardDescription></CardHeader>
+                        <CardContent>
+                          <p className="text-2xl font-bold text-blue-600 tabular-nums">
+                            {formatCurrency(accountInvestments.filter((i) => i.type === "rendimento").reduce((s, i) => s + i.amount, 0))}
                           </p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
 
                   {/* ── TURBO: histórico mensal ── */}
                   {account.is_turbo && (
