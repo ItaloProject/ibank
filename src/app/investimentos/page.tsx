@@ -187,7 +187,7 @@ export default function InvestimentosPage() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameForm, setRenameForm] = useState({
     id: "", name: "", institution: "",
-    is_turbo: false, cdi_percent: "", max_rendimento: "", valor_liquido: "",
+    is_turbo: false, cdi_percent: "", max_rendimento: "", valor_bruto: "", valor_liquido: "",
   });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [ratesOpen, setRatesOpen] = useState(false);
@@ -204,9 +204,10 @@ export default function InvestimentosPage() {
 
   const [accForm, setAccForm] = useState({
     name: "", institution: "",
-    is_turbo: false, cdi_percent: "", max_rendimento: "", valor_liquido: "",
+    is_turbo: false, cdi_percent: "", max_rendimento: "", valor_bruto: "", valor_liquido: "",
   });
   const [invLiquido, setInvLiquido] = useState("");
+  const [invBruto, setInvBruto] = useState("");
 
   const [stockForm, setStockForm] = useState({
     ticker: "",
@@ -352,13 +353,18 @@ export default function InvestimentosPage() {
     });
     const acc = accounts.find((a) => a.id === invForm.account_id);
     if (acc) {
-      const delta = invForm.type === "retirada" ? -amount : amount;
-      await updateAccountBalance(invForm.account_id, acc.current_balance + delta);
+      if (acc.is_turbo && invBruto) {
+        await updateAccountBalance(invForm.account_id, parseFloat(invBruto));
+      } else {
+        const delta = invForm.type === "retirada" ? -amount : amount;
+        await updateAccountBalance(invForm.account_id, acc.current_balance + delta);
+      }
       if (acc.is_turbo && invLiquido) {
         await updateTurboSettings(invForm.account_id, { valor_liquido: parseFloat(invLiquido) });
       }
     }
     setInvOpen(false);
+    setInvBruto("");
     setInvLiquido("");
     setInvForm({ account_id: invForm.account_id, type: "deposito", amount: "", description: "", date: format(now, "yyyy-MM-dd") });
     load();
@@ -366,7 +372,7 @@ export default function InvestimentosPage() {
 
   async function addAccount() {
     if (!accForm.name) return;
-    await createInvestmentAccountWithTurbo({
+    const created = await createInvestmentAccountWithTurbo({
       name: accForm.name,
       institution: accForm.institution,
       is_turbo: accForm.is_turbo,
@@ -374,8 +380,11 @@ export default function InvestimentosPage() {
       max_rendimento: accForm.is_turbo && accForm.max_rendimento ? parseFloat(accForm.max_rendimento) : null,
       valor_liquido: accForm.is_turbo && accForm.valor_liquido ? parseFloat(accForm.valor_liquido) : null,
     });
+    if (accForm.is_turbo && accForm.valor_bruto && created?.id) {
+      await updateAccountBalance(created.id, parseFloat(accForm.valor_bruto));
+    }
     setAccOpen(false);
-    setAccForm({ name: "", institution: "", is_turbo: false, cdi_percent: "", max_rendimento: "", valor_liquido: "" });
+    setAccForm({ name: "", institution: "", is_turbo: false, cdi_percent: "", max_rendimento: "", valor_bruto: "", valor_liquido: "" });
     load();
   }
 
@@ -436,6 +445,9 @@ export default function InvestimentosPage() {
       max_rendimento: renameForm.is_turbo && renameForm.max_rendimento ? parseFloat(renameForm.max_rendimento) : null,
       valor_liquido: renameForm.is_turbo && renameForm.valor_liquido ? parseFloat(renameForm.valor_liquido) : null,
     });
+    if (renameForm.is_turbo && renameForm.valor_bruto) {
+      await updateAccountBalance(renameForm.id, parseFloat(renameForm.valor_bruto));
+    }
     setRenameOpen(false);
     load();
   }
@@ -511,6 +523,11 @@ export default function InvestimentosPage() {
                         onChange={(e) => setAccForm({ ...accForm, max_rendimento: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
+                      <Label>Valor bruto atual (R$)</Label>
+                      <Input type="number" placeholder="Ex: 5110.96" value={accForm.valor_bruto}
+                        onChange={(e) => setAccForm({ ...accForm, valor_bruto: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
                       <Label>Valor líquido atual (R$)</Label>
                       <Input type="number" placeholder="Ex: 5086.01" value={accForm.valor_liquido}
                         onChange={(e) => setAccForm({ ...accForm, valor_liquido: e.target.value })} />
@@ -580,16 +597,30 @@ export default function InvestimentosPage() {
                   const selAcc = accounts.find((a) => a.id === invForm.account_id);
                   if (!selAcc?.is_turbo) return null;
                   return (
-                    <div className="space-y-1.5 p-3 rounded-lg bg-blue-50 border border-blue-200">
-                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">TURBO · {selAcc.cdi_percent ? `${selAcc.cdi_percent}% CDI` : ""}</p>
-                      <Label className="text-sm">Valor líquido atual (R$)</Label>
-                      <Input
-                        type="number"
-                        placeholder={selAcc.valor_liquido ? String(selAcc.valor_liquido) : "Ex: 5086.01"}
-                        value={invLiquido}
-                        onChange={(e) => setInvLiquido(e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground">Atualize o valor líquido a cada rendimento mensal</p>
+                    <div className="space-y-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                        ⚡ TURBO {selAcc.cdi_percent ? `· ${selAcc.cdi_percent}% CDI` : ""}
+                        {selAcc.max_rendimento ? ` · teto ${formatCurrency(selAcc.max_rendimento)}` : ""}
+                      </p>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Novo valor bruto (R$)</Label>
+                        <Input
+                          type="number"
+                          placeholder={selAcc.current_balance ? String(selAcc.current_balance) : "Ex: 5110.96"}
+                          value={invBruto}
+                          onChange={(e) => setInvBruto(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm">Novo valor líquido (R$)</Label>
+                        <Input
+                          type="number"
+                          placeholder={selAcc.valor_liquido ? String(selAcc.valor_liquido) : "Ex: 5086.01"}
+                          value={invLiquido}
+                          onChange={(e) => setInvLiquido(e.target.value)}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Atualize bruto e líquido a cada rendimento mensal</p>
                     </div>
                   );
                 })()}
@@ -783,6 +814,7 @@ export default function InvestimentosPage() {
                             is_turbo: account.is_turbo ?? false,
                             cdi_percent: account.cdi_percent ? String(account.cdi_percent) : "",
                             max_rendimento: account.max_rendimento ? String(account.max_rendimento) : "",
+                            valor_bruto: account.current_balance ? String(account.current_balance) : "",
                             valor_liquido: account.valor_liquido ? String(account.valor_liquido) : "",
                           });
                           setRenameOpen(true);
@@ -829,7 +861,9 @@ export default function InvestimentosPage() {
                         <CardDescription>{account.is_turbo ? "Total bruto" : "Saldo atual"}</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-2xl font-bold text-green-600 tabular-nums">{formatCurrency(computedBalance)}</p>
+                        <p className="text-2xl font-bold text-green-600 tabular-nums">
+                          {formatCurrency(account.is_turbo ? account.current_balance : computedBalance)}
+                        </p>
                         {account.institution && (
                           <p className="text-xs text-muted-foreground mt-1">{account.institution}</p>
                         )}
@@ -978,6 +1012,11 @@ export default function InvestimentosPage() {
                       <Label>Valor máximo de rendimento (R$)</Label>
                       <Input type="number" placeholder="Ex: 5000.00" value={renameForm.max_rendimento}
                         onChange={(e) => setRenameForm({ ...renameForm, max_rendimento: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Valor bruto atual (R$)</Label>
+                      <Input type="number" placeholder="Ex: 5110.96" value={renameForm.valor_bruto}
+                        onChange={(e) => setRenameForm({ ...renameForm, valor_bruto: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Valor líquido atual (R$)</Label>
