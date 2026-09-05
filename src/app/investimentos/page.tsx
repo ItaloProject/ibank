@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Plus, Trash2, TrendingUp, ArrowUpCircle, ArrowDownCircle, Sparkles,
-  BarChart3, LineChart, AlertTriangle, Pencil,
+  BarChart3, LineChart, AlertTriangle, Pencil, ChevronDown,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
   getInvestmentAccounts, createInvestmentAccount, updateAccountBalance,
@@ -42,6 +43,75 @@ function accountBalance(investments: Investment[], accountId: string) {
   return investments
     .filter((i) => i.account_id === accountId)
     .reduce((s, inv) => (inv.type === "retirada" ? s - inv.amount : s + inv.amount), 0);
+}
+
+// Setor por prefixo/ticker — cobertura ampla de ações brasileiras
+const SECTOR_MAP: Record<string, string> = {
+  // Bancos / Financeiro
+  BBAS3: "Financeiro", BBDC3: "Financeiro", BBDC4: "Financeiro", ITUB3: "Financeiro",
+  ITUB4: "Financeiro", SANB11: "Financeiro", SANB3: "Financeiro", SANB4: "Financeiro",
+  BPAC11: "Financeiro", BPAC3: "Financeiro", BPAC5: "Financeiro", BRSR6: "Financeiro",
+  BMGB4: "Financeiro", IRBR3: "Financeiro", SULA11: "Financeiro", PSSA3: "Financeiro",
+  B3SA3: "Financeiro", CIEL3: "Financeiro", WIZC3: "Financeiro",
+  // Energia elétrica
+  ELET3: "Energia", ELET6: "Energia", CMIG3: "Energia", CMIG4: "Energia",
+  CPFE3: "Energia", ENGI11: "Energia", ENGI3: "Energia", ENGI4: "Energia",
+  ENEV3: "Energia", EGIE3: "Energia", TAEE11: "Energia", TAEE3: "Energia",
+  TAEE4: "Energia", TRPL4: "Energia", TRPL3: "Energia", COCE5: "Energia",
+  EQTL3: "Energia", CESP6: "Energia", AURE3: "Energia", AESB3: "Energia",
+  // Petróleo / Gás
+  PETR3: "Petróleo & Gás", PETR4: "Petróleo & Gás", PRIO3: "Petróleo & Gás",
+  RECV3: "Petróleo & Gás", CSAN3: "Petróleo & Gás", RRRP3: "Petróleo & Gás",
+  VBBR3: "Petróleo & Gás",
+  // Mineração / Siderurgia
+  VALE3: "Mineração", CSNA3: "Siderurgia", GGBR3: "Siderurgia", GGBR4: "Siderurgia",
+  GOAU3: "Siderurgia", GOAU4: "Siderurgia", USIM3: "Siderurgia", USIM5: "Siderurgia",
+  CMIN3: "Mineração", FESA4: "Mineração",
+  // Varejo
+  MGLU3: "Varejo", VIIA3: "Varejo", LREN3: "Varejo", AMER3: "Varejo",
+  SOMA3: "Varejo", ALPA4: "Varejo", HGTX3: "Varejo", AMAR3: "Varejo",
+  TFCO4: "Varejo",
+  // Alimentos / Bebidas / Agro
+  ABEV3: "Alimentos & Bebidas", JBSS3: "Alimentos & Bebidas", MRFG3: "Alimentos & Bebidas",
+  BEEF3: "Alimentos & Bebidas", BRFS3: "Alimentos & Bebidas", SMLS3: "Alimentos & Bebidas",
+  SLCE3: "Agronegócio", AGRO3: "Agronegócio", TTEN3: "Agronegócio", SMTO3: "Agronegócio",
+  CAML3: "Agronegócio", RNEW11: "Energia", SUZB3: "Papel & Celulose", KLBN11: "Papel & Celulose",
+  KLBN3: "Papel & Celulose", KLBN4: "Papel & Celulose",
+  // Saúde
+  RDOR3: "Saúde", HAPV3: "Saúde", FLRY3: "Saúde", DASA3: "Saúde",
+  QUAL3: "Saúde", HYPE3: "Saúde", PGMN3: "Saúde", BLAU3: "Saúde",
+  // Telecom / Tecnologia
+  VIVT3: "Telecom", TIMS3: "Telecom", OIBR3: "Telecom", BRAP3: "Telecom",
+  POSI3: "Tecnologia", LWSA3: "Tecnologia", CASH3: "Tecnologia", INTB3: "Tecnologia",
+  TOTVS3: "Tecnologia",
+  // Construção / Imobiliário
+  MRVE3: "Construção Civil", CYRE3: "Construção Civil", TEND3: "Construção Civil",
+  DIRR3: "Construção Civil", EVEN3: "Construção Civil", EZTC3: "Construção Civil",
+  PLPL3: "Construção Civil",
+  // Logística / Transporte
+  RAIL3: "Logística", TGMA3: "Logística", CCRO3: "Logística", ECOR3: "Logística",
+  AZUL4: "Aviação", GOLL4: "Aviação", EMBR3: "Aeroespacial",
+  // Shopping / FII-like
+  BRML3: "Shoppings", IGTI11: "Shoppings",
+  // Saneamento
+  SBSP3: "Saneamento", CSMG3: "Saneamento",
+  // Axia (setor específico)
+  AXIA3: "Financeiro",
+};
+
+const SECTOR_COLORS = [
+  "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
+  "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#6366f1",
+  "#14b8a6", "#a855f7",
+];
+
+function detectSector(ticker: string): string {
+  const upper = ticker.toUpperCase().replace(/\s/g, "");
+  if (SECTOR_MAP[upper]) return SECTOR_MAP[upper];
+  // Heurística por sufixo: 11 → FII/BDR, 34 → BDR, etc.
+  if (upper.endsWith("11")) return "FII / ETF";
+  if (upper.endsWith("34") || upper.endsWith("35")) return "BDR";
+  return "Outros";
 }
 
 function computeStockPositions(trades: StockTrade[]) {
@@ -87,6 +157,7 @@ export default function InvestimentosPage() {
   const [stockOpen, setStockOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameForm, setRenameForm] = useState({ id: "", name: "", institution: "" });
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const now = new Date();
 
@@ -156,6 +227,20 @@ export default function InvestimentosPage() {
     }, 0),
     [stockPositions, quoteMap],
   );
+
+  const sectorData = useMemo(() => {
+    const sectorMap = new Map<string, number>();
+    for (const p of stockPositions) {
+      const cur = quoteMap.get(p.ticker);
+      const value = cur !== undefined ? cur * p.quantity : p.totalInvested;
+      const sector = detectSector(p.ticker);
+      sectorMap.set(sector, (sectorMap.get(sector) ?? 0) + value);
+    }
+    const total = [...sectorMap.values()].reduce((s, v) => s + v, 0);
+    return [...sectorMap.entries()]
+      .map(([name, value]) => ({ name, value, pct: total > 0 ? (value / total) * 100 : 0 }))
+      .sort((a, b) => b.value - a.value);
+  }, [stockPositions, quoteMap]);
 
   const accountBalances = useMemo(
     () => accounts.map((a) => ({
@@ -818,45 +903,108 @@ export default function InvestimentosPage() {
               </Card>
             )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Histórico de operações</CardTitle>
-                <CardDescription>{stockTrades.length} registro{stockTrades.length !== 1 ? "s" : ""}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {stockTrades.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8 text-sm">
-                    Nenhuma operação registrada. Clique em &quot;Comprar ações&quot; para começar.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {stockTrades.map((trade) => (
-                      <div key={trade.id}
-                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <LineChart className="h-5 w-5 shrink-0 text-blue-600" />
-                          <div className="min-w-0">
-                            <p className="font-bold text-sm">{trade.ticker}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {trade.quantity} ações × {formatCurrency(trade.price_per_share)} · {formatDate(trade.date)}
-                            </p>
-                            {trade.notes && <p className="text-xs text-muted-foreground truncate">{trade.notes}</p>}
-                          </div>
-                          <Badge className="bg-blue-100 text-blue-800">Compra</Badge>
+            {sectorData.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Diversificação por setor</CardTitle>
+                  <CardDescription>Distribuição do valor atual da carteira</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col md:flex-row items-center gap-6">
+                    <div className="w-full md:w-64 h-64 shrink-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={sectorData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius="55%"
+                            outerRadius="80%"
+                            paddingAngle={2}
+                            dataKey="value"
+                          >
+                            {sectorData.map((_, i) => (
+                              <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(value: number, name: string) => [
+                              `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+                              name,
+                            ]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex-1 w-full space-y-2">
+                      {sectorData.map((s, i) => (
+                        <div key={s.name} className="flex items-center gap-3">
+                          <span
+                            className="inline-block h-3 w-3 rounded-full shrink-0"
+                            style={{ backgroundColor: SECTOR_COLORS[i % SECTOR_COLORS.length] }}
+                          />
+                          <span className="flex-1 text-sm">{s.name}</span>
+                          <span className="text-sm font-medium tabular-nums">{s.pct.toFixed(1)}%</span>
+                          <span className="text-xs text-muted-foreground tabular-nums w-28 text-right">
+                            {formatCurrency(s.value)}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <p className="font-semibold text-blue-600 tabular-nums">+{formatCurrency(trade.total_amount)}</p>
-                          <Button variant="ghost" size="icon"
-                            className="text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDeleteStock(trade.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                )}
-              </CardContent>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader
+                className="cursor-pointer select-none"
+                onClick={() => setHistoryOpen((v) => !v)}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Histórico de operações</CardTitle>
+                    <CardDescription>{stockTrades.length} registro{stockTrades.length !== 1 ? "s" : ""}</CardDescription>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${historyOpen ? "rotate-180" : ""}`} />
+                </div>
+              </CardHeader>
+              {historyOpen && (
+                <CardContent>
+                  {stockTrades.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8 text-sm">
+                      Nenhuma operação registrada. Clique em &quot;Comprar ações&quot; para começar.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {stockTrades.map((trade) => (
+                        <div key={trade.id}
+                          className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <LineChart className="h-5 w-5 shrink-0 text-blue-600" />
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm">{trade.ticker}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {trade.quantity} ações × {formatCurrency(trade.price_per_share)} · {formatDate(trade.date)}
+                              </p>
+                              {trade.notes && <p className="text-xs text-muted-foreground truncate">{trade.notes}</p>}
+                            </div>
+                            <Badge className="bg-blue-100 text-blue-800">Compra</Badge>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <p className="font-semibold text-blue-600 tabular-nums">+{formatCurrency(trade.total_amount)}</p>
+                            <Button variant="ghost" size="icon"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteStock(trade.id); }}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              )}
             </Card>
           </TabsContent>
         </Tabs>
