@@ -388,8 +388,17 @@ export default function InvestimentosPage() {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label>Ticker</Label>
-                  <Input placeholder="Ex: PETR4, VALE3, ITUB4" value={stockForm.ticker}
-                    onChange={(e) => setStockForm({ ...stockForm, ticker: e.target.value.toUpperCase() })} />
+                  <Input
+                    list="ticker-suggestions"
+                    placeholder="Ex: PETR4, VALE3, ITUB4"
+                    value={stockForm.ticker}
+                    onChange={(e) => setStockForm({ ...stockForm, ticker: e.target.value.toUpperCase() })}
+                  />
+                  <datalist id="ticker-suggestions">
+                    {stockPositions.map((p) => (
+                      <option key={p.ticker} value={p.ticker} />
+                    ))}
+                  </datalist>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
