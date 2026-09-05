@@ -817,12 +817,29 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
 <div class="footer">Gerado pelo IBANK em ${dateStr} · Estimativas baseadas em taxas de mercado · Não constitui assessoria regulada pela CVM/ANCORD</div>
 </body></html>`;
 
-    const win = window.open("", "_blank", "width=1050,height=820");
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 600);
+    // Usa um iframe oculto em vez de window.open: bloqueadores de pop-up não afetam iframes,
+    // então o PDF sempre gera mesmo com pop-ups bloqueados no navegador.
+    let iframe = document.getElementById("ibank-report-frame") as HTMLIFrameElement | null;
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.id = "ibank-report-frame";
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+    }
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    setTimeout(() => {
+      iframe!.contentWindow?.focus();
+      iframe!.contentWindow?.print();
+    }, 300);
   }
 
   if (investorMode) {
