@@ -1115,9 +1115,8 @@ export default function InvestimentosPage() {
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value: number, name: string) => [
-                              `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-                              name,
+                            formatter={(value) => [
+                              `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
                             ]}
                           />
                         </PieChart>
