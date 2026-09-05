@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Plus, Trash2, TrendingUp, ArrowUpCircle, ArrowDownCircle, Sparkles,
-  BarChart3, LineChart, AlertTriangle,
+  BarChart3, LineChart, AlertTriangle, Pencil,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,8 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
-  getInvestmentAccounts, createInvestmentAccount, updateAccountBalance, deleteInvestmentAccount,
+  getInvestmentAccounts, createInvestmentAccount, updateAccountBalance,
+  deleteInvestmentAccount, renameInvestmentAccount,
   getInvestments, createInvestment, deleteInvestment,
   getStockTrades, createStockTrade, deleteStockTrade,
 } from "@/lib/api";
@@ -75,6 +76,8 @@ export default function InvestimentosPage() {
   const [invOpen, setInvOpen] = useState(false);
   const [accOpen, setAccOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameForm, setRenameForm] = useState({ id: "", name: "", institution: "" });
 
   const now = new Date();
 
@@ -249,6 +252,13 @@ export default function InvestimentosPage() {
   async function handleDeleteAccount(id: string) {
     await deleteInvestmentAccount(id);
     setActiveTab("total");
+    load();
+  }
+
+  async function handleRenameAccount() {
+    if (!renameForm.name.trim()) return;
+    await renameInvestmentAccount(renameForm.id, renameForm.name.trim(), renameForm.institution.trim());
+    setRenameOpen(false);
     load();
   }
 
@@ -507,30 +517,39 @@ export default function InvestimentosPage() {
             <TabsContent key={account.id} value={account.id} className="space-y-6 mt-4">
               {activeTab === account.id && (
                 <>
-                  {/* Account header with delete */}
+                  {/* Account header with rename + delete */}
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="font-semibold text-lg">{account.name}</h2>
                       {account.institution && <p className="text-sm text-muted-foreground">{account.institution}</p>}
                     </div>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 gap-1.5">
-                          <Trash2 className="h-3.5 w-3.5" /> Excluir conta
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-sm">
-                        <DialogHeader><DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-destructive" />Excluir conta</DialogTitle></DialogHeader>
-                        <p className="text-sm text-muted-foreground">
-                          Isso vai excluir a conta <strong>{account.name}</strong> e todos os seus{" "}
-                          <strong>{accountInvestments.length} movimentos</strong> permanentemente. Ação irreversível.
-                        </p>
-                        <div className="flex gap-2 justify-end mt-2">
-                          <Button variant="outline" onClick={() => {}}>Cancelar</Button>
-                          <Button variant="destructive" onClick={() => handleDeleteAccount(account.id)}>Excluir tudo</Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" className="gap-1.5"
+                        onClick={() => {
+                          setRenameForm({ id: account.id, name: account.name, institution: account.institution ?? "" });
+                          setRenameOpen(true);
+                        }}>
+                        <Pencil className="h-3.5 w-3.5" /> Renomear
+                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 gap-1.5">
+                            <Trash2 className="h-3.5 w-3.5" /> Excluir conta
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-sm">
+                          <DialogHeader><DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-destructive" />Excluir conta</DialogTitle></DialogHeader>
+                          <p className="text-sm text-muted-foreground">
+                            Isso vai excluir a conta <strong>{account.name}</strong> e todos os seus{" "}
+                            <strong>{accountInvestments.length} movimentos</strong> permanentemente. Ação irreversível.
+                          </p>
+                          <div className="flex gap-2 justify-end mt-2">
+                            <Button variant="outline" onClick={() => {}}>Cancelar</Button>
+                            <Button variant="destructive" onClick={() => handleDeleteAccount(account.id)}>Excluir tudo</Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -629,6 +648,32 @@ export default function InvestimentosPage() {
               )}
             </TabsContent>
           ))}
+
+          {/* ── Dialog: renomear conta ── */}
+          <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>Renomear conta</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>Nome da conta</Label>
+                  <Input placeholder="Ex: Tesouro Selic" value={renameForm.name}
+                    onChange={(e) => setRenameForm({ ...renameForm, name: e.target.value })}
+                    onKeyDown={(e) => e.key === "Enter" && handleRenameAccount()}
+                    autoFocus />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Instituição (opcional)</Label>
+                  <Input placeholder="Ex: NuInvest" value={renameForm.institution}
+                    onChange={(e) => setRenameForm({ ...renameForm, institution: e.target.value })}
+                    onKeyDown={(e) => e.key === "Enter" && handleRenameAccount()} />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setRenameOpen(false)}>Cancelar</Button>
+                  <Button className="flex-1" onClick={handleRenameAccount}>Salvar</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* ── Aba Ações ── */}
           <TabsContent value="acoes" className="space-y-6 mt-4">

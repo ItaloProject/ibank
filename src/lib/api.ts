@@ -160,6 +160,15 @@ export async function deleteInvestmentAccount(id: string): Promise<void> {
   await fetch(`/api/investment-accounts/${id}`, { method: "DELETE" });
 }
 
+export async function renameInvestmentAccount(id: string, name: string, institution: string): Promise<InvestmentAccount> {
+  const res = await fetch(`/api/investment-accounts/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, institution }),
+  });
+  return toAccount(await res.json());
+}
+
 // ─── Investments ──────────────────────────────────────────────────────────────
 
 export async function getInvestments(params?: {
