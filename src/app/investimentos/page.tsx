@@ -378,6 +378,107 @@ export default function InvestimentosPage() {
     return qty * price;
   }, [stockForm.quantity, stockForm.price_per_share]);
 
+  const investorData = useMemo(() => {
+    const CDI_ANUAL = 0.1065; // CDI ~10.65% ao ano
+    const CDI_MENSAL = CDI_ANUAL / 12;
+
+    const turboSources = accounts.filter((a) => a.is_turbo).map((a) => ({
+      nome: a.name,
+      instituicao: a.institution,
+      tipo: "TURBO" as const,
+      capital: a.current_balance,
+      rendaMensal: a.current_balance * ((a.cdi_percent ?? 115) / 100) * CDI_MENSAL,
+      cor: "#10b981",
+      badge: "TURBO · " + (a.cdi_percent ?? 115) + "% CDI",
+    }));
+
+    const fiiPositions = stockPositions.filter((p) => detectAssetType(p.ticker) === "FII");
+    const fiiCapital = fiiPositions.reduce((s, p) => {
+      const cur = quoteMap.get(p.ticker);
+      return s + (cur !== undefined ? cur * p.quantity : p.totalInvested);
+    }, 0);
+    const fiiSources = fiiCapital > 0 ? [{
+      nome: "FIIs",
+      instituicao: fiiPositions.map((p) => p.ticker).join(", "),
+      tipo: "FII" as const,
+      capital: fiiCapital,
+      rendaMensal: fiiCapital * 0.0085,
+      cor: "#a855f7",
+      badge: "~0,85%/mês (estimativa)",
+    }] : [];
+
+    const dividendPositions = stockPositions.filter((p) => {
+      const t = detectAssetType(p.ticker);
+      return t === "Ação" || t === "BDR" || t === "ETF";
+    });
+    const dividendCapital = dividendPositions.reduce((s, p) => {
+      const cur = quoteMap.get(p.ticker);
+      return s + (cur !== undefined ? cur * p.quantity : p.totalInvested);
+    }, 0);
+    const dividendSources = dividendCapital > 0 ? [{
+      nome: "Dividendos de ações",
+      instituicao: dividendPositions.map((p) => p.ticker).join(", "),
+      tipo: "Ação" as const,
+      capital: dividendCapital,
+      rendaMensal: dividendCapital * 0.004,
+      cor: "#3b82f6",
+      badge: "~0,4%/mês (estimativa)",
+    }] : [];
+
+    const rfAccounts = accounts.filter((a) => !a.is_turbo);
+    const rfSources = rfAccounts.flatMap((a) => {
+      const rends = investments.filter((i) => i.account_id === a.id && i.type === "rendimento");
+      if (rends.length === 0) return [];
+      const byMonth = rends.reduce((acc, i) => {
+        const m = i.date.slice(0, 7);
+        acc[m] = (acc[m] ?? 0) + i.amount;
+        return acc;
+      }, {} as Record<string, number>);
+      const months = Object.values(byMonth);
+      const avg = months.reduce((s, v) => s + v, 0) / months.length;
+      const capital = accountBalance(investments, a.id);
+      return [{
+        nome: a.name,
+        instituicao: a.institution ?? "",
+        tipo: "Renda Fixa" as const,
+        capital,
+        rendaMensal: avg,
+        cor: "#f59e0b",
+        badge: `${months.length} mês${months.length !== 1 ? "es" : ""} registrado${months.length !== 1 ? "s" : ""}`,
+      }];
+    });
+
+    const allSources = [...turboSources, ...fiiSources, ...rfSources, ...dividendSources];
+    const totalRendaMensal = allSources.reduce((s, src) => s + src.rendaMensal, 0);
+
+    const allRendimentos = investments.filter((i) => i.type === "rendimento");
+    const rendByMonth = allRendimentos.reduce((acc, i) => {
+      const m = i.date.slice(0, 7);
+      acc[m] = (acc[m] ?? 0) + i.amount;
+      return acc;
+    }, {} as Record<string, number>);
+    const chartMonths = Object.entries(rendByMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([m, v]) => ({
+        label: new Date(m + "-15").toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
+        "Renda recebida": v,
+      }));
+
+    const totalPortfolio = grandTotal;
+    const fiiPct = totalPortfolio > 0 ? (fiiCapital / totalPortfolio) * 100 : 0;
+    const turboPct = totalPortfolio > 0 ? (turboSources.reduce((s, t) => s + t.capital, 0) / totalPortfolio) * 100 : 0;
+    const rfPct = totalPortfolio > 0 ? (rfSources.reduce((s, r) => s + r.capital, 0) / totalPortfolio) * 100 : 0;
+    const divPct = totalPortfolio > 0 ? (dividendCapital / totalPortfolio) * 100 : 0;
+
+    const recommendations = [
+      { label: "FIIs", atual: fiiPct, ideal: 40, cor: "#a855f7", desc: "Melhor renda mensal (~0,85%/mês)" },
+      { label: "TURBO/CDB", atual: turboPct + rfPct, ideal: 30, cor: "#10b981", desc: "Segurança + rendimento CDI" },
+      { label: "Ações/Dividendos", atual: divPct, ideal: 30, cor: "#3b82f6", desc: "Crescimento + dividendos" },
+    ];
+
+    return { allSources, totalRendaMensal, chartMonths, recommendations, fiiCapital, CDI_MENSAL };
+  }, [accounts, investments, stockPositions, quoteMap, grandTotal]);
+
   async function addInvestment() {
     if (!invForm.account_id || !invForm.amount) return;
     const amount = parseFloat(invForm.amount);
@@ -560,6 +661,233 @@ export default function InvestimentosPage() {
     );
   }
 
+  if (investorMode) {
+    const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
+    const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
+    const circumference = 2 * Math.PI * 88;
+
+    return (
+      <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#05050a] text-white">
+        {/* Mesh de fundo */}
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute -top-32 -left-32 h-[28rem] w-[28rem] rounded-full bg-violet-600/25 blur-[100px]" />
+          <div className="absolute top-1/4 -right-32 h-[26rem] w-[26rem] rounded-full bg-blue-500/20 blur-[100px]" />
+          <div className="absolute bottom-0 left-1/3 h-[24rem] w-[24rem] rounded-full bg-emerald-500/15 blur-[110px]" />
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+            backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }} />
+        </div>
+
+        <div className="relative mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12">
+          {/* Top bar */}
+          <div className="flex items-center justify-between mb-10 sm:mb-16">
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-xl">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Modo Investidor</span>
+            </div>
+            <button
+              onClick={() => setInvestorMode(false)}
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-white/70 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
+            >
+              Sair<span className="text-white/40">·</span>voltar ao painel
+            </button>
+          </div>
+
+          {/* Hero central */}
+          <div className="flex flex-col items-center text-center mb-14 sm:mb-20">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">Sua renda passiva mensal</p>
+
+            <div className="relative flex items-center justify-center mb-2" style={{ width: 220, height: 220 }}>
+              {incomeGoal > 0 && (
+                <svg width="220" height="220" className="absolute inset-0 -rotate-90">
+                  <circle cx="110" cy="110" r="88" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+                  <circle
+                    cx="110" cy="110" r="88" fill="none"
+                    stroke="url(#goalGradient)" strokeWidth="8" strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={circumference - (goalProgress / 100) * circumference}
+                    style={{ transition: "stroke-dashoffset 1s ease" }}
+                  />
+                  <defs>
+                    <linearGradient id="goalGradient" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#a855f7" />
+                      <stop offset="100%" stopColor="#3b82f6" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              )}
+              <div className="flex flex-col items-center">
+                <p className="text-4xl sm:text-5xl font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
+                  {formatCurrency(totalRendaMensal)}
+                </p>
+                <p className="text-xs text-white/40 mt-2">por mês</p>
+              </div>
+            </div>
+
+            {incomeGoal > 0 && (
+              <p className="text-sm text-white/50 mb-6">
+                <span className="font-bold text-white">{goalProgress.toFixed(0)}%</span> da meta de{" "}
+                <span className="font-bold text-white">{formatCurrency(incomeGoal)}</span>
+                {goalProgress < 100 && <> · faltam <span className="font-bold text-emerald-400">{formatCurrency(incomeGoal - totalRendaMensal)}</span></>}
+              </p>
+            )}
+
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-white/30" />
+              <input
+                type="number"
+                placeholder="Definir meta mensal (R$)..."
+                className="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-white placeholder:text-white/30 w-56 text-center focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all"
+                value={incomeGoalInput}
+                onChange={(e) => setIncomeGoalInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && incomeGoalInput) {
+                    const v = parseFloat(incomeGoalInput);
+                    if (v > 0) {
+                      setIncomeGoal(v);
+                      try { localStorage.setItem("ibank_income_goal", String(v)); } catch {}
+                      setIncomeGoalInput("");
+                    }
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Fontes de renda */}
+          <div className="mb-14 sm:mb-20">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Fontes de renda</h3>
+            {allSources.length === 0 ? (
+              <p className="text-white/40 text-center py-12 text-sm">Nenhuma fonte de renda identificada ainda.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {allSources.map((src, i) => (
+                  <div key={i}
+                    className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 transition-all hover:bg-white/[0.06] hover:border-white/20"
+                  >
+                    <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full blur-2xl opacity-30 transition-opacity group-hover:opacity-50" style={{ background: src.cor }} />
+                    <div className="relative">
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: src.cor }} />
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">{src.tipo}</p>
+                      </div>
+                      <p className="text-sm font-semibold text-white/90 mb-0.5">{src.nome}</p>
+                      <p className="text-xs text-white/35 mb-4 truncate">{src.badge}</p>
+                      <p className="text-2xl font-extrabold tabular-nums text-white">
+                        +{formatCurrency(src.rendaMensal)}
+                      </p>
+                      <p className="text-xs text-white/30 mt-1">/mês · capital {formatCurrency(src.capital)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Evolução */}
+          {chartMonths.length > 0 && (
+            <div className="mb-14 sm:mb-20">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Evolução registrada</h3>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5">
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={chartMonths}>
+                    <defs>
+                      <linearGradient id="gradInvestorRenda" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.5} />
+                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} />
+                    <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} width={52} />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload?.length) return null;
+                        return (
+                          <div className="bg-[#0a0a12] border border-white/10 rounded-xl shadow-2xl p-3 min-w-[160px]">
+                            <p className="text-xs font-bold border-b border-white/10 pb-1.5 mb-2 text-white/70">{label}</p>
+                            <div className="flex justify-between text-sm gap-4">
+                              <span className="text-white/50">Rendimento</span>
+                              <span className="font-bold text-violet-400 tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Area type="monotone" dataKey="Renda recebida" stroke="#a855f7" strokeWidth={2.5} fill="url(#gradInvestorRenda)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Alocação */}
+          <div className="mb-14 sm:mb-20">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Alocação atual vs. ideal</h3>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 sm:p-6 space-y-6">
+              {recommendations.map((r) => (
+                <div key={r.label} className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: r.cor }} />
+                      <span className="font-semibold text-white/90">{r.label}</span>
+                      <span className="text-xs text-white/35 hidden sm:inline">{r.desc}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="tabular-nums font-bold" style={{ color: r.cor }}>{r.atual.toFixed(1)}%</span>
+                      <span className="text-white/30">alvo {r.ideal}%</span>
+                      <span className={`font-bold ${r.atual >= r.ideal ? "text-emerald-400" : "text-amber-400"}`}>
+                        {r.atual >= r.ideal ? "✓" : `+${(r.ideal - r.atual).toFixed(0)}%`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="relative h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                    <div className="absolute inset-y-0 left-0 rounded-full opacity-25" style={{ width: `${r.ideal}%`, background: r.cor }} />
+                    <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{ width: `${Math.min(r.atual, 100)}%`, background: r.cor }} />
+                    <div className="absolute inset-y-0 w-0.5 bg-white/50" style={{ left: `${r.ideal}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Simulador */}
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">
+              Simulador · para chegar em {formatCurrency(incomeGoal || 1000)}/mês
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.06] backdrop-blur-xl p-5">
+                <p className="text-xs text-purple-300 font-semibold mb-2 uppercase tracking-wide">Via FIIs (~0,85%/mês)</p>
+                <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency((incomeGoal || 1000) / 0.0085)}</p>
+                <p className="text-xs text-white/35 mt-1">investidos em FIIs</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-5">
+                <p className="text-xs text-emerald-300 font-semibold mb-2 uppercase tracking-wide">Via TURBO 115% CDI</p>
+                <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency((incomeGoal || 1000) / (1.15 * CDI_MENSAL))}</p>
+                <p className="text-xs text-white/35 mt-1">investidos em CDB TURBO</p>
+              </div>
+              <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] backdrop-blur-xl p-5">
+                <p className="text-xs text-blue-300 font-semibold mb-2 uppercase tracking-wide">Via dividendos (~0,4%/mês)</p>
+                <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency((incomeGoal || 1000) / 0.004)}</p>
+                <p className="text-xs text-white/35 mt-1">em ações pagadoras</p>
+              </div>
+            </div>
+            <p className="text-xs text-white/30 mt-4 text-center">
+              Você já tem {formatCurrency(totalRendaMensal)}/mês · faltam {formatCurrency(Math.max(0, (incomeGoal || 1000) - totalRendaMensal))}/mês para a meta
+            </p>
+          </div>
+
+          <div className="h-10" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -579,12 +907,12 @@ export default function InvestimentosPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
-            variant={investorMode ? "default" : "outline"}
-            onClick={() => setInvestorMode((v) => !v)}
-            className={investorMode ? "bg-gradient-to-r from-violet-600 to-indigo-600 border-0 text-white shadow-md" : ""}
+            variant="outline"
+            onClick={() => setInvestorMode(true)}
+            className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950/40"
           >
             <Zap className="h-4 w-4" />
-            {investorMode ? "Sair do Modo Investidor" : "Modo Investidor"}
+            Modo Investidor
           </Button>
           <Dialog open={accOpen} onOpenChange={setAccOpen}>
             <DialogTrigger asChild>
@@ -791,315 +1119,7 @@ export default function InvestimentosPage() {
         </div>
       </div>
 
-      {investorMode ? (
-        /* ══════════════════════════════════════════════════════
-           MODO INVESTIDOR — Dashboard de renda passiva mensal
-           ══════════════════════════════════════════════════════ */
-        (() => {
-          const CDI_ANUAL = 0.1065; // CDI ~10.65% ao ano
-          const CDI_MENSAL = CDI_ANUAL / 12;
-
-          // ── Fontes de renda mensal estimadas ──
-          const turboSources = accounts.filter((a) => a.is_turbo).map((a) => ({
-            nome: a.name,
-            instituicao: a.institution,
-            tipo: "TURBO" as const,
-            capital: a.current_balance,
-            rendaMensal: a.current_balance * ((a.cdi_percent ?? 115) / 100) * CDI_MENSAL,
-            cor: "from-emerald-500 to-emerald-600",
-            badge: "TURBO · " + (a.cdi_percent ?? 115) + "% CDI",
-          }));
-
-          const fiiPositions = stockPositions.filter((p) => detectAssetType(p.ticker) === "FII");
-          const fiiCapital = fiiPositions.reduce((s, p) => {
-            const cur = quoteMap.get(p.ticker);
-            return s + (cur !== undefined ? cur * p.quantity : p.totalInvested);
-          }, 0);
-          const fiiSources = fiiCapital > 0 ? [{
-            nome: "FIIs",
-            instituicao: fiiPositions.map((p) => p.ticker).join(", "),
-            tipo: "FII" as const,
-            capital: fiiCapital,
-            rendaMensal: fiiCapital * 0.0085,
-            cor: "from-purple-500 to-purple-600",
-            badge: "~0,85%/mês (estimativa)",
-          }] : [];
-
-          const dividendPositions = stockPositions.filter((p) => {
-            const t = detectAssetType(p.ticker);
-            return t === "Ação" || t === "BDR" || t === "ETF";
-          });
-          const dividendCapital = dividendPositions.reduce((s, p) => {
-            const cur = quoteMap.get(p.ticker);
-            return s + (cur !== undefined ? cur * p.quantity : p.totalInvested);
-          }, 0);
-          const dividendSources = dividendCapital > 0 ? [{
-            nome: "Dividendos de ações",
-            instituicao: dividendPositions.map((p) => p.ticker).join(", "),
-            tipo: "Ação" as const,
-            capital: dividendCapital,
-            rendaMensal: dividendCapital * 0.004,
-            cor: "from-blue-500 to-blue-600",
-            badge: "~0,4%/mês (estimativa)",
-          }] : [];
-
-          // Renda fixa regular (media mensal de rendimentos registrados)
-          const rfAccounts = accounts.filter((a) => !a.is_turbo);
-          const rfSources = rfAccounts.flatMap((a) => {
-            const rends = investments.filter((i) => i.account_id === a.id && i.type === "rendimento");
-            if (rends.length === 0) return [];
-            const byMonth = rends.reduce((acc, i) => {
-              const m = i.date.slice(0, 7);
-              acc[m] = (acc[m] ?? 0) + i.amount;
-              return acc;
-            }, {} as Record<string, number>);
-            const months = Object.values(byMonth);
-            const avg = months.reduce((s, v) => s + v, 0) / months.length;
-            const capital = accountBalance(investments, a.id);
-            return [{
-              nome: a.name,
-              instituicao: a.institution ?? "",
-              tipo: "Renda Fixa" as const,
-              capital,
-              rendaMensal: avg,
-              cor: "from-amber-500 to-orange-500",
-              badge: `${months.length} mês${months.length !== 1 ? "es" : ""} registrado${months.length !== 1 ? "s" : ""}`,
-            }];
-          });
-
-          const allSources = [...turboSources, ...fiiSources, ...rfSources, ...dividendSources];
-          const totalRendaMensal = allSources.reduce((s, src) => s + src.rendaMensal, 0);
-          const totalCapital = allSources.reduce((s, src) => s + src.capital, 0);
-          const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
-          const capitalParaMeta = incomeGoal > 0 ? Math.max(0, (incomeGoal - totalRendaMensal) / (fiiCapital > 0 ? 0.0085 : CDI_MENSAL * 1.15)) : 0;
-
-          // ── Histórico mensal de rendimentos (rendimentos reais registrados) ──
-          const allRendimentos = investments.filter((i) => i.type === "rendimento");
-          const rendByMonth = allRendimentos.reduce((acc, i) => {
-            const m = i.date.slice(0, 7);
-            acc[m] = (acc[m] ?? 0) + i.amount;
-            return acc;
-          }, {} as Record<string, number>);
-          // Adiciona rendimentos TURBO dos turboHistory (se estiver carregado)
-          const chartMonths = Object.entries(rendByMonth)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([m, v]) => ({
-              label: new Date(m + "-15").toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
-              "Renda recebida": v,
-            }));
-
-          // ── Alocação ideal recomendada ──
-          const totalPortfolio = grandTotal;
-          const fiiPct = totalPortfolio > 0 ? (fiiCapital / totalPortfolio) * 100 : 0;
-          const turboPct = totalPortfolio > 0 ? (turboSources.reduce((s, t) => s + t.capital, 0) / totalPortfolio) * 100 : 0;
-          const rfPct = totalPortfolio > 0 ? (rfSources.reduce((s, r) => s + r.capital, 0) / totalPortfolio) * 100 : 0;
-          const divPct = totalPortfolio > 0 ? (dividendCapital / totalPortfolio) * 100 : 0;
-
-          const recommendations = [
-            { label: "FIIs", atual: fiiPct, ideal: 40, cor: "#8b5cf6", desc: "Melhor renda mensal (~0,85%/mês)" },
-            { label: "TURBO/CDB", atual: turboPct + rfPct, ideal: 30, cor: "#10b981", desc: "Segurança + rendimento CDI" },
-            { label: "Ações/Dividendos", atual: divPct, ideal: 30, cor: "#3b82f6", desc: "Crescimento + dividendos" },
-          ];
-
-          return (
-            <div className="space-y-6">
-              {/* Banner modo investidor */}
-              <div className="rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 p-6 text-white shadow-xl">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Zap className="h-5 w-5 text-yellow-300" />
-                      <span className="text-xs font-bold uppercase tracking-widest text-indigo-200">Modo Investidor</span>
-                    </div>
-                    <h2 className="text-3xl font-extrabold mb-1">Renda passiva mensal</h2>
-                    <p className="text-indigo-200 text-sm">Estimativa com base nos seus investimentos atuais</p>
-                  </div>
-                  <div className="flex gap-6 text-center">
-                    <div>
-                      <p className="text-xs text-indigo-200 mb-1">Renda atual/mês</p>
-                      <p className="text-4xl font-extrabold tabular-nums">{formatCurrency(totalRendaMensal)}</p>
-                    </div>
-                    {incomeGoal > 0 && (
-                      <div>
-                        <p className="text-xs text-indigo-200 mb-1">Meta mensal</p>
-                        <p className="text-4xl font-extrabold tabular-nums">{formatCurrency(incomeGoal)}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Barra de progresso */}
-                {incomeGoal > 0 && (
-                  <div className="mt-5">
-                    <div className="flex justify-between text-xs text-indigo-200 mb-1.5">
-                      <span>{goalProgress.toFixed(1)}% da meta atingida</span>
-                      <span>Faltam {formatCurrency(Math.max(0, incomeGoal - totalRendaMensal))}/mês</span>
-                    </div>
-                    <div className="h-3 rounded-full bg-white/20">
-                      <div
-                        className="h-full rounded-full bg-yellow-300 transition-all duration-700 shadow-sm"
-                        style={{ width: `${goalProgress}%` }}
-                      />
-                    </div>
-                    {capitalParaMeta > 0 && (
-                      <p className="text-xs text-indigo-200 mt-2">
-                        Invista mais {formatCurrency(capitalParaMeta)} em FIIs para atingir a meta
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Input de meta */}
-                <div className="mt-4 flex items-center gap-2">
-                  <Target className="h-4 w-4 text-indigo-200 shrink-0" />
-                  <input
-                    type="number"
-                    placeholder="Definir meta mensal (R$)..."
-                    className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white placeholder:text-indigo-300 w-52 focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                    value={incomeGoalInput}
-                    onChange={(e) => setIncomeGoalInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && incomeGoalInput) {
-                        const v = parseFloat(incomeGoalInput);
-                        if (v > 0) {
-                          setIncomeGoal(v);
-                          try { localStorage.setItem("ibank_income_goal", String(v)); } catch {}
-                          setIncomeGoalInput("");
-                        }
-                      }
-                    }}
-                  />
-                  <span className="text-xs text-indigo-300">↵ Enter para salvar</span>
-                </div>
-              </div>
-
-              {/* Fontes de renda */}
-              <div>
-                <h3 className="text-lg font-bold mb-3">Fontes de renda passiva</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {allSources.length === 0 ? (
-                    <p className="text-muted-foreground col-span-4 text-center py-8 text-sm">Nenhuma fonte de renda identificada ainda.</p>
-                  ) : allSources.map((src, i) => (
-                    <div key={i} className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${src.cor} p-4 text-white shadow-md`}>
-                      <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
-                      <div className="absolute -right-1 -bottom-4 h-20 w-20 rounded-full bg-white/10" />
-                      <p className="text-xs font-bold uppercase tracking-wide text-white/70 mb-1">{src.tipo}</p>
-                      <p className="text-base font-bold leading-tight mb-0.5">{src.nome}</p>
-                      <p className="text-xs text-white/60 mb-3 truncate">{src.badge}</p>
-                      <p className="text-2xl font-extrabold tabular-nums">+{formatCurrency(src.rendaMensal)}<span className="text-sm font-normal text-white/70">/mês</span></p>
-                      <p className="text-xs text-white/60 mt-1 tabular-nums">capital {formatCurrency(src.capital)}</p>
-                      {incomeGoal > 0 && (
-                        <div className="mt-2 h-1.5 rounded-full bg-white/20">
-                          <div className="h-full rounded-full bg-white/70" style={{ width: `${Math.min((src.rendaMensal / incomeGoal) * 100, 100)}%` }} />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Gráfico de evolução de rendimentos registrados */}
-              {chartMonths.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Evolução da renda passiva registrada</CardTitle>
-                    <CardDescription>Rendimentos reais lançados por mês em todas as contas</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={220}>
-                      <AreaChart data={chartMonths}>
-                        <defs>
-                          <linearGradient id="gradRenda" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                        <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
-                        <Tooltip
-                          content={({ active, payload, label }) => {
-                            if (!active || !payload?.length) return null;
-                            return (
-                              <div className="bg-white dark:bg-zinc-900 border rounded-xl shadow-lg p-3 min-w-[160px]">
-                                <p className="text-xs font-bold border-b pb-1.5 mb-2">{label}</p>
-                                <div className="flex justify-between text-sm gap-4">
-                                  <span className="text-muted-foreground">Rendimento</span>
-                                  <span className="font-bold text-violet-600 tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
-                                </div>
-                              </div>
-                            );
-                          }}
-                        />
-                        <Area type="monotone" dataKey="Renda recebida" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#gradRenda)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Alocação atual vs ideal */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Alocação atual vs. ideal para renda passiva</CardTitle>
-                  <CardDescription>Compare sua carteira atual com a distribuição recomendada para maximizar renda mensal</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  {recommendations.map((r) => (
-                    <div key={r.label} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: r.cor }} />
-                          <span className="font-semibold">{r.label}</span>
-                          <span className="text-xs text-muted-foreground">{r.desc}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="tabular-nums font-bold" style={{ color: r.cor }}>{r.atual.toFixed(1)}% atual</span>
-                          <span className="text-muted-foreground">→ ideal {r.ideal}%</span>
-                          <span className={`font-bold ${r.atual >= r.ideal ? "text-green-600" : "text-amber-600"}`}>
-                            {r.atual >= r.ideal ? "✓ OK" : `+${(r.ideal - r.atual).toFixed(0)}% sugerido`}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="relative h-3 rounded-full bg-muted overflow-hidden">
-                        {/* barra ideal */}
-                        <div className="absolute inset-y-0 left-0 rounded-full opacity-20" style={{ width: `${r.ideal}%`, background: r.cor }} />
-                        {/* barra atual */}
-                        <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{ width: `${Math.min(r.atual, 100)}%`, background: r.cor }} />
-                        {/* marcador ideal */}
-                        <div className="absolute inset-y-0 w-0.5 bg-white/80" style={{ left: `${r.ideal}%` }} />
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Simulador */}
-                  <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50/50 dark:bg-violet-950/20 p-4 space-y-3">
-                    <p className="text-sm font-bold text-violet-800 dark:text-violet-300">💡 Para chegar em {formatCurrency(incomeGoal || 1000)}/mês de renda passiva:</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                      <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border">
-                        <p className="text-xs text-purple-600 font-semibold mb-1">Via FIIs (~0,85%/mês)</p>
-                        <p className="text-lg font-bold tabular-nums">{formatCurrency((incomeGoal || 1000) / 0.0085)}</p>
-                        <p className="text-xs text-muted-foreground">investidos em FIIs</p>
-                      </div>
-                      <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border">
-                        <p className="text-xs text-emerald-600 font-semibold mb-1">Via TURBO 115% CDI</p>
-                        <p className="text-lg font-bold tabular-nums">{formatCurrency((incomeGoal || 1000) / (1.15 * CDI_MENSAL))}</p>
-                        <p className="text-xs text-muted-foreground">investidos em CDB TURBO</p>
-                      </div>
-                      <div className="bg-white dark:bg-zinc-900 rounded-lg p-3 border">
-                        <p className="text-xs text-blue-600 font-semibold mb-1">Via dividendos (~0,4%/mês)</p>
-                        <p className="text-lg font-bold tabular-nums">{formatCurrency((incomeGoal || 1000) / 0.004)}</p>
-                        <p className="text-xs text-muted-foreground">em ações pagadoras</p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Você já tem {formatCurrency(totalRendaMensal)}/mês · Faltam {formatCurrency(Math.max(0, (incomeGoal || 1000) - totalRendaMensal))}/mês para a meta</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          );
-        })()
-      ) : accounts.length === 0 && stockTrades.length === 0 ? (
+      {accounts.length === 0 && stockTrades.length === 0 ? (
         <Card className="text-center py-16">
           <CardContent>
             <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
