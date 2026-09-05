@@ -947,8 +947,15 @@ export default function InvestimentosPage() {
                       <CardHeader className="pb-2"><CardDescription>Total de rendimentos</CardDescription></CardHeader>
                       <CardContent>
                         <p className="text-2xl font-bold text-blue-600 tabular-nums">
-                          {formatCurrency(accountInvestments.filter((i) => i.type === "rendimento").reduce((s, i) => s + i.amount, 0))}
+                          {account.is_turbo
+                            ? formatCurrency(turboHistory.reduce((s, r) => s + r.rendimento, 0))
+                            : formatCurrency(accountInvestments.filter((i) => i.type === "rendimento").reduce((s, i) => s + i.amount, 0))}
                         </p>
+                        {account.is_turbo && turboHistory.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {turboHistory.length} mês{turboHistory.length !== 1 ? "es" : ""} registrado{turboHistory.length !== 1 ? "s" : ""}
+                          </p>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
@@ -1110,7 +1117,7 @@ export default function InvestimentosPage() {
                     </Card>
                   )}
 
-                  <Card>
+                  {!account.is_turbo && <Card>
                     <CardHeader>
                       <CardTitle>Histórico de movimentações</CardTitle>
                       <CardDescription>{accountInvestments.length} registro{accountInvestments.length !== 1 ? "s" : ""}</CardDescription>
@@ -1150,7 +1157,7 @@ export default function InvestimentosPage() {
                         </div>
                       )}
                     </CardContent>
-                  </Card>
+                  </Card>}
                 </>
               )}
             </TabsContent>
