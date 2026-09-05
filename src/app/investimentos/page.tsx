@@ -927,19 +927,30 @@ export default function InvestimentosPage() {
                       </CardContent>
                     </Card>
                     {account.is_turbo ? (
-                      <Card className="border-blue-200 bg-blue-50/50">
-                        <CardHeader className="pb-2"><CardDescription className="text-blue-700">Valor líquido</CardDescription></CardHeader>
-                        <CardContent>
-                          <p className="text-2xl font-bold text-blue-700 tabular-nums">
-                            {account.valor_liquido != null ? formatCurrency(account.valor_liquido) : "—"}
-                          </p>
-                          {account.valor_liquido != null && computedBalance > 0 && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              IOF/IR est. {formatCurrency(computedBalance - account.valor_liquido)}
+                      <>
+                        <Card className="border-blue-200 bg-blue-50/50">
+                          <CardHeader className="pb-2"><CardDescription className="text-blue-700">Valor líquido</CardDescription></CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold text-blue-700 tabular-nums">
+                              {account.valor_liquido != null ? formatCurrency(account.valor_liquido) : "—"}
                             </p>
-                          )}
-                        </CardContent>
-                      </Card>
+                            {account.valor_liquido != null && computedBalance > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                IOF/IR est. {formatCurrency(computedBalance - account.valor_liquido)}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-emerald-200 bg-emerald-50/50">
+                          <CardHeader className="pb-2"><CardDescription className="text-emerald-700">Líquido real</CardDescription></CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold text-emerald-700 tabular-nums">
+                              {account.valor_liquido != null ? formatCurrency(account.valor_liquido - 5000) : "—"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">Líquido − R$ 5.000,00</p>
+                          </CardContent>
+                        </Card>
+                      </>
                     ) : (
                       <Card>
                         <CardHeader className="pb-2"><CardDescription>Total depositado</CardDescription></CardHeader>
