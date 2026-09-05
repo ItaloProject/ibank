@@ -39,6 +39,11 @@ export interface InvestmentAccount {
   institution: string;
   current_balance: number;
   created_at: string;
+  // TURBO fields
+  is_turbo: boolean;
+  cdi_percent: number | null;
+  max_rendimento: number | null;
+  valor_liquido: number | null;
 }
 
 export interface Investment {

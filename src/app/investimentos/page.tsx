@@ -18,8 +18,8 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
-  getInvestmentAccounts, createInvestmentAccount, updateAccountBalance,
-  deleteInvestmentAccount, renameInvestmentAccount,
+  getInvestmentAccounts, createInvestmentAccountWithTurbo,
+  updateAccountBalance, deleteInvestmentAccount, renameInvestmentAccount, updateTurboSettings,
   getInvestments, createInvestment, deleteInvestment,
   getStockTrades, createStockTrade, deleteStockTrade,
   getStockQuotes, upsertStockQuote, type StockQuote,
@@ -185,7 +185,10 @@ export default function InvestimentosPage() {
   const [accOpen, setAccOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
-  const [renameForm, setRenameForm] = useState({ id: "", name: "", institution: "" });
+  const [renameForm, setRenameForm] = useState({
+    id: "", name: "", institution: "",
+    is_turbo: false, cdi_percent: "", max_rendimento: "", valor_liquido: "",
+  });
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const now = new Date();
@@ -198,7 +201,11 @@ export default function InvestimentosPage() {
     date: format(now, "yyyy-MM-dd"),
   });
 
-  const [accForm, setAccForm] = useState({ name: "", institution: "" });
+  const [accForm, setAccForm] = useState({
+    name: "", institution: "",
+    is_turbo: false, cdi_percent: "", max_rendimento: "", valor_liquido: "",
+  });
+  const [invLiquido, setInvLiquido] = useState("");
 
   const [stockForm, setStockForm] = useState({
     ticker: "",
@@ -346,17 +353,28 @@ export default function InvestimentosPage() {
     if (acc) {
       const delta = invForm.type === "retirada" ? -amount : amount;
       await updateAccountBalance(invForm.account_id, acc.current_balance + delta);
+      if (acc.is_turbo && invLiquido) {
+        await updateTurboSettings(invForm.account_id, { valor_liquido: parseFloat(invLiquido) });
+      }
     }
     setInvOpen(false);
+    setInvLiquido("");
     setInvForm({ account_id: invForm.account_id, type: "deposito", amount: "", description: "", date: format(now, "yyyy-MM-dd") });
     load();
   }
 
   async function addAccount() {
     if (!accForm.name) return;
-    await createInvestmentAccount({ name: accForm.name, institution: accForm.institution });
+    await createInvestmentAccountWithTurbo({
+      name: accForm.name,
+      institution: accForm.institution,
+      is_turbo: accForm.is_turbo,
+      cdi_percent: accForm.is_turbo && accForm.cdi_percent ? parseFloat(accForm.cdi_percent) : null,
+      max_rendimento: accForm.is_turbo && accForm.max_rendimento ? parseFloat(accForm.max_rendimento) : null,
+      valor_liquido: accForm.is_turbo && accForm.valor_liquido ? parseFloat(accForm.valor_liquido) : null,
+    });
     setAccOpen(false);
-    setAccForm({ name: "", institution: "" });
+    setAccForm({ name: "", institution: "", is_turbo: false, cdi_percent: "", max_rendimento: "", valor_liquido: "" });
     load();
   }
 
@@ -411,6 +429,12 @@ export default function InvestimentosPage() {
   async function handleRenameAccount() {
     if (!renameForm.name.trim()) return;
     await renameInvestmentAccount(renameForm.id, renameForm.name.trim(), renameForm.institution.trim());
+    await updateTurboSettings(renameForm.id, {
+      is_turbo: renameForm.is_turbo,
+      cdi_percent: renameForm.is_turbo && renameForm.cdi_percent ? parseFloat(renameForm.cdi_percent) : null,
+      max_rendimento: renameForm.is_turbo && renameForm.max_rendimento ? parseFloat(renameForm.max_rendimento) : null,
+      valor_liquido: renameForm.is_turbo && renameForm.valor_liquido ? parseFloat(renameForm.valor_liquido) : null,
+    });
     setRenameOpen(false);
     load();
   }
@@ -448,6 +472,40 @@ export default function InvestimentosPage() {
                   <Input placeholder="Ex: Caixa Econômica" value={accForm.institution}
                     onChange={(e) => setAccForm({ ...accForm, institution: e.target.value })} />
                 </div>
+                <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 select-none">
+                  <input
+                    type="checkbox"
+                    checked={accForm.is_turbo}
+                    onChange={(e) => setAccForm({ ...accForm, is_turbo: e.target.checked })}
+                    className="w-4 h-4 accent-blue-600"
+                  />
+                  <div>
+                    <p className="font-medium text-sm">TURBO</p>
+                    <p className="text-xs text-muted-foreground">Caixinha com CDI acima de 100% e teto de rendimento</p>
+                  </div>
+                </label>
+                {accForm.is_turbo && (
+                  <div className="space-y-3 pl-2 border-l-2 border-blue-400">
+                    <div className="space-y-1.5">
+                      <Label>% do CDI contratado</Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" placeholder="Ex: 115" value={accForm.cdi_percent}
+                          onChange={(e) => setAccForm({ ...accForm, cdi_percent: e.target.value })} />
+                        <span className="text-sm text-muted-foreground shrink-0">% CDI</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Valor máximo de rendimento (R$)</Label>
+                      <Input type="number" placeholder="Ex: 5000.00" value={accForm.max_rendimento}
+                        onChange={(e) => setAccForm({ ...accForm, max_rendimento: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Valor líquido atual (R$)</Label>
+                      <Input type="number" placeholder="Ex: 5086.01" value={accForm.valor_liquido}
+                        onChange={(e) => setAccForm({ ...accForm, valor_liquido: e.target.value })} />
+                    </div>
+                  </div>
+                )}
                 <Button className="w-full" onClick={addAccount}>Adicionar conta</Button>
               </div>
             </DialogContent>
@@ -507,6 +565,23 @@ export default function InvestimentosPage() {
                   <Input type="date" value={invForm.date}
                     onChange={(e) => setInvForm({ ...invForm, date: e.target.value })} />
                 </div>
+                {(() => {
+                  const selAcc = accounts.find((a) => a.id === invForm.account_id);
+                  if (!selAcc?.is_turbo) return null;
+                  return (
+                    <div className="space-y-1.5 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">TURBO · {selAcc.cdi_percent ? `${selAcc.cdi_percent}% CDI` : ""}</p>
+                      <Label className="text-sm">Valor líquido atual (R$)</Label>
+                      <Input
+                        type="number"
+                        placeholder={selAcc.valor_liquido ? String(selAcc.valor_liquido) : "Ex: 5086.01"}
+                        value={invLiquido}
+                        onChange={(e) => setInvLiquido(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">Atualize o valor líquido a cada rendimento mensal</p>
+                    </div>
+                  );
+                })()}
                 <Button className="w-full" onClick={addInvestment}>Registrar</Button>
               </div>
             </DialogContent>
@@ -694,7 +769,13 @@ export default function InvestimentosPage() {
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" className="gap-1.5"
                         onClick={() => {
-                          setRenameForm({ id: account.id, name: account.name, institution: account.institution ?? "" });
+                          setRenameForm({
+                            id: account.id, name: account.name, institution: account.institution ?? "",
+                            is_turbo: account.is_turbo ?? false,
+                            cdi_percent: account.cdi_percent ? String(account.cdi_percent) : "",
+                            max_rendimento: account.max_rendimento ? String(account.max_rendimento) : "",
+                            valor_liquido: account.valor_liquido ? String(account.valor_liquido) : "",
+                          });
                           setRenameOpen(true);
                         }}>
                         <Pencil className="h-3.5 w-3.5" /> Renomear
@@ -720,9 +801,24 @@ export default function InvestimentosPage() {
                     </div>
                   </div>
 
+                  {account.is_turbo && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold">
+                        ⚡ TURBO
+                      </span>
+                      {account.cdi_percent && (
+                        <span className="text-xs text-muted-foreground">{account.cdi_percent}% CDI</span>
+                      )}
+                      {account.max_rendimento && (
+                        <span className="text-xs text-muted-foreground">· teto {formatCurrency(account.max_rendimento)}</span>
+                      )}
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card>
-                      <CardHeader className="pb-2"><CardDescription>Saldo atual</CardDescription></CardHeader>
+                      <CardHeader className="pb-2">
+                        <CardDescription>{account.is_turbo ? "Total bruto" : "Saldo atual"}</CardDescription>
+                      </CardHeader>
                       <CardContent>
                         <p className="text-2xl font-bold text-green-600 tabular-nums">{formatCurrency(computedBalance)}</p>
                         {account.institution && (
@@ -730,14 +826,30 @@ export default function InvestimentosPage() {
                         )}
                       </CardContent>
                     </Card>
-                    <Card>
-                      <CardHeader className="pb-2"><CardDescription>Total depositado</CardDescription></CardHeader>
-                      <CardContent>
-                        <p className="text-2xl font-bold tabular-nums">
-                          {formatCurrency(accountInvestments.filter((i) => i.type === "deposito").reduce((s, i) => s + i.amount, 0))}
-                        </p>
-                      </CardContent>
-                    </Card>
+                    {account.is_turbo ? (
+                      <Card className="border-blue-200 bg-blue-50/50">
+                        <CardHeader className="pb-2"><CardDescription className="text-blue-700">Valor líquido</CardDescription></CardHeader>
+                        <CardContent>
+                          <p className="text-2xl font-bold text-blue-700 tabular-nums">
+                            {account.valor_liquido != null ? formatCurrency(account.valor_liquido) : "—"}
+                          </p>
+                          {account.valor_liquido != null && computedBalance > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              IOF/IR est. {formatCurrency(computedBalance - account.valor_liquido)}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Card>
+                        <CardHeader className="pb-2"><CardDescription>Total depositado</CardDescription></CardHeader>
+                        <CardContent>
+                          <p className="text-2xl font-bold tabular-nums">
+                            {formatCurrency(accountInvestments.filter((i) => i.type === "deposito").reduce((s, i) => s + i.amount, 0))}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
                     <Card>
                       <CardHeader className="pb-2"><CardDescription>Total de rendimentos</CardDescription></CardHeader>
                       <CardContent>
@@ -820,21 +932,53 @@ export default function InvestimentosPage() {
           {/* ── Dialog: renomear conta ── */}
           <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
             <DialogContent className="max-w-sm">
-              <DialogHeader><DialogTitle>Renomear conta</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Editar conta</DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label>Nome da conta</Label>
                   <Input placeholder="Ex: Tesouro Selic" value={renameForm.name}
                     onChange={(e) => setRenameForm({ ...renameForm, name: e.target.value })}
-                    onKeyDown={(e) => e.key === "Enter" && handleRenameAccount()}
                     autoFocus />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Instituição (opcional)</Label>
                   <Input placeholder="Ex: NuInvest" value={renameForm.institution}
-                    onChange={(e) => setRenameForm({ ...renameForm, institution: e.target.value })}
-                    onKeyDown={(e) => e.key === "Enter" && handleRenameAccount()} />
+                    onChange={(e) => setRenameForm({ ...renameForm, institution: e.target.value })} />
                 </div>
+                <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 select-none">
+                  <input
+                    type="checkbox"
+                    checked={renameForm.is_turbo}
+                    onChange={(e) => setRenameForm({ ...renameForm, is_turbo: e.target.checked })}
+                    className="w-4 h-4 accent-blue-600"
+                  />
+                  <div>
+                    <p className="font-medium text-sm">⚡ TURBO</p>
+                    <p className="text-xs text-muted-foreground">CDI acima de 100% com teto de rendimento</p>
+                  </div>
+                </label>
+                {renameForm.is_turbo && (
+                  <div className="space-y-3 pl-2 border-l-2 border-blue-400">
+                    <div className="space-y-1.5">
+                      <Label>% do CDI contratado</Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" placeholder="Ex: 115" value={renameForm.cdi_percent}
+                          onChange={(e) => setRenameForm({ ...renameForm, cdi_percent: e.target.value })} />
+                        <span className="text-sm text-muted-foreground shrink-0">% CDI</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Valor máximo de rendimento (R$)</Label>
+                      <Input type="number" placeholder="Ex: 5000.00" value={renameForm.max_rendimento}
+                        onChange={(e) => setRenameForm({ ...renameForm, max_rendimento: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Valor líquido atual (R$)</Label>
+                      <Input type="number" placeholder="Ex: 5086.01" value={renameForm.valor_liquido}
+                        onChange={(e) => setRenameForm({ ...renameForm, valor_liquido: e.target.value })} />
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1" onClick={() => setRenameOpen(false)}>Cancelar</Button>
                   <Button className="flex-1" onClick={handleRenameAccount}>Salvar</Button>

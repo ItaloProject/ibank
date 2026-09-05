@@ -38,7 +38,14 @@ function toTransaction(r: any): Transaction {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toAccount(r: any): InvestmentAccount {
-  return { ...r, current_balance: Number(r.current_balance) };
+  return {
+    ...r,
+    current_balance: Number(r.current_balance),
+    is_turbo: Boolean(r.is_turbo),
+    cdi_percent: r.cdi_percent != null ? Number(r.cdi_percent) : null,
+    max_rendimento: r.max_rendimento != null ? Number(r.max_rendimento) : null,
+    valor_liquido: r.valor_liquido != null ? Number(r.valor_liquido) : null,
+  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -165,6 +172,30 @@ export async function renameInvestmentAccount(id: string, name: string, institut
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, institution }),
+  });
+  return toAccount(await res.json());
+}
+
+export async function updateTurboSettings(
+  id: string,
+  settings: { is_turbo?: boolean; cdi_percent?: number | null; max_rendimento?: number | null; valor_liquido?: number | null },
+): Promise<InvestmentAccount> {
+  const res = await fetch(`/api/investment-accounts/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+  return toAccount(await res.json());
+}
+
+export async function createInvestmentAccountWithTurbo(data: {
+  name: string; institution: string;
+  is_turbo?: boolean; cdi_percent?: number | null; max_rendimento?: number | null; valor_liquido?: number | null;
+}): Promise<InvestmentAccount> {
+  const res = await fetch("/api/investment-accounts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...data, user_id: uid() }),
   });
   return toAccount(await res.json());
 }
