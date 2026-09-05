@@ -7,6 +7,7 @@ import type {
   InvestmentType,
   StockTrade,
   TurboRecord,
+  PortfolioSnapshot,
 } from "@/types/database";
 import { getCurrentUser } from "@/lib/user";
 
@@ -314,4 +315,28 @@ export async function saveTurboMonth(data: {
 
 export async function deleteTurboRecord(id: string): Promise<void> {
   await fetch(`/api/turbo-history/${id}`, { method: "DELETE" });
+}
+
+// ─── Portfolio Snapshots ──────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toSnapshot(r: any): PortfolioSnapshot {
+  return { ...r, total: Number(r.total), invested: Number(r.invested) };
+}
+
+export async function getPortfolioSnapshots(): Promise<PortfolioSnapshot[]> {
+  const res = await fetch(`/api/portfolio-snapshots?user=${uid()}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data.map(toSnapshot) : [];
+}
+
+export async function savePortfolioSnapshot(data: {
+  date: string; total: number; invested: number;
+}): Promise<PortfolioSnapshot> {
+  const res = await fetch(`/api/portfolio-snapshots?user=${uid()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return toSnapshot(await res.json());
 }

@@ -67,6 +67,15 @@ export interface TurboRecord {
   created_at: string;
 }
 
+export interface PortfolioSnapshot {
+  id: string;
+  user_id: string;
+  date: string; // "YYYY-MM-DD"
+  total: number;
+  invested: number;
+  created_at: string;
+}
+
 export interface StockTrade {
   id: string;
   user_id: string;

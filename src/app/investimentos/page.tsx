@@ -24,9 +24,10 @@ import {
   getInvestments, createInvestment, deleteInvestment,
   getStockTrades, createStockTrade, deleteStockTrade,
   getStockQuotes, upsertStockQuote, type StockQuote,
+  getPortfolioSnapshots, savePortfolioSnapshot,
   getTurboHistory, saveTurboMonth, deleteTurboRecord,
 } from "@/lib/api";
-import type { TurboRecord } from "@/types/database";
+import type { TurboRecord, PortfolioSnapshot } from "@/types/database";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { InvestmentAccount, Investment, InvestmentType, StockTrade } from "@/types/database";
 import { format } from "date-fns";
@@ -214,6 +215,9 @@ export default function InvestimentosPage() {
   const [turboHistory, setTurboHistory] = useState<TurboRecord[]>([]);
   const [turboMonthOpen, setTurboMonthOpen] = useState(false);
   const [selectedTurboMonth, setSelectedTurboMonth] = useState<string | null>(null);
+  const [portfolioSnapshots, setPortfolioSnapshots] = useState<PortfolioSnapshot[]>([]);
+  const [bulkQuoteOpen, setBulkQuoteOpen] = useState(false);
+  const [bulkPrices, setBulkPrices] = useState<Record<string, string>>({});
   const [turboMonthForm, setTurboMonthForm] = useState({
     month: format(new Date(), "yyyy-MM"),
     total_bruto: "",
@@ -231,12 +235,14 @@ export default function InvestimentosPage() {
 
   const load = useCallback(async () => {
     try {
-      const [loadedAccounts, loadedInvestments, loadedStocks, loadedQuotes] = await Promise.all([
+      const [loadedAccounts, loadedInvestments, loadedStocks, loadedQuotes, loadedSnapshots] = await Promise.all([
         getInvestmentAccounts(),
         getInvestments(),
         getStockTrades(),
         getStockQuotes(),
+        getPortfolioSnapshots(),
       ]);
+      setPortfolioSnapshots(Array.isArray(loadedSnapshots) ? loadedSnapshots : []);
       setStockQuotes(Array.isArray(loadedQuotes) ? loadedQuotes : []);
       const accs = Array.isArray(loadedAccounts) ? loadedAccounts : [];
       setAccounts(accs);
@@ -493,6 +499,32 @@ export default function InvestimentosPage() {
   async function handleDeleteTurboRecord(id: string) {
     await deleteTurboRecord(id);
     setTurboHistory((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  async function handleBulkSaveQuotes() {
+    const entries = Object.entries(bulkPrices).filter(([, v]) => v !== "");
+    if (entries.length === 0) return;
+    await Promise.all(entries.map(([ticker, price]) => upsertStockQuote(ticker, parseFloat(price))));
+    const updatedQuotes = await getStockQuotes();
+    setStockQuotes(Array.isArray(updatedQuotes) ? updatedQuotes : []);
+    // Auto-snapshot: calcula total atual da carteira com as novas cotações
+    const newQuoteMap = new Map((Array.isArray(updatedQuotes) ? updatedQuotes : []).map((q: StockQuote) => [q.ticker, q.current_price]));
+    const computedPositions = computeStockPositions(stockTrades);
+    let total = 0;
+    let invested = 0;
+    for (const p of computedPositions) {
+      const cur = newQuoteMap.get(p.ticker);
+      total += cur !== undefined ? cur * p.quantity : p.totalInvested;
+      invested += p.totalInvested;
+    }
+    const today = format(new Date(), "yyyy-MM-dd");
+    const snap = await savePortfolioSnapshot({ date: today, total, invested });
+    setPortfolioSnapshots((prev) => {
+      const rest = prev.filter((s) => s.date !== snap.date);
+      return [...rest, snap].sort((a, b) => a.date.localeCompare(b.date));
+    });
+    setBulkQuoteOpen(false);
+    setBulkPrices({});
   }
 
   async function handleRenameAccount() {
@@ -1470,8 +1502,20 @@ export default function InvestimentosPage() {
             {stockPositions.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Posições atuais</CardTitle>
-                  <CardDescription>Consolidado por ticker · clique no lápis para atualizar a cotação</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Posições atuais</CardTitle>
+                      <CardDescription>Clique no lápis individual ou atualize todas as cotações de uma vez</CardDescription>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      const init: Record<string, string> = {};
+                      stockPositions.forEach((p) => { init[p.ticker] = quoteMap.has(p.ticker) ? String(quoteMap.get(p.ticker)) : ""; });
+                      setBulkPrices(init);
+                      setBulkQuoteOpen(true);
+                    }}>
+                      <TrendingUp className="h-4 w-4 mr-1.5" />Atualizar cotações
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {stockPositions.map((p) => {
@@ -1526,6 +1570,133 @@ export default function InvestimentosPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Evolução do portfólio */}
+            {portfolioSnapshots.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Evolução do portfólio</CardTitle>
+                      <CardDescription>Valor total vs. investido ao longo do tempo · {portfolioSnapshots.length} snapshot{portfolioSnapshots.length !== 1 ? "s" : ""}</CardDescription>
+                    </div>
+                    {(() => {
+                      const last = portfolioSnapshots[portfolioSnapshots.length - 1];
+                      const first = portfolioSnapshots[0];
+                      const gain = last.total - first.total;
+                      const gainPct = first.total > 0 ? (gain / first.total) * 100 : 0;
+                      return (
+                        <div className="text-right">
+                          <p className={`text-lg font-bold tabular-nums ${gain >= 0 ? "text-green-600" : "text-destructive"}`}>
+                            {gain >= 0 ? "+" : ""}{gainPct.toFixed(2)}%
+                          </p>
+                          <p className="text-xs text-muted-foreground">{gain >= 0 ? "+" : ""}{formatCurrency(gain)} no período</p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <AreaChart data={portfolioSnapshots.map((s) => ({
+                      data: new Date(s.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
+                      "Valor atual": s.total,
+                      "Investido": s.invested,
+                    }))}>
+                      <defs>
+                        <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="gradInvested" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                      <XAxis dataKey="data" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tickFormatter={(v) => v >= 1000 ? `R$${(v / 1000).toFixed(1)}k` : `R$${v}`} width={64} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          const total = Number(payload.find((p) => p.dataKey === "Valor atual")?.value ?? 0);
+                          const invested = Number(payload.find((p) => p.dataKey === "Investido")?.value ?? 0);
+                          const diff = total - invested;
+                          return (
+                            <div className="bg-white dark:bg-zinc-900 border rounded-xl shadow-lg p-3.5 min-w-[200px] space-y-2">
+                              <p className="text-xs font-bold border-b pb-2">{label}</p>
+                              <div className="flex justify-between text-sm">
+                                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-500 inline-block" />Valor atual</span>
+                                <span className="font-bold tabular-nums">{formatCurrency(total)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-slate-400 inline-block" />Investido</span>
+                                <span className="font-bold tabular-nums">{formatCurrency(invested)}</span>
+                              </div>
+                              <div className={`flex justify-between text-sm font-semibold border-t pt-2 ${diff >= 0 ? "text-green-600" : "text-destructive"}`}>
+                                <span>Ganho/perda</span>
+                                <span className="tabular-nums">{diff >= 0 ? "+" : ""}{formatCurrency(diff)}</span>
+                              </div>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Legend iconType="square" iconSize={10} formatter={(v) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                      <Area type="monotone" dataKey="Investido" stroke="#94a3b8" strokeWidth={1.5} fill="url(#gradInvested)" strokeDasharray="4 2" />
+                      <Area type="monotone" dataKey="Valor atual" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gradTotal)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Dialog: atualizar cotações em lote */}
+            <Dialog open={bulkQuoteOpen} onOpenChange={setBulkQuoteOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Atualizar cotações</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                  {stockPositions.map((p) => {
+                    const assetType = detectAssetType(p.ticker);
+                    const assetBadge: Record<AssetType, string> = {
+                      FII: "bg-purple-100 text-purple-800",
+                      ETF: "bg-yellow-100 text-yellow-800",
+                      BDR: "bg-orange-100 text-orange-800",
+                      Ação: "bg-blue-100 text-blue-800",
+                    };
+                    return (
+                      <div key={p.ticker} className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="font-semibold text-sm">{p.ticker}</span>
+                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${assetBadge[assetType]}`}>{assetType}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">médio {formatCurrency(p.avgPrice)} · {p.quantity} {assetType === "FII" || assetType === "ETF" ? "cotas" : "ações"}</p>
+                        </div>
+                        <div className="w-32">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder={`Ex: ${p.avgPrice.toFixed(2)}`}
+                            value={bulkPrices[p.ticker] ?? ""}
+                            onChange={(e) => setBulkPrices((prev) => ({ ...prev, [p.ticker]: e.target.value }))}
+                            className="h-8 text-sm text-right"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">Ao salvar, um snapshot do portfólio será registrado automaticamente com a data de hoje.</p>
+                <div className="flex gap-2 justify-end pt-1">
+                  <Button variant="outline" onClick={() => setBulkQuoteOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleBulkSaveQuotes}>
+                    <TrendingUp className="h-4 w-4 mr-1.5" />Salvar e registrar snapshot
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {sectorData.length > 0 && (
               <Card>
