@@ -219,6 +219,8 @@ export default function InvestimentosPage() {
   const [bulkQuoteOpen, setBulkQuoteOpen] = useState(false);
   const [bulkPrices, setBulkPrices] = useState<Record<string, string>>({});
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
+  const [rendMonthOpen, setRendMonthOpen] = useState(false);
+  const [rendMonthForm, setRendMonthForm] = useState({ month: format(new Date(), "yyyy-MM"), amount: "", description: "" });
   const [turboMonthForm, setTurboMonthForm] = useState({
     month: format(new Date(), "yyyy-MM"),
     total_bruto: "",
@@ -1326,68 +1328,200 @@ export default function InvestimentosPage() {
                     </>
                   )}
 
-                  {!account.is_turbo && chartData.length > 1 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Evolução do saldo</CardTitle>
-                        <CardDescription>Histórico acumulado — {account.name}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <ResponsiveContainer width="100%" height={220}>
-                          <AreaChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" angle={-25} textAnchor="end" height={50} />
-                            <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                            <Tooltip formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)} />
-                            <Area type="monotone" dataKey="saldo" stroke="hsl(var(--primary))"
-                              fill="hsl(var(--primary) / 0.1)" strokeWidth={2} />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-                  )}
+                  {!account.is_turbo && (() => {
+                    const monthlyRendimentos = accountInvestments
+                      .filter((i) => i.type === "rendimento")
+                      .reduce((acc, i) => {
+                        const m = i.date.slice(0, 7);
+                        acc[m] = (acc[m] ?? 0) + i.amount;
+                        return acc;
+                      }, {} as Record<string, number>);
+                    const rendData = Object.entries(monthlyRendimentos)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([m, v]) => ({
+                        mes: m,
+                        label: new Date(m + "-15").toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
+                        Rendimento: v,
+                      }));
+                    const totalRend = rendData.reduce((s, d) => s + d.Rendimento, 0);
+                    const lastRend = rendData[rendData.length - 1]?.Rendimento ?? 0;
 
-                  {!account.is_turbo && <Card>
-                    <CardHeader>
-                      <CardTitle>Histórico de movimentações</CardTitle>
-                      <CardDescription>{accountInvestments.length} registro{accountInvestments.length !== 1 ? "s" : ""}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {accountInvestments.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-8 text-sm">Nenhuma movimentação registrada.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {accountInvestments.map((inv) => {
-                            const config = TYPE_CONFIG[inv.type];
-                            const Icon = config.icon;
-                            return (
-                              <div key={inv.id}
-                                className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <Icon className={`h-5 w-5 shrink-0 ${config.color}`} />
-                                  <div className="min-w-0">
-                                    <p className="font-medium text-sm truncate">{inv.description || config.label}</p>
-                                    <p className="text-xs text-muted-foreground">{formatDate(inv.date)}</p>
-                                  </div>
-                                  <Badge className={config.badgeClass}>{config.label}</Badge>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <p className={`font-semibold tabular-nums ${config.color}`}>
-                                    {inv.type === "retirada" ? "-" : "+"}{formatCurrency(inv.amount)}
-                                  </p>
-                                  <Button variant="ghost" size="icon"
-                                    className="text-muted-foreground hover:text-destructive"
-                                    onClick={() => handleDeleteInvestment(inv)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
+                    return (
+                      <>
+                        {/* Card rendimento mensal */}
+                        <Card>
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <CardTitle>Rendimentos mensais</CardTitle>
+                                <CardDescription>
+                                  {rendData.length > 0
+                                    ? `${rendData.length} mês${rendData.length !== 1 ? "es" : ""} · total ${formatCurrency(totalRend)}`
+                                    : "Registre o rendimento de cada mês"}
+                                </CardDescription>
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>}
+                              <Button size="sm" onClick={() => {
+                                setRendMonthForm({ month: format(new Date(), "yyyy-MM"), amount: "", description: "" });
+                                setRendMonthOpen(true);
+                              }}>
+                                <Plus className="h-4 w-4 mr-1" />Registrar rendimento
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {rendData.length === 0 ? (
+                              <p className="text-sm text-muted-foreground text-center py-8">
+                                Nenhum rendimento registrado ainda.
+                              </p>
+                            ) : (
+                              <div className="space-y-4">
+                                {/* mini-stats */}
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 p-3 text-center">
+                                    <p className="text-xs text-amber-600 mb-1">Último mês</p>
+                                    <p className="text-base font-bold text-amber-700 tabular-nums">+{formatCurrency(lastRend)}</p>
+                                  </div>
+                                  <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 p-3 text-center">
+                                    <p className="text-xs text-blue-600 mb-1">Total acumulado</p>
+                                    <p className="text-base font-bold text-blue-700 tabular-nums">+{formatCurrency(totalRend)}</p>
+                                  </div>
+                                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 p-3 text-center">
+                                    <p className="text-xs text-emerald-600 mb-1">Média mensal</p>
+                                    <p className="text-base font-bold text-emerald-700 tabular-nums">+{formatCurrency(totalRend / rendData.length)}</p>
+                                  </div>
+                                </div>
+                                {/* gráfico de barras */}
+                                <ResponsiveContainer width="100%" height={200}>
+                                  <BarChart data={rendData} barCategoryGap="35%" barGap={4}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                    <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
+                                    <Tooltip
+                                      content={({ active, payload, label }) => {
+                                        if (!active || !payload?.length) return null;
+                                        return (
+                                          <div className="bg-white dark:bg-zinc-900 border rounded-xl shadow-lg p-3 min-w-[160px]">
+                                            <p className="text-xs font-bold border-b pb-1.5 mb-2">{label}</p>
+                                            <div className="flex justify-between text-sm gap-4">
+                                              <span className="text-muted-foreground">Rendimento</span>
+                                              <span className="font-bold text-amber-600 tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      }}
+                                    />
+                                    <Bar dataKey="Rendimento" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                                  </BarChart>
+                                </ResponsiveContainer>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        {/* Dialog registrar rendimento */}
+                        <Dialog open={rendMonthOpen} onOpenChange={setRendMonthOpen}>
+                          <DialogContent className="max-w-sm">
+                            <DialogHeader><DialogTitle>Registrar rendimento — {account.name}</DialogTitle></DialogHeader>
+                            <div className="space-y-4">
+                              <div className="space-y-1.5">
+                                <Label>Mês de referência</Label>
+                                <Input type="month" value={rendMonthForm.month}
+                                  onChange={(e) => setRendMonthForm({ ...rendMonthForm, month: e.target.value })} />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label>Valor do rendimento (R$)</Label>
+                                <Input type="number" step="0.01" autoFocus placeholder="Ex: 45,30"
+                                  value={rendMonthForm.amount}
+                                  onChange={(e) => setRendMonthForm({ ...rendMonthForm, amount: e.target.value })} />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label>Descrição <span className="text-muted-foreground text-xs">opcional</span></Label>
+                                <Input placeholder="Ex: Juros prefixado set/26"
+                                  value={rendMonthForm.description}
+                                  onChange={(e) => setRendMonthForm({ ...rendMonthForm, description: e.target.value })} />
+                              </div>
+                              <Button className="w-full" onClick={async () => {
+                                const amount = parseFloat(rendMonthForm.amount);
+                                if (!rendMonthForm.month || !amount) return;
+                                const date = rendMonthForm.month + "-01";
+                                const desc = rendMonthForm.description.trim() || `Rendimento ${new Date(date + "T12:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`;
+                                await createInvestment({ account_id: account.id, type: "rendimento", amount, description: desc, date });
+                                await updateAccountBalance(account.id, computedBalance + amount);
+                                setRendMonthOpen(false);
+                                setRendMonthForm({ month: format(new Date(), "yyyy-MM"), amount: "", description: "" });
+                                load();
+                              }}>Salvar</Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+
+                        {/* Gráfico evolução do saldo */}
+                        {chartData.length > 1 && (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Evolução do saldo</CardTitle>
+                              <CardDescription>Histórico acumulado — {account.name}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <ResponsiveContainer width="100%" height={220}>
+                                <AreaChart data={chartData}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                  <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" angle={-25} textAnchor="end" height={50} />
+                                  <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} axisLine={false} tickLine={false} />
+                                  <Tooltip formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)} />
+                                  <Area type="monotone" dataKey="saldo" stroke="hsl(var(--primary))"
+                                    fill="hsl(var(--primary) / 0.1)" strokeWidth={2} />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Histórico de movimentações */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Histórico de movimentações</CardTitle>
+                            <CardDescription>{accountInvestments.length} registro{accountInvestments.length !== 1 ? "s" : ""}</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            {accountInvestments.length === 0 ? (
+                              <p className="text-muted-foreground text-center py-8 text-sm">Nenhuma movimentação registrada.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {accountInvestments.map((inv) => {
+                                  const config = TYPE_CONFIG[inv.type];
+                                  const Icon = config.icon;
+                                  return (
+                                    <div key={inv.id}
+                                      className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <Icon className={`h-5 w-5 shrink-0 ${config.color}`} />
+                                        <div className="min-w-0">
+                                          <p className="font-medium text-sm truncate">{inv.description || config.label}</p>
+                                          <p className="text-xs text-muted-foreground">{formatDate(inv.date)}</p>
+                                        </div>
+                                        <Badge className={config.badgeClass}>{config.label}</Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <p className={`font-semibold tabular-nums ${config.color}`}>
+                                          {inv.type === "retirada" ? "-" : "+"}{formatCurrency(inv.amount)}
+                                        </p>
+                                        <Button variant="ghost" size="icon"
+                                          className="text-muted-foreground hover:text-destructive"
+                                          onClick={() => handleDeleteInvestment(inv)}>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </>
+                    );
+                  })()}
                 </>
               )}
             </TabsContent>
