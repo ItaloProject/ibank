@@ -1044,21 +1044,39 @@ export default function InvestimentosPage() {
                                         width={64} tick={{ fontSize: 11 }} axisLine={false} tickLine={false}
                                       />
                                       <Tooltip
-                                        cursor={{ fill: "rgba(99,102,241,0.07)", radius: 6 }}
+                                        cursor={{ fill: "rgba(99,102,241,0.07)" }}
                                         content={({ active, payload, label }) => {
                                           if (!active || !payload?.length) return null;
+                                          const descriptions: Record<string, string> = {
+                                            "Total bruto": "Saldo total acumulado na caixinha no mês",
+                                            "Rendimento": "Quanto a caixinha rendeu neste mês",
+                                            "Líquido": "Valor líquido estimado após IOF/IR",
+                                          };
+                                          const colors: Record<string, string> = {
+                                            "Total bruto": "#10b981",
+                                            "Rendimento": "#f59e0b",
+                                            "Líquido": "#3b82f6",
+                                          };
                                           return (
-                                            <div className="bg-white dark:bg-zinc-900 border rounded-xl shadow-lg p-3 min-w-[180px]">
-                                              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">{label}</p>
-                                              {payload.map((p, i) => (
-                                                <div key={i} className="flex items-center justify-between gap-4 text-sm py-0.5">
-                                                  <span className="flex items-center gap-1.5">
-                                                    <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: p.color }} />
-                                                    {String(p.dataKey)}
-                                                  </span>
-                                                  <span className="font-semibold tabular-nums">{formatCurrency(Number(p.value))}</span>
-                                                </div>
-                                              ))}
+                                            <div className="bg-white dark:bg-zinc-900 border rounded-xl shadow-lg p-3.5 min-w-[220px] space-y-2.5">
+                                              <p className="text-xs font-bold text-foreground border-b pb-2">{label}</p>
+                                              {payload.map((p, i) => {
+                                                const key = String(p.dataKey);
+                                                return (
+                                                  <div key={i} className="space-y-0.5">
+                                                    <div className="flex items-center justify-between gap-4">
+                                                      <span className="flex items-center gap-1.5 text-sm font-semibold">
+                                                        <span className="inline-block w-3 h-3 rounded" style={{ background: colors[key] ?? p.color }} />
+                                                        {key}
+                                                      </span>
+                                                      <span className="font-bold tabular-nums text-sm">{formatCurrency(Number(p.value))}</span>
+                                                    </div>
+                                                    {descriptions[key] && (
+                                                      <p className="text-xs text-muted-foreground pl-4.5 leading-snug">{descriptions[key]}</p>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
                                             </div>
                                           );
                                         }}
@@ -1074,7 +1092,7 @@ export default function InvestimentosPage() {
                                           stroke="#6366f1" strokeWidth={2} strokeDasharray="4 2"
                                         />
                                       )}
-                                      <Bar dataKey="Total bruto" radius={[4, 4, 0, 0]}
+                                      <Bar dataKey="Total bruto" fill="#10b981" radius={[4, 4, 0, 0]}
                                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                         shape={(props: any) => {
                                           const isSelected = props.mes === selectedTurboMonth;
@@ -1082,7 +1100,7 @@ export default function InvestimentosPage() {
                                           return <rect x={x} y={y} width={width} height={height} rx={4} fill={isSelected ? "#059669" : "#10b981"} opacity={selectedTurboMonth && !isSelected ? 0.4 : 1} />;
                                         }}
                                       />
-                                      <Bar dataKey="Rendimento" radius={[4, 4, 0, 0]}
+                                      <Bar dataKey="Rendimento" fill="#f59e0b" radius={[4, 4, 0, 0]}
                                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                         shape={(props: any) => {
                                           const isSelected = props.mes === selectedTurboMonth;
@@ -1090,7 +1108,7 @@ export default function InvestimentosPage() {
                                           return <rect x={x} y={y} width={width} height={height} rx={4} fill={isSelected ? "#d97706" : "#f59e0b"} opacity={selectedTurboMonth && !isSelected ? 0.4 : 1} />;
                                         }}
                                       />
-                                      <Bar dataKey="Líquido" radius={[4, 4, 0, 0]}
+                                      <Bar dataKey="Líquido" fill="#3b82f6" radius={[4, 4, 0, 0]}
                                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                         shape={(props: any) => {
                                           const isSelected = props.mes === selectedTurboMonth;
