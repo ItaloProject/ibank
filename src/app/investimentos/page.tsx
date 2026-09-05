@@ -314,9 +314,10 @@ export default function InvestimentosPage() {
   const accountBalances = useMemo(
     () => accounts.map((a) => ({
       account: a,
-      balance: accountBalance(investments, a.id),
-      deposited: investments.filter((i) => i.account_id === a.id && i.type === "deposito").reduce((s, i) => s + i.amount, 0),
-      yields: investments.filter((i) => i.account_id === a.id && i.type === "rendimento").reduce((s, i) => s + i.amount, 0),
+      // TURBO: saldo real em current_balance (não há movimentações normais)
+      balance: a.is_turbo ? a.current_balance : accountBalance(investments, a.id),
+      deposited: a.is_turbo ? a.current_balance : investments.filter((i) => i.account_id === a.id && i.type === "deposito").reduce((s, i) => s + i.amount, 0),
+      yields: a.is_turbo ? 0 : investments.filter((i) => i.account_id === a.id && i.type === "rendimento").reduce((s, i) => s + i.amount, 0),
     })),
     [accounts, investments],
   );
@@ -339,7 +340,7 @@ export default function InvestimentosPage() {
     () => accounts.reduce<Partial<Record<RateCategory, number>>>((acc, a) => {
       const cat = detectCategory(a.name);
       if (!cat) return acc;
-      acc[cat] = (acc[cat] ?? 0) + accountBalance(investments, a.id);
+      acc[cat] = (acc[cat] ?? 0) + (a.is_turbo ? a.current_balance : accountBalance(investments, a.id));
       return acc;
     }, {}),
     [accounts, investments],
@@ -351,10 +352,10 @@ export default function InvestimentosPage() {
     () => investments.filter((i) => i.account_id === selectedAccountId),
     [investments, selectedAccountId],
   );
-  const computedBalance = useMemo(
-    () => accountBalance(investments, selectedAccountId),
-    [investments, selectedAccountId],
-  );
+  const computedBalance = useMemo(() => {
+    const acc = accounts.find((a) => a.id === selectedAccountId);
+    return acc?.is_turbo ? acc.current_balance : accountBalance(investments, selectedAccountId);
+  }, [accounts, investments, selectedAccountId]);
 
   const chartData = useMemo(() => {
     const sorted = [...accountInvestments].sort((a, b) => a.date.localeCompare(b.date));
