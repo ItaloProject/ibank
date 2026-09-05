@@ -76,7 +76,12 @@ export default function InvestimentosPage() {
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteForm, setQuoteForm] = useState({ ticker: "", price: "" });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("total");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ibank_inv_tab") ?? "total";
+    }
+    return "total";
+  });
   const [invOpen, setInvOpen] = useState(false);
   const [accOpen, setAccOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
@@ -120,6 +125,14 @@ export default function InvestimentosPage() {
         ...prev,
         account_id: prev.account_id || (accs[0]?.id ?? ""),
       }));
+      // Restore saved tab (validate it still exists)
+      const saved = localStorage.getItem("ibank_inv_tab");
+      if (saved && saved !== "total" && saved !== "acoes") {
+        if (!accs.find((a) => a.id === saved)) {
+          localStorage.removeItem("ibank_inv_tab");
+          setActiveTab("total");
+        }
+      }
     } catch (err) {
       console.error("Erro ao carregar investimentos:", err);
     } finally {
@@ -442,7 +455,7 @@ export default function InvestimentosPage() {
           </CardContent>
         </Card>
       ) : (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); localStorage.setItem("ibank_inv_tab", v); }}>
           <TabsList className="flex h-auto flex-wrap gap-1">
             <TabsTrigger value="total" className="gap-1.5">
               <BarChart3 className="h-3.5 w-3.5" />

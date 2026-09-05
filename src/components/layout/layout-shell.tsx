@@ -21,6 +21,12 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMobileOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   function toggle() {
     setCollapsed((prev) => {
       const next = !prev;
@@ -61,7 +67,10 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           </button>
           <span className="font-bold text-lg">IBANK</span>
         </header>
-        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-background">
+        <main
+          className="flex-1 overflow-y-auto overflow-x-hidden bg-background"
+          onClick={() => { if (mobileOpen) setMobileOpen(false); }}
+        >
           {children}
         </main>
       </div>
