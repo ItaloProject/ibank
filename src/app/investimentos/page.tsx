@@ -23,7 +23,9 @@ import {
   getInvestments, createInvestment, deleteInvestment,
   getStockTrades, createStockTrade, deleteStockTrade,
   getStockQuotes, upsertStockQuote, type StockQuote,
+  getTurboHistory, saveTurboMonth, deleteTurboRecord,
 } from "@/lib/api";
+import type { TurboRecord } from "@/types/database";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { InvestmentAccount, Investment, InvestmentType, StockTrade } from "@/types/database";
 import { format } from "date-fns";
@@ -208,6 +210,14 @@ export default function InvestimentosPage() {
   });
   const [invLiquido, setInvLiquido] = useState("");
   const [invBruto, setInvBruto] = useState("");
+  const [turboHistory, setTurboHistory] = useState<TurboRecord[]>([]);
+  const [turboMonthOpen, setTurboMonthOpen] = useState(false);
+  const [turboMonthForm, setTurboMonthForm] = useState({
+    month: format(new Date(), "yyyy-MM"),
+    total_bruto: "",
+    rendimento: "",
+    valor_liquido: "",
+  });
 
   const [stockForm, setStockForm] = useState({
     ticker: "",
@@ -250,6 +260,16 @@ export default function InvestimentosPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load turbo history when active account changes to a turbo account
+  useEffect(() => {
+    const acc = accounts.find((a) => a.id === activeTab);
+    if (acc?.is_turbo) {
+      getTurboHistory(acc.id).then(setTurboHistory).catch(() => setTurboHistory([]));
+    } else {
+      setTurboHistory([]);
+    }
+  }, [activeTab, accounts]);
 
   const stockPositions = useMemo(() => computeStockPositions(stockTrades), [stockTrades]);
 
@@ -434,6 +454,36 @@ export default function InvestimentosPage() {
       return [...rest, updated];
     });
     setQuoteOpen(false);
+  }
+
+  async function handleSaveTurboMonth() {
+    if (!turboMonthForm.month || !turboMonthForm.total_bruto) return;
+    const acc = accounts.find((a) => a.id === activeTab);
+    if (!acc?.is_turbo) return;
+    const record = await saveTurboMonth({
+      account_id: acc.id,
+      month: turboMonthForm.month,
+      total_bruto: parseFloat(turboMonthForm.total_bruto),
+      rendimento: parseFloat(turboMonthForm.rendimento) || 0,
+      valor_liquido: turboMonthForm.valor_liquido ? parseFloat(turboMonthForm.valor_liquido) : null,
+    });
+    // Also update the account's current bruto and liquido to the latest values
+    await updateAccountBalance(acc.id, parseFloat(turboMonthForm.total_bruto));
+    if (turboMonthForm.valor_liquido) {
+      await updateTurboSettings(acc.id, { valor_liquido: parseFloat(turboMonthForm.valor_liquido) });
+    }
+    setTurboHistory((prev) => {
+      const rest = prev.filter((r) => r.month !== record.month);
+      return [...rest, record].sort((a, b) => a.month.localeCompare(b.month));
+    });
+    setTurboMonthOpen(false);
+    setTurboMonthForm({ month: format(new Date(), "yyyy-MM"), total_bruto: "", rendimento: "", valor_liquido: "" });
+    load();
+  }
+
+  async function handleDeleteTurboRecord(id: string) {
+    await deleteTurboRecord(id);
+    setTurboHistory((prev) => prev.filter((r) => r.id !== id));
   }
 
   async function handleRenameAccount() {
@@ -903,7 +953,143 @@ export default function InvestimentosPage() {
                     </Card>
                   </div>
 
-                  {chartData.length > 1 && (
+                  {/* ── TURBO: histórico mensal ── */}
+                  {account.is_turbo && (
+                    <>
+                      <Card>
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <CardTitle>Evolução mensal TURBO</CardTitle>
+                              <CardDescription>Bruto, rendimento e líquido por mês</CardDescription>
+                            </div>
+                            <Button size="sm" onClick={() => {
+                              setTurboMonthForm({ month: format(new Date(), "yyyy-MM"), total_bruto: "", rendimento: "", valor_liquido: "" });
+                              setTurboMonthOpen(true);
+                            }}>
+                              <Plus className="h-4 w-4 mr-1" />Registrar mês
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          {turboHistory.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-6">
+                              Nenhum mês registrado ainda. Clique em &quot;Registrar mês&quot; para começar.
+                            </p>
+                          ) : (
+                            <>
+                              {/* Gráfico de evolução */}
+                              <ResponsiveContainer width="100%" height={220}>
+                                <AreaChart data={turboHistory.map((r) => ({
+                                  mes: r.month.slice(0, 7),
+                                  "Total bruto": r.total_bruto,
+                                  "Rendimento": r.rendimento,
+                                  "Líquido": r.valor_liquido ?? undefined,
+                                }))}>
+                                  <CartesianGrid strokeDasharray="3 3" />
+                                  <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                                  <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(1)}k`} width={60} />
+                                  <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                                  <Area type="monotone" dataKey="Total bruto" stroke="#10b981" fill="#10b981" fillOpacity={0.15} strokeWidth={2} />
+                                  <Area type="monotone" dataKey="Líquido" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} strokeDasharray="5 3" />
+                                  <Area type="monotone" dataKey="Rendimento" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.2} strokeWidth={2} />
+                                  <Legend />
+                                </AreaChart>
+                              </ResponsiveContainer>
+
+                              {/* Tabela de registros */}
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b text-muted-foreground text-xs uppercase">
+                                      <th className="text-left py-2 pr-4 font-medium">Mês</th>
+                                      <th className="text-right py-2 pr-4 font-medium">Total bruto</th>
+                                      <th className="text-right py-2 pr-4 font-medium">Rendimento</th>
+                                      <th className="text-right py-2 pr-4 font-medium">Valor líquido</th>
+                                      <th className="py-2 w-8" />
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {[...turboHistory].reverse().map((r) => (
+                                      <tr key={r.id} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
+                                        <td className="py-2.5 pr-4 font-medium">
+                                          {new Date(r.month + "-15").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                                        </td>
+                                        <td className="py-2.5 pr-4 text-right tabular-nums text-green-600 font-semibold">
+                                          {formatCurrency(r.total_bruto)}
+                                        </td>
+                                        <td className="py-2.5 pr-4 text-right tabular-nums text-amber-600 font-semibold">
+                                          +{formatCurrency(r.rendimento)}
+                                        </td>
+                                        <td className="py-2.5 pr-4 text-right tabular-nums text-blue-600 font-semibold">
+                                          {r.valor_liquido != null ? formatCurrency(r.valor_liquido) : "—"}
+                                        </td>
+                                        <td className="py-2.5 text-right">
+                                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                            onClick={() => handleDeleteTurboRecord(r.id)}>
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr className="border-t-2">
+                                      <td className="py-2 pr-4 text-xs text-muted-foreground">Total acumulado</td>
+                                      <td className="py-2 pr-4 text-right tabular-nums font-bold text-green-700">
+                                        {formatCurrency(turboHistory[turboHistory.length - 1]?.total_bruto ?? 0)}
+                                      </td>
+                                      <td className="py-2 pr-4 text-right tabular-nums font-bold text-amber-700">
+                                        +{formatCurrency(turboHistory.reduce((s, r) => s + r.rendimento, 0))}
+                                      </td>
+                                      <td className="py-2 pr-4 text-right tabular-nums font-bold text-blue-700">
+                                        {turboHistory[turboHistory.length - 1]?.valor_liquido != null
+                                          ? formatCurrency(turboHistory[turboHistory.length - 1].valor_liquido!)
+                                          : "—"}
+                                      </td>
+                                      <td />
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {/* Dialog: registrar mês TURBO */}
+                      <Dialog open={turboMonthOpen} onOpenChange={setTurboMonthOpen}>
+                        <DialogContent className="max-w-sm">
+                          <DialogHeader><DialogTitle>Registrar mês — {account.name}</DialogTitle></DialogHeader>
+                          <div className="space-y-4">
+                            <div className="space-y-1.5">
+                              <Label>Mês de referência</Label>
+                              <Input type="month" value={turboMonthForm.month}
+                                onChange={(e) => setTurboMonthForm({ ...turboMonthForm, month: e.target.value })} />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Total bruto no mês (R$)</Label>
+                              <Input type="number" placeholder="Ex: 5.110,96" value={turboMonthForm.total_bruto}
+                                onChange={(e) => setTurboMonthForm({ ...turboMonthForm, total_bruto: e.target.value })} />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Rendimento do mês (R$)</Label>
+                              <Input type="number" placeholder="Ex: 59,30" value={turboMonthForm.rendimento}
+                                onChange={(e) => setTurboMonthForm({ ...turboMonthForm, rendimento: e.target.value })} />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Valor líquido (R$) <span className="text-muted-foreground text-xs">opcional</span></Label>
+                              <Input type="number" placeholder="Ex: 5.086,01" value={turboMonthForm.valor_liquido}
+                                onChange={(e) => setTurboMonthForm({ ...turboMonthForm, valor_liquido: e.target.value })} />
+                            </div>
+                            <Button className="w-full" onClick={handleSaveTurboMonth}>Salvar</Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </>
+                  )}
+
+                  {!account.is_turbo && chartData.length > 1 && (
                     <Card>
                       <CardHeader>
                         <CardTitle>Evolução do saldo</CardTitle>
@@ -1175,16 +1361,20 @@ export default function InvestimentosPage() {
                             paddingAngle={2}
                             dataKey="value"
                             labelLine={false}
-                            label={({ cx, cy, midAngle, innerRadius: ir, outerRadius: or, pct }) => {
-                              if (pct < 5) return null;
+                            label={(props) => {
+                              const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props as {
+                                cx: number; cy: number; midAngle: number;
+                                innerRadius: number; outerRadius: number; percent: number;
+                              };
+                              if (percent < 0.05) return null;
                               const RADIAN = Math.PI / 180;
-                              const r = ir + (or - ir) * 0.5;
+                              const r = innerRadius + (outerRadius - innerRadius) * 0.5;
                               const x = cx + r * Math.cos(-midAngle * RADIAN);
                               const y = cy + r * Math.sin(-midAngle * RADIAN);
                               return (
                                 <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central"
                                   fontSize={11} fontWeight="700">
-                                  {pct.toFixed(0)}%
+                                  {(percent * 100).toFixed(0)}%
                                 </text>
                               );
                             }}

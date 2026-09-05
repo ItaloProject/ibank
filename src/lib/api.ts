@@ -6,6 +6,7 @@ import type {
   Investment,
   InvestmentType,
   StockTrade,
+  TurboRecord,
 } from "@/types/database";
 import { getCurrentUser } from "@/lib/user";
 
@@ -276,4 +277,41 @@ export async function upsertStockQuote(ticker: string, current_price: number): P
   });
   const r = await res.json();
   return { ...r, current_price: Number(r.current_price) };
+}
+
+// ─── Turbo History ────────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toTurboRecord(r: any): TurboRecord {
+  return {
+    ...r,
+    total_bruto: Number(r.total_bruto),
+    rendimento: Number(r.rendimento),
+    valor_liquido: r.valor_liquido != null ? Number(r.valor_liquido) : null,
+  };
+}
+
+export async function getTurboHistory(accountId: string): Promise<TurboRecord[]> {
+  const res = await fetch(`/api/turbo-history?user=${uid()}&account_id=${accountId}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data.map(toTurboRecord) : [];
+}
+
+export async function saveTurboMonth(data: {
+  account_id: string;
+  month: string;
+  total_bruto: number;
+  rendimento: number;
+  valor_liquido?: number | null;
+}): Promise<TurboRecord> {
+  const res = await fetch(`/api/turbo-history?user=${uid()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return toTurboRecord(await res.json());
+}
+
+export async function deleteTurboRecord(id: string): Promise<void> {
+  await fetch(`/api/turbo-history/${id}`, { method: "DELETE" });
 }

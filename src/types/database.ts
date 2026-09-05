@@ -56,6 +56,17 @@ export interface Investment {
   created_at: string;
 }
 
+export interface TurboRecord {
+  id: string;
+  account_id: string;
+  user_id: string;
+  month: string; // "YYYY-MM"
+  total_bruto: number;
+  rendimento: number;
+  valor_liquido: number | null;
+  created_at: string;
+}
+
 export interface StockTrade {
   id: string;
   user_id: string;
