@@ -1093,49 +1093,97 @@ export default function InvestimentosPage() {
             {sectorData.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Diversificação por setor</CardTitle>
-                  <CardDescription>Distribuição do valor atual da carteira</CardDescription>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle>Diversificação por setor</CardTitle>
+                      <CardDescription>Distribuição do valor atual da carteira</CardDescription>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="text-sm font-bold tabular-nums">{formatCurrency(sectorData.reduce((s, d) => s + d.value, 0))}</p>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col md:flex-row items-center gap-6">
-                    <div className="w-full md:w-64 h-64 shrink-0">
+                  <div className="flex flex-col lg:flex-row gap-8 items-center">
+                    {/* Donut com label customizado */}
+                    <div className="relative shrink-0" style={{ width: 260, height: 260 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                             data={sectorData}
                             cx="50%"
                             cy="50%"
-                            innerRadius="55%"
-                            outerRadius="80%"
+                            innerRadius={72}
+                            outerRadius={108}
                             paddingAngle={2}
                             dataKey="value"
+                            labelLine={false}
+                            label={({ cx, cy, midAngle, innerRadius: ir, outerRadius: or, pct }) => {
+                              if (pct < 5) return null;
+                              const RADIAN = Math.PI / 180;
+                              const r = ir + (or - ir) * 0.5;
+                              const x = cx + r * Math.cos(-midAngle * RADIAN);
+                              const y = cy + r * Math.sin(-midAngle * RADIAN);
+                              return (
+                                <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central"
+                                  fontSize={11} fontWeight="700">
+                                  {pct.toFixed(0)}%
+                                </text>
+                              );
+                            }}
                           >
                             {sectorData.map((_, i) => (
                               <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value) => [
-                              `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-                            ]}
+                            content={({ active, payload }) => {
+                              if (!active || !payload?.length) return null;
+                              const d = payload[0].payload;
+                              return (
+                                <div className="bg-background border rounded-lg shadow-lg p-3 text-sm">
+                                  <p className="font-semibold">{d.name}</p>
+                                  <p className="text-muted-foreground">{formatCurrency(d.value)}</p>
+                                  <p className="font-bold text-base">{d.pct.toFixed(1)}%</p>
+                                </div>
+                              );
+                            }}
                           />
                         </PieChart>
                       </ResponsiveContainer>
+                      {/* Texto central */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <p className="text-xs text-muted-foreground">{sectorData.length} setores</p>
+                        <p className="text-sm font-bold tabular-nums">
+                          {formatCurrency(sectorData.reduce((s, d) => s + d.value, 0))}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 w-full space-y-2">
-                      {sectorData.map((s, i) => (
-                        <div key={s.name} className="flex items-center gap-3">
-                          <span
-                            className="inline-block h-3 w-3 rounded-full shrink-0"
-                            style={{ backgroundColor: SECTOR_COLORS[i % SECTOR_COLORS.length] }}
-                          />
-                          <span className="flex-1 text-sm">{s.name}</span>
-                          <span className="text-sm font-medium tabular-nums">{s.pct.toFixed(1)}%</span>
-                          <span className="text-xs text-muted-foreground tabular-nums w-28 text-right">
-                            {formatCurrency(s.value)}
-                          </span>
-                        </div>
-                      ))}
+
+                    {/* Legenda detalhada */}
+                    <div className="flex-1 w-full space-y-3">
+                      {sectorData.map((s, i) => {
+                        const color = SECTOR_COLORS[i % SECTOR_COLORS.length];
+                        return (
+                          <div key={s.name} className="space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                <span className="text-sm font-medium truncate">{s.name}</span>
+                              </div>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="text-sm font-bold tabular-nums" style={{ color }}>{s.pct.toFixed(1)}%</span>
+                                <span className="text-xs text-muted-foreground tabular-nums w-24 text-right">{formatCurrency(s.value)}</span>
+                              </div>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${s.pct}%`, backgroundColor: color }} />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </CardContent>
