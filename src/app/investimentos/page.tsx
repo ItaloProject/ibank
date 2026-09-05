@@ -296,7 +296,10 @@ export default function InvestimentosPage() {
                 <Plus className="h-4 w-4" />Nova movimentação
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent onInteractOutside={(e) => {
+              const target = e.target as Element;
+              if (target?.closest?.("[data-radix-popper-content-wrapper]")) e.preventDefault();
+            }}>
               <DialogHeader><DialogTitle>Registrar movimentação</DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-1.5">
