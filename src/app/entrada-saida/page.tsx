@@ -17,9 +17,10 @@ import {
 } from "@/components/ui/dialog";
 import {
   Plus, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle, Wallet,
-  Target, Loader2, LogOut, TrendingUp, PiggyBank,
+  Target, Loader2, LogOut, TrendingUp, PiggyBank, ChevronLeft, ChevronRight,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, addMonths, subMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { USERS } from "@/lib/user";
 
@@ -50,6 +51,7 @@ export default function EntradaSaidaPage() {
 function EntradaSaidaContent({ userId }: { userId: string }) {
   const { switchUser } = useUser();
   const currentUser = USERS.find((u) => u.id === userId)!;
+  const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [flows, setFlows] = useState<CashFlow[]>([]);
   const [goal, setGoal] = useState(0);
   const [savedAmount, setSavedAmount] = useState(0);
@@ -68,9 +70,11 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const [goalInput, setGoalInput] = useState("");
   const [savedInput, setSavedInput] = useState("");
 
+  const monthKey = format(currentMonth, "yyyy-MM");
+
   const loadData = useCallback(async () => {
     const [flowsRes, goalRes] = await Promise.all([
-      fetch(`/api/cash-flows?user=${userId}`),
+      fetch(`/api/cash-flows?user=${userId}&month=${format(currentMonth, "yyyy-MM")}`),
       fetch(`/api/savings-goals?user=${userId}`),
     ]);
     const flowsData = await flowsRes.json();
@@ -82,7 +86,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
     setSavedAmount(saved);
     setGoalInput(goalAmount > 0 ? String(goalAmount) : "");
     setSavedInput(saved > 0 ? String(saved) : "");
-  }, [userId]);
+  }, [userId, monthKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setLoading(true);
@@ -100,11 +104,12 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
 
   function openNew(type: "entrada" | "saida") {
     setEditing(null);
+    const isCurrentMonth = format(currentMonth, "yyyy-MM") === format(new Date(), "yyyy-MM");
     setForm({
       description: "",
       type,
       amount: "",
-      date: format(new Date(), "yyyy-MM-dd"),
+      date: isCurrentMonth ? format(new Date(), "yyyy-MM-dd") : format(currentMonth, "yyyy-MM-01"),
     });
     setEntryOpen(true);
   }
@@ -187,7 +192,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Entra/Saída</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Visão geral de entradas, saídas e meta financeira</p>
+          <p className="text-muted-foreground text-sm mt-0.5">Visão mensal de entradas e saídas</p>
         </div>
         <button
           onClick={switchUser}
@@ -210,6 +215,25 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
           </div>
           <LogOut className="h-3.5 w-3.5 ml-1 opacity-40 group-hover:opacity-70 transition-opacity" />
         </button>
+      </div>
+
+      {/* Month selector */}
+      <div className="flex items-center justify-center gap-2">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth((m) => subMonths(m, 1))}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-base font-semibold capitalize w-40 text-center">
+          {format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+          disabled={format(currentMonth, "yyyy-MM") >= format(new Date(), "yyyy-MM")}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Summary cards */}
@@ -245,7 +269,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
             <p className={`text-2xl font-bold tabular-nums ${saldo >= 0 ? "text-green-600" : "text-destructive"}`}>
               {formatCurrency(saldo)}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">saldo geral</p>
+            <p className="text-xs text-muted-foreground mt-0.5">saldo do mês</p>
           </CardContent>
         </Card>
       </div>
