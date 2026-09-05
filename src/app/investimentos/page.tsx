@@ -1100,31 +1100,47 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
           </div>
 
           {/* Simulador */}
-          <div>
-            <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">
-              Simulador · para chegar em {formatCurrency(incomeGoal || 1000)}/mês
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.06] backdrop-blur-xl p-5">
-                <p className="text-xs text-purple-300 font-semibold mb-2 uppercase tracking-wide">Via FIIs (~0,85%/mês)</p>
-                <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency((incomeGoal || 1000) / 0.0085)}</p>
-                <p className="text-xs text-white/35 mt-1">investidos em FIIs</p>
+          {(() => {
+            const goalValue = incomeGoal || 1000;
+            const remainingGap = Math.max(0, goalValue - totalRendaMensal);
+            const goalReached = remainingGap === 0;
+            return (
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">
+                  Simulador · capital adicional para chegar em {formatCurrency(goalValue)}/mês
+                </h3>
+                {goalReached ? (
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-6 text-center">
+                    <p className="text-lg font-bold text-emerald-400">🎉 Meta já atingida!</p>
+                    <p className="text-xs text-white/40 mt-1">Sua renda passiva atual já cobre essa meta. Defina uma meta maior para continuar simulando.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.06] backdrop-blur-xl p-5">
+                        <p className="text-xs text-purple-300 font-semibold mb-2 uppercase tracking-wide">Via FIIs (~0,85%/mês)</p>
+                        <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency(remainingGap / 0.0085)}</p>
+                        <p className="text-xs text-white/35 mt-1">a mais investidos em FIIs</p>
+                      </div>
+                      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-5">
+                        <p className="text-xs text-emerald-300 font-semibold mb-2 uppercase tracking-wide">Via TURBO 115% CDI</p>
+                        <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency(remainingGap / (1.15 * CDI_MENSAL))}</p>
+                        <p className="text-xs text-white/35 mt-1">a mais investidos em CDB TURBO</p>
+                      </div>
+                      <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] backdrop-blur-xl p-5">
+                        <p className="text-xs text-blue-300 font-semibold mb-2 uppercase tracking-wide">Via dividendos (~0,4%/mês)</p>
+                        <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency(remainingGap / 0.004)}</p>
+                        <p className="text-xs text-white/35 mt-1">a mais em ações pagadoras</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-white/30 mt-4 text-center">
+                      Você já tem {formatCurrency(totalRendaMensal)}/mês · faltam {formatCurrency(remainingGap)}/mês para a meta
+                    </p>
+                  </>
+                )}
               </div>
-              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-5">
-                <p className="text-xs text-emerald-300 font-semibold mb-2 uppercase tracking-wide">Via TURBO 115% CDI</p>
-                <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency((incomeGoal || 1000) / (1.15 * CDI_MENSAL))}</p>
-                <p className="text-xs text-white/35 mt-1">investidos em CDB TURBO</p>
-              </div>
-              <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] backdrop-blur-xl p-5">
-                <p className="text-xs text-blue-300 font-semibold mb-2 uppercase tracking-wide">Via dividendos (~0,4%/mês)</p>
-                <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency((incomeGoal || 1000) / 0.004)}</p>
-                <p className="text-xs text-white/35 mt-1">em ações pagadoras</p>
-              </div>
-            </div>
-            <p className="text-xs text-white/30 mt-4 text-center">
-              Você já tem {formatCurrency(totalRendaMensal)}/mês · faltam {formatCurrency(Math.max(0, (incomeGoal || 1000) - totalRendaMensal))}/mês para a meta
-            </p>
-          </div>
+            );
+          })()}
 
           {/* Diagnóstico da carteira */}
           {(() => {

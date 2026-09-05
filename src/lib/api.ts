@@ -322,7 +322,7 @@ export async function deleteTurboRecord(id: string): Promise<void> {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toSnapshot(r: any): PortfolioSnapshot {
-  return { ...r, total: Number(r.total), invested: Number(r.invested) };
+  return { ...r, total: Number(r.total), invested: Number(r.invested), date: normalizeDate(r.date) };
 }
 
 export async function getPortfolioSnapshots(): Promise<PortfolioSnapshot[]> {
@@ -346,7 +346,7 @@ export async function savePortfolioSnapshot(data: {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toScoreSnapshot(r: any): ScoreSnapshot {
-  return { ...r, score: Number(r.score) };
+  return { ...r, score: Number(r.score), date: normalizeDate(r.date) };
 }
 
 export async function getScoreHistory(): Promise<ScoreSnapshot[]> {
