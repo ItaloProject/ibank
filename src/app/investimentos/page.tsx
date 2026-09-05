@@ -664,7 +664,7 @@ export default function InvestimentosPage() {
   if (investorMode) {
     const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
     const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
-    const circumference = 2 * Math.PI * 88;
+    const circumference = 2 * Math.PI * 118;
 
     return (
       <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#05050a] text-white">
@@ -701,27 +701,29 @@ export default function InvestimentosPage() {
           <div className="flex flex-col items-center text-center mb-14 sm:mb-20">
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">Sua renda passiva mensal</p>
 
-            <div className="relative flex items-center justify-center mb-2" style={{ width: 220, height: 220 }}>
-              {incomeGoal > 0 && (
-                <svg width="220" height="220" className="absolute inset-0 -rotate-90">
-                  <circle cx="110" cy="110" r="88" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
-                  <circle
-                    cx="110" cy="110" r="88" fill="none"
-                    stroke="url(#goalGradient)" strokeWidth="8" strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={circumference - (goalProgress / 100) * circumference}
-                    style={{ transition: "stroke-dashoffset 1s ease" }}
-                  />
-                  <defs>
-                    <linearGradient id="goalGradient" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="#a855f7" />
-                      <stop offset="100%" stopColor="#3b82f6" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-              )}
-              <div className="flex flex-col items-center">
-                <p className="text-4xl sm:text-5xl font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
+            <div className="relative flex items-center justify-center mb-2" style={{ width: 280, height: 280 }}>
+              <svg width="280" height="280" className="absolute inset-0 -rotate-90">
+                <circle cx="140" cy="140" r="118" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+                {incomeGoal > 0 && (
+                  <>
+                    <circle
+                      cx="140" cy="140" r="118" fill="none"
+                      stroke="url(#goalGradient)" strokeWidth="8" strokeLinecap="round"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={circumference - (goalProgress / 100) * circumference}
+                      style={{ transition: "stroke-dashoffset 1s ease" }}
+                    />
+                    <defs>
+                      <linearGradient id="goalGradient" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#a855f7" />
+                        <stop offset="100%" stopColor="#3b82f6" />
+                      </linearGradient>
+                    </defs>
+                  </>
+                )}
+              </svg>
+              <div className="flex flex-col items-center px-6">
+                <p className="text-3xl sm:text-4xl font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none text-center">
                   {formatCurrency(totalRendaMensal)}
                 </p>
                 <p className="text-xs text-white/40 mt-2">por mês</p>
