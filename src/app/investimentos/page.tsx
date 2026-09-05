@@ -457,20 +457,27 @@ export default function InvestimentosPage() {
   }
 
   async function handleSaveTurboMonth() {
-    if (!turboMonthForm.month || !turboMonthForm.total_bruto) return;
+    if (!turboMonthForm.month) return;
     const acc = accounts.find((a) => a.id === activeTab);
     if (!acc?.is_turbo) return;
+    const rendimento = parseFloat(turboMonthForm.rendimento) || 0;
+    // total_bruto: use informed value or fall back to current balance
+    const total_bruto = turboMonthForm.total_bruto
+      ? parseFloat(turboMonthForm.total_bruto)
+      : acc.current_balance + rendimento;
+    const valor_liquido = turboMonthForm.valor_liquido ? parseFloat(turboMonthForm.valor_liquido) : null;
+
     const record = await saveTurboMonth({
       account_id: acc.id,
       month: turboMonthForm.month,
-      total_bruto: parseFloat(turboMonthForm.total_bruto),
-      rendimento: parseFloat(turboMonthForm.rendimento) || 0,
-      valor_liquido: turboMonthForm.valor_liquido ? parseFloat(turboMonthForm.valor_liquido) : null,
+      total_bruto,
+      rendimento,
+      valor_liquido,
     });
-    // Also update the account's current bruto and liquido to the latest values
-    await updateAccountBalance(acc.id, parseFloat(turboMonthForm.total_bruto));
-    if (turboMonthForm.valor_liquido) {
-      await updateTurboSettings(acc.id, { valor_liquido: parseFloat(turboMonthForm.valor_liquido) });
+    // Update the account's current bruto and (optionally) liquido
+    await updateAccountBalance(acc.id, total_bruto);
+    if (valor_liquido != null) {
+      await updateTurboSettings(acc.id, { valor_liquido });
     }
     setTurboHistory((prev) => {
       const rest = prev.filter((r) => r.month !== record.month);
@@ -1075,14 +1082,14 @@ export default function InvestimentosPage() {
                                 onChange={(e) => setTurboMonthForm({ ...turboMonthForm, month: e.target.value })} />
                             </div>
                             <div className="space-y-1.5">
-                              <Label>Total bruto no mês (R$)</Label>
-                              <Input type="number" placeholder="Ex: 5.110,96" value={turboMonthForm.total_bruto}
-                                onChange={(e) => setTurboMonthForm({ ...turboMonthForm, total_bruto: e.target.value })} />
+                              <Label>Rendimento do mês (R$)</Label>
+                              <Input type="number" placeholder="Ex: 59,30" autoFocus value={turboMonthForm.rendimento}
+                                onChange={(e) => setTurboMonthForm({ ...turboMonthForm, rendimento: e.target.value })} />
                             </div>
                             <div className="space-y-1.5">
-                              <Label>Rendimento do mês (R$)</Label>
-                              <Input type="number" placeholder="Ex: 59,30" value={turboMonthForm.rendimento}
-                                onChange={(e) => setTurboMonthForm({ ...turboMonthForm, rendimento: e.target.value })} />
+                              <Label>Total bruto no mês (R$) <span className="text-muted-foreground text-xs">opcional</span></Label>
+                              <Input type="number" placeholder={`Ex: ${(account.current_balance + (parseFloat(turboMonthForm.rendimento) || 0)).toFixed(2)}`} value={turboMonthForm.total_bruto}
+                                onChange={(e) => setTurboMonthForm({ ...turboMonthForm, total_bruto: e.target.value })} />
                             </div>
                             <div className="space-y-1.5">
                               <Label>Valor líquido (R$) <span className="text-muted-foreground text-xs">opcional</span></Label>
