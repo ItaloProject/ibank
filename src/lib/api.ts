@@ -226,3 +226,23 @@ export async function createStockTrade(data: {
 export async function deleteStockTrade(id: string): Promise<void> {
   await fetch(`/api/stock-trades/${id}`, { method: "DELETE" });
 }
+
+// ─── Stock Quotes ─────────────────────────────────────────────────────────────
+
+export interface StockQuote { ticker: string; current_price: number; updated_at: string; }
+
+export async function getStockQuotes(): Promise<StockQuote[]> {
+  const res = await fetch(`/api/stock-quotes?user=${uid()}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data.map((r) => ({ ...r, current_price: Number(r.current_price) })) : [];
+}
+
+export async function upsertStockQuote(ticker: string, current_price: number): Promise<StockQuote> {
+  const res = await fetch(`/api/stock-quotes?user=${uid()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticker, current_price }),
+  });
+  const r = await res.json();
+  return { ...r, current_price: Number(r.current_price) };
+}

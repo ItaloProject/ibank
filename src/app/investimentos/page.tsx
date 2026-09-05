@@ -21,6 +21,7 @@ import {
   deleteInvestmentAccount, renameInvestmentAccount,
   getInvestments, createInvestment, deleteInvestment,
   getStockTrades, createStockTrade, deleteStockTrade,
+  getStockQuotes, upsertStockQuote, type StockQuote,
 } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { InvestmentAccount, Investment, InvestmentType, StockTrade } from "@/types/database";
@@ -71,6 +72,9 @@ export default function InvestimentosPage() {
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [stockTrades, setStockTrades] = useState<StockTrade[]>([]);
+  const [stockQuotes, setStockQuotes] = useState<StockQuote[]>([]);
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [quoteForm, setQuoteForm] = useState({ ticker: "", price: "" });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("total");
   const [invOpen, setInvOpen] = useState(false);
@@ -101,11 +105,13 @@ export default function InvestimentosPage() {
 
   const load = useCallback(async () => {
     try {
-      const [loadedAccounts, loadedInvestments, loadedStocks] = await Promise.all([
+      const [loadedAccounts, loadedInvestments, loadedStocks, loadedQuotes] = await Promise.all([
         getInvestmentAccounts(),
         getInvestments(),
         getStockTrades(),
+        getStockQuotes(),
       ]);
+      setStockQuotes(Array.isArray(loadedQuotes) ? loadedQuotes : []);
       const accs = Array.isArray(loadedAccounts) ? loadedAccounts : [];
       setAccounts(accs);
       setInvestments(Array.isArray(loadedInvestments) ? loadedInvestments : []);
@@ -124,9 +130,18 @@ export default function InvestimentosPage() {
   useEffect(() => { load(); }, [load]);
 
   const stockPositions = useMemo(() => computeStockPositions(stockTrades), [stockTrades]);
+
+  const quoteMap = useMemo(
+    () => new Map(stockQuotes.map((q) => [q.ticker, q.current_price])),
+    [stockQuotes],
+  );
+
   const totalStocks = useMemo(
-    () => stockPositions.reduce((s, p) => s + p.totalInvested, 0),
-    [stockPositions],
+    () => stockPositions.reduce((s, p) => {
+      const cur = quoteMap.get(p.ticker);
+      return s + (cur !== undefined ? cur * p.quantity : p.totalInvested);
+    }, 0),
+    [stockPositions, quoteMap],
   );
 
   const accountBalances = useMemo(
@@ -253,6 +268,17 @@ export default function InvestimentosPage() {
     await deleteInvestmentAccount(id);
     setActiveTab("total");
     load();
+  }
+
+  async function handleSaveQuote() {
+    const price = parseFloat(quoteForm.price);
+    if (!quoteForm.ticker || !price) return;
+    const updated = await upsertStockQuote(quoteForm.ticker, price);
+    setStockQuotes((prev) => {
+      const rest = prev.filter((q) => q.ticker !== quoteForm.ticker);
+      return [...rest, updated];
+    });
+    setQuoteOpen(false);
   }
 
   async function handleRenameAccount() {
@@ -675,6 +701,26 @@ export default function InvestimentosPage() {
             </DialogContent>
           </Dialog>
 
+          {/* ── Dialog: atualizar cotação ── */}
+          <Dialog open={quoteOpen} onOpenChange={setQuoteOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>Atualizar cotação — {quoteForm.ticker}</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>Preço atual por ação (R$)</Label>
+                  <Input type="number" step="0.01" placeholder="0,00" value={quoteForm.price}
+                    onChange={(e) => setQuoteForm({ ...quoteForm, price: e.target.value })}
+                    onKeyDown={(e) => e.key === "Enter" && handleSaveQuote()}
+                    autoFocus />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setQuoteOpen(false)}>Cancelar</Button>
+                  <Button className="flex-1" onClick={handleSaveQuote}>Atualizar</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* ── Aba Ações ── */}
           <TabsContent value="acoes" className="space-y-6 mt-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -702,20 +748,50 @@ export default function InvestimentosPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Posições atuais</CardTitle>
-                  <CardDescription>Consolidado por ticker</CardDescription>
+                  <CardDescription>Consolidado por ticker · clique no lápis para atualizar a cotação</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {stockPositions.map((p) => (
-                    <div key={p.ticker} className="flex items-center justify-between p-3 rounded-lg border">
-                      <div>
-                        <p className="font-bold">{p.ticker}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {p.quantity} ações · preço médio {formatCurrency(p.avgPrice)}
-                        </p>
+                  {stockPositions.map((p) => {
+                    const curPrice = quoteMap.get(p.ticker);
+                    const curValue = curPrice !== undefined ? curPrice * p.quantity : undefined;
+                    const gain = curValue !== undefined ? curValue - p.totalInvested : undefined;
+                    const gainPct = gain !== undefined && p.totalInvested > 0 ? (gain / p.totalInvested) * 100 : undefined;
+                    return (
+                      <div key={p.ticker} className="flex items-center justify-between p-3 rounded-lg border gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold">{p.ticker}</p>
+                            {gain !== undefined && (
+                              <span className={`text-xs font-semibold ${gain >= 0 ? "text-green-600" : "text-destructive"}`}>
+                                {gain >= 0 ? "+" : ""}{gainPct?.toFixed(2)}%
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {p.quantity} {p.quantity === 1 ? "ação" : "ações"} · médio {formatCurrency(p.avgPrice)}
+                            {curPrice !== undefined && ` · atual ${formatCurrency(curPrice)}`}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {curValue !== undefined ? (
+                            <>
+                              <p className="font-semibold text-blue-600 tabular-nums">{formatCurrency(curValue)}</p>
+                              <p className="text-xs text-muted-foreground tabular-nums">
+                                investido {formatCurrency(p.totalInvested)}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="font-semibold text-blue-600 tabular-nums">{formatCurrency(p.totalInvested)}</p>
+                          )}
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                          title="Atualizar cotação"
+                          onClick={() => { setQuoteForm({ ticker: p.ticker, price: curPrice ? String(curPrice) : "" }); setQuoteOpen(true); }}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
-                      <p className="font-semibold text-blue-600 tabular-nums">{formatCurrency(p.totalInvested)}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
