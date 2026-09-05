@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Plus, Trash2, TrendingUp, ArrowUpCircle, ArrowDownCircle, Sparkles,
-  BarChart3, LineChart, AlertTriangle, Pencil, ChevronDown, Info, Target, Zap,
+  BarChart3, LineChart, AlertTriangle, Pencil, ChevronDown, Info, Target, Zap, FileText,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -479,6 +479,92 @@ export default function InvestimentosPage() {
     return { allSources, totalRendaMensal, chartMonths, recommendations, fiiCapital, CDI_MENSAL };
   }, [accounts, investments, stockPositions, quoteMap, grandTotal]);
 
+  const portfolioAnalysis = useMemo(() => {
+    const insights: { level: "critical" | "warning" | "ok" | "suggestion"; title: string; detail: string; action?: string }[] = [];
+
+    // 1. Reserva de emergência
+    const emerAccounts = accounts.filter((a) => !a.is_turbo && (
+      a.name.toLowerCase().includes("eme") || a.name.toLowerCase().includes("emergên") ||
+      a.name.toLowerCase().includes("emergencia") || a.name.toLowerCase().includes("reserva") ||
+      a.name.toLowerCase().includes("caixinha")
+    ));
+    const emerTotal = emerAccounts.reduce((s, a) => s + accountBalance(investments, a.id), 0);
+    if (emerAccounts.length === 0) {
+      insights.push({ level: "critical", title: "Sem reserva de emergência identificada", detail: "Crie uma conta com 'EME' ou 'Reserva' no nome e deposite mínimo R$ 3.000.", action: "Prioridade máxima antes de qualquer aporte variável" });
+    } else if (emerTotal < 3000) {
+      insights.push({ level: "warning", title: `Reserva insuficiente — ${formatCurrency(emerTotal)}`, detail: `Recomendado mínimo R$ 3.000 (3 meses de gastos). Faltam ${formatCurrency(3000 - emerTotal)}.`, action: "Direcionar aportes para emergência até completar" });
+    } else {
+      insights.push({ level: "ok", title: `Reserva de emergência adequada — ${formatCurrency(emerTotal)}`, detail: "Proteção básica garantida. Continue investindo normalmente." });
+    }
+
+    // 2. TURBO no teto
+    const turboAccounts = accounts.filter((a) => a.is_turbo);
+    for (const t of turboAccounts) {
+      if (t.max_rendimento && t.current_balance >= t.max_rendimento * 0.95) {
+        insights.push({ level: "warning", title: `${t.name} no teto — ${formatCurrency(t.current_balance)} / ${formatCurrency(t.max_rendimento)}`, detail: "O rendimento extra do TURBO para quando atinge o teto máximo.", action: "Redirecione novos aportes para FIIs ou ações" });
+      }
+    }
+
+    // 3. Duplicidade de empresa (PTR3 + PTR4, BBDC3 + BBDC4, etc.)
+    const companyMap = new Map<string, string[]>();
+    for (const p of stockPositions) {
+      const base = p.ticker.replace(/\d+$/, "");
+      if (!companyMap.has(base)) companyMap.set(base, []);
+      companyMap.get(base)!.push(p.ticker);
+    }
+    for (const [, tickers] of companyMap) {
+      if (tickers.length > 1) {
+        insights.push({ level: "warning", title: `Duplicidade: ${tickers.join(" + ")}`, detail: "Mesma empresa em classes diferentes. Não diversifica — apenas concentra o risco.", action: `Escolha apenas uma classe e venda a outra` });
+      }
+    }
+
+    // 4. Concentração em commodities
+    const totalStockValue = stockPositions.reduce((s, p) => {
+      const q = quoteMap.get(p.ticker);
+      return s + (q !== undefined ? q * p.quantity : p.totalInvested);
+    }, 0);
+    const commodityValue = stockPositions
+      .filter((p) => { const u = p.ticker.toUpperCase(); return u.startsWith("VALE") || u.startsWith("PETR") || u.startsWith("PTR") || u.startsWith("PRIO") || u.startsWith("RECV"); })
+      .reduce((s, p) => { const q = quoteMap.get(p.ticker); return s + (q !== undefined ? q * p.quantity : p.totalInvested); }, 0);
+    const commodityPct = totalStockValue > 0 ? (commodityValue / totalStockValue) * 100 : 0;
+    if (commodityPct > 50) {
+      insights.push({ level: "warning", title: `Commodities representam ${commodityPct.toFixed(0)}% da renda variável`, detail: "VALE + Petrobras são correlacionadas (China + petróleo). Uma crise afeta as duas ao mesmo tempo.", action: "Diversifique para bancos, energia elétrica ou saúde" });
+    }
+
+    // 5. Proporção FIIs na renda variável
+    const fiiValue = stockPositions
+      .filter((p) => detectAssetType(p.ticker) === "FII")
+      .reduce((s, p) => { const q = quoteMap.get(p.ticker); return s + (q !== undefined ? q * p.quantity : p.totalInvested); }, 0);
+    const fiiPctVariavel = totalStockValue > 0 ? (fiiValue / totalStockValue) * 100 : 0;
+    if (stockPositions.length > 0 && fiiPctVariavel < 30) {
+      insights.push({ level: "suggestion", title: `FIIs: apenas ${fiiPctVariavel.toFixed(0)}% da renda variável`, detail: "Para renda passiva consistente, FIIs devem representar 50–60% da carteira variável. Dividendos mensais isentos de IR.", action: "Próximos aportes: MXRF11, XPML11 ou TRXF11" });
+    } else if (fiiPctVariavel >= 50) {
+      insights.push({ level: "ok", title: `Boa exposição a FIIs — ${fiiPctVariavel.toFixed(0)}%`, detail: "Proporção ideal para renda passiva mensal com isenção de IR." });
+    }
+
+    // Próximos movimentos recomendados
+    const nextMoves: { prioridade: number; label: string; valor: string; razao: string }[] = [];
+    if (emerTotal < 3000) {
+      nextMoves.push({ prioridade: 1, label: "Completar Reserva de Emergência", valor: formatCurrency(Math.min(3000 - emerTotal, 1300)), razao: "Proteção base antes de qualquer variável" });
+    }
+    const turboAtCap = turboAccounts.some((t) => t.max_rendimento && t.current_balance >= t.max_rendimento * 0.95);
+    if (!turboAtCap && turboAccounts.length > 0 && emerTotal >= 3000) {
+      nextMoves.push({ prioridade: nextMoves.length + 1, label: "TURBO (complementar até o teto)", valor: "R$ 300–400", razao: "Melhor custo-benefício em renda fixa, 115% CDI" });
+    }
+    if (fiiPctVariavel < 50 || nextMoves.length === 0) {
+      nextMoves.push({ prioridade: nextMoves.length + 1, label: "FIIs — MXRF11 ou XPML11", valor: emerTotal >= 3000 ? "R$ 650" : "R$ 500", razao: "Renda mensal isenta de IR, dividendo consistente" });
+    }
+    if (nextMoves.length < 3) {
+      nextMoves.push({ prioridade: nextMoves.length + 1, label: "Ações — BBAS3 ou TAEE11", valor: "R$ 300–500", razao: "Crescimento + dividendos de longo prazo" });
+    }
+
+    const criticalCount = insights.filter((i) => i.level === "critical").length;
+    const warningCount = insights.filter((i) => i.level === "warning").length;
+    const score = Math.max(0, 100 - criticalCount * 30 - warningCount * 15);
+
+    return { insights, nextMoves, score, emerTotal, fiiPctVariavel, commodityPct, totalStockValue };
+  }, [accounts, investments, stockPositions, quoteMap]);
+
   async function addInvestment() {
     if (!invForm.account_id || !invForm.amount) return;
     const amount = parseFloat(invForm.amount);
@@ -661,6 +747,84 @@ export default function InvestimentosPage() {
     );
   }
 
+  function generateReport() {
+    const { insights, nextMoves, score, emerTotal, fiiPctVariavel } = portfolioAnalysis;
+    const { allSources, totalRendaMensal, recommendations } = investorData;
+    const dateStr = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    const levelColors: Record<string, string> = { critical: "#ef4444", warning: "#f59e0b", ok: "#10b981", suggestion: "#6366f1" };
+    const levelLabels: Record<string, string> = { critical: "CRÍTICO", warning: "ATENÇÃO", ok: "OK", suggestion: "SUGESTÃO" };
+
+    const insightsHtml = insights.map((ins) => `
+      <div style="border-left:4px solid ${levelColors[ins.level]};padding:10px 14px;margin-bottom:10px;background:${ins.level === "critical" ? "#fef2f2" : ins.level === "warning" ? "#fffbeb" : ins.level === "ok" ? "#f0fdf4" : "#eef2ff"};border-radius:4px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="background:${levelColors[ins.level]};color:white;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:3px;">${levelLabels[ins.level]}</span>
+          <strong style="font-size:13px;">${ins.title}</strong>
+        </div>
+        <p style="margin:0;color:#555;font-size:12px;">${ins.detail}</p>
+        ${ins.action ? `<p style="margin:4px 0 0;color:${levelColors[ins.level]};font-size:12px;font-weight:600;">→ ${ins.action}</p>` : ""}
+      </div>`).join("");
+
+    const allocationHtml = recommendations.map((r) => `
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:8px 12px;font-weight:600;">${r.label}</td>
+        <td style="padding:8px 12px;text-align:right;font-weight:bold;">${r.atual.toFixed(1)}%</td>
+        <td style="padding:8px 12px;text-align:right;color:#888;">${r.ideal}%</td>
+        <td style="padding:8px 12px;text-align:right;color:${r.atual >= r.ideal ? "#10b981" : "#f59e0b"};font-weight:bold;">${r.atual >= r.ideal ? "✓ OK" : `+${(r.ideal - r.atual).toFixed(0)}%`}</td>
+      </tr>`).join("");
+
+    const sourcesHtml = allSources.map((s) => `
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:8px 12px;font-weight:600;">${s.nome}</td>
+        <td style="padding:8px 12px;color:#888;">${s.tipo}</td>
+        <td style="padding:8px 12px;text-align:right;">${formatCurrency(s.capital)}</td>
+        <td style="padding:8px 12px;text-align:right;font-weight:bold;color:#10b981;">+${formatCurrency(s.rendaMensal)}/mês</td>
+      </tr>`).join("");
+
+    const nextMovesHtml = nextMoves.map((m) => `
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:8px 12px;text-align:center;font-weight:bold;color:#6366f1;">${m.prioridade}</td>
+        <td style="padding:8px 12px;font-weight:600;">${m.label}</td>
+        <td style="padding:8px 12px;text-align:right;font-weight:bold;color:#10b981;">${m.valor}</td>
+        <td style="padding:8px 12px;font-size:12px;color:#666;">${m.razao}</td>
+      </tr>`).join("");
+
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>IBANK — Análise de Carteira</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:white;color:#111;padding:32px;max-width:900px;margin:0 auto}
+.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #6366f1;padding-bottom:20px;margin-bottom:28px}
+.header h1{font-size:28px;font-weight:900;color:#6366f1}.header p{color:#888;font-size:13px;margin-top:4px}
+.score{background:#6366f1;color:white;border-radius:50%;width:72px;height:72px;display:flex;align-items:center;justify-content:center;flex-direction:column;font-weight:900;font-size:22px}
+.score small{font-size:9px;font-weight:600;opacity:.8}section{margin-bottom:28px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:12px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:#f8f9fb;border-radius:8px;padding:14px 16px}
+.card .lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.card .val{font-size:20px;font-weight:900}.card .sub{font-size:11px;color:#888;margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padding:8px 12px;background:#f3f4f6;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#666}
+.footer{margin-top:40px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#aaa}
+@media print{body{padding:16px}}</style></head><body>
+<div class="header"><div><h1>IBANK</h1><p>Relatório de Análise de Carteira</p><p style="margin-top:4px;">${dateStr}</p></div>
+<div class="score">${score}<small>SCORE</small></div></div>
+<section><h2>Resumo do Patrimônio</h2>
+<div class="grid">
+<div class="card"><div class="lbl">Patrimônio Total</div><div class="val">${formatCurrency(grandTotal)}</div><div class="sub">renda fixa + ações</div></div>
+<div class="card"><div class="lbl">Renda Passiva Est.</div><div class="val" style="color:#6366f1;">${formatCurrency(totalRendaMensal)}</div><div class="sub">por mês</div></div>
+<div class="card"><div class="lbl">Reserva Emergência</div><div class="val" style="color:${emerTotal >= 3000 ? "#10b981" : "#ef4444"};">${formatCurrency(emerTotal)}</div><div class="sub">${emerTotal >= 3000 ? "adequada" : "insuficiente"}</div></div>
+<div class="card"><div class="lbl">FIIs na Variável</div><div class="val" style="color:${fiiPctVariavel >= 50 ? "#10b981" : "#f59e0b"};">${fiiPctVariavel.toFixed(0)}%</div><div class="sub">ideal 50–60%</div></div>
+</div></section>
+<section><h2>Diagnóstico da Carteira</h2>${insightsHtml}</section>
+<section><h2>Fontes de Renda Mensal</h2><table><thead><tr><th>Fonte</th><th>Tipo</th><th style="text-align:right;">Capital</th><th style="text-align:right;">Renda/mês</th></tr></thead><tbody>${sourcesHtml || "<tr><td colspan='4' style='padding:12px;color:#888;text-align:center;'>Nenhuma fonte identificada ainda</td></tr>"}</tbody></table></section>
+<section><h2>Alocação Atual vs. Ideal</h2><table><thead><tr><th>Categoria</th><th style="text-align:right;">Atual</th><th style="text-align:right;">Ideal</th><th style="text-align:right;">Status</th></tr></thead><tbody>${allocationHtml}</tbody></table></section>
+<section><h2>Próximos Aportes Recomendados</h2><table><thead><tr><th style="text-align:center;">#</th><th>Destino</th><th style="text-align:right;">Valor</th><th>Motivo</th></tr></thead><tbody>${nextMovesHtml}</tbody></table></section>
+<div class="footer">Gerado pelo IBANK em ${dateStr} · Estimativas baseadas em taxas de mercado · Não constitui assessoria regulada pela CVM/ANCORD</div>
+</body></html>`;
+
+    const win = window.open("", "_blank", "width=1050,height=820");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 600);
+  }
+
   if (investorMode) {
     const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
     const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
@@ -689,12 +853,21 @@ export default function InvestimentosPage() {
               </span>
               <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Modo Investidor</span>
             </div>
-            <button
-              onClick={() => setInvestorMode(false)}
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-white/70 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
-            >
-              Sair<span className="text-white/40">·</span>voltar ao painel
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={generateReport}
+                className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 text-sm font-medium text-violet-300 backdrop-blur-xl transition-colors hover:bg-violet-500/20 hover:text-violet-200"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Gerar PDF
+              </button>
+              <button
+                onClick={() => setInvestorMode(false)}
+                className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-white/70 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
+              >
+                Sair<span className="text-white/40">·</span>voltar ao painel
+              </button>
+            </div>
           </div>
 
           {/* Hero central */}
@@ -883,6 +1056,80 @@ export default function InvestimentosPage() {
               Você já tem {formatCurrency(totalRendaMensal)}/mês · faltam {formatCurrency(Math.max(0, (incomeGoal || 1000) - totalRendaMensal))}/mês para a meta
             </p>
           </div>
+
+          {/* Diagnóstico da carteira */}
+          {(() => {
+            const { insights, nextMoves, score } = portfolioAnalysis;
+            const levelColors: Record<string, string> = { critical: "#ef4444", warning: "#f59e0b", ok: "#10b981", suggestion: "#6366f1" };
+            const levelBgs: Record<string, string> = { critical: "border-red-500/20 bg-red-500/[0.06]", warning: "border-amber-500/20 bg-amber-500/[0.06]", ok: "border-emerald-500/20 bg-emerald-500/[0.06]", suggestion: "border-violet-500/20 bg-violet-500/[0.06]" };
+            const levelLabels: Record<string, string> = { critical: "CRÍTICO", warning: "ATENÇÃO", ok: "OK", suggestion: "SUGESTÃO" };
+            const scoreColor = score >= 70 ? "#10b981" : score >= 40 ? "#f59e0b" : "#ef4444";
+            const circumS = 2 * Math.PI * 28;
+            return (
+              <div className="mt-14 sm:mt-20">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-white/40">Diagnóstico da carteira</h3>
+                  <button
+                    onClick={generateReport}
+                    className="flex items-center gap-2 rounded-full bg-violet-600 hover:bg-violet-500 px-5 py-2 text-sm font-semibold text-white transition-colors"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Gerar Relatório PDF
+                  </button>
+                </div>
+
+                {/* Score */}
+                <div className="flex items-center gap-5 mb-8 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5">
+                  <div className="relative flex-shrink-0" style={{ width: 64, height: 64 }}>
+                    <svg width="64" height="64" className="-rotate-90 absolute inset-0">
+                      <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+                      <circle cx="32" cy="32" r="28" fill="none" stroke={scoreColor} strokeWidth="6" strokeLinecap="round"
+                        strokeDasharray={circumS} strokeDashoffset={circumS * (1 - score / 100)}
+                        style={{ transition: "stroke-dashoffset 1s ease" }} />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-lg font-black" style={{ color: scoreColor }}>{score}</span>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-white">{score >= 70 ? "Carteira saudável" : score >= 40 ? "Precisa de ajustes" : "Atenção necessária"}</p>
+                    <p className="text-xs text-white/40 mt-0.5">Score baseado nos pontos de melhoria identificados abaixo</p>
+                  </div>
+                </div>
+
+                {/* Insights */}
+                <div className="space-y-3 mb-10">
+                  {insights.map((ins, i) => (
+                    <div key={i} className={`rounded-xl border ${levelBgs[ins.level]} p-4 backdrop-blur-xl`}>
+                      <div className="flex items-start gap-3">
+                        <span className="flex-shrink-0 rounded text-[10px] font-black px-1.5 py-0.5 mt-0.5" style={{ background: levelColors[ins.level], color: "white" }}>
+                          {levelLabels[ins.level]}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-white/90">{ins.title}</p>
+                          <p className="text-xs text-white/50 mt-0.5">{ins.detail}</p>
+                          {ins.action && <p className="text-xs font-semibold mt-1.5" style={{ color: levelColors[ins.level] }}>→ {ins.action}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Próximos aportes */}
+                <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Próximos aportes recomendados</h3>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
+                  {nextMoves.map((m, i) => (
+                    <div key={i} className="flex items-center gap-4 p-4 border-b border-white/5 last:border-b-0">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center text-xs font-black text-violet-300">{m.prioridade}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white/90">{m.label}</p>
+                        <p className="text-xs text-white/40 truncate">{m.razao}</p>
+                      </div>
+                      <span className="text-sm font-extrabold text-emerald-400 tabular-nums flex-shrink-0">{m.valor}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="h-10" />
         </div>
