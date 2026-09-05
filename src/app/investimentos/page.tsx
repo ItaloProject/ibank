@@ -218,6 +218,7 @@ export default function InvestimentosPage() {
   const [portfolioSnapshots, setPortfolioSnapshots] = useState<PortfolioSnapshot[]>([]);
   const [bulkQuoteOpen, setBulkQuoteOpen] = useState(false);
   const [bulkPrices, setBulkPrices] = useState<Record<string, string>>({});
+  const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [turboMonthForm, setTurboMonthForm] = useState({
     month: format(new Date(), "yyyy-MM"),
     total_bruto: "",
@@ -1713,8 +1714,8 @@ export default function InvestimentosPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col lg:flex-row gap-8 items-center">
-                    {/* Donut com label customizado */}
+                  <div className="flex flex-col lg:flex-row gap-8 items-start">
+                    {/* Donut clicável */}
                     <div className="relative shrink-0" style={{ width: 260, height: 260 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -1727,6 +1728,8 @@ export default function InvestimentosPage() {
                             paddingAngle={2}
                             dataKey="value"
                             labelLine={false}
+                            style={{ cursor: "pointer" }}
+                            onClick={(d) => setSelectedSector((prev) => prev === (d as {name: string}).name ? null : (d as {name: string}).name)}
                             label={(props) => {
                               const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props as {
                                 cx: number; cy: number; midAngle: number;
@@ -1745,8 +1748,14 @@ export default function InvestimentosPage() {
                               );
                             }}
                           >
-                            {sectorData.map((_, i) => (
-                              <Cell key={i} fill={SECTOR_COLORS[i % SECTOR_COLORS.length]} />
+                            {sectorData.map((entry, i) => (
+                              <Cell
+                                key={i}
+                                fill={SECTOR_COLORS[i % SECTOR_COLORS.length]}
+                                opacity={selectedSector && selectedSector !== entry.name ? 0.35 : 1}
+                                stroke={selectedSector === entry.name ? "#1e293b" : "none"}
+                                strokeWidth={selectedSector === entry.name ? 2 : 0}
+                              />
                             ))}
                           </Pie>
                           <Tooltip
@@ -1758,13 +1767,13 @@ export default function InvestimentosPage() {
                                   <p className="font-semibold">{d.name}</p>
                                   <p className="text-muted-foreground">{formatCurrency(d.value)}</p>
                                   <p className="font-bold text-base">{d.pct.toFixed(1)}%</p>
+                                  <p className="text-xs text-muted-foreground mt-1">Clique para ver as ações</p>
                                 </div>
                               );
                             }}
                           />
                         </PieChart>
                       </ResponsiveContainer>
-                      {/* Texto central */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                         <p className="text-xs text-muted-foreground">{sectorData.length} setores</p>
                         <p className="text-sm font-bold tabular-nums">
@@ -1773,26 +1782,107 @@ export default function InvestimentosPage() {
                       </div>
                     </div>
 
-                    {/* Legenda detalhada */}
-                    <div className="flex-1 w-full space-y-3">
+                    {/* Legenda + painel de detalhe */}
+                    <div className="flex-1 w-full space-y-2">
                       {sectorData.map((s, i) => {
                         const color = SECTOR_COLORS[i % SECTOR_COLORS.length];
+                        const isSelected = selectedSector === s.name;
+                        // ações que compõem esse setor
+                        const sectorStocks = stockPositions
+                          .filter((p) => detectSector(p.ticker) === s.name)
+                          .map((p) => {
+                            const cur = quoteMap.get(p.ticker);
+                            const curValue = cur !== undefined ? cur * p.quantity : p.totalInvested;
+                            const gain = cur !== undefined ? curValue - p.totalInvested : undefined;
+                            const gainPct = gain !== undefined && p.totalInvested > 0 ? (gain / p.totalInvested) * 100 : undefined;
+                            const assetType = detectAssetType(p.ticker);
+                            return { ...p, curValue, gain, gainPct, assetType };
+                          });
                         return (
-                          <div key={s.name} className="space-y-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                                <span className="text-sm font-medium truncate">{s.name}</span>
+                          <div key={s.name}>
+                            <div
+                              className={`space-y-1 rounded-lg px-2 py-1.5 transition-colors cursor-pointer ${isSelected ? "bg-muted/60" : "hover:bg-muted/30"}`}
+                              onClick={() => setSelectedSector((prev) => prev === s.name ? null : s.name)}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                  <span className="text-sm font-medium truncate">{s.name}</span>
+                                  <span className="text-xs text-muted-foreground">({sectorStocks.length} ativo{sectorStocks.length !== 1 ? "s" : ""})</span>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="text-sm font-bold tabular-nums" style={{ color }}>{s.pct.toFixed(1)}%</span>
+                                  <span className="text-xs text-muted-foreground tabular-nums w-24 text-right">{formatCurrency(s.value)}</span>
+                                  <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isSelected ? "rotate-180" : ""}`} />
+                                </div>
                               </div>
-                              <div className="flex items-center gap-3 shrink-0">
-                                <span className="text-sm font-bold tabular-nums" style={{ color }}>{s.pct.toFixed(1)}%</span>
-                                <span className="text-xs text-muted-foreground tabular-nums w-24 text-right">{formatCurrency(s.value)}</span>
+                              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${s.pct}%`, backgroundColor: color }} />
                               </div>
                             </div>
-                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                              <div className="h-full rounded-full transition-all duration-500"
-                                style={{ width: `${s.pct}%`, backgroundColor: color }} />
-                            </div>
+
+                            {/* Painel de ações do setor */}
+                            {isSelected && (
+                              <div className="mt-1 mb-2 ml-4 rounded-xl border bg-background shadow-sm overflow-hidden">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b bg-muted/40 text-xs text-muted-foreground uppercase">
+                                      <th className="text-left py-2 px-3 font-medium">Ticker</th>
+                                      <th className="text-right py-2 px-3 font-medium">Qtd</th>
+                                      <th className="text-right py-2 px-3 font-medium">Preço médio</th>
+                                      <th className="text-right py-2 px-3 font-medium">Cotação atual</th>
+                                      <th className="text-right py-2 px-3 font-medium">Valor</th>
+                                      <th className="text-right py-2 px-3 font-medium">Variação</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {sectorStocks.map((p) => {
+                                      const assetBadge: Record<AssetType, string> = {
+                                        FII: "bg-purple-100 text-purple-800",
+                                        ETF: "bg-yellow-100 text-yellow-800",
+                                        BDR: "bg-orange-100 text-orange-800",
+                                        Ação: "bg-blue-100 text-blue-800",
+                                      };
+                                      return (
+                                        <tr key={p.ticker} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                                          <td className="py-2.5 px-3">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="font-bold">{p.ticker}</span>
+                                              <span className={`text-xs px-1 py-0.5 rounded font-medium ${assetBadge[p.assetType]}`}>{p.assetType}</span>
+                                            </div>
+                                          </td>
+                                          <td className="py-2.5 px-3 text-right tabular-nums">
+                                            {p.quantity} {p.assetType === "FII" || p.assetType === "ETF" ? "cotas" : p.quantity === 1 ? "ação" : "ações"}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">{formatCurrency(p.avgPrice)}</td>
+                                          <td className="py-2.5 px-3 text-right tabular-nums">
+                                            {quoteMap.has(p.ticker) ? formatCurrency(quoteMap.get(p.ticker)!) : <span className="text-muted-foreground text-xs">sem cotação</span>}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-blue-600">{formatCurrency(p.curValue)}</td>
+                                          <td className="py-2.5 px-3 text-right tabular-nums">
+                                            {p.gainPct !== undefined ? (
+                                              <span className={`font-semibold ${p.gainPct >= 0 ? "text-green-600" : "text-destructive"}`}>
+                                                {p.gainPct >= 0 ? "+" : ""}{p.gainPct.toFixed(2)}%
+                                              </span>
+                                            ) : <span className="text-muted-foreground text-xs">—</span>}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr className="border-t bg-muted/20">
+                                      <td className="py-2 px-3 text-xs text-muted-foreground font-semibold" colSpan={4}>Total do setor</td>
+                                      <td className="py-2 px-3 text-right tabular-nums font-bold text-blue-700">{formatCurrency(s.value)}</td>
+                                      <td className="py-2 px-3 text-right tabular-nums font-bold" style={{ color }}>
+                                        {s.pct.toFixed(1)}% da carteira
+                                      </td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
