@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Plus, Trash2, TrendingUp, ArrowUpCircle, ArrowDownCircle, Sparkles,
-  BarChart3, LineChart, AlertTriangle, Pencil, ChevronDown,
+  BarChart3, LineChart, AlertTriangle, Pencil, ChevronDown, Info,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -190,6 +190,7 @@ export default function InvestimentosPage() {
     is_turbo: false, cdi_percent: "", max_rendimento: "", valor_liquido: "",
   });
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [ratesOpen, setRatesOpen] = useState(false);
 
   const now = new Date();
 
@@ -451,7 +452,17 @@ export default function InvestimentosPage() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Investimentos</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-bold">Investimentos</h1>
+            <button
+              type="button"
+              onClick={() => setRatesOpen(true)}
+              className="flex items-center justify-center h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Rentabilidade estimada"
+            >
+              <Info className="h-4.5 w-4.5" />
+            </button>
+          </div>
           <p className="text-muted-foreground">Poupança, renda fixa e ações</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -750,9 +761,7 @@ export default function InvestimentosPage() {
               </Card>
             </div>
 
-            {accounts.length > 0 && (
-              <InvestmentRates balances={balancesByCategory} userId={getCurrentUser()} />
-            )}
+            {/* Rentabilidade via dialog (i) */}
           </TabsContent>
 
           {/* ── Abas por conta ── */}
@@ -859,8 +868,6 @@ export default function InvestimentosPage() {
                       </CardContent>
                     </Card>
                   </div>
-
-                  <InvestmentRates balances={balancesByCategory} userId={getCurrentUser()} />
 
                   {chartData.length > 1 && (
                     <Card>
@@ -1004,6 +1011,16 @@ export default function InvestimentosPage() {
                   <Button className="flex-1" onClick={handleSaveQuote}>Atualizar</Button>
                 </div>
               </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* ── Dialog: rentabilidade estimada ── */}
+          <Dialog open={ratesOpen} onOpenChange={setRatesOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Rentabilidade estimada · Nubank</DialogTitle>
+              </DialogHeader>
+              <InvestmentRates balances={balancesByCategory} userId={getCurrentUser()} />
             </DialogContent>
           </Dialog>
 
