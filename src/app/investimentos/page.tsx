@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Plus, Trash2, TrendingUp, ArrowUpCircle, ArrowDownCircle, Sparkles,
-  BarChart3, LineChart,
+  BarChart3, LineChart, AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
-  getInvestmentAccounts, createInvestmentAccount, updateAccountBalance,
+  getInvestmentAccounts, createInvestmentAccount, updateAccountBalance, deleteInvestmentAccount,
   getInvestments, createInvestment, deleteInvestment,
   getStockTrades, createStockTrade, deleteStockTrade,
 } from "@/lib/api";
@@ -243,6 +243,12 @@ export default function InvestimentosPage() {
 
   async function handleDeleteStock(id: string) {
     await deleteStockTrade(id);
+    load();
+  }
+
+  async function handleDeleteAccount(id: string) {
+    await deleteInvestmentAccount(id);
+    setActiveTab("total");
     load();
   }
 
@@ -498,6 +504,32 @@ export default function InvestimentosPage() {
             <TabsContent key={account.id} value={account.id} className="space-y-6 mt-4">
               {activeTab === account.id && (
                 <>
+                  {/* Account header with delete */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="font-semibold text-lg">{account.name}</h2>
+                      {account.institution && <p className="text-sm text-muted-foreground">{account.institution}</p>}
+                    </div>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 gap-1.5">
+                          <Trash2 className="h-3.5 w-3.5" /> Excluir conta
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-sm">
+                        <DialogHeader><DialogTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-destructive" />Excluir conta</DialogTitle></DialogHeader>
+                        <p className="text-sm text-muted-foreground">
+                          Isso vai excluir a conta <strong>{account.name}</strong> e todos os seus{" "}
+                          <strong>{accountInvestments.length} movimentos</strong> permanentemente. Ação irreversível.
+                        </p>
+                        <div className="flex gap-2 justify-end mt-2">
+                          <Button variant="outline" onClick={() => {}}>Cancelar</Button>
+                          <Button variant="destructive" onClick={() => handleDeleteAccount(account.id)}>Excluir tudo</Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card>
                       <CardHeader className="pb-2"><CardDescription>Saldo atual</CardDescription></CardHeader>

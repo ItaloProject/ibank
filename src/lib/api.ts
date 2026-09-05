@@ -156,6 +156,10 @@ export async function updateAccountBalance(id: string, current_balance: number):
   return toAccount(await res.json());
 }
 
+export async function deleteInvestmentAccount(id: string): Promise<void> {
+  await fetch(`/api/investment-accounts/${id}`, { method: "DELETE" });
+}
+
 // ─── Investments ──────────────────────────────────────────────────────────────
 
 export async function getInvestments(params?: {

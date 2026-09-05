@@ -18,6 +18,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    // Delete all investments linked to this account first
+    await sql`DELETE FROM investments WHERE account_id = ${id}`;
     await sql`DELETE FROM investment_accounts WHERE id = ${id}`;
     return new NextResponse(null, { status: 204 });
   } catch (err) {
