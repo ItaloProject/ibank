@@ -11,7 +11,7 @@ import {
 import { getCards, getTransactions, getInvestmentAccounts, getInvestments } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CreditCard as CreditCardType, Transaction, InvestmentAccount, Investment } from "@/types/database";
-import { format } from "date-fns";
+import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -34,14 +34,15 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
 
   const now = new Date();
-  const currentCycle = format(now, "yyyy-MM");
-  const monthStart = `${currentCycle}-01`;
+  const nextMonth = addMonths(now, 1);
+  const billingCycle = format(nextMonth, "yyyy-MM");
+  const monthStart = `${format(now, "yyyy-MM")}-01`;
   const monthEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
 
   useEffect(() => {
     Promise.all([
       getCards(),
-      getTransactions({ billingCycle: currentCycle }),
+      getTransactions({ billingCycle }),
       getInvestmentAccounts(),
       getInvestments({ start: monthStart, end: monthEnd }),
     ])
@@ -53,7 +54,7 @@ export default function DashboardPage() {
       })
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
-  }, [currentCycle, monthStart, monthEnd]);
+  }, [billingCycle, monthStart, monthEnd]);
 
   const totalSpent = transactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
   const totalLimit = cards.reduce((s, c) => s + c.limit, 0);
@@ -80,7 +81,7 @@ export default function DashboardPage() {
   }));
 
   const recentTx = [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
-  const monthLabel = format(now, "MMMM yyyy", { locale: ptBR });
+  const monthLabel = format(nextMonth, "MMMM yyyy", { locale: ptBR });
 
   if (loading) {
     return (
