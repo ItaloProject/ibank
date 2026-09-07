@@ -37,10 +37,19 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-[100dvh] overflow-hidden">
+      {/* Overlay mobile */}
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
           onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
+      )}
+      {/* Overlay desktop — fecha ao clicar fora */}
+      {!collapsed && (
+        <div
+          className="fixed inset-0 z-20 hidden md:block"
+          onClick={toggle}
           aria-hidden
         />
       )}
