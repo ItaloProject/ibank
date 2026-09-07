@@ -76,7 +76,7 @@ export default function RelatoriosPage() {
 
   // --- Cálculos ---
   const totalSpent = transactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
-  const totalDeposited = investments.filter((i) => i.type === "deposito").reduce((s, i) => s + i.amount, 0);
+  const totalDeposited = investments.filter((i) => i.type === "deposito" || i.type === "rendimento").reduce((s, i) => s + i.amount, 0);
   const totalSaved = investments.reduce((s, inv) =>
     inv.type === "retirada" ? s - inv.amount : s + inv.amount, 0);
 
@@ -116,7 +116,7 @@ export default function RelatoriosPage() {
         if (map[m]) map[m].gastos += t.amount;
       }
     });
-    investments.filter((i) => i.type === "deposito").forEach((i) => {
+    investments.filter((i) => i.type === "deposito" || i.type === "rendimento").forEach((i) => {
       const m = format(new Date(i.date + "T00:00:00"), "MMM/yy", { locale: ptBR });
       if (map[m]) map[m].depositos += i.amount;
     });
@@ -346,7 +346,7 @@ export default function RelatoriosPage() {
             </div>
 
             {/* Depósitos do mês */}
-            {investments.filter((i) => i.type === "deposito").length > 0 && (
+            {investments.filter((i) => i.type === "deposito" || i.type === "rendimento").length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Investimentos no mês</CardTitle>

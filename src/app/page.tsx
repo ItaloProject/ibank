@@ -95,7 +95,7 @@ export default function DashboardPage() {
   }, 0);
   const totalSaved = rendaFixa + acoes;
   const monthDeposits = investments
-    .filter((i) => i.type === "deposito")
+    .filter((i) => i.type === "deposito" || i.type === "rendimento")
     .reduce((s, i) => s + i.amount, 0);
 
   const byCategory = transactions.reduce<Record<string, number>>((acc, t) => {
