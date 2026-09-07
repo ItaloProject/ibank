@@ -278,7 +278,7 @@ export default function RelatoriosPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Gastos por categoria</CardTitle>
-                  <CardDescription capitalize>{monthLabel}</CardDescription>
+                  <CardDescription className="capitalize">{monthLabel}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {pieData.length === 0 ? (
