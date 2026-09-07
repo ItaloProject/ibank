@@ -237,7 +237,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={accounts.map((a) => ({ name: a.name, saldo: balanceByAccount[a.id] ?? 0 }))}>
+              <BarChart data={accounts.map((a) => ({ name: a.name, saldo: a.current_balance }))}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
