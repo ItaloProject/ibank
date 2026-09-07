@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   Plus, Trash2, CreditCard as CardIcon, Eraser, ChevronLeft, ChevronRight,
-  FileDown, Calendar, Receipt, Pencil, ArrowDownCircle, Search, RefreshCw,
+  FileDown, Receipt, Pencil, ArrowDownCircle, Search, RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import { generateMonthReport } from "@/lib/generate-report";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CreditCard, Transaction, TransactionCategory } from "@/types/database";
 import { NubankImport } from "@/components/nubank-import";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO } from "date-fns";
+import { format, addMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const CATEGORIES: { value: TransactionCategory; label: string }[] = [
@@ -52,7 +52,27 @@ const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
   CATEGORIES.map((c) => [c.value, c.label])
 );
 
-type ViewMode = "mensal" | "fatura";
+function cycleLabel(cycle: string) {
+  return format(new Date(`${cycle}-01T12:00:00`), "MMMM yyyy", { locale: ptBR });
+}
+
+function prevCycle(cycle: string) {
+  const [y, m] = cycle.split("-").map(Number);
+  return format(new Date(y, m - 2, 1), "yyyy-MM");
+}
+
+function nextCycle(cycle: string) {
+  const [y, m] = cycle.split("-").map(Number);
+  return format(new Date(y, m, 1), "yyyy-MM");
+}
+
+function currentCycleId() {
+  return format(new Date(), "yyyy-MM");
+}
+
+function fmt(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 function TxRow({
   tx,
@@ -111,30 +131,6 @@ function TxRow({
   );
 }
 
-function cycleLabel(cycle: string) {
-  return format(new Date(`${cycle}-01T12:00:00`), "MMMM yyyy", { locale: ptBR });
-}
-
-function prevCycle(cycle: string) {
-  const [y, m] = cycle.split("-").map(Number);
-  const d = new Date(y, m - 2, 1);
-  return format(d, "yyyy-MM");
-}
-
-function nextCycle(cycle: string) {
-  const [y, m] = cycle.split("-").map(Number);
-  const d = new Date(y, m, 1);
-  return format(d, "yyyy-MM");
-}
-
-function currentCycleId() {
-  return format(new Date(), "yyyy-MM");
-}
-
-function fmt(v: number) {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
 export default function CartaoPage() {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -146,21 +142,14 @@ export default function CartaoPage() {
   const [clearing, setClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Mensal view
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-
-  // Fatura view
-  const [viewMode, setViewMode] = useState<ViewMode>("mensal");
   const [selectedCycle, setSelectedCycle] = useState<string>(currentCycleId());
   const [availableCycles, setAvailableCycles] = useState<string[]>([]);
 
-  // Fatura resumo fields (from PDF/CSV localStorage)
+  // Resumo da fatura fields (stored in localStorage)
   const [faturaAnterior, setFaturaAnterior] = useState(0);
   const [pagamentosRecebidos, setPagamentosRecebidos] = useState(0);
   const [iofInternacional, setIofInternacional] = useState(0);
   const [totalNubank, setTotalNubank] = useState<number | null>(null);
-
-  // Saldo anterior manual override (fatura view)
   const [saldoAnterior, setSaldoAnterior] = useState(0);
   const [saldoInput, setSaldoInput] = useState("");
   const [saldoOpen, setSaldoOpen] = useState(false);
@@ -168,9 +157,6 @@ export default function CartaoPage() {
   const [faturaAntOpen, setFaturaAntOpen] = useState(false);
 
   const now = new Date();
-  const monthStart = format(startOfMonth(currentMonth), "yyyy-MM-dd");
-  const monthEnd = format(endOfMonth(currentMonth), "yyyy-MM-dd");
-  const monthLabel = format(currentMonth, "MMMM yyyy", { locale: ptBR });
 
   const [txForm, setTxForm] = useState({
     description: "",
@@ -191,17 +177,17 @@ export default function CartaoPage() {
   useEffect(() => {
     if (!selectedCard) return;
     try {
-      const load = (key: string) => {
+      const lsGet = (key: string) => {
         const raw = localStorage.getItem(`ibank_${key}_${selectedCard}_${selectedCycle}`);
         return raw ? (parseFloat(raw) || 0) : 0;
       };
-      const saldo = load("saldo_ant");
+      const saldo = lsGet("saldo_ant");
       setSaldoAnterior(saldo);
       setSaldoInput(saldo !== 0 ? String(saldo) : "");
-      setFaturaAnterior(load("fatura_ant"));
-      setFaturaAntInput(String(load("fatura_ant") || ""));
-      setPagamentosRecebidos(load("pag_rec"));
-      setIofInternacional(load("iof_int"));
+      setFaturaAnterior(lsGet("fatura_ant"));
+      setFaturaAntInput(String(lsGet("fatura_ant") || ""));
+      setPagamentosRecebidos(lsGet("pag_rec"));
+      setIofInternacional(lsGet("iof_int"));
       const tn = localStorage.getItem(`ibank_total_nubank_${selectedCard}_${selectedCycle}`);
       setTotalNubank(tn ? parseFloat(tn) : null);
     } catch { /* ignore */ }
@@ -211,9 +197,7 @@ export default function CartaoPage() {
     const val = parseFloat(saldoInput) || 0;
     setSaldoAnterior(val);
     if (selectedCard) {
-      try {
-        localStorage.setItem(`ibank_saldo_ant_${selectedCard}_${selectedCycle}`, String(val));
-      } catch { /* ignore */ }
+      try { localStorage.setItem(`ibank_saldo_ant_${selectedCard}_${selectedCycle}`, String(val)); } catch { /* ignore */ }
     }
     setSaldoOpen(false);
   }
@@ -221,7 +205,6 @@ export default function CartaoPage() {
   function saveFaturaAnterior() {
     const val = parseFloat(faturaAntInput) || 0;
     setFaturaAnterior(val);
-    // recalculate saldo anterior
     const newSaldo = val - pagamentosRecebidos;
     setSaldoAnterior(newSaldo);
     if (selectedCard) {
@@ -233,17 +216,7 @@ export default function CartaoPage() {
     setFaturaAntOpen(false);
   }
 
-  const loadMensal = useCallback(async (cardId: string | null) => {
-    if (!cardId) return;
-    try {
-      const txs = await getTransactions({ start: monthStart, end: monthEnd, cardId });
-      setTransactions(txs);
-    } catch (err) {
-      console.error(err);
-    }
-  }, [monthStart, monthEnd]);
-
-  const loadFatura = useCallback(async (cardId: string | null, cycle: string) => {
+  const loadData = useCallback(async (cardId: string | null, cycle: string) => {
     if (!cardId) return;
     try {
       const [txs, cycles] = await Promise.all([
@@ -264,18 +237,13 @@ export default function CartaoPage() {
       setCards(cardList);
       const activeId = selectedCard ?? (cardList.length > 0 ? cardList[0].id : null);
       if (!selectedCard && cardList.length > 0) setSelectedCard(cardList[0].id);
-
-      if (viewMode === "mensal") {
-        await loadMensal(activeId);
-      } else {
-        await loadFatura(activeId, selectedCycle);
-      }
+      await loadData(activeId, selectedCycle);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [selectedCard, viewMode, selectedCycle, loadMensal, loadFatura]);
+  }, [selectedCard, selectedCycle, loadData]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -330,11 +298,7 @@ export default function CartaoPage() {
     if (!selectedCard) return;
     setClearing(true);
     try {
-      if (viewMode === "mensal") {
-        await clearTransactions(selectedCard, monthStart, monthEnd);
-      } else {
-        await clearTransactions(selectedCard, undefined, undefined, selectedCycle);
-      }
+      await clearTransactions(selectedCard, undefined, undefined, selectedCycle);
       setTransactions([]);
       setClearOpen(false);
     } finally {
@@ -350,15 +314,14 @@ export default function CartaoPage() {
   const subscriptionTxs = filteredTransactions.filter((t) => t.category === "assinatura");
   const regularTxs = filteredTransactions.filter((t) => t.category !== "assinatura");
 
-  // Mensal totals (only positives count as "gasto")
-  const cardSpent = cardTransactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
-  const limitPercent = activeCard ? (cardSpent / activeCard.limit) * 100 : 0;
-
-  // Fatura totals
+  // Totals based on fatura data
   const compras = cardTransactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
-  const creditos = cardTransactions.reduce((s, t) => s + (t.amount < 0 ? t.amount : 0), 0); // negative
+  const creditos = cardTransactions.reduce((s, t) => s + (t.amount < 0 ? t.amount : 0), 0);
   const totalFatura = saldoAnterior + compras + creditos;
   const hasFaturaData = cardTransactions.length > 0 || totalNubank !== null || faturaAnterior > 0;
+  const limitPercent = activeCard ? (compras / activeCard.limit) * 100 : 0;
+
+  const cycleLabelStr = cycleLabel(selectedCycle);
 
   if (loading) {
     return (
@@ -375,45 +338,29 @@ export default function CartaoPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Cartão de Crédito</h1>
 
-          {/* View mode toggle */}
-          <div className="flex items-center gap-1 mt-2 p-0.5 bg-muted rounded-lg w-fit">
-            <button
-              onClick={() => setViewMode("mensal")}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === "mensal" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <Calendar className="h-3.5 w-3.5" /> Mensal
-            </button>
-            <button
-              onClick={() => setViewMode("fatura")}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-colors ${viewMode === "fatura" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <Receipt className="h-3.5 w-3.5" /> Fatura
-            </button>
-          </div>
-
-          {/* Navigation */}
-          <div className="flex items-center gap-2 mt-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-              if (viewMode === "mensal") setCurrentMonth((m) => subMonths(m, 1));
-              else setSelectedCycle((c) => prevCycle(c));
-            }}>
+          {/* Cycle navigation */}
+          <div className="flex items-center gap-2 mt-2">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedCycle((c) => prevCycle(c))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-muted-foreground capitalize text-sm font-medium min-w-[160px] text-center">
-              {viewMode === "mensal" ? monthLabel : `Fatura ${cycleLabel(selectedCycle)}`}
+            <span className="text-muted-foreground capitalize text-sm font-medium min-w-[180px] text-center">
+              Fatura {cycleLabelStr}
             </span>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-              if (viewMode === "mensal") setCurrentMonth((m) => addMonths(m, 1));
-              else setSelectedCycle((c) => nextCycle(c));
-            }}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setSelectedCycle((c) => nextCycle(c))}
+              disabled={selectedCycle >= currentCycleId()}
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Available cycles hint */}
-          {viewMode === "fatura" && availableCycles.length > 0 && (
+          {/* Available cycles chips */}
+          {availableCycles.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
-              {availableCycles.slice(0, 6).map((c) => (
+              {availableCycles.slice(0, 8).map((c) => (
                 <button key={c} onClick={() => setSelectedCycle(c)}
                   className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${c === selectedCycle ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>
                   {cycleLabel(c)}
@@ -424,16 +371,13 @@ export default function CartaoPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {viewMode === "mensal" && activeCard && cardTransactions.length > 0 && (
-            <Button variant="outline" onClick={() => generateMonthReport(cardTransactions.filter(t => t.amount > 0), activeCard, monthLabel)}>
+          {activeCard && cardTransactions.length > 0 && (
+            <Button variant="outline" onClick={() => generateMonthReport(cardTransactions.filter(t => t.amount > 0), activeCard, cycleLabelStr)}>
               <FileDown className="h-4 w-4" /> Relatório PDF
             </Button>
           )}
           <NubankImport cards={cards} onImported={(cycle) => {
-            if (cycle) {
-              setViewMode("fatura");
-              setSelectedCycle(cycle);
-            }
+            if (cycle) setSelectedCycle(cycle);
             load();
           }} />
           {cardTransactions.length > 0 && (
@@ -446,10 +390,8 @@ export default function CartaoPage() {
               <DialogContent>
                 <DialogHeader><DialogTitle>Limpar transações</DialogTitle></DialogHeader>
                 <p className="text-sm text-muted-foreground">
-                  Vai excluir todas as <strong>{cardTransactions.length} transações</strong> de{" "}
-                  <strong className="capitalize">
-                    {viewMode === "mensal" ? monthLabel : `Fatura ${cycleLabel(selectedCycle)}`}
-                  </strong>. Ação irreversível.
+                  Vai excluir todas as <strong>{cardTransactions.length} transações</strong> da{" "}
+                  <strong className="capitalize">Fatura {cycleLabelStr}</strong>. Ação irreversível.
                 </p>
                 <div className="flex gap-2 justify-end mt-2">
                   <Button variant="outline" onClick={() => setClearOpen(false)} disabled={clearing}>Cancelar</Button>
@@ -567,19 +509,22 @@ export default function CartaoPage() {
             </div>
           )}
 
-          {/* ── VISÃO MENSAL ── */}
-          {viewMode === "mensal" && activeCard && (
+          {/* Summary cards */}
+          {activeCard && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
-                <CardHeader className="pb-2"><CardDescription>Gasto no mês</CardDescription></CardHeader>
+                <CardHeader className="pb-2"><CardDescription>Total da fatura</CardDescription></CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-destructive">{formatCurrency(cardSpent)}</p>
+                  <p className="text-2xl font-bold text-destructive">
+                    {totalNubank !== null ? fmt(totalNubank) : formatCurrency(compras)}
+                  </p>
+                  {totalNubank !== null && <p className="text-xs text-muted-foreground mt-0.5">oficial Nubank</p>}
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2"><CardDescription>Limite disponível</CardDescription></CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(activeCard.limit - cardSpent)}</p>
+                  <p className="text-2xl font-bold text-green-600">{formatCurrency(activeCard.limit - compras)}</p>
                 </CardContent>
               </Card>
               <Card>
@@ -593,156 +538,124 @@ export default function CartaoPage() {
             </div>
           )}
 
-          {/* ── VISÃO FATURA ── */}
-          {viewMode === "fatura" && (
+          {/* Resumo da Fatura */}
+          {hasFaturaData && (
             <>
-              {!hasFaturaData ? (
-                <Card className="text-center py-10">
-                  <CardContent>
-                    <Receipt className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                    <p className="font-medium">Nenhuma fatura importada para {cycleLabel(selectedCycle)}</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Importe o CSV do Nubank referente a este período.
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <>
-                  {/* RESUMO DA FATURA — Nubank style */}
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Receipt className="h-4 w-4" />
-                        Resumo da Fatura
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="divide-y">
-                        {/* Fatura anterior — editable */}
-                        <button
-                          className="w-full flex justify-between items-center py-2.5 px-1 -mx-1 hover:bg-muted/30 rounded transition-colors text-left"
-                          onClick={() => { setFaturaAntInput(String(faturaAnterior || "")); setFaturaAntOpen(true); }}
-                        >
-                          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            Fatura anterior <Pencil className="h-3 w-3" />
-                          </span>
-                          <span className="text-sm font-medium tabular-nums">
-                            {faturaAnterior > 0 ? fmt(faturaAnterior) : <span className="text-muted-foreground/50">— informar</span>}
-                          </span>
-                        </button>
-
-                        {/* Pagamento recebido */}
-                        <div className="flex justify-between items-center py-2.5">
-                          <span className="text-sm text-muted-foreground">Pagamento recebido</span>
-                          <span className="text-sm font-medium text-green-600 tabular-nums">
-                            {pagamentosRecebidos > 0 ? `− ${fmt(pagamentosRecebidos)}` : "—"}
-                          </span>
-                        </div>
-
-                        {/* Saldo do período anterior */}
-                        {(faturaAnterior > 0 || pagamentosRecebidos > 0) && (
-                          <div className="flex justify-between items-center py-2 bg-muted/30 rounded px-2 -mx-2 my-0.5">
-                            <span className="text-xs text-muted-foreground font-medium">= Saldo do período anterior</span>
-                            <span className={`text-sm font-semibold tabular-nums ${saldoAnterior < 0 ? "text-green-600" : "text-destructive"}`}>
-                              {saldoAnterior < 0 ? `crédito de ${fmt(Math.abs(saldoAnterior))}` : fmt(saldoAnterior)}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Total de compras */}
-                        <div className="flex justify-between items-center py-2.5">
-                          <span className="text-sm text-muted-foreground">Total de compras</span>
-                          <span className="text-sm font-medium tabular-nums">
-                            {compras > 0 ? fmt(iofInternacional > 0 ? compras - iofInternacional : compras) : "—"}
-                          </span>
-                        </div>
-
-                        {/* IOF de compras internacionais */}
-                        {iofInternacional > 0 && (
-                          <div className="flex justify-between items-center py-2.5">
-                            <span className="text-sm text-muted-foreground">IOF de compras internacionais</span>
-                            <span className="text-sm font-medium tabular-nums">{fmt(iofInternacional)}</span>
-                          </div>
-                        )}
-
-                        {/* Outros lançamentos (estornos) */}
-                        {creditos < 0 && (
-                          <div className="flex justify-between items-center py-2.5">
-                            <span className="text-sm text-muted-foreground">Outros lançamentos</span>
-                            <span className="text-sm font-medium text-green-600 tabular-nums">− {fmt(Math.abs(creditos))}</span>
-                          </div>
-                        )}
-
-                        {/* Total a pagar */}
-                        <div className="flex justify-between items-center pt-3 pb-0.5 border-t-2 border-foreground/20 mt-1">
-                          <span className="font-bold text-base">Total a pagar</span>
-                          <span className={`text-2xl font-bold tabular-nums ${(totalNubank ?? totalFatura) > 0 ? "text-destructive" : "text-green-600"}`}>
-                            {totalNubank !== null ? fmt(totalNubank) : fmt(totalFatura)}
-                          </span>
-                        </div>
-
-                        {/* Discrepancy note */}
-                        {totalNubank !== null && Math.abs(totalNubank - totalFatura) > 0.5 && (
-                          <p className="text-[10px] text-muted-foreground text-right pt-1">
-                            calculado: {fmt(totalFatura)} · oficial Nubank: {fmt(totalNubank)}
-                          </p>
-                        )}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Receipt className="h-4 w-4" />
+                    Resumo da Fatura
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="divide-y">
+                    <button
+                      className="w-full flex justify-between items-center py-2.5 px-1 -mx-1 hover:bg-muted/30 rounded transition-colors text-left"
+                      onClick={() => { setFaturaAntInput(String(faturaAnterior || "")); setFaturaAntOpen(true); }}
+                    >
+                      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        Fatura anterior <Pencil className="h-3 w-3" />
+                      </span>
+                      <span className="text-sm font-medium tabular-nums">
+                        {faturaAnterior > 0 ? fmt(faturaAnterior) : <span className="text-muted-foreground/50">— informar</span>}
+                      </span>
+                    </button>
+                    <div className="flex justify-between items-center py-2.5">
+                      <span className="text-sm text-muted-foreground">Pagamento recebido</span>
+                      <span className="text-sm font-medium text-green-600 tabular-nums">
+                        {pagamentosRecebidos > 0 ? `− ${fmt(pagamentosRecebidos)}` : "—"}
+                      </span>
+                    </div>
+                    {(faturaAnterior > 0 || pagamentosRecebidos > 0) && (
+                      <div className="flex justify-between items-center py-2 bg-muted/30 rounded px-2 -mx-2 my-0.5">
+                        <span className="text-xs text-muted-foreground font-medium">= Saldo do período anterior</span>
+                        <span className={`text-sm font-semibold tabular-nums ${saldoAnterior < 0 ? "text-green-600" : "text-destructive"}`}>
+                          {saldoAnterior < 0 ? `crédito de ${fmt(Math.abs(saldoAnterior))}` : fmt(saldoAnterior)}
+                        </span>
                       </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Dialog: fatura anterior */}
-                  <Dialog open={faturaAntOpen} onOpenChange={setFaturaAntOpen}>
-                    <DialogContent className="max-w-sm">
-                      <DialogHeader><DialogTitle>Fatura anterior — {cycleLabel(selectedCycle)}</DialogTitle></DialogHeader>
-                      <p className="text-sm text-muted-foreground">
-                        Total da fatura do mês anterior (antes de qualquer pagamento).
-                        Disponível no PDF da fatura Nubank em &quot;Resumo da Fatura&quot;.
+                    )}
+                    <div className="flex justify-between items-center py-2.5">
+                      <span className="text-sm text-muted-foreground">Total de compras</span>
+                      <span className="text-sm font-medium tabular-nums">
+                        {compras > 0 ? fmt(iofInternacional > 0 ? compras - iofInternacional : compras) : "—"}
+                      </span>
+                    </div>
+                    {iofInternacional > 0 && (
+                      <div className="flex justify-between items-center py-2.5">
+                        <span className="text-sm text-muted-foreground">IOF de compras internacionais</span>
+                        <span className="text-sm font-medium tabular-nums">{fmt(iofInternacional)}</span>
+                      </div>
+                    )}
+                    {creditos < 0 && (
+                      <div className="flex justify-between items-center py-2.5">
+                        <span className="text-sm text-muted-foreground">Outros lançamentos</span>
+                        <span className="text-sm font-medium text-green-600 tabular-nums">− {fmt(Math.abs(creditos))}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-3 pb-0.5 border-t-2 border-foreground/20 mt-1">
+                      <span className="font-bold text-base">Total a pagar</span>
+                      <span className={`text-2xl font-bold tabular-nums ${(totalNubank ?? totalFatura) > 0 ? "text-destructive" : "text-green-600"}`}>
+                        {totalNubank !== null ? fmt(totalNubank) : fmt(totalFatura)}
+                      </span>
+                    </div>
+                    {totalNubank !== null && Math.abs(totalNubank - totalFatura) > 0.5 && (
+                      <p className="text-[10px] text-muted-foreground text-right pt-1">
+                        calculado: {fmt(totalFatura)} · oficial Nubank: {fmt(totalNubank)}
                       </p>
-                      <div className="space-y-3 pt-1">
-                        <div className="space-y-1.5">
-                          <Label>Valor (R$)</Label>
-                          <Input type="number" placeholder="0,00" value={faturaAntInput}
-                            onChange={(e) => setFaturaAntInput(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && saveFaturaAnterior()} autoFocus />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" className="flex-1" onClick={() => setFaturaAntOpen(false)}>Cancelar</Button>
-                          <Button className="flex-1" onClick={saveFaturaAnterior}>Salvar</Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
-                  {/* Dialog: saldo anterior (manual override) */}
-                  <Dialog open={saldoOpen} onOpenChange={setSaldoOpen}>
-                    <DialogContent className="max-w-sm">
-                      <DialogHeader><DialogTitle>Saldo anterior — {cycleLabel(selectedCycle)}</DialogTitle></DialogHeader>
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        <p>Valor exibido no resumo da fatura Nubank:</p>
-                        <p className="text-xs">• <span className="text-destructive font-medium">Positivo</span> → dívida que veio da fatura anterior</p>
-                        <p className="text-xs">• <span className="text-green-600 font-medium">Negativo (ex: -207,90)</span> → crédito por ter pago a mais no mês anterior</p>
-                      </div>
-                      <div className="space-y-3 pt-1">
-                        <div className="space-y-1.5">
-                          <Label>Valor (R$) — use negativo para crédito</Label>
-                          <Input type="number" placeholder="0,00" value={saldoInput}
-                            onChange={(e) => setSaldoInput(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && saveSaldoAnterior()} autoFocus />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" className="flex-1" onClick={() => setSaldoOpen(false)}>Cancelar</Button>
-                          <Button className="flex-1" onClick={saveSaldoAnterior}>Salvar</Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </>
-              )}
+              <Dialog open={faturaAntOpen} onOpenChange={setFaturaAntOpen}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader><DialogTitle>Fatura anterior — {cycleLabelStr}</DialogTitle></DialogHeader>
+                  <p className="text-sm text-muted-foreground">
+                    Total da fatura do mês anterior (antes de qualquer pagamento).
+                    Disponível no PDF da fatura Nubank em &quot;Resumo da Fatura&quot;.
+                  </p>
+                  <div className="space-y-3 pt-1">
+                    <div className="space-y-1.5">
+                      <Label>Valor (R$)</Label>
+                      <Input type="number" placeholder="0,00" value={faturaAntInput}
+                        onChange={(e) => setFaturaAntInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && saveFaturaAnterior()} autoFocus />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1" onClick={() => setFaturaAntOpen(false)}>Cancelar</Button>
+                      <Button className="flex-1" onClick={saveFaturaAnterior}>Salvar</Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={saldoOpen} onOpenChange={setSaldoOpen}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader><DialogTitle>Saldo anterior — {cycleLabelStr}</DialogTitle></DialogHeader>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>Valor exibido no resumo da fatura Nubank:</p>
+                    <p className="text-xs">• <span className="text-destructive font-medium">Positivo</span> → dívida da fatura anterior</p>
+                    <p className="text-xs">• <span className="text-green-600 font-medium">Negativo (ex: -207,90)</span> → crédito por ter pago a mais</p>
+                  </div>
+                  <div className="space-y-3 pt-1">
+                    <div className="space-y-1.5">
+                      <Label>Valor (R$) — use negativo para crédito</Label>
+                      <Input type="number" placeholder="0,00" value={saldoInput}
+                        onChange={(e) => setSaldoInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && saveSaldoAnterior()} autoFocus />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1" onClick={() => setSaldoOpen(false)}>Cancelar</Button>
+                      <Button className="flex-1" onClick={saveSaldoAnterior}>Salvar</Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </>
           )}
 
-          {/* ── Lista de transações ── */}
+          {/* Transaction list */}
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -750,7 +663,7 @@ export default function CartaoPage() {
                   <CardTitle>Transações</CardTitle>
                   <CardDescription>
                     {filteredTransactions.length} lançamento{filteredTransactions.length !== 1 ? "s" : ""}{" "}
-                    {viewMode === "mensal" ? `em ${monthLabel}` : `· Fatura ${cycleLabel(selectedCycle)}`}
+                    · Fatura {cycleLabelStr}
                     {searchQuery && ` · filtrando "${searchQuery}"`}
                   </CardDescription>
                 </div>
@@ -769,18 +682,19 @@ export default function CartaoPage() {
             </CardHeader>
             <CardContent>
               {cardTransactions.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8 text-sm">
-                  {viewMode === "fatura"
-                    ? "Importe o CSV do Nubank para visualizar a fatura aqui."
-                    : "Nenhuma transação registrada este mês."}
-                </p>
+                <div className="text-center py-10">
+                  <Receipt className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="font-medium">Nenhuma transação para {cycleLabelStr}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Importe o CSV do Nubank ou registre uma compra manualmente.
+                  </p>
+                </div>
               ) : filteredTransactions.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8 text-sm">
                   Nenhuma transação encontrada para &quot;{searchQuery}&quot;.
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {/* Assinaturas */}
                   {subscriptionTxs.length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-2">
@@ -793,12 +707,12 @@ export default function CartaoPage() {
                         </span>
                       </div>
                       <div className="space-y-1.5">
-                        {subscriptionTxs.map((tx) => <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />)}
+                        {subscriptionTxs.map((tx) => (
+                          <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />
+                        ))}
                       </div>
                     </div>
                   )}
-
-                  {/* Compras regulares */}
                   {regularTxs.length > 0 && (
                     <div>
                       {subscriptionTxs.length > 0 && (
@@ -812,7 +726,9 @@ export default function CartaoPage() {
                         </div>
                       )}
                       <div className="space-y-1.5">
-                        {regularTxs.map((tx) => <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />)}
+                        {regularTxs.map((tx) => (
+                          <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />
+                        ))}
                       </div>
                     </div>
                   )}
