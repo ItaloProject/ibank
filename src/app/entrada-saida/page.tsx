@@ -3,45 +3,32 @@
 import { useState, useEffect, useCallback } from "react";
 import { useUser } from "@/context/user-context";
 import { UserSelect } from "@/components/user-select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Plus, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle, Wallet,
-  Target, Loader2, LogOut, TrendingUp, PiggyBank, ChevronLeft, ChevronRight,
+  Target, Loader2, TrendingUp, PiggyBank, ChevronLeft, ChevronRight,
   CreditCard, BarChart3, CalendarRange,
 } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { USERS } from "@/lib/user";
 import { getCurrentUser } from "@/lib/user";
 
 interface CashFlow {
-  id: string;
-  user_id: string;
-  month: string;
-  description: string;
-  type: "entrada" | "saida";
-  amount: number;
-  date: string;
+  id: string; user_id: string; month: string;
+  description: string; type: "entrada" | "saida";
+  amount: number; date: string;
 }
 
 function toFlow(r: Record<string, unknown>): CashFlow {
-  return {
-    ...r,
-    amount: Number(r.amount),
-    date: String(r.date).slice(0, 10),
-  } as CashFlow;
+  return { ...r, amount: Number(r.amount), date: String(r.date).slice(0, 10) } as CashFlow;
 }
 
 export default function EntradaSaidaPage() {
@@ -51,32 +38,25 @@ export default function EntradaSaidaPage() {
 }
 
 function EntradaSaidaContent({ userId }: { userId: string }) {
-  const { switchUser } = useUser();
-  const currentUser = USERS.find((u) => u.id === userId)!;
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [flows, setFlows] = useState<CashFlow[]>([]);
   const [goal, setGoal] = useState(0);
   const [savedAmount, setSavedAmount] = useState(0);
-  const [loading, setLoading] = useState(true);
-
   const [planejado, setPlanejado] = useState(0);
   const [faturaCartao, setFaturaCartao] = useState(0);
   const [investidoMes, setInvestidoMes] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const [entryOpen, setEntryOpen] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [editing, setEditing] = useState<CashFlow | null>(null);
-  const [form, setForm] = useState({
-    description: "",
-    type: "entrada" as "entrada" | "saida",
-    amount: "",
-    date: format(new Date(), "yyyy-MM-dd"),
-  });
+  const [form, setForm] = useState({ description: "", type: "entrada" as "entrada" | "saida", amount: "", date: format(new Date(), "yyyy-MM-dd") });
   const [goalInput, setGoalInput] = useState("");
   const [savedInput, setSavedInput] = useState("");
 
   const monthKey = format(currentMonth, "yyyy-MM");
+  const isCurrentMonth = monthKey >= format(new Date(), "yyyy-MM");
 
   const loadData = useCallback(async () => {
     const uid = getCurrentUser();
@@ -92,13 +72,11 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
       fetch(`/api/investments?user=${uid}&start=${monthStart}&end=${monthEnd}`),
       fetch(`/api/stock-trades?user=${uid}`),
     ]);
-
     const [flowsData, goalData, planData, txData, invData, stData] = await Promise.all([
       flowsRes.json(), goalRes.json(), planRes.json(), txRes.json(), invRes.json(), stRes.json(),
     ]);
 
     setFlows(Array.isArray(flowsData) ? flowsData.map(toFlow) : []);
-
     const goalAmount = Number(goalData.goal_amount) || 0;
     const saved = Number(goalData.saved_amount) || 0;
     setGoal(goalAmount);
@@ -106,18 +84,15 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
     setGoalInput(goalAmount > 0 ? String(goalAmount) : "");
     setSavedInput(saved > 0 ? String(saved) : "");
 
-    // Planejamento: soma do planned dos itens do mês
     const planItems = Array.isArray(planData) ? planData : [];
     setPlanejado(planItems.reduce((s: number, i: Record<string, unknown>) => s + (Number(i.planned) || 0), 0));
 
-    // Fatura do cartão: soma dos débitos do billing_cycle
     const txList = Array.isArray(txData) ? txData : [];
     setFaturaCartao(txList.reduce((s: number, t: Record<string, unknown>) => {
       const amt = Number(t.amount) || 0;
       return s + (amt > 0 ? amt : 0);
     }, 0));
 
-    // Investido: depósitos + rendimentos da renda fixa + compras de ações no mês
     const invList = Array.isArray(invData) ? invData : [];
     const invTotal = invList.reduce((s: number, i: Record<string, unknown>) => {
       const type = String(i.type);
@@ -125,10 +100,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
     }, 0);
     const stList = Array.isArray(stData) ? stData : [];
     const acoesMes = stList
-      .filter((t: Record<string, unknown>) => {
-        const d = String(t.date).slice(0, 7);
-        return t.type === "compra" && d === monthKey;
-      })
+      .filter((t: Record<string, unknown>) => t.type === "compra" && String(t.date).slice(0, 7) === monthKey)
       .reduce((s: number, t: Record<string, unknown>) => s + (Number(t.total_amount) || 0), 0);
     setInvestidoMes(invTotal + acoesMes);
   }, [userId, monthKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -144,397 +116,223 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const totalSaidas = saidas.reduce((s, f) => s + f.amount, 0);
   const saldo = totalEntradas - totalSaidas;
   const faltaParaMeta = goal > savedAmount ? goal - savedAmount : 0;
-  const metaProgress = goal > 0 ? Math.min(Math.max((savedAmount / goal) * 100, 0), 100) : 0;
+  const metaProgress = goal > 0 ? Math.min((savedAmount / goal) * 100, 100) : 0;
   const metaAtingida = goal > 0 && savedAmount >= goal;
+  const sobra = totalEntradas - faturaCartao - investidoMes;
 
   function openNew(type: "entrada" | "saida") {
     setEditing(null);
-    const isCurrentMonth = format(currentMonth, "yyyy-MM") === format(new Date(), "yyyy-MM");
-    setForm({
-      description: "",
-      type,
-      amount: "",
-      date: isCurrentMonth ? format(new Date(), "yyyy-MM-dd") : format(currentMonth, "yyyy-MM-01"),
-    });
+    setForm({ description: "", type, amount: "", date: isCurrentMonth ? format(new Date(), "yyyy-MM-dd") : `${monthKey}-01` });
     setEntryOpen(true);
   }
-
   function openEdit(flow: CashFlow) {
     setEditing(flow);
-    setForm({
-      description: flow.description,
-      type: flow.type,
-      amount: flow.amount ? String(flow.amount) : "",
-      date: flow.date,
-    });
+    setForm({ description: flow.description, type: flow.type, amount: String(flow.amount), date: flow.date });
     setEntryOpen(true);
   }
-
   async function submitEntry() {
     if (!form.description.trim() || !form.amount) return;
-    const body = {
-      user_id: userId,
-      description: form.description.trim(),
-      type: form.type,
-      amount: parseFloat(form.amount) || 0,
-      date: form.date,
-    };
+    const body = { user_id: userId, description: form.description.trim(), type: form.type, amount: parseFloat(form.amount) || 0, date: form.date };
     if (editing) {
-      await fetch(`/api/cash-flows/${editing.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      await fetch(`/api/cash-flows/${editing.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     } else {
-      await fetch("/api/cash-flows", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      await fetch("/api/cash-flows", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     }
     await loadData();
     setEntryOpen(false);
   }
-
   async function deleteEntry(id: string) {
     await fetch(`/api/cash-flows/${id}`, { method: "DELETE" });
     setFlows((prev) => prev.filter((f) => f.id !== id));
   }
-
   async function saveGoal() {
     const value = parseFloat(goalInput) || 0;
-    await fetch("/api/savings-goals", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, goal_amount: value, saved_amount: savedAmount }),
-    });
+    await fetch("/api/savings-goals", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: userId, goal_amount: value, saved_amount: savedAmount }) });
     setGoal(value);
     setGoalOpen(false);
   }
-
   async function saveSavedAmount() {
     const value = parseFloat(savedInput) || 0;
-    await fetch("/api/savings-goals", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, goal_amount: goal, saved_amount: value }),
-    });
+    await fetch("/api/savings-goals", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: userId, goal_amount: goal, saved_amount: value }) });
     setSavedAmount(value);
     setSavedOpen(false);
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center h-full">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-5xl mx-auto">
+    <div className="flex flex-col min-h-full">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Entrada/Saída</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Visão mensal de entradas e saídas</p>
-        </div>
+      <div className="px-4 pt-5 pb-3">
+        <h1 className="text-2xl font-bold">Entrada/Saída</h1>
+      </div>
+
+      {/* Month nav */}
+      <div className="flex items-center justify-center gap-4 px-4 py-2 border-b border-border">
         <button
-          onClick={switchUser}
-          className="group flex items-center gap-2.5 rounded-xl border border-white/10 px-3 py-2 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-          style={{
-            background: `linear-gradient(135deg, ${currentUser.color}22 0%, ${currentUser.color}10 100%)`,
-            borderColor: `${currentUser.color}40`,
-            boxShadow: `0 2px 8px ${currentUser.color}20`,
-          }}
+          onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors"
         >
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-inner shrink-0 ring-2 ring-white/20"
-            style={{ background: `linear-gradient(135deg, ${currentUser.color} 0%, ${currentUser.color}cc 100%)` }}
-          >
-            {currentUser.name[0]}
-          </div>
-          <div className="flex flex-col items-start leading-none">
-            <span className="text-[11px] font-medium opacity-50 tracking-wide uppercase" style={{ color: currentUser.color }}>usuário</span>
-            <span className="text-sm font-semibold mt-0.5">{currentUser.name}</span>
-          </div>
-          <LogOut className="h-3.5 w-3.5 ml-1 opacity-40 group-hover:opacity-70 transition-opacity" />
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <span className="text-base font-semibold capitalize min-w-[160px] text-center">
+          {format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })}
+        </span>
+        <button
+          onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+          disabled={isCurrentMonth}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30"
+        >
+          <ChevronRight className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Month selector */}
-      <div className="flex items-center justify-center gap-2">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth((m) => subMonths(m, 1))}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-base font-semibold capitalize w-40 text-center">
-          {format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-          disabled={format(currentMonth, "yyyy-MM") >= format(new Date(), "yyyy-MM")}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+      {/* Resumo 3 colunas */}
+      <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+        <div className="flex flex-col items-center py-4 gap-0.5">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Entradas</p>
+          <p className="text-lg font-bold text-green-600 tabular-nums">{formatCurrency(totalEntradas)}</p>
+          <p className="text-[11px] text-muted-foreground">{entradas.length} reg.</p>
+        </div>
+        <div className="flex flex-col items-center py-4 gap-0.5">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Saídas</p>
+          <p className="text-lg font-bold text-destructive tabular-nums">{formatCurrency(totalSaidas)}</p>
+          <p className="text-[11px] text-muted-foreground">{saidas.length} reg.</p>
+        </div>
+        <div className="flex flex-col items-center py-4 gap-0.5">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Saldo</p>
+          <p className={`text-lg font-bold tabular-nums ${saldo >= 0 ? "text-green-600" : "text-destructive"}`}>{formatCurrency(saldo)}</p>
+          <p className="text-[11px] text-muted-foreground">do mês</p>
+        </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <ArrowDownCircle className="h-4 w-4 text-green-600" />
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Entradas</p>
-            </div>
-            <p className="text-2xl font-bold text-green-600 tabular-nums">{formatCurrency(totalEntradas)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{entradas.length} registro{entradas.length !== 1 ? "s" : ""}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <ArrowUpCircle className="h-4 w-4 text-destructive" />
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Saídas</p>
-            </div>
-            <p className="text-2xl font-bold text-destructive tabular-nums">{formatCurrency(totalSaidas)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{saidas.length} registro{saidas.length !== 1 ? "s" : ""}</p>
-          </CardContent>
-        </Card>
-        <Card className={`border-2 ${saldo >= 0 ? "border-green-200" : "border-red-200"}`}
-          style={{ background: saldo >= 0 ? "linear-gradient(135deg,#dcfce708,transparent)" : "linear-gradient(135deg,#fee2e208,transparent)" }}>
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet className={`h-4 w-4 ${saldo >= 0 ? "text-green-600" : "text-destructive"}`} />
-              <p className="text-xs font-bold uppercase tracking-wide"
-                style={{ color: saldo >= 0 ? "#16a34a" : "hsl(var(--destructive))" }}>Saldo</p>
-            </div>
-            <p className={`text-2xl font-bold tabular-nums ${saldo >= 0 ? "text-green-600" : "text-destructive"}`}>
-              {formatCurrency(saldo)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">saldo do mês</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Comparativo do mês */}
-      <Card>
-        <CardContent className="pt-5 pb-4 space-y-4">
-          <div className="flex items-center gap-2 mb-1">
-            <BarChart3 className="h-4 w-4 text-primary" />
-            <p className="text-sm font-semibold">Comparativo do mês</p>
-          </div>
-
-          {/* Receita de referência */}
-          <div className="flex items-center justify-between py-2 border-b">
+      {/* Comparativo automático */}
+      <div className="border-b border-border">
+        <div className="px-4 pt-4 pb-1 flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-primary" />
+          <p className="text-sm font-semibold">Comparativo</p>
+        </div>
+        <div className="px-4 pb-4 space-y-3 mt-2">
+          {/* Receita */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ArrowDownCircle className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium">Receita (entradas)</span>
+              <ArrowDownCircle className="h-4 w-4 text-green-600 shrink-0" />
+              <span className="text-sm text-muted-foreground">Receita</span>
             </div>
             <span className="text-sm font-bold text-green-600 tabular-nums">{formatCurrency(totalEntradas)}</span>
           </div>
 
-          {/* Planejamento */}
-          {(() => {
-            const pct = totalEntradas > 0 ? Math.min((planejado / totalEntradas) * 100, 100) : 0;
+          {[
+            { label: "Planejamento", icon: <CalendarRange className="h-4 w-4 text-blue-500 shrink-0" />, value: planejado, color: "bg-blue-500" },
+            { label: "Fatura cartão", icon: <CreditCard className="h-4 w-4 text-red-400 shrink-0" />, value: faturaCartao, color: "bg-red-400" },
+            { label: "Investido", icon: <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />, value: investidoMes, color: "bg-emerald-500", textColor: "text-emerald-600" },
+          ].map(({ label, icon, value, color, textColor }) => {
+            const pct = totalEntradas > 0 ? Math.min((value / totalEntradas) * 100, 100) : 0;
             return (
-              <div className="space-y-1">
+              <div key={label} className="space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CalendarRange className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm">Planejamento</span>
+                    {icon}
+                    <span className="text-sm">{label}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
-                    <span className="text-sm font-semibold tabular-nums">{formatCurrency(planejado)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">{pct.toFixed(0)}%</span>
+                    <span className={`text-sm font-semibold tabular-nums ${textColor ?? ""}`}>{formatCurrency(value)}</span>
                   </div>
                 </div>
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
+                  <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
             );
-          })()}
+          })}
 
-          {/* Fatura do cartão */}
-          {(() => {
-            const pct = totalEntradas > 0 ? Math.min((faturaCartao / totalEntradas) * 100, 100) : 0;
-            const over = faturaCartao > totalEntradas;
-            return (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-destructive" />
-                    <span className="text-sm">Fatura do cartão</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs ${over ? "text-destructive font-semibold" : "text-muted-foreground"}`}>{pct.toFixed(0)}%</span>
-                    <span className={`text-sm font-semibold tabular-nums ${over ? "text-destructive" : ""}`}>{formatCurrency(faturaCartao)}</span>
-                  </div>
-                </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div className={`h-full rounded-full ${over ? "bg-destructive" : "bg-red-400"}`} style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Investido */}
-          {(() => {
-            const pct = totalEntradas > 0 ? Math.min((investidoMes / totalEntradas) * 100, 100) : 0;
-            return (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-emerald-500" />
-                    <span className="text-sm">Investido</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
-                    <span className="text-sm font-semibold tabular-nums text-emerald-600">{formatCurrency(investidoMes)}</span>
-                  </div>
-                </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Saldo após fatura + investimentos */}
-          {(() => {
-            const sobra = totalEntradas - faturaCartao - investidoMes;
-            return (
-              <div className="flex items-center justify-between pt-3 border-t">
-                <span className="text-sm font-medium text-muted-foreground">Saldo disponível</span>
-                <span className={`text-base font-bold tabular-nums ${sobra >= 0 ? "text-green-600" : "text-destructive"}`}>
-                  {formatCurrency(sobra)}
-                </span>
-              </div>
-            );
-          })()}
-        </CardContent>
-      </Card>
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <div className="flex items-center gap-2">
+              <Wallet className={`h-4 w-4 shrink-0 ${sobra >= 0 ? "text-green-600" : "text-destructive"}`} />
+              <span className="text-sm font-medium">Disponível</span>
+            </div>
+            <span className={`text-base font-bold tabular-nums ${sobra >= 0 ? "text-green-600" : "text-destructive"}`}>
+              {formatCurrency(sobra)}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Valor guardado */}
-      <div
-        className="flex flex-col gap-2 rounded-xl border px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors sm:flex-row sm:items-center sm:justify-between sm:px-5"
+      <button
         onClick={() => { setSavedInput(savedAmount > 0 ? String(savedAmount) : ""); setSavedOpen(true); }}
+        className="flex items-center justify-between px-4 py-3.5 border-b border-border hover:bg-muted/30 transition-colors w-full text-left"
       >
         <div className="flex items-center gap-2.5">
           <PiggyBank className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium">Valor guardado</span>
         </div>
-        <div className="flex items-center gap-3">
-          {savedAmount > 0 ? (
-            <span className="text-lg font-bold tabular-nums">{formatCurrency(savedAmount)}</span>
-          ) : (
-            <span className="text-sm text-muted-foreground">Clique para informar</span>
-          )}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold tabular-nums">{savedAmount > 0 ? formatCurrency(savedAmount) : <span className="text-muted-foreground font-normal">informar</span>}</span>
           <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
         </div>
-      </div>
+      </button>
 
-      {/* Goal card */}
-      <Card
-        className="cursor-pointer hover:bg-muted/30 transition-colors"
+      {/* Meta financeira */}
+      <button
         onClick={() => { setGoalInput(goal > 0 ? String(goal) : ""); setGoalOpen(true); }}
+        className="flex flex-col px-4 py-3.5 border-b border-border hover:bg-muted/30 transition-colors w-full text-left"
       >
-        <CardContent className="pt-5 pb-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-primary" />
-              <p className="text-sm font-semibold">Meta financeira</p>
-              {metaAtingida && (
-                <Badge className="bg-green-100 text-green-700 border-green-200">Meta atingida!</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {goal > 0 ? (
-                <span className="text-lg font-bold tabular-nums">{formatCurrency(goal)}</span>
-              ) : (
-                <span className="text-sm text-muted-foreground">Clique para definir</span>
-              )}
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Meta financeira</span>
+            {metaAtingida && <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px] px-1.5">Atingida!</Badge>}
           </div>
-          {goal > 0 && (
-            <>
-              <p className="text-xs text-muted-foreground mb-2">
-                Progresso com base no valor guardado: <strong className="text-foreground">{formatCurrency(savedAmount)}</strong>
-              </p>
-              <Progress value={metaProgress} className="h-2 mb-2" />
-          <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <span>{metaProgress.toFixed(0)}% da meta</span>
-                {metaAtingida ? (
-                  <span className="text-green-600 font-medium flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" />
-                    Você superou a meta em {formatCurrency(savedAmount - goal)}
-                  </span>
-                ) : (
-                  <span className="font-medium text-foreground">
-                    Faltam <strong className="text-primary">{formatCurrency(faltaParaMeta)}</strong> para atingir a meta
-                  </span>
-                )}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold tabular-nums">{goal > 0 ? formatCurrency(goal) : <span className="text-muted-foreground font-normal">definir</span>}</span>
+            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+        </div>
+        {goal > 0 && (
+          <>
+            <Progress value={metaProgress} className="h-1.5 mb-1.5" />
+            <div className="flex justify-between text-[11px] text-muted-foreground">
+              <span>{metaProgress.toFixed(0)}% — guardado {formatCurrency(savedAmount)}</span>
+              {metaAtingida
+                ? <span className="text-green-600">+{formatCurrency(savedAmount - goal)}</span>
+                : <span>faltam <strong className="text-foreground">{formatCurrency(faltaParaMeta)}</strong></span>}
+            </div>
+          </>
+        )}
+      </button>
 
-      {/* Lists */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FlowList
-          title="Entradas"
-          type="entrada"
-          items={entradas}
-          onAdd={() => openNew("entrada")}
-          onEdit={openEdit}
-          onDelete={deleteEntry}
-        />
-        <FlowList
-          title="Saídas"
-          type="saida"
-          items={saidas}
-          onAdd={() => openNew("saida")}
-          onEdit={openEdit}
-          onDelete={deleteEntry}
-        />
+      {/* Listas de entradas e saídas */}
+      <div className="flex-1 divide-y divide-border">
+        <FlowSection title="Entradas" type="entrada" items={entradas} onAdd={() => openNew("entrada")} onEdit={openEdit} onDelete={deleteEntry} />
+        <FlowSection title="Saídas" type="saida" items={saidas} onAdd={() => openNew("saida")} onEdit={openEdit} onDelete={deleteEntry} />
       </div>
 
-      {/* Dialog: Entry */}
+      {/* Dialog: entry */}
       <Dialog open={entryOpen} onOpenChange={setEntryOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{editing ? "Editar registro" : form.type === "entrada" ? "Nova entrada" : "Nova saída"}</DialogTitle>
+            <DialogTitle>{editing ? "Editar" : form.type === "entrada" ? "Nova entrada" : "Nova saída"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Descrição</Label>
-              <Input
-                placeholder={form.type === "entrada" ? "Ex: Salário, Freelance" : "Ex: Aluguel, Mercado"}
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-              />
+              <Input placeholder={form.type === "entrada" ? "Ex: Salário, Freelance" : "Ex: Aluguel, Mercado"}
+                value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <Label>Valor (R$)</Label>
-              <Input
-                type="number"
-                placeholder="0,00"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              />
+              <Input type="number" placeholder="0,00" value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <Label>Data</Label>
-              <Input
-                type="date"
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-              />
+              <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </div>
             <div className="flex gap-2 pt-1">
               <Button variant="outline" className="flex-1" onClick={() => setEntryOpen(false)}>Cancelar</Button>
@@ -544,55 +342,35 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Goal */}
+      {/* Dialog: goal */}
       <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Meta financeira</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Defina quanto você quer acumular. O progresso considera apenas o valor guardado.
-          </p>
+          <DialogHeader><DialogTitle>Meta financeira</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Defina quanto você quer acumular.</p>
           <div className="space-y-3 pt-1">
             <div className="space-y-1.5">
               <Label>Valor da meta (R$)</Label>
-              <Input
-                type="number"
-                placeholder="Ex: 3000,00"
-                value={goalInput}
-                onChange={(e) => setGoalInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && saveGoal()}
-                autoFocus
-              />
+              <Input type="number" placeholder="Ex: 3000,00" value={goalInput}
+                onChange={(e) => setGoalInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveGoal()} autoFocus />
             </div>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setGoalOpen(false)}>Cancelar</Button>
-              <Button className="flex-1" onClick={saveGoal}>Salvar meta</Button>
+              <Button className="flex-1" onClick={saveGoal}>Salvar</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Valor guardado */}
+      {/* Dialog: saved amount */}
       <Dialog open={savedOpen} onOpenChange={setSavedOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Valor guardado</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Informe quanto você tem guardado agora. Esse valor será usado para calcular o progresso da meta.
-          </p>
+          <DialogHeader><DialogTitle>Valor guardado</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Informe quanto você tem guardado agora.</p>
           <div className="space-y-3 pt-1">
             <div className="space-y-1.5">
               <Label>Quanto tenho guardado (R$)</Label>
-              <Input
-                type="number"
-                placeholder="Ex: 15000,00"
-                value={savedInput}
-                onChange={(e) => setSavedInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && saveSavedAmount()}
-                autoFocus
-              />
+              <Input type="number" placeholder="Ex: 15000,00" value={savedInput}
+                onChange={(e) => setSavedInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveSavedAmount()} autoFocus />
             </div>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setSavedOpen(false)}>Cancelar</Button>
@@ -605,81 +383,69 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   );
 }
 
-function FlowList({
-  title,
-  type,
-  items,
-  onAdd,
-  onEdit,
-  onDelete,
-}: {
-  title: string;
-  type: "entrada" | "saida";
-  items: CashFlow[];
-  onAdd: () => void;
-  onEdit: (f: CashFlow) => void;
-  onDelete: (id: string) => void;
+function FlowSection({ title, type, items, onAdd, onEdit, onDelete }: {
+  title: string; type: "entrada" | "saida";
+  items: CashFlow[]; onAdd: () => void;
+  onEdit: (f: CashFlow) => void; onDelete: (id: string) => void;
 }) {
   const isEntrada = type === "entrada";
   const total = items.reduce((s, f) => s + f.amount, 0);
+  const [open, setOpen] = useState(true);
 
   return (
-    <Card>
-      <CardContent className="pt-5 pb-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            {isEntrada
-              ? <ArrowDownCircle className="h-4 w-4 text-green-600" />
-              : <ArrowUpCircle className="h-4 w-4 text-destructive" />}
-            <h2 className="font-semibold">{title}</h2>
-            <Badge variant="secondary" className="text-xs">{items.length}</Badge>
-          </div>
-          <Button variant="outline" size="sm" onClick={onAdd}>
-            <Plus className="h-3.5 w-3.5" />
-            Adicionar
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between w-full px-4 py-3.5 hover:bg-muted/20 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          {isEntrada
+            ? <ArrowDownCircle className="h-4 w-4 text-green-600" />
+            : <ArrowUpCircle className="h-4 w-4 text-destructive" />}
+          <span className="text-sm font-semibold">{title}</span>
+          <Badge variant="secondary" className="text-xs px-1.5 h-5">{items.length}</Badge>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={`text-sm font-bold tabular-nums ${isEntrada ? "text-green-600" : "text-destructive"}`}>{formatCurrency(total)}</span>
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={(e) => { e.stopPropagation(); onAdd(); }}>
+            <Plus className="h-3.5 w-3.5 mr-1" />Adicionar
           </Button>
         </div>
+      </button>
 
-        {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">
-            Nenhum registro. Clique em &quot;Adicionar&quot; para começar.
-          </p>
-        ) : (
-          <div className="space-y-1">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-muted/40 group/row"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{item.description}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(item.date)}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0 ml-3">
-                  <p className={`text-sm font-semibold tabular-nums ${isEntrada ? "text-green-600" : "text-destructive"}`}>
-                    {isEntrada ? "+" : "-"}{formatCurrency(item.amount)}
-                  </p>
-                  <div className="flex gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(item)}>
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      onClick={() => onDelete(item.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+      {open && (
+        <div className="pb-1">
+          {items.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-5 px-4">
+              Nenhum registro. Toque em &ldquo;Adicionar&rdquo; para começar.
+            </p>
+          ) : (
+            <div>
+              {items.map((item) => (
+                <div key={item.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/20 group/row border-t border-border/50">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{item.description}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(item.date)}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 ml-3">
+                    <span className={`text-sm font-semibold tabular-nums ${isEntrada ? "text-green-600" : "text-destructive"}`}>
+                      {isEntrada ? "+" : "-"}{formatCurrency(item.amount)}
+                    </span>
+                    <div className="flex gap-0 opacity-0 group-hover/row:opacity-100 transition-opacity ml-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(item)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onDelete(item.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            <div className="flex justify-between pt-2 mt-2 border-t px-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase">Total</span>
-              <span className={`text-sm font-bold tabular-nums ${isEntrada ? "text-green-600" : "text-destructive"}`}>
-                {formatCurrency(total)}
-              </span>
+              ))}
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
