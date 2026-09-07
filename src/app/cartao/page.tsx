@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  getCards, createCard, getTransactions, getAvailableCycles, getFutureCommitted,
+  getCards, createCard, getTransactions, getAvailableCycles,
   createTransactions, deleteTransaction, clearTransactions, updateTransactionCategory,
 } from "@/lib/api";
 import { generateMonthReport } from "@/lib/generate-report";
@@ -142,7 +142,6 @@ export default function CartaoPage() {
   const [clearing, setClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [futureCommitted, setFutureCommitted] = useState<number>(0);
   const [selectedCycle, setSelectedCycle] = useState<string>(() => {
     try { return localStorage.getItem("ibank_cartao_cycle") || currentCycleId(); } catch { return currentCycleId(); }
   });
@@ -227,14 +226,12 @@ export default function CartaoPage() {
   const loadData = useCallback(async (cardId: string | null, cycle: string) => {
     if (!cardId) return;
     try {
-      const [txs, cycles, future] = await Promise.all([
+      const [txs, cycles] = await Promise.all([
         getTransactions({ cardId, billingCycle: cycle }),
         getAvailableCycles(cardId),
-        getFutureCommitted(cardId, cycle),
       ]);
       setTransactions(txs);
       setAvailableCycles(cycles);
-      setFutureCommitted(future.reduce((s, t) => s + t.amount, 0));
     } catch (err) {
       console.error(err);
     }
@@ -329,7 +326,12 @@ export default function CartaoPage() {
   const creditos = cardTransactions.reduce((s, t) => s + (t.amount < 0 ? t.amount : 0), 0);
   const totalFatura = saldoAnterior + compras + creditos;
   const hasFaturaData = cardTransactions.length > 0 || totalNubank !== null || faturaAnterior > 0;
-  const totalComprometido = compras + futureCommitted;
+  // Parcelas futuras calculadas diretamente dos metadados de parcelamento da fatura atual
+  // (funciona mesmo sem linhas futuras no banco, pois installments e installment_current já dizem quantas restam)
+  const futureFromInstallments = cardTransactions
+    .filter((t) => t.amount > 0 && t.installments > 1 && t.installment_current < t.installments)
+    .reduce((s, t) => s + t.amount * (t.installments - t.installment_current), 0);
+  const totalComprometido = compras + futureFromInstallments;
   const limiteReal = activeCard ? activeCard.limit - totalComprometido : 0;
   const limitPercent = activeCard ? (totalComprometido / activeCard.limit) * 100 : 0;
 
@@ -530,9 +532,9 @@ export default function CartaoPage() {
                   <p className="text-2xl font-bold text-destructive">
                     {totalNubank !== null ? fmt(totalNubank) : formatCurrency(compras)}
                   </p>
-                  {futureCommitted > 0 && (
+                  {futureFromInstallments > 0 && (
                     <p className="text-xs text-amber-600 mt-1">
-                      + {formatCurrency(futureCommitted)} em parcelas futuras
+                      + {formatCurrency(futureFromInstallments)} em parcelas futuras
                     </p>
                   )}
                 </CardContent>
@@ -544,7 +546,9 @@ export default function CartaoPage() {
                     {formatCurrency(Math.max(0, limiteReal))}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Fatura atual + parcelas futuras comprometidas
+                    {futureFromInstallments > 0
+                      ? `Fatura + ${formatCurrency(futureFromInstallments)} parcelas futuras`
+                      : "Fatura atual sem parcelas futuras"}
                   </p>
                 </CardContent>
               </Card>
