@@ -38,7 +38,6 @@
     --sidebar-border: 217.2 32.6% 17.5%;
     --sidebar-ring: 221.2 83.2% 53.3%;
   }
-}
 
   .dark {
     --background: 224 71% 4%;
@@ -69,9 +68,7 @@
     --sidebar-border: 216 34% 12%;
     --sidebar-ring: 217.2 91.2% 60%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
