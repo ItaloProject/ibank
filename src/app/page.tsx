@@ -8,7 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { getCards, getTransactions, getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes } from "@/lib/api";
+import { getCards, getTransactions, getAvailableCycles, getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CreditCard as CreditCardType, Transaction, InvestmentAccount, Investment, StockTrade } from "@/types/database";
 import type { StockQuote } from "@/lib/api";
@@ -42,26 +42,36 @@ export default function DashboardPage() {
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [stockTrades, setStockTrades] = useState<StockTrade[]>([]);
   const [stockQuotes, setStockQuotes] = useState<StockQuote[]>([]);
+  const [activeCycle, setActiveCycle] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const now = new Date();
-  const nextMonth = addMonths(now, 1);
-  const billingCycle = format(nextMonth, "yyyy-MM");
   const monthStart = `${format(now, "yyyy-MM")}-01`;
   const monthEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
 
   useEffect(() => {
-    Promise.all([
-      getCards(),
-      getTransactions({ billingCycle }),
-      getInvestmentAccounts(),
-      getInvestments({ start: monthStart, end: monthEnd }),
-      getStockTrades(),
-      getStockQuotes(),
-    ])
-      .then(([c, t, a, i, st, sq]) => {
-        setCards(Array.isArray(c) ? c : []);
+    setLoading(true);
+    getCards()
+      .then(async (cardList) => {
+        const c = Array.isArray(cardList) ? cardList : [];
+        setCards(c);
+        // Usa o ciclo mais recente do primeiro cartão (igual ao cartão page)
+        let cycle = format(addMonths(now, 1), "yyyy-MM");
+        if (c.length > 0) {
+          const cycles = await getAvailableCycles(c[0].id);
+          if (cycles.length > 0) cycle = cycles[0];
+        }
+        setActiveCycle(cycle);
+        return Promise.all([
+          getTransactions({ billingCycle: cycle }),
+          getInvestmentAccounts(),
+          getInvestments({ start: monthStart, end: monthEnd }),
+          getStockTrades(),
+          getStockQuotes(),
+        ]);
+      })
+      .then(([t, a, i, st, sq]) => {
         setTransactions(Array.isArray(t) ? t : []);
         setAccounts(Array.isArray(a) ? a : []);
         setInvestments(Array.isArray(i) ? i : []);
@@ -70,7 +80,8 @@ export default function DashboardPage() {
       })
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
-  }, [billingCycle, monthStart, monthEnd]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const totalSpent = transactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
   const totalLimit = cards.reduce((s, c) => s + c.limit, 0);
@@ -112,7 +123,8 @@ export default function DashboardPage() {
   }));
 
   const recentTx = [...transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
-  const monthLabel = format(nextMonth, "MMMM yyyy", { locale: ptBR });
+  const cycleDate = activeCycle ? new Date(activeCycle + "-01") : addMonths(now, 1);
+  const monthLabel = format(cycleDate, "MMMM yyyy", { locale: ptBR });
 
   if (loading) {
     return (
@@ -140,7 +152,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardDescription>Gasto no mês</CardDescription>
+            <CardDescription>Contas</CardDescription>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -201,7 +213,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Gastos por categoria</CardTitle>
-            <CardDescription>Fatura {format(nextMonth, "MMMM yyyy", { locale: ptBR })}</CardDescription>
+            <CardDescription>Fatura {monthLabel}</CardDescription>
           </CardHeader>
           <CardContent>
             {pieData.length === 0 ? (
