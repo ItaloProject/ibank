@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Menu } from "lucide-react";
+import Image from "next/image";
 import { Sidebar } from "./sidebar";
 import { cn } from "@/lib/utils";
 
@@ -74,7 +75,19 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-bold text-lg">IBANK</span>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg overflow-hidden bg-white shadow-sm">
+              <Image
+                src="/logo.png"
+                alt="IBANK"
+                width={32}
+                height={32}
+                className="h-full w-full object-cover scale-[1.8] translate-y-[-8%]"
+                priority
+              />
+            </div>
+            <span className="font-bold text-base">IBANK</span>
+          </div>
         </header>
         <main
           className="flex-1 overflow-y-auto overflow-x-hidden bg-background"

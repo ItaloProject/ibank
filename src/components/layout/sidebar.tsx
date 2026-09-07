@@ -7,7 +7,6 @@ import {
   CreditCard,
   TrendingUp,
   BarChart2,
-  Wallet,
   CalendarDays,
   Repeat2,
   Receipt,
@@ -17,6 +16,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
+import Image from "next/image";
 import { useUser } from "@/context/user-context";
 import { USERS } from "@/lib/user";
 import { cn } from "@/lib/utils";
@@ -58,9 +58,16 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
     >
       {/* Logo */}
       <div className="flex h-16 shrink-0 items-center px-3 border-b border-sidebar-border/60">
-        {/* Ícone — sempre visível, nunca clipado */}
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/30">
-          <Wallet className="h-[18px] w-[18px] text-white" />
+        {/* Logo — sempre visível, nunca clipado */}
+        <div className="h-9 w-9 shrink-0 rounded-xl overflow-hidden bg-white shadow-md">
+          <Image
+            src="/logo.png"
+            alt="IBANK"
+            width={36}
+            height={36}
+            className="h-full w-full object-cover scale-[1.8] translate-y-[-8%]"
+            priority
+          />
         </div>
         {/* Texto — some com overflow-hidden */}
         <div className={cn(
