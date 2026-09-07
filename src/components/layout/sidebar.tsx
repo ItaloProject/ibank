@@ -59,13 +59,14 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
       {/* Logo */}
       <div className="flex h-16 shrink-0 items-center px-3 border-b border-sidebar-border/60">
         {/* Logo — sempre visível, nunca clipado */}
-        <div className="h-9 w-9 shrink-0 rounded-xl overflow-hidden bg-white shadow-md">
+        <div className="h-10 w-10 shrink-0 rounded-xl overflow-hidden bg-[#f0ede8] shadow-md">
           <Image
             src="/logo.png"
             alt="IBANK"
-            width={36}
-            height={36}
-            className="h-full w-full object-cover scale-[1.8] translate-y-[-8%]"
+            width={200}
+            height={200}
+            className="h-full w-full object-cover"
+            style={{ objectPosition: "50% 48%" }}
             priority
           />
         </div>

@@ -76,13 +76,14 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg overflow-hidden bg-white shadow-sm">
+            <div className="h-9 w-9 rounded-lg overflow-hidden bg-[#f0ede8] shadow-sm">
               <Image
                 src="/logo.png"
                 alt="IBANK"
-                width={32}
-                height={32}
-                className="h-full w-full object-cover scale-[1.8] translate-y-[-8%]"
+                width={200}
+                height={200}
+                className="h-full w-full object-cover"
+                style={{ objectPosition: "50% 48%" }}
                 priority
               />
             </div>
