@@ -61,8 +61,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       />
       <div
         className={cn(
-          "flex flex-1 flex-col min-w-0 transition-all duration-300",
-          collapsed ? "md:ml-16" : "md:ml-64",
+          "flex flex-1 flex-col min-w-0 transition-[margin] duration-150 ease-out",
+          collapsed ? "md:ml-[68px]" : "md:ml-60",
         )}
       >
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4 md:hidden">
