@@ -57,18 +57,14 @@ export default function DashboardPage() {
 
   const totalSpent = transactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
   const totalLimit = cards.reduce((s, c) => s + c.limit, 0);
+  // Parcelas futuras: só conta a fatura atual, não acumula com ciclos anteriores no dashboard
   const futureFromInstallments = transactions
     .filter((t) => t.amount > 0 && t.installments > 1 && t.installment_current < t.installments)
     .reduce((s, t) => s + t.amount * (t.installments - t.installment_current), 0);
   const totalComprometido = totalSpent + futureFromInstallments;
   const limitPercent = totalLimit > 0 ? (totalComprometido / totalLimit) * 100 : 0;
-  // Saldo calculado a partir do histórico completo de investimentos
-  const balanceByAccount = investments.reduce<Record<string, number>>((acc, inv) => {
-    const delta = inv.type === "retirada" ? -inv.amount : inv.amount;
-    acc[inv.account_id] = (acc[inv.account_id] ?? 0) + delta;
-    return acc;
-  }, {});
-  const totalSaved = Object.values(balanceByAccount).reduce((s, v) => s + v, 0);
+  // Saldo total: usa current_balance de cada conta (não filtra por mês)
+  const totalSaved = accounts.reduce((s, a) => s + a.current_balance, 0);
   const monthDeposits = investments
     .filter((i) => i.type === "deposito")
     .reduce((s, i) => s + i.amount, 0);
