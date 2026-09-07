@@ -782,7 +782,7 @@ export default function InvestimentosPage() {
       is_turbo: renameForm.is_turbo,
       cdi_percent: renameForm.is_turbo && renameForm.cdi_percent ? parseFloat(renameForm.cdi_percent) : null,
       max_rendimento: renameForm.is_turbo && renameForm.max_rendimento ? parseFloat(renameForm.max_rendimento) : null,
-      valor_liquido: renameForm.is_turbo && renameForm.valor_liquido ? parseFloat(renameForm.valor_liquido) : null,
+      valor_liquido: renameForm.valor_liquido ? parseFloat(renameForm.valor_liquido) : null,
     });
     if (renameForm.is_turbo && renameForm.valor_bruto) {
       await updateAccountBalance(renameForm.id, parseFloat(renameForm.valor_bruto));
@@ -1756,6 +1756,14 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                         <CardHeader className="pb-2"><CardDescription>Saldo atual</CardDescription></CardHeader>
                         <CardContent>
                           <p className="text-2xl font-bold text-green-600 tabular-nums">{formatCurrency(computedBalance)}</p>
+                          {account.valor_liquido != null && (
+                            <div className="mt-1.5 space-y-0.5">
+                              <p className="text-sm font-semibold text-blue-600 tabular-nums">{formatCurrency(account.valor_liquido)} líquido</p>
+                              {computedBalance > account.valor_liquido && (
+                                <p className="text-xs text-muted-foreground">IR/taxas est. {formatCurrency(computedBalance - account.valor_liquido)}</p>
+                              )}
+                            </div>
+                          )}
                           {account.institution && <p className="text-xs text-muted-foreground mt-1">{account.institution}</p>}
                         </CardContent>
                       </Card>
@@ -2309,6 +2317,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                     <p className="text-xs text-muted-foreground">CDI acima de 100% com teto de rendimento</p>
                   </div>
                 </label>
+                <div className="space-y-1.5">
+                  <Label>Valor líquido após IR/taxas (R$) <span className="text-muted-foreground text-xs">opcional</span></Label>
+                  <Input type="number" step="0.01" placeholder="Ex: 399.90" value={renameForm.valor_liquido}
+                    onChange={(e) => setRenameForm({ ...renameForm, valor_liquido: e.target.value })} />
+                </div>
                 {renameForm.is_turbo && (
                   <div className="space-y-3 pl-2 border-l-2 border-blue-400">
                     <div className="space-y-1.5">
@@ -2328,11 +2341,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                       <Label>Valor bruto atual (R$)</Label>
                       <Input type="number" placeholder="Ex: 5110.96" value={renameForm.valor_bruto}
                         onChange={(e) => setRenameForm({ ...renameForm, valor_bruto: e.target.value })} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Valor líquido atual (R$)</Label>
-                      <Input type="number" placeholder="Ex: 5086.01" value={renameForm.valor_liquido}
-                        onChange={(e) => setRenameForm({ ...renameForm, valor_liquido: e.target.value })} />
                     </div>
                   </div>
                 )}
