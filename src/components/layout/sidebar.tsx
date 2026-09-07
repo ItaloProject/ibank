@@ -15,10 +15,13 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   X,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useUser } from "@/context/user-context";
 import { USERS } from "@/lib/user";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/theme-provider";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -40,6 +43,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { userId, switchUser } = useUser();
+  const { theme, toggleTheme } = useTheme();
   const currentUser = USERS.find((u) => u.id === userId);
   const isCollapsed = collapsed && !mobileOpen;
 
@@ -113,14 +117,14 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         })}
       </nav>
 
-      {/* User info */}
-      {currentUser && (
-        <div
-          className="shrink-0 border-t border-sidebar-border"
-          style={{ padding: isCollapsed ? "12px 8px" : "12px 16px" }}
-        >
-          {isCollapsed ? (
-            <div className="flex flex-col items-center gap-2">
+      {/* User info + theme toggle */}
+      <div
+        className="shrink-0 border-t border-sidebar-border"
+        style={{ padding: isCollapsed ? "12px 8px" : "12px 16px" }}
+      >
+        {isCollapsed ? (
+          <div className="flex flex-col items-center gap-2">
+            {currentUser && (
               <div
                 className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white"
                 style={{ backgroundColor: currentUser.color }}
@@ -128,6 +132,16 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
               >
                 {currentUser.name[0]}
               </div>
+            )}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Modo claro" : "Modo escuro"}
+              className="flex h-10 w-10 items-center justify-center text-muted-foreground transition-colors hover:text-sidebar-foreground"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            {currentUser && (
               <button
                 type="button"
                 onClick={switchUser}
@@ -136,31 +150,45 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
               >
                 <LogOut className="h-4 w-4" />
               </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                style={{ backgroundColor: currentUser.color }}
-              >
-                {currentUser.name[0]}
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {currentUser && (
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                  style={{ backgroundColor: currentUser.color }}
+                >
+                  {currentUser.name[0]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-sidebar-foreground">{currentUser.name}</p>
+                  <p className="text-xs text-muted-foreground">conta pessoal</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={switchUser}
+                  title="Trocar usuário"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-sidebar-foreground"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-sidebar-foreground">{currentUser.name}</p>
-                <p className="text-xs text-muted-foreground">conta pessoal</p>
-              </div>
-              <button
-                type="button"
-                onClick={switchUser}
-                title="Trocar usuário"
-                className="flex h-10 w-10 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-sidebar-foreground"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              {theme === "dark"
+                ? <><Sun className="h-4 w-4 shrink-0" /><span>Modo claro</span></>
+                : <><Moon className="h-4 w-4 shrink-0" /><span>Modo escuro</span></>}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Toggle button — desktop only */}
       <button

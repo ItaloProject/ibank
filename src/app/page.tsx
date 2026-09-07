@@ -11,18 +11,18 @@ import {
 import { getCards, getTransactions, getInvestmentAccounts, getInvestments } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CreditCard as CreditCardType, Transaction, InvestmentAccount, Investment } from "@/types/database";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const CATEGORY_COLORS: Record<string, string> = {
   alimentacao: "#3b82f6", transporte: "#10b981", saude: "#f59e0b",
   lazer: "#8b5cf6", educacao: "#06b6d4", moradia: "#ef4444",
-  vestuario: "#f97316", outros: "#6b7280",
+  vestuario: "#f97316", assinatura: "#7c3aed", outros: "#6b7280",
 };
 const CATEGORY_LABELS: Record<string, string> = {
   alimentacao: "Alimentação", transporte: "Transporte", saude: "Saúde",
   lazer: "Lazer", educacao: "Educação", moradia: "Moradia",
-  vestuario: "Vestuário", outros: "Outros",
+  vestuario: "Vestuário", assinatura: "Assinatura", outros: "Outros",
 };
 
 export default function DashboardPage() {
@@ -34,13 +34,14 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
 
   const now = new Date();
-  const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
-  const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
+  const currentCycle = format(now, "yyyy-MM");
+  const monthStart = `${currentCycle}-01`;
+  const monthEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
 
   useEffect(() => {
     Promise.all([
       getCards(),
-      getTransactions({ start: monthStart, end: monthEnd }),
+      getTransactions({ billingCycle: currentCycle }),
       getInvestmentAccounts(),
       getInvestments({ start: monthStart, end: monthEnd }),
     ])
@@ -52,11 +53,15 @@ export default function DashboardPage() {
       })
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
-  }, [monthStart, monthEnd]);
+  }, [currentCycle, monthStart, monthEnd]);
 
-  const totalSpent = transactions.reduce((s, t) => s + t.amount, 0);
+  const totalSpent = transactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
   const totalLimit = cards.reduce((s, c) => s + c.limit, 0);
-  const limitPercent = totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0;
+  const futureFromInstallments = transactions
+    .filter((t) => t.amount > 0 && t.installments > 1 && t.installment_current < t.installments)
+    .reduce((s, t) => s + t.amount * (t.installments - t.installment_current), 0);
+  const totalComprometido = totalSpent + futureFromInstallments;
+  const limitPercent = totalLimit > 0 ? (totalComprometido / totalLimit) * 100 : 0;
   // Saldo calculado a partir do histórico completo de investimentos
   const balanceByAccount = investments.reduce<Record<string, number>>((acc, inv) => {
     const delta = inv.type === "retirada" ? -inv.amount : inv.amount;
@@ -113,10 +118,13 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{formatCurrency(totalSpent)}</p>
-            <Progress value={limitPercent} className={`mt-2 h-2 ${limitPercent > 80 ? "[&>div]:bg-destructive" : ""}`} />
+            <Progress value={Math.min(limitPercent, 100)} className={`mt-2 h-2 ${limitPercent > 80 ? "[&>div]:bg-destructive" : ""}`} />
             <p className="text-xs text-muted-foreground mt-1">
               {limitPercent.toFixed(0)}% do limite ({formatCurrency(totalLimit)})
             </p>
+            {futureFromInstallments > 0 && (
+              <p className="text-xs text-amber-600 mt-0.5">+{formatCurrency(futureFromInstallments)} parcelas futuras</p>
+            )}
           </CardContent>
         </Card>
 
@@ -128,7 +136,7 @@ export default function DashboardPage() {
               : <ArrowUpRight className="h-4 w-4 text-green-500" />}
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(totalLimit - totalSpent)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(Math.max(0, totalLimit - totalComprometido))}</p>
             <p className="text-xs text-muted-foreground mt-1">
               {cards.length} cartão{cards.length !== 1 ? "ões" : ""}
             </p>
