@@ -13,6 +13,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CreditCard as CreditCardType, Transaction, InvestmentAccount, Investment } from "@/types/database";
 import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useTheme } from "@/components/theme-provider";
 
 const CATEGORY_COLORS: Record<string, string> = {
   alimentacao: "#3b82f6", transporte: "#10b981", saude: "#f59e0b",
@@ -26,6 +27,14 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const chartTextColor = isDark ? "#94a3b8" : "#6b7280";
+  const chartGridColor = isDark ? "#1e293b" : "#e5e7eb";
+  const tooltipBg = isDark ? "#0f172a" : "#ffffff";
+  const tooltipBorder = isDark ? "#1e293b" : "#e5e7eb";
+  const tooltipText = isDark ? "#f1f5f9" : "#111827";
+
   const [cards, setCards] = useState<CreditCardType[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
@@ -184,8 +193,11 @@ export default function DashboardPage() {
                   <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={3} dataKey="value">
                     {pieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)} />
-                  <Legend />
+                  <Tooltip
+                    formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)}
+                    contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText }}
+                  />
+                  <Legend wrapperStyle={{ color: chartTextColor }} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -237,11 +249,15 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={accounts.map((a) => ({ name: a.name, saldo: a.current_balance }))}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)} />
+              <BarChart data={accounts.map((a) => ({ name: a.name, saldo: a.current_balance }))} style={{ background: "transparent" }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+                <XAxis dataKey="name" tick={{ fill: chartTextColor, fontSize: 12 }} axisLine={{ stroke: chartGridColor }} tickLine={false} />
+                <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} tick={{ fill: chartTextColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)}
+                  contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText }}
+                  cursor={{ fill: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)" }}
+                />
                 <Bar dataKey="saldo" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
