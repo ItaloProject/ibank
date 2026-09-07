@@ -6,6 +6,7 @@ export type TransactionCategory =
   | "educacao"
   | "moradia"
   | "vestuario"
+  | "assinatura"
   | "outros";
 
 export type InvestmentType = "deposito" | "retirada" | "rendimento";

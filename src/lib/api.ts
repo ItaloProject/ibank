@@ -126,6 +126,15 @@ export async function createTransactions(rows: {
   return Array.isArray(data) ? data.map(toTransaction) : [];
 }
 
+export async function updateTransactionCategory(id: string, category: TransactionCategory): Promise<Transaction> {
+  const res = await fetch(`/api/transactions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ category }),
+  });
+  return toTransaction(await res.json());
+}
+
 export async function deleteTransaction(id: string): Promise<void> {
   await fetch(`/api/transactions/${id}?user=${uid()}`, { method: "DELETE" });
 }

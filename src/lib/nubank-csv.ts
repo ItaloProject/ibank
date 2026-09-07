@@ -63,13 +63,26 @@ const CATEGORY_KEYWORDS: Record<TransactionCategory, string[]> = {
     "centauro", "netshoes", "dafiti", "kanui", "tênis", "tenis",
     "moda", "fashion", "lojas", "magazine luiza", "casas bahia",
   ],
+  assinatura: [
+    "netflix", "spotify", "amazon prime", "disney+", "hbo max", "globoplay",
+    "paramount+", "apple tv", "apple one", "deezer", "youtube premium",
+    "playstation plus", "xbox game pass", "adobe", "dropbox", "icloud",
+    "microsoft 365", "google one", "canva", "notion", "chatgpt",
+    "linkedin premium", "elevenlabs", "github copilot", "claude",
+  ],
   outros: [],
 };
 
+const CATEGORY_ORDER: TransactionCategory[] = [
+  "assinatura", "alimentacao", "transporte", "moradia", "saude",
+  "educacao", "vestuario", "lazer", "outros",
+];
+
 function detectCategory(description: string): TransactionCategory {
   const lower = description.toLowerCase();
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS) as [TransactionCategory, string[]][]) {
+  for (const category of CATEGORY_ORDER) {
     if (category === "outros") continue;
+    const keywords = CATEGORY_KEYWORDS[category];
     if (keywords.some((kw) => lower.includes(kw))) return category;
   }
   return "outros";

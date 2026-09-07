@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   Plus, Trash2, CreditCard as CardIcon, Eraser, ChevronLeft, ChevronRight,
-  FileDown, Calendar, Receipt, Pencil, ArrowDownCircle,
+  FileDown, Calendar, Receipt, Pencil, ArrowDownCircle, Search, RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   getCards, createCard, getTransactions, getAvailableCycles,
-  createTransactions, deleteTransaction, clearTransactions,
+  createTransactions, deleteTransaction, clearTransactions, updateTransactionCategory,
 } from "@/lib/api";
 import { generateMonthReport } from "@/lib/generate-report";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CreditCard, Transaction, TransactionCategory } from "@/types/database";
 import { NubankImport } from "@/components/nubank-import";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const CATEGORIES: { value: TransactionCategory; label: string }[] = [
@@ -32,6 +32,7 @@ const CATEGORIES: { value: TransactionCategory; label: string }[] = [
   { value: "educacao", label: "Educação" },
   { value: "moradia", label: "Moradia" },
   { value: "vestuario", label: "Vestuário" },
+  { value: "assinatura", label: "Assinatura" },
   { value: "outros", label: "Outros" },
 ];
 
@@ -43,6 +44,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   educacao: "bg-cyan-100 text-cyan-800",
   moradia: "bg-red-100 text-red-800",
   vestuario: "bg-orange-100 text-orange-800",
+  assinatura: "bg-violet-100 text-violet-800",
   outros: "bg-gray-100 text-gray-800",
 };
 
@@ -51,6 +53,63 @@ const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 type ViewMode = "mensal" | "fatura";
+
+function TxRow({
+  tx,
+  onDelete,
+  onToggleAssinatura,
+}: {
+  tx: Transaction;
+  onDelete: (id: string) => void;
+  onToggleAssinatura: (tx: Transaction) => void;
+}) {
+  const isCredit = tx.amount < 0;
+  const isAssinatura = tx.category === "assinatura";
+  return (
+    <div
+      className={`flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors group/row ${isCredit ? "border-green-200 bg-green-50/40" : isAssinatura ? "border-violet-200 bg-violet-50/30" : ""}`}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        {isCredit && <ArrowDownCircle className="h-4 w-4 text-green-600 shrink-0" />}
+        {isAssinatura && !isCredit && <RefreshCw className="h-3.5 w-3.5 text-violet-500 shrink-0" />}
+        <div className="min-w-0">
+          <p className="font-medium text-sm truncate">{tx.description}</p>
+          <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
+        </div>
+        {isCredit ? (
+          <Badge className="bg-green-100 text-green-700 border-green-200 shrink-0">Crédito</Badge>
+        ) : (
+          <Badge className={`${CATEGORY_COLORS[tx.category]} shrink-0`}>{CATEGORY_LABELS[tx.category] ?? tx.category}</Badge>
+        )}
+      </div>
+      <div className="flex items-center gap-1 shrink-0 ml-3">
+        <div className="text-right mr-2">
+          <p className={`font-semibold ${isCredit ? "text-green-600" : "text-destructive"}`}>
+            {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
+          </p>
+          {tx.installments > 1 && (
+            <p className="text-xs text-muted-foreground">{tx.installment_current}/{tx.installments}x</p>
+          )}
+        </div>
+        <button
+          title={isAssinatura ? "Remover assinatura" : "Marcar como assinatura"}
+          onClick={() => onToggleAssinatura(tx)}
+          className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors opacity-0 group-hover/row:opacity-100 ${isAssinatura ? "text-violet-600 bg-violet-100 hover:bg-violet-200 opacity-100" : "text-muted-foreground hover:text-violet-600 hover:bg-violet-50"}`}
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover/row:opacity-100"
+          onClick={() => onDelete(tx.id)}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function cycleLabel(cycle: string) {
   return format(new Date(`${cycle}-01T12:00:00`), "MMMM yyyy", { locale: ptBR });
@@ -85,6 +144,7 @@ export default function CartaoPage() {
   const [cardOpen, setCardOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Mensal view
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -222,19 +282,30 @@ export default function CartaoPage() {
   async function addTransaction() {
     if (!selectedCard || !txForm.description || !txForm.amount) return;
     const installments = parseInt(txForm.installments) || 1;
-    const rows = Array.from({ length: installments }, (_, i) => ({
-      credit_card_id: selectedCard,
-      description: installments > 1 ? `${txForm.description} (${i + 1}/${installments})` : txForm.description,
-      amount: parseFloat(txForm.amount) / installments,
-      category: txForm.category,
-      date: txForm.date,
-      installments,
-      installment_current: i + 1,
-    }));
+    const baseDate = parseISO(txForm.date);
+    const rows = Array.from({ length: installments }, (_, i) => {
+      const installDate = format(addMonths(baseDate, i), "yyyy-MM-dd");
+      return {
+        credit_card_id: selectedCard,
+        description: installments > 1 ? `${txForm.description} (${i + 1}/${installments})` : txForm.description,
+        amount: parseFloat(txForm.amount) / installments,
+        category: txForm.category,
+        date: installDate,
+        billing_cycle: installDate.slice(0, 7),
+        installments,
+        installment_current: i + 1,
+      };
+    });
     await createTransactions(rows);
     setTxOpen(false);
     setTxForm({ description: "", amount: "", category: "outros", date: format(now, "yyyy-MM-dd"), installments: "1" });
     load();
+  }
+
+  async function toggleAssinatura(tx: Transaction) {
+    const newCategory: TransactionCategory = tx.category === "assinatura" ? "outros" : "assinatura";
+    const updated = await updateTransactionCategory(tx.id, newCategory);
+    setTransactions((prev) => prev.map((t) => (t.id === tx.id ? updated : t)));
   }
 
   async function addCard() {
@@ -273,6 +344,11 @@ export default function CartaoPage() {
 
   const activeCard = cards.find((c) => c.id === selectedCard);
   const cardTransactions = transactions.filter((t) => t.credit_card_id === selectedCard);
+  const filteredTransactions = searchQuery.trim()
+    ? cardTransactions.filter((t) => t.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    : cardTransactions;
+  const subscriptionTxs = filteredTransactions.filter((t) => t.category === "assinatura");
+  const regularTxs = filteredTransactions.filter((t) => t.category !== "assinatura");
 
   // Mensal totals (only positives count as "gasto")
   const cardSpent = cardTransactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
@@ -669,11 +745,27 @@ export default function CartaoPage() {
           {/* ── Lista de transações ── */}
           <Card>
             <CardHeader>
-              <CardTitle>Transações</CardTitle>
-              <CardDescription>
-                {cardTransactions.length} lançamento{cardTransactions.length !== 1 ? "s" : ""}{" "}
-                {viewMode === "mensal" ? `em ${monthLabel}` : `· Fatura ${cycleLabel(selectedCycle)}`}
-              </CardDescription>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Transações</CardTitle>
+                  <CardDescription>
+                    {filteredTransactions.length} lançamento{filteredTransactions.length !== 1 ? "s" : ""}{" "}
+                    {viewMode === "mensal" ? `em ${monthLabel}` : `· Fatura ${cycleLabel(selectedCycle)}`}
+                    {searchQuery && ` · filtrando "${searchQuery}"`}
+                  </CardDescription>
+                </div>
+                {cardTransactions.length > 0 && (
+                  <div className="relative w-full sm:w-56">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar transação..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 h-8 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {cardTransactions.length === 0 ? (
@@ -682,43 +774,48 @@ export default function CartaoPage() {
                     ? "Importe o CSV do Nubank para visualizar a fatura aqui."
                     : "Nenhuma transação registrada este mês."}
                 </p>
+              ) : filteredTransactions.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8 text-sm">
+                  Nenhuma transação encontrada para &quot;{searchQuery}&quot;.
+                </p>
               ) : (
-                <div className="space-y-2">
-                  {cardTransactions.map((tx) => {
-                    const isCredit = tx.amount < 0;
-                    return (
-                      <div key={tx.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors ${isCredit ? "border-green-200 bg-green-50/40" : ""}`}>
-                        <div className="flex items-center gap-3">
-                          {isCredit && <ArrowDownCircle className="h-4 w-4 text-green-600 shrink-0" />}
-                          <div>
-                            <p className="font-medium text-sm">{tx.description}</p>
-                            <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
-                          </div>
-                          {isCredit ? (
-                            <Badge className="bg-green-100 text-green-700 border-green-200">Crédito</Badge>
-                          ) : (
-                            <Badge className={CATEGORY_COLORS[tx.category]}>{CATEGORY_LABELS[tx.category]}</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className={`font-semibold ${isCredit ? "text-green-600" : "text-destructive"}`}>
-                              {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
-                            </p>
-                            {tx.installments > 1 && (
-                              <p className="text-xs text-muted-foreground">{tx.installment_current}/{tx.installments}x</p>
-                            )}
-                          </div>
-                          <Button variant="ghost" size="icon"
-                            className="text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDeleteTransaction(tx.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                <div className="space-y-4">
+                  {/* Assinaturas */}
+                  {subscriptionTxs.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <RefreshCw className="h-3.5 w-3.5 text-violet-600" />
+                        <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">
+                          Assinaturas ({subscriptionTxs.length})
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {formatCurrency(subscriptionTxs.reduce((s, t) => s + Math.abs(t.amount), 0))}
+                        </span>
                       </div>
-                    );
-                  })}
+                      <div className="space-y-1.5">
+                        {subscriptionTxs.map((tx) => <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Compras regulares */}
+                  {regularTxs.length > 0 && (
+                    <div>
+                      {subscriptionTxs.length > 0 && (
+                        <div className="flex items-center gap-2 mb-2 pt-1 border-t">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Compras ({regularTxs.length})
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {formatCurrency(regularTxs.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0))}
+                          </span>
+                        </div>
+                      )}
+                      <div className="space-y-1.5">
+                        {regularTxs.map((tx) => <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
