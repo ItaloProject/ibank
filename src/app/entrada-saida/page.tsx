@@ -18,11 +18,13 @@ import {
 import {
   Plus, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle, Wallet,
   Target, Loader2, LogOut, TrendingUp, PiggyBank, ChevronLeft, ChevronRight,
+  CreditCard, BarChart3, CalendarRange,
 } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { USERS } from "@/lib/user";
+import { getCurrentUser } from "@/lib/user";
 
 interface CashFlow {
   id: string;
@@ -57,6 +59,10 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const [savedAmount, setSavedAmount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const [planejado, setPlanejado] = useState(0);
+  const [faturaCartao, setFaturaCartao] = useState(0);
+  const [investidoMes, setInvestidoMes] = useState(0);
+
   const [entryOpen, setEntryOpen] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
@@ -73,19 +79,58 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const monthKey = format(currentMonth, "yyyy-MM");
 
   const loadData = useCallback(async () => {
-    const [flowsRes, goalRes] = await Promise.all([
-      fetch(`/api/cash-flows?user=${userId}&month=${format(currentMonth, "yyyy-MM")}`),
+    const uid = getCurrentUser();
+    const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+    const monthStart = `${monthKey}-01`;
+    const monthEnd = `${monthKey}-${String(lastDay).padStart(2, "0")}`;
+
+    const [flowsRes, goalRes, planRes, txRes, invRes, stRes] = await Promise.all([
+      fetch(`/api/cash-flows?user=${userId}&month=${monthKey}`),
       fetch(`/api/savings-goals?user=${userId}`),
+      fetch(`/api/plan-items?user=${uid}&month=${monthKey}`),
+      fetch(`/api/transactions?user=${uid}&billing_cycle=${monthKey}`),
+      fetch(`/api/investments?user=${uid}&start=${monthStart}&end=${monthEnd}`),
+      fetch(`/api/stock-trades?user=${uid}`),
     ]);
-    const flowsData = await flowsRes.json();
-    const goalData = await goalRes.json();
+
+    const [flowsData, goalData, planData, txData, invData, stData] = await Promise.all([
+      flowsRes.json(), goalRes.json(), planRes.json(), txRes.json(), invRes.json(), stRes.json(),
+    ]);
+
     setFlows(Array.isArray(flowsData) ? flowsData.map(toFlow) : []);
+
     const goalAmount = Number(goalData.goal_amount) || 0;
     const saved = Number(goalData.saved_amount) || 0;
     setGoal(goalAmount);
     setSavedAmount(saved);
     setGoalInput(goalAmount > 0 ? String(goalAmount) : "");
     setSavedInput(saved > 0 ? String(saved) : "");
+
+    // Planejamento: soma do planned dos itens do mês
+    const planItems = Array.isArray(planData) ? planData : [];
+    setPlanejado(planItems.reduce((s: number, i: Record<string, unknown>) => s + (Number(i.planned) || 0), 0));
+
+    // Fatura do cartão: soma dos débitos do billing_cycle
+    const txList = Array.isArray(txData) ? txData : [];
+    setFaturaCartao(txList.reduce((s: number, t: Record<string, unknown>) => {
+      const amt = Number(t.amount) || 0;
+      return s + (amt > 0 ? amt : 0);
+    }, 0));
+
+    // Investido: depósitos + rendimentos da renda fixa + compras de ações no mês
+    const invList = Array.isArray(invData) ? invData : [];
+    const invTotal = invList.reduce((s: number, i: Record<string, unknown>) => {
+      const type = String(i.type);
+      return type === "deposito" || type === "rendimento" ? s + (Number(i.amount) || 0) : s;
+    }, 0);
+    const stList = Array.isArray(stData) ? stData : [];
+    const acoesMes = stList
+      .filter((t: Record<string, unknown>) => {
+        const d = String(t.date).slice(0, 7);
+        return t.type === "compra" && d === monthKey;
+      })
+      .reduce((s: number, t: Record<string, unknown>) => s + (Number(t.total_amount) || 0), 0);
+    setInvestidoMes(invTotal + acoesMes);
   }, [userId, monthKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -191,7 +236,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Entra/Saída</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Entrada/Saída</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Visão mensal de entradas e saídas</p>
         </div>
         <button
@@ -273,6 +318,105 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Comparativo do mês */}
+      <Card>
+        <CardContent className="pt-5 pb-4 space-y-4">
+          <div className="flex items-center gap-2 mb-1">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold">Comparativo do mês</p>
+          </div>
+
+          {/* Receita de referência */}
+          <div className="flex items-center justify-between py-2 border-b">
+            <div className="flex items-center gap-2">
+              <ArrowDownCircle className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium">Receita (entradas)</span>
+            </div>
+            <span className="text-sm font-bold text-green-600 tabular-nums">{formatCurrency(totalEntradas)}</span>
+          </div>
+
+          {/* Planejamento */}
+          {(() => {
+            const pct = totalEntradas > 0 ? Math.min((planejado / totalEntradas) * 100, 100) : 0;
+            return (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CalendarRange className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm">Planejamento</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
+                    <span className="text-sm font-semibold tabular-nums">{formatCurrency(planejado)}</span>
+                  </div>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Fatura do cartão */}
+          {(() => {
+            const pct = totalEntradas > 0 ? Math.min((faturaCartao / totalEntradas) * 100, 100) : 0;
+            const over = faturaCartao > totalEntradas;
+            return (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-destructive" />
+                    <span className="text-sm">Fatura do cartão</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs ${over ? "text-destructive font-semibold" : "text-muted-foreground"}`}>{pct.toFixed(0)}%</span>
+                    <span className={`text-sm font-semibold tabular-nums ${over ? "text-destructive" : ""}`}>{formatCurrency(faturaCartao)}</span>
+                  </div>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className={`h-full rounded-full ${over ? "bg-destructive" : "bg-red-400"}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Investido */}
+          {(() => {
+            const pct = totalEntradas > 0 ? Math.min((investidoMes / totalEntradas) * 100, 100) : 0;
+            return (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm">Investido</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
+                    <span className="text-sm font-semibold tabular-nums text-emerald-600">{formatCurrency(investidoMes)}</span>
+                  </div>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Saldo após fatura + investimentos */}
+          {(() => {
+            const sobra = totalEntradas - faturaCartao - investidoMes;
+            return (
+              <div className="flex items-center justify-between pt-3 border-t">
+                <span className="text-sm font-medium text-muted-foreground">Saldo disponível</span>
+                <span className={`text-base font-bold tabular-nums ${sobra >= 0 ? "text-green-600" : "text-destructive"}`}>
+                  {formatCurrency(sobra)}
+                </span>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Valor guardado */}
       <div
