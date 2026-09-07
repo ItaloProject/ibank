@@ -58,16 +58,17 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
     >
       {/* Logo */}
       <div className="flex h-16 shrink-0 items-center px-3 border-b border-sidebar-border/60">
-        <div className={cn("flex items-center gap-3 overflow-hidden transition-all duration-150", isCollapsed ? "w-10" : "w-full")}>
-          {/* Ícone */}
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/30">
-            <Wallet className="h-4.5 w-4.5 text-white" />
-          </div>
-          {/* Texto */}
-          <div className={cn("min-w-0 overflow-hidden transition-all duration-150", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
-            <p className="text-[15px] font-bold leading-none text-sidebar-foreground tracking-tight whitespace-nowrap">IBANK</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground whitespace-nowrap">Gestão Financeira</p>
-          </div>
+        {/* Ícone — sempre visível, nunca clipado */}
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/30">
+          <Wallet className="h-[18px] w-[18px] text-white" />
+        </div>
+        {/* Texto — some com overflow-hidden */}
+        <div className={cn(
+          "ml-3 overflow-hidden transition-all duration-150 ease-out",
+          isCollapsed ? "w-0 opacity-0" : "w-36 opacity-100",
+        )}>
+          <p className="text-[15px] font-bold leading-none text-sidebar-foreground tracking-tight whitespace-nowrap">IBANK</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground whitespace-nowrap">Gestão Financeira</p>
         </div>
 
         {/* Fechar (mobile) */}
