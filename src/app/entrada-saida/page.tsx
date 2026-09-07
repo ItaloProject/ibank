@@ -394,24 +394,22 @@ function FlowSection({ title, type, items, onAdd, onEdit, onDelete }: {
 
   return (
     <div>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between w-full px-4 py-3.5 hover:bg-muted/20 transition-colors"
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between w-full px-4 py-3.5">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-2 flex-1 text-left"
+        >
           {isEntrada
             ? <ArrowDownCircle className="h-4 w-4 text-green-600" />
             : <ArrowUpCircle className="h-4 w-4 text-destructive" />}
           <span className="text-sm font-semibold">{title}</span>
           <Badge variant="secondary" className="text-xs px-1.5 h-5">{items.length}</Badge>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className={`text-sm font-bold tabular-nums ${isEntrada ? "text-green-600" : "text-destructive"}`}>{formatCurrency(total)}</span>
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={(e) => { e.stopPropagation(); onAdd(); }}>
-            <Plus className="h-3.5 w-3.5 mr-1" />Adicionar
-          </Button>
-        </div>
-      </button>
+          <span className={`ml-auto text-sm font-bold tabular-nums ${isEntrada ? "text-green-600" : "text-destructive"}`}>{formatCurrency(total)}</span>
+        </button>
+        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs ml-3 shrink-0" onClick={onAdd}>
+          <Plus className="h-3.5 w-3.5 mr-1" />Adicionar
+        </Button>
+      </div>
 
       {open && (
         <div className="pb-1">
