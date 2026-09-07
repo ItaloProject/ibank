@@ -27,9 +27,9 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/cartao", label: "Cartão de Crédito", icon: CreditCard },
   { href: "/investimentos", label: "Investimentos", icon: TrendingUp },
-  { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/planejamento", label: "Planejamento", icon: CalendarRange },
   { href: "/entrada-saida", label: "Entra/Saída", icon: ArrowLeftRight },
+  { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/parcelamentos", label: "Parcelamentos", icon: Layers },
 ];
 
