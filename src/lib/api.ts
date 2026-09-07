@@ -105,6 +105,13 @@ export async function getTransactions(params?: {
   return Array.isArray(data) ? data.map(toTransaction) : [];
 }
 
+export async function getFutureCommitted(cardId: string, afterCycle: string): Promise<Transaction[]> {
+  const qs = new URLSearchParams({ user: uid(), card_id: cardId, after_cycle: afterCycle });
+  const res = await fetch(`/api/transactions?${qs}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data.map(toTransaction) : [];
+}
+
 export async function getAvailableCycles(cardId: string): Promise<string[]> {
   const qs = new URLSearchParams({ user: uid(), card_id: cardId, list_cycles: "true" });
   const res = await fetch(`/api/transactions?${qs}`);

@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  getCards, createCard, getTransactions, getAvailableCycles,
+  getCards, createCard, getTransactions, getAvailableCycles, getFutureCommitted,
   createTransactions, deleteTransaction, clearTransactions, updateTransactionCategory,
 } from "@/lib/api";
 import { generateMonthReport } from "@/lib/generate-report";
@@ -142,6 +142,7 @@ export default function CartaoPage() {
   const [clearing, setClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [futureCommitted, setFutureCommitted] = useState<number>(0);
   const [selectedCycle, setSelectedCycle] = useState<string>(() => {
     try { return localStorage.getItem("ibank_cartao_cycle") || currentCycleId(); } catch { return currentCycleId(); }
   });
@@ -226,12 +227,14 @@ export default function CartaoPage() {
   const loadData = useCallback(async (cardId: string | null, cycle: string) => {
     if (!cardId) return;
     try {
-      const [txs, cycles] = await Promise.all([
+      const [txs, cycles, future] = await Promise.all([
         getTransactions({ cardId, billingCycle: cycle }),
         getAvailableCycles(cardId),
+        getFutureCommitted(cardId, cycle),
       ]);
       setTransactions(txs);
       setAvailableCycles(cycles);
+      setFutureCommitted(future.reduce((s, t) => s + t.amount, 0));
     } catch (err) {
       console.error(err);
     }
@@ -326,7 +329,9 @@ export default function CartaoPage() {
   const creditos = cardTransactions.reduce((s, t) => s + (t.amount < 0 ? t.amount : 0), 0);
   const totalFatura = saldoAnterior + compras + creditos;
   const hasFaturaData = cardTransactions.length > 0 || totalNubank !== null || faturaAnterior > 0;
-  const limitPercent = activeCard ? (compras / activeCard.limit) * 100 : 0;
+  const totalComprometido = compras + futureCommitted;
+  const limiteReal = activeCard ? activeCard.limit - totalComprometido : 0;
+  const limitPercent = activeCard ? (totalComprometido / activeCard.limit) * 100 : 0;
 
   const cycleLabelStr = cycleLabel(selectedCycle);
 
@@ -525,21 +530,34 @@ export default function CartaoPage() {
                   <p className="text-2xl font-bold text-destructive">
                     {totalNubank !== null ? fmt(totalNubank) : formatCurrency(compras)}
                   </p>
-                  {totalNubank !== null && <p className="text-xs text-muted-foreground mt-0.5">oficial Nubank</p>}
+                  {futureCommitted > 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      + {formatCurrency(futureCommitted)} em parcelas futuras
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+              <Card className={limiteReal < 0 ? "border-destructive/40 bg-destructive/5" : ""}>
+                <CardHeader className="pb-2"><CardDescription>Limite disponível real</CardDescription></CardHeader>
+                <CardContent>
+                  <p className={`text-2xl font-bold ${limiteReal >= 0 ? "text-green-600" : "text-destructive"}`}>
+                    {formatCurrency(Math.max(0, limiteReal))}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Fatura atual + parcelas futuras comprometidas
+                  </p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader className="pb-2"><CardDescription>Limite disponível</CardDescription></CardHeader>
+                <CardHeader className="pb-2"><CardDescription>Comprometimento do limite</CardDescription></CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(activeCard.limit - compras)}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardDescription>Uso do limite</CardDescription></CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{limitPercent.toFixed(0)}%</p>
-                  <Progress value={limitPercent} className={`mt-2 h-2 ${limitPercent > 80 ? "[&>div]:bg-destructive" : ""}`} />
-                  <p className="text-xs text-muted-foreground mt-1">de {formatCurrency(activeCard.limit)}</p>
+                  <p className={`text-2xl font-bold ${limitPercent > 80 ? "text-destructive" : ""}`}>
+                    {Math.min(limitPercent, 100).toFixed(0)}%
+                  </p>
+                  <Progress value={Math.min(limitPercent, 100)} className={`mt-2 h-2 ${limitPercent > 80 ? "[&>div]:bg-destructive" : ""}`} />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatCurrency(totalComprometido)} de {formatCurrency(activeCard.limit)}
+                  </p>
                 </CardContent>
               </Card>
             </div>

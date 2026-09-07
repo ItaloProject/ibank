@@ -9,6 +9,7 @@ export async function GET(request: Request) {
     const end = searchParams.get("end");
     const cardId = searchParams.get("card_id");
     const billingCycle = searchParams.get("billing_cycle");
+    const afterCycle = searchParams.get("after_cycle"); // billing_cycle > afterCycle
     const listCycles = searchParams.get("list_cycles") === "true";
 
     // Return distinct billing cycles for a card
@@ -22,7 +23,15 @@ export async function GET(request: Request) {
     }
 
     let rows;
-    if (billingCycle && cardId) {
+    if (afterCycle && cardId) {
+      // Future committed installments (billing_cycle > afterCycle, only debits)
+      rows = await sql`
+        SELECT * FROM transactions
+        WHERE user_id = ${user} AND credit_card_id = ${cardId}
+          AND billing_cycle > ${afterCycle} AND amount > 0
+        ORDER BY billing_cycle ASC, date ASC
+      `;
+    } else if (billingCycle && cardId) {
       rows = await sql`
         SELECT * FROM transactions
         WHERE user_id = ${user} AND credit_card_id = ${cardId} AND billing_cycle = ${billingCycle}
