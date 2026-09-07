@@ -37,6 +37,13 @@ export async function GET(request: Request) {
         WHERE user_id = ${user} AND credit_card_id = ${cardId} AND billing_cycle = ${billingCycle}
         ORDER BY date DESC, created_at DESC
       `;
+    } else if (billingCycle) {
+      // Dashboard: todos os cartões do usuário no ciclo atual
+      rows = await sql`
+        SELECT * FROM transactions
+        WHERE user_id = ${user} AND billing_cycle = ${billingCycle}
+        ORDER BY date DESC, created_at DESC
+      `;
     } else if (start && end && cardId) {
       rows = await sql`
         SELECT * FROM transactions
