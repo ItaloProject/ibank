@@ -8,9 +8,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { getCards, getTransactions, getInvestmentAccounts, getInvestments } from "@/lib/api";
+import { getCards, getTransactions, getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { CreditCard as CreditCardType, Transaction, InvestmentAccount, Investment } from "@/types/database";
+import type { CreditCard as CreditCardType, Transaction, InvestmentAccount, Investment, StockTrade } from "@/types/database";
+import type { StockQuote } from "@/lib/api";
 import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTheme } from "@/components/theme-provider";
@@ -39,6 +40,8 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [stockTrades, setStockTrades] = useState<StockTrade[]>([]);
+  const [stockQuotes, setStockQuotes] = useState<StockQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -54,12 +57,16 @@ export default function DashboardPage() {
       getTransactions({ billingCycle }),
       getInvestmentAccounts(),
       getInvestments({ start: monthStart, end: monthEnd }),
+      getStockTrades(),
+      getStockQuotes(),
     ])
-      .then(([c, t, a, i]) => {
+      .then(([c, t, a, i, st, sq]) => {
         setCards(Array.isArray(c) ? c : []);
         setTransactions(Array.isArray(t) ? t : []);
         setAccounts(Array.isArray(a) ? a : []);
         setInvestments(Array.isArray(i) ? i : []);
+        setStockTrades(Array.isArray(st) ? st : []);
+        setStockQuotes(Array.isArray(sq) ? sq : []);
       })
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
@@ -73,8 +80,20 @@ export default function DashboardPage() {
     .reduce((s, t) => s + t.amount * (t.installments - t.installment_current), 0);
   const totalComprometido = totalSpent + futureFromInstallments;
   const limitPercent = totalLimit > 0 ? (totalComprometido / totalLimit) * 100 : 0;
-  // Saldo total: usa current_balance de cada conta (não filtra por mês)
-  const totalSaved = accounts.reduce((s, a) => s + a.current_balance, 0);
+  // Renda fixa: soma dos saldos das contas
+  const rendaFixa = accounts.reduce((s, a) => s + a.current_balance, 0);
+  // Ações: quantidade líquida × cotação atual por ticker
+  const quoteMap = Object.fromEntries(stockQuotes.map((q) => [q.ticker, q.current_price]));
+  const netQty = stockTrades.reduce<Record<string, number>>((acc, t) => {
+    const delta = t.type === "venda" ? -t.quantity : t.quantity;
+    acc[t.ticker] = (acc[t.ticker] ?? 0) + delta;
+    return acc;
+  }, {});
+  const acoes = Object.entries(netQty).reduce((s, [ticker, qty]) => {
+    const price = quoteMap[ticker] ?? 0;
+    return s + qty * price;
+  }, 0);
+  const totalSaved = rendaFixa + acoes;
   const monthDeposits = investments
     .filter((i) => i.type === "deposito")
     .reduce((s, i) => s + i.amount, 0);
