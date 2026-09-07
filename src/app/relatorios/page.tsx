@@ -8,9 +8,9 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { Printer, Camera, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import { getTransactions, getInvestments, getInvestmentAccounts } from "@/lib/api";
+import { getTransactions, getInvestments, getInvestmentAccounts, getStockTrades } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Transaction, Investment, InvestmentAccount } from "@/types/database";
+import type { Transaction, Investment, InvestmentAccount, StockTrade } from "@/types/database";
 import { format, subMonths, addMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTheme } from "@/components/theme-provider";
@@ -41,6 +41,7 @@ export default function RelatoriosPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
+  const [stockTrades, setStockTrades] = useState<StockTrade[]>([]);
   const [period, setPeriod] = useState<Period>(3);
   const [viewMode, setViewMode] = useState<ViewMode>("mes");
   const [selectedMonth, setSelectedMonth] = useState(new Date());
@@ -64,11 +65,13 @@ export default function RelatoriosPage() {
       getTransactions({ start: fetchStart, end: fetchEnd }),
       getInvestments({ start: fetchStart, end: fetchEnd }),
       getInvestmentAccounts(),
+      getStockTrades(),
     ])
-      .then(([t, i, a]) => {
+      .then(([t, i, a, st]) => {
         setTransactions(Array.isArray(t) ? t : []);
         setInvestments(Array.isArray(i) ? i : []);
         setAccounts(Array.isArray(a) ? a : []);
+        setStockTrades(Array.isArray(st) ? st : []);
       })
       .catch((err) => console.error("Erro ao carregar relatórios:", err))
       .finally(() => setLoading(false));
@@ -76,7 +79,10 @@ export default function RelatoriosPage() {
 
   // --- Cálculos ---
   const totalSpent = transactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
-  const totalDeposited = investments.filter((i) => i.type === "deposito" || i.type === "rendimento").reduce((s, i) => s + i.amount, 0);
+  const stockDeposited = stockTrades
+    .filter((t) => t.type === "compra" && t.date >= fetchStart && t.date <= fetchEnd)
+    .reduce((s, t) => s + t.total_amount, 0);
+  const totalDeposited = investments.filter((i) => i.type === "deposito" || i.type === "rendimento").reduce((s, i) => s + i.amount, 0) + stockDeposited;
   const totalSaved = investments.reduce((s, inv) =>
     inv.type === "retirada" ? s - inv.amount : s + inv.amount, 0);
 
@@ -119,6 +125,10 @@ export default function RelatoriosPage() {
     investments.filter((i) => i.type === "deposito" || i.type === "rendimento").forEach((i) => {
       const m = format(new Date(i.date + "T00:00:00"), "MMM/yy", { locale: ptBR });
       if (map[m]) map[m].depositos += i.amount;
+    });
+    stockTrades.filter((t) => t.type === "compra").forEach((t) => {
+      const m = format(new Date(t.date + "T00:00:00"), "MMM/yy", { locale: ptBR });
+      if (map[m]) map[m].depositos += t.total_amount;
     });
     return Object.values(map);
   })();

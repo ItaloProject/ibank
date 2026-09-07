@@ -94,9 +94,12 @@ export default function DashboardPage() {
     return s + qty * price;
   }, 0);
   const totalSaved = rendaFixa + acoes;
+  const stockPurchasesMonth = stockTrades
+    .filter((t) => t.type === "compra" && t.date >= monthStart && t.date <= monthEnd)
+    .reduce((s, t) => s + t.total_amount, 0);
   const monthDeposits = investments
     .filter((i) => i.type === "deposito" || i.type === "rendimento")
-    .reduce((s, i) => s + i.amount, 0);
+    .reduce((s, i) => s + i.amount, 0) + stockPurchasesMonth;
 
   const byCategory = transactions.reduce<Record<string, number>>((acc, t) => {
     acc[t.category] = (acc[t.category] ?? 0) + t.amount;
