@@ -180,7 +180,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Gastos por categoria</CardTitle>
-            <CardDescription>Distribuição no mês atual</CardDescription>
+            <CardDescription>Fatura {format(nextMonth, "MMMM yyyy", { locale: ptBR })}</CardDescription>
           </CardHeader>
           <CardContent>
             {pieData.length === 0 ? (
@@ -188,18 +188,55 @@ export default function DashboardPage() {
                 Nenhum gasto registrado este mês
               </p>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={3} dataKey="value">
-                    {pieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip
-                    formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)}
-                    contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText }}
-                  />
-                  <Legend wrapperStyle={{ color: chartTextColor }} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                {/* Rosca com total no centro */}
+                <div className="relative shrink-0">
+                  <PieChart width={200} height={200}>
+                    <Pie
+                      data={pieData}
+                      cx={100} cy={100}
+                      innerRadius={62} outerRadius={95}
+                      paddingAngle={3}
+                      dataKey="value"
+                      strokeWidth={0}
+                    >
+                      {pieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)}
+                      contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText, fontSize: 12 }}
+                    />
+                  </PieChart>
+                  {/* Total no centro */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
+                    <p className="text-base font-bold tabular-nums leading-tight">{formatCurrency(totalSpent)}</p>
+                  </div>
+                </div>
+
+                {/* Legenda detalhada */}
+                <div className="flex-1 w-full space-y-1.5 min-w-0">
+                  {[...pieData].sort((a, b) => b.value - a.value).map((entry) => {
+                    const pct = totalSpent > 0 ? (entry.value / totalSpent * 100) : 0;
+                    return (
+                      <div key={entry.name} className="group">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                          <span className="text-sm flex-1 truncate">{entry.name}</span>
+                          <span className="text-sm font-semibold tabular-nums">{formatCurrency(entry.value)}</span>
+                          <span className="text-xs text-muted-foreground w-10 text-right">{pct.toFixed(1)}%</span>
+                        </div>
+                        <div className="ml-4 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${pct}%`, backgroundColor: entry.color }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
