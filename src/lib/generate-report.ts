@@ -4,13 +4,13 @@ import { formatCurrency } from "./utils";
 const CATEGORY_LABELS: Record<string, string> = {
   alimentacao: "Alimentação", transporte: "Transporte", saude: "Saúde",
   lazer: "Lazer", educacao: "Educação", moradia: "Moradia",
-  vestuario: "Vestuário", outros: "Outros",
+  vestuario: "Vestuário", assinatura: "Assinatura", outros: "Outros",
 };
 
 const CATEGORY_COLORS_HEX: Record<string, string> = {
   alimentacao: "#3b82f6", transporte: "#10b981", saude: "#f59e0b",
   lazer: "#8b5cf6", educacao: "#06b6d4", moradia: "#ef4444",
-  vestuario: "#f97316", outros: "#6b7280",
+  vestuario: "#f97316", assinatura: "#7c3aed", outros: "#6b7280",
 };
 
 export function generateMonthReport(
@@ -18,8 +18,14 @@ export function generateMonthReport(
   card: CreditCard,
   monthLabel: string,
 ) {
+  const compras = transactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
   const total = transactions.reduce((s, t) => s + t.amount, 0);
-  const limitPercent = card.limit > 0 ? ((total / card.limit) * 100).toFixed(0) : "0";
+  const futureFromInstallments = transactions
+    .filter((t) => t.amount > 0 && t.installments > 1 && t.installment_current < t.installments)
+    .reduce((s, t) => s + t.amount * (t.installments - t.installment_current), 0);
+  const totalComprometido = compras + futureFromInstallments;
+  const limiteReal = Math.max(0, card.limit - totalComprometido);
+  const limitPercent = card.limit > 0 ? ((totalComprometido / card.limit) * 100).toFixed(0) : "0";
 
   const byCategory = transactions.reduce<Record<string, number>>((acc, t) => {
     acc[t.category] = (acc[t.category] ?? 0) + t.amount;
@@ -149,8 +155,9 @@ export function generateMonthReport(
       <div class="card-value red">${formatCurrency(total)}</div>
     </div>
     <div class="card">
-      <div class="card-label">Limite disponível</div>
-      <div class="card-value green">${formatCurrency(card.limit - total)}</div>
+      <div class="card-label">Limite disponível real</div>
+      <div class="card-value green">${formatCurrency(limiteReal)}</div>
+      ${futureFromInstallments > 0 ? `<div style="font-size:9px;color:#d97706;margin-top:2px;">+${formatCurrency(futureFromInstallments)} parcelas futuras</div>` : ""}
     </div>
     <div class="card">
       <div class="card-label">Uso do limite</div>
