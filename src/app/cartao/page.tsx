@@ -142,8 +142,15 @@ export default function CartaoPage() {
   const [clearing, setClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [selectedCycle, setSelectedCycle] = useState<string>(currentCycleId());
+  const [selectedCycle, setSelectedCycle] = useState<string>(() => {
+    try { return localStorage.getItem("ibank_cartao_cycle") || currentCycleId(); } catch { return currentCycleId(); }
+  });
   const [availableCycles, setAvailableCycles] = useState<string[]>([]);
+
+  function changeCycle(cycle: string) {
+    setSelectedCycle(cycle);
+    try { localStorage.setItem("ibank_cartao_cycle", cycle); } catch { /* ignore */ }
+  }
 
   // Resumo da fatura fields (stored in localStorage)
   const [faturaAnterior, setFaturaAnterior] = useState(0);
@@ -340,7 +347,7 @@ export default function CartaoPage() {
 
           {/* Cycle navigation */}
           <div className="flex items-center gap-2 mt-2">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedCycle((c) => prevCycle(c))}>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => changeCycle(prevCycle(selectedCycle))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-muted-foreground capitalize text-sm font-medium min-w-[180px] text-center">
@@ -350,7 +357,7 @@ export default function CartaoPage() {
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              onClick={() => setSelectedCycle((c) => nextCycle(c))}
+              onClick={() => changeCycle(nextCycle(selectedCycle))}
               disabled={selectedCycle >= currentCycleId()}
             >
               <ChevronRight className="h-4 w-4" />
@@ -361,7 +368,7 @@ export default function CartaoPage() {
           {availableCycles.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {availableCycles.slice(0, 8).map((c) => (
-                <button key={c} onClick={() => setSelectedCycle(c)}
+                <button key={c} onClick={() => changeCycle(c)}
                   className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${c === selectedCycle ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>
                   {cycleLabel(c)}
                 </button>
@@ -377,7 +384,7 @@ export default function CartaoPage() {
             </Button>
           )}
           <NubankImport cards={cards} onImported={(cycle) => {
-            if (cycle) setSelectedCycle(cycle);
+            if (cycle) changeCycle(cycle);
             load();
           }} />
           {cardTransactions.length > 0 && (
