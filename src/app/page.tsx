@@ -27,6 +27,19 @@ const CATEGORY_LABELS: Record<string, string> = {
   vestuario: "Vestuário", assinatura: "Assinatura", outros: "Outros",
 };
 
+const FII_SET = new Set([
+  "MXRF11","HGLG11","XPML11","BCFF11","KNRI11","HSML11","BTLG11","IRDM11",
+  "RBRF11","VGIP11","VISC11","BRCO11","CPTS11","KNCR11","PVBI11","RBRP11",
+  "HGRU11","ALZR11","XPLG11","RECT11","MGFF11","HABT11","RBRR11","TGAR11",
+  "HGRE11","VILG11","PATL11","BBFI11B","JSAF11","RZAK11","BPFF11","VRTA11",
+  "VINO11","HGPO11","FVPQ11","DEVA11","SNAG11","GGRC11","BCRI11","AFHI11",
+  "MCCI11","RCRB11","ARRI11","HCTR11","OUJP11","SARE11","RBVA11","CVBI11",
+  "RBRD11","BARI11","RNDP11","VGHF11","TRXF11","XPCI11","FIGS11","HGBS11",
+  "FLMA11","HFOF11","TPFT11","BRCR11","CSHG11","SPTW11","GTWR11","MALL11",
+  "ABCP11","PQDP11","WPLZ11","DOMC11","SHPH11","FMOF11","EDGA11","CBOP11",
+  "IGTI11","BRML3",
+]);
+
 export default function DashboardPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -105,6 +118,19 @@ export default function DashboardPage() {
     return s + qty * price;
   }, 0);
   const totalSaved = rendaFixa + acoes;
+  // Distribuição da carteira: Renda Fixa / FIIs / Ações
+  const valorRendaFixa = rendaFixa;
+  const valorFIIs = Object.entries(netQty).reduce((s, [ticker, qty]) => {
+    if (!FII_SET.has(ticker)) return s;
+    const price = quoteMap[ticker] ?? 0;
+    return s + qty * price;
+  }, 0);
+  const valorAcoes = acoes - valorFIIs;
+  const portfolioPieData = [
+    { name: "Renda Fixa", value: valorRendaFixa, color: "#3b82f6" },
+    { name: "Ações", value: valorAcoes, color: "#10b981" },
+    { name: "FIIs", value: valorFIIs, color: "#f59e0b" },
+  ].filter((d) => d.value > 0);
   const stockPurchasesMonth = stockTrades
     .filter((t) => t.type === "compra" && t.date >= monthStart && t.date <= monthEnd)
     .reduce((s, t) => s + t.total_amount, 0);
@@ -251,6 +277,66 @@ export default function DashboardPage() {
                 <div className="flex-1 w-full space-y-1.5 min-w-0">
                   {[...pieData].sort((a, b) => b.value - a.value).map((entry) => {
                     const pct = totalSpent > 0 ? (entry.value / totalSpent * 100) : 0;
+                    return (
+                      <div key={entry.name} className="group">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                          <span className="text-sm flex-1 truncate">{entry.name}</span>
+                          <span className="text-sm font-semibold tabular-nums">{formatCurrency(entry.value)}</span>
+                          <span className="text-xs text-muted-foreground w-10 text-right">{pct.toFixed(1)}%</span>
+                        </div>
+                        <div className="ml-4 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${pct}%`, backgroundColor: entry.color }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribuição da Carteira</CardTitle>
+            <CardDescription>Renda Fixa · Ações · FIIs</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {totalSaved === 0 ? (
+              <p className="text-muted-foreground text-sm text-center py-8">
+                Nenhum investimento cadastrado
+              </p>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="relative shrink-0">
+                  <PieChart width={200} height={200}>
+                    <Pie
+                      data={portfolioPieData}
+                      cx={100} cy={100}
+                      innerRadius={62} outerRadius={95}
+                      paddingAngle={3}
+                      dataKey="value"
+                      strokeWidth={0}
+                    >
+                      {portfolioPieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)}
+                      contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText, fontSize: 12 }}
+                    />
+                  </PieChart>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
+                    <p className="text-base font-bold tabular-nums leading-tight">{formatCurrency(totalSaved)}</p>
+                  </div>
+                </div>
+                <div className="flex-1 w-full space-y-1.5 min-w-0">
+                  {portfolioPieData.map((entry) => {
+                    const pct = totalSaved > 0 ? (entry.value / totalSaved * 100) : 0;
                     return (
                       <div key={entry.name} className="group">
                         <div className="flex items-center gap-2 mb-0.5">
