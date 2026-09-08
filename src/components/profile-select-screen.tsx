@@ -15,12 +15,12 @@ const profiles = [
     color: "text-blue-500",
     borderActive: "border-blue-500",
     bgActive: "bg-blue-50 dark:bg-blue-950/30",
-    description: `Ideal para quem pensa no longo prazo. O foco é acumular capital ao longo dos anos
-por meio de aportes regulares e reinvestimento dos rendimentos.
-
-Estratégia baseada em ativos de crescimento (ações, FIIs, tesouro IPCA+) com horizonte
-de 10, 20 ou 30 anos. O dashboard vai destacar: aporte mensal, patrimônio acumulado,
-tempo estimado para a meta e simulações de juros compostos.`,
+    sections: [
+      { label: "HORIZONTE", items: ["Longo prazo (10, 20 ou 30 anos)"] },
+      { label: "ESTRATÉGIA", items: ["Ativos de crescimento", "Aportes regulares", "Reinvestimento dos rendimentos"] },
+      { label: "ATIVOS", items: ["Ações", "FIIs", "Tesouro IPCA+"] },
+      { label: "DASHBOARD VAI MOSTRAR", items: ["Aporte mensal", "Patrimônio acumulado", "Tempo estimado para a meta", "Simulação de juros compostos"] },
+    ],
   },
   {
     id: "renda_mensal",
@@ -30,11 +30,12 @@ tempo estimado para a meta e simulações de juros compostos.`,
     color: "text-emerald-500",
     borderActive: "border-emerald-500",
     bgActive: "bg-emerald-50 dark:bg-emerald-950/30",
-    description: `Ideal para quem já tem patrimônio e quer viver de renda. O foco é gerar proventos
-constantes: dividendos de ações, rendimentos de FIIs e CDBs, juros de renda fixa.
-
-O dashboard vai destacar: renda passiva do mês, yield médio da carteira,
-proventos recebidos vs. meta mensal e histórico de pagamentos.`,
+    sections: [
+      { label: "HORIZONTE", items: ["Curto / médio prazo"] },
+      { label: "ESTRATÉGIA", items: ["Geração de proventos constantes", "Viver de renda passiva"] },
+      { label: "ATIVOS", items: ["Ações pagadoras de dividendos", "FIIs", "CDBs e Renda Fixa"] },
+      { label: "DASHBOARD VAI MOSTRAR", items: ["Renda passiva do mês", "Yield médio da carteira", "Proventos recebidos vs. meta", "Histórico de pagamentos"] },
+    ],
   },
 ];
 
@@ -103,18 +104,32 @@ export function ProfileSelectScreen() {
                   </div>
                 </button>
 
-                {/* Expanded description */}
+                {/* Expanded sections */}
                 {isOpen && (
-                  <div className="px-4 pb-4">
-                    <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed mb-4">
-                      {p.description}
-                    </p>
+                  <div className="px-4 pb-4 flex flex-col gap-3">
+                    {p.sections.map((s) => (
+                      <div key={s.label}>
+                        <span className={cn("text-[10px] font-bold tracking-widest", p.color)}>
+                          {s.label}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {s.items.map((item) => (
+                            <span
+                              key={item}
+                              className="text-xs bg-muted text-foreground rounded-full px-2.5 py-0.5"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                     <button
                       type="button"
                       disabled={loading !== null}
                       onClick={() => handleSelect(p.id)}
                       className={cn(
-                        "w-full py-2.5 rounded-lg text-sm font-semibold transition-colors",
+                        "w-full py-2.5 rounded-lg text-sm font-semibold transition-colors mt-1",
                         "bg-foreground text-background hover:opacity-90 active:opacity-80",
                         "disabled:opacity-50 disabled:cursor-not-allowed",
                       )}
