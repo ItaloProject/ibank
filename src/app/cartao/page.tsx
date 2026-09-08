@@ -76,38 +76,44 @@ function TxRow({
   tx,
   onDelete,
   onToggleAssinatura,
+  onSelect,
 }: {
   tx: Transaction;
   onDelete: (id: string) => void;
   onToggleAssinatura: (tx: Transaction) => void;
+  onSelect: (tx: Transaction) => void;
 }) {
   const isCredit = tx.amount < 0;
   const isAssinatura = tx.category === "assinatura";
   const dotColor = isCredit ? "bg-green-500" : (CATEGORY_DOT_COLORS[tx.category] ?? "bg-gray-400");
 
   return (
-    <div className="flex items-center gap-3 py-3 px-4">
-      <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${dotColor}`} />
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{tx.description}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {formatDate(tx.date)}
-          {isCredit && (
-            <span className="ml-1.5 text-green-600">· crédito</span>
-          )}
-          {isAssinatura && !isCredit && (
-            <span className="ml-1.5 text-violet-500">· assinatura</span>
-          )}
-          {tx.installments > 1 && (
-            <span className="ml-1.5">· {tx.installment_current}/{tx.installments}x</span>
-          )}
-        </p>
-      </div>
-
-      <span className={`text-sm font-semibold tabular-nums shrink-0 ${isCredit ? "text-green-600" : "text-destructive"}`}>
-        {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
-      </span>
+    <div className="flex items-center gap-1 py-1 px-2">
+      <button
+        type="button"
+        onClick={() => onSelect(tx)}
+        className="flex items-center gap-3 flex-1 min-w-0 py-2 px-2 rounded-lg text-left active:bg-muted/60 transition-colors touch-manipulation"
+      >
+        <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${dotColor}`} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{tx.description}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {formatDate(tx.date)}
+            {isCredit && (
+              <span className="ml-1.5 text-green-600">· crédito</span>
+            )}
+            {isAssinatura && !isCredit && (
+              <span className="ml-1.5 text-violet-500">· assinatura</span>
+            )}
+            {tx.installments > 1 && (
+              <span className="ml-1.5">· {tx.installment_current}/{tx.installments}x</span>
+            )}
+          </p>
+        </div>
+        <span className={`text-sm font-semibold tabular-nums shrink-0 ${isCredit ? "text-green-600" : "text-destructive"}`}>
+          {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
+        </span>
+      </button>
       <button
         type="button"
         title={isAssinatura ? "Remover assinatura" : "Marcar como assinatura"}
@@ -132,6 +138,96 @@ function TxRow({
   );
 }
 
+function TxDetailSheet({
+  tx,
+  onClose,
+  onDelete,
+  onToggleAssinatura,
+}: {
+  tx: Transaction | null;
+  onClose: () => void;
+  onDelete: (id: string) => void;
+  onToggleAssinatura: (tx: Transaction) => void;
+}) {
+  if (!tx) return null;
+  const isCredit = tx.amount < 0;
+  const isAssinatura = tx.category === "assinatura";
+  const dotColor = isCredit ? "bg-green-500" : (CATEGORY_DOT_COLORS[tx.category] ?? "bg-gray-400");
+
+  return (
+    <>
+      {/* overlay */}
+      <div
+        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      {/* sheet */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-background border-t shadow-xl pb-safe">
+        {/* handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* descrição completa */}
+          <div className="flex items-start gap-3">
+            <span className={`h-3 w-3 rounded-full shrink-0 mt-1 ${dotColor}`} />
+            <p className="text-base font-semibold leading-snug">{tx.description}</p>
+          </div>
+
+          {/* detalhes */}
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Valor</p>
+              <p className={`font-bold tabular-nums ${isCredit ? "text-green-600" : "text-destructive"}`}>
+                {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Data</p>
+              <p className="font-medium">{formatDate(tx.date)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Categoria</p>
+              <p className="font-medium">{CATEGORY_LABELS[tx.category] ?? tx.category}</p>
+            </div>
+            {tx.installments > 1 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Parcelas</p>
+                <p className="font-medium">{tx.installment_current}/{tx.installments}x</p>
+              </div>
+            )}
+          </div>
+
+          {/* ações */}
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => { onToggleAssinatura(tx); onClose(); }}
+              className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium transition-colors ${
+                isAssinatura
+                  ? "bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              <RefreshCw className="h-4 w-4" />
+              {isAssinatura ? "Remover assinatura" : "Marcar assinatura"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { onDelete(tx.id); onClose(); }}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium bg-destructive/10 text-destructive transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function CartaoPage() {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -142,6 +238,7 @@ export default function CartaoPage() {
   const [clearOpen, setClearOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
   const [selectedCycle, setSelectedCycle] = useState<string>(() => {
     try { return localStorage.getItem("ibank_cartao_cycle") || currentCycleId(); } catch { return currentCycleId(); }
@@ -753,7 +850,7 @@ export default function CartaoPage() {
                     </div>
                     <div className="divide-y divide-border/50">
                       {subscriptionTxs.map((tx) => (
-                        <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />
+                        <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} onSelect={setSelectedTx} />
                       ))}
                     </div>
                   </div>
@@ -774,7 +871,7 @@ export default function CartaoPage() {
                     )}
                     <div className="divide-y divide-border/50">
                       {regularTxs.map((tx) => (
-                        <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />
+                        <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} onSelect={setSelectedTx} />
                       ))}
                     </div>
                   </div>
@@ -784,6 +881,13 @@ export default function CartaoPage() {
           </div>
         </>
       )}
+
+      <TxDetailSheet
+        tx={selectedTx}
+        onClose={() => setSelectedTx(null)}
+        onDelete={handleDeleteTransaction}
+        onToggleAssinatura={toggleAssinatura}
+      />
     </div>
   );
 }
