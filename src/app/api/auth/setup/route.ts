@@ -14,9 +14,14 @@ export async function GET() {
         name VARCHAR(100) NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         color VARCHAR(20) DEFAULT '#3b82f6',
+        is_active BOOLEAN DEFAULT true,
+        is_admin BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `;
+    await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`;
+    await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false`;
+    await sql`UPDATE app_users SET is_admin = true WHERE user_id = 'italo'`;
 
     const defaultPassword = process.env.DEFAULT_PASSWORD ?? "ibank2026";
     const hash = await bcrypt.hash(defaultPassword, 12);

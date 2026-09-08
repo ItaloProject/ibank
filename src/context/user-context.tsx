@@ -7,14 +7,15 @@ interface AuthUser {
   id: string;
   name: string;
   color: string;
+  isAdmin?: boolean;
 }
 
 interface UserContextType {
   userId: string | null;
   user: AuthUser | null;
+  isAdmin: boolean;
   login: (user: AuthUser) => void;
   logout: () => Promise<void>;
-  // legacy compat
   selectUser: (id: string) => void;
   switchUser: () => void;
 }
@@ -22,6 +23,7 @@ interface UserContextType {
 const UserContext = createContext<UserContextType>({
   userId: null,
   user: null,
+  isAdmin: false,
   login: () => {},
   logout: async () => {},
   selectUser: () => {},
@@ -62,6 +64,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     <UserContext.Provider value={{
       userId: user?.id ?? null,
       user,
+      isAdmin: user?.isAdmin ?? false,
       login,
       logout,
       selectUser: (id) => setCurrentUser(id),

@@ -15,6 +15,7 @@ import {
   X,
   Sun,
   Moon,
+  Users,
 } from "lucide-react";
 import Image from "next/image";
 import { useUser } from "@/context/user-context";
@@ -41,7 +42,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
-  const { userId, logout } = useUser();
+  const { userId, isAdmin, logout } = useUser();
   const { theme, toggleTheme } = useTheme();
   const currentUser = USERS.find((u) => u.id === userId);
   const isCollapsed = collapsed && !mobileOpen;
@@ -107,7 +108,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-0.5">
-        {navItems.map((item) => {
+        {[...navItems, ...(isAdmin ? [{ href: "/admin/usuarios", label: "Usuários", icon: Users }] : [])].map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
           return (

@@ -30,11 +30,12 @@ export async function POST(request: Request) {
       userId: user.user_id,
       name: user.name,
       color: user.color,
+      isAdmin: user.is_admin ?? false,
     });
 
     const response = NextResponse.json({
       ok: true,
-      user: { id: user.user_id, name: user.name, color: user.color },
+      user: { id: user.user_id, name: user.name, color: user.color, isAdmin: user.is_admin ?? false },
     });
 
     response.cookies.set("ibank_session", token, {

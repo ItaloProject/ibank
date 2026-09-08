@@ -6,16 +6,17 @@ export async function GET() {
   const cookieStore = await cookies();
   const token = cookieStore.get("ibank_session")?.value;
 
-  if (!token) {
-    return NextResponse.json({ user: null }, { status: 401 });
-  }
+  if (!token) return NextResponse.json({ user: null }, { status: 401 });
 
   const payload = await verifyToken(token);
-  if (!payload) {
-    return NextResponse.json({ user: null }, { status: 401 });
-  }
+  if (!payload) return NextResponse.json({ user: null }, { status: 401 });
 
   return NextResponse.json({
-    user: { id: payload.userId, name: payload.name, color: payload.color },
+    user: {
+      id: payload.userId,
+      name: payload.name,
+      color: payload.color,
+      isAdmin: payload.isAdmin ?? false,
+    },
   });
 }
