@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const HIDEABLE_PAGES = [
   { href: "/investimentos", label: "Investimentos",  icon: TrendingUp,   group: "Investimentos" },
   { href: "/rentabilidade", label: "Rentabilidade",  icon: BarChart2,    group: "Investimentos" },
+  { href: "/rebalancear",   label: "Rebalancear",    icon: Target,       group: "Investimentos" },
   { href: "/proventos",     label: "Proventos",      icon: CalendarCheck, group: "Investimentos" },
   { href: "/impostos",      label: "Imposto de Renda", icon: Landmark,    group: "Investimentos" },
   { href: "/metas",         label: "Metas",           icon: Target,        group: "Investimentos" },

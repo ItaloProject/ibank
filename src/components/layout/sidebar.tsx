@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Home, CreditCard, TrendingUp, BarChart2, CalendarDays,
   CalendarCheck, Repeat2, Receipt, LogOut, ChevronLeft, X,
-  Sun, Moon, Users, Target, Settings, Landmark, LineChart,
+  Sun, Moon, Users, Target, Settings, Landmark, LineChart, Scale,
 } from "lucide-react";
 import Image from "next/image";
 import { useUser } from "@/context/user-context";
@@ -22,6 +22,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/investimentos", label: "Investimentos", icon: TrendingUp },
       { href: "/rentabilidade", label: "Rentabilidade", icon: LineChart },
+      { href: "/rebalancear",   label: "Rebalancear",   icon: Scale },
       { href: "/proventos",     label: "Proventos",     icon: CalendarCheck },
       { href: "/impostos",      label: "Imposto de Renda", icon: Landmark },
       { href: "/metas",         label: "Metas",         icon: Target },
