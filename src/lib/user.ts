@@ -12,7 +12,7 @@ export function getCurrentUser(): UserId {
   return (localStorage.getItem(KEY) as UserId) || "italo";
 }
 
-export function setCurrentUser(user: UserId) {
+export function setCurrentUser(user: string) {
   localStorage.setItem(KEY, user);
 }
 
