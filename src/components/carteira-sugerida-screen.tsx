@@ -56,13 +56,12 @@ interface Props {
 
 export function CarteiraSugeridaScreen({ profile, onContinuar }: Props) {
   const carteira = carteiras[profile];
-  const [aporte, setAporte] = useState("");
+  const [aporteNum, setAporteNum] = useState(0);
   const [loading, setLoading] = useState(false);
 
   if (!carteira) return null;
 
   const Icon = carteira.icon;
-  const aporteNum = Number(aporte.replace(/\D/g, "")) || 0;
   const temAporte = aporteNum > 0;
 
   async function handleContinuar() {
@@ -105,8 +104,8 @@ export function CarteiraSugeridaScreen({ profile, onContinuar }: Props) {
               type="number"
               min="0"
               placeholder="0"
-              value={aporte}
-              onChange={(e) => setAporte(e.target.value)}
+              value={aporteNum || ""}
+              onChange={(e) => setAporteNum(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
               className="w-full border rounded-lg pl-9 pr-4 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 tabular-nums"
             />
           </div>
