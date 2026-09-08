@@ -6,7 +6,8 @@ import Link from "next/link";
 import {
   ArrowRight, Check, TrendingUp, Wallet, Bot, Smartphone,
   BarChart2, Shield, CalendarCheck, Landmark, Target,
-  ChevronLeft, MessageCircle, Star,
+  ChevronLeft, MessageCircle, Star, ChevronDown, Users,
+  BadgeCheck, Zap, Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,19 +28,19 @@ const SIDE_CONTENT = [
     headline: "Feito para quem leva investimento a sério.",
     sub: "Controle cartão, acompanhe FIIs, calcule IR e planeje metas — tudo num só lugar.",
     stats: [
-      { icon: TrendingUp,    label: "Carteira com alocação ideal", color: "text-emerald-400" },
-      { icon: Landmark,      label: "IR calculado automaticamente", color: "text-violet-400" },
-      { icon: CalendarCheck, label: "Proventos e dividendos",       color: "text-blue-400" },
-      { icon: BarChart2,     label: "Rentabilidade vs CDI",         color: "text-amber-400" },
+      { icon: TrendingUp,    label: "Carteira com alocação ideal",    color: "text-emerald-400" },
+      { icon: Landmark,      label: "IR calculado automaticamente",    color: "text-violet-400" },
+      { icon: CalendarCheck, label: "Proventos e dividendos",          color: "text-blue-400" },
+      { icon: BarChart2,     label: "Rentabilidade vs CDI",            color: "text-amber-400" },
     ],
   },
   {
     headline: "Seus dados ficam só com você.",
     sub: "Login com senha, acesso individual. Ninguém mais vê seus investimentos.",
     stats: [
-      { icon: Shield,     label: "Acesso restrito por senha",   color: "text-emerald-400" },
-      { icon: Smartphone, label: "PWA — funciona como app",     color: "text-blue-400" },
-      { icon: Bot,        label: "Bot opcional com IA",         color: "text-violet-400" },
+      { icon: Shield,     label: "Acesso restrito por senha",    color: "text-emerald-400" },
+      { icon: Smartphone, label: "PWA — funciona como app",      color: "text-blue-400" },
+      { icon: Bot,        label: "Bot opcional com IA",          color: "text-violet-400" },
       { icon: Wallet,     label: "Controle de cartão integrado", color: "text-amber-400" },
     ],
   },
@@ -47,9 +48,9 @@ const SIDE_CONTENT = [
     headline: "Cada perfil tem sua estratégia.",
     sub: "Aposentadoria ou renda mensal: a carteira sugerida e o rebalanceamento se adaptam ao seu objetivo.",
     stats: [
-      { icon: Target,     label: "Carteira sugerida por perfil",    color: "text-emerald-400" },
-      { icon: BarChart2,  label: "Rebalanceamento por aporte",      color: "text-violet-400" },
-      { icon: TrendingUp, label: "Metas com prazo e simulação",     color: "text-blue-400" },
+      { icon: Target,     label: "Carteira sugerida por perfil",     color: "text-emerald-400" },
+      { icon: BarChart2,  label: "Rebalanceamento por aporte",       color: "text-violet-400" },
+      { icon: TrendingUp, label: "Metas com prazo e simulação",      color: "text-blue-400" },
       { icon: Landmark,   label: "Impostos separados por categoria", color: "text-amber-400" },
     ],
   },
@@ -66,9 +67,9 @@ const SIDE_CONTENT = [
 ];
 
 const GOAL_OPTIONS: { id: Goal; label: string; tagline: string; icon: React.ElementType; color: string }[] = [
-  { id: "aposentadoria", label: "Aposentadoria",    tagline: "Crescimento no longo prazo",   icon: Landmark,   color: "border-blue-500/60 bg-blue-500/10 text-blue-400" },
-  { id: "renda_mensal",  label: "Renda Mensal",     tagline: "Proventos todo mês",            icon: CalendarCheck, color: "border-emerald-500/60 bg-emerald-500/10 text-emerald-400" },
-  { id: "organizacao",   label: "Organizar Finanças", tagline: "Cartão, gastos e planejamento", icon: Wallet, color: "border-amber-500/60 bg-amber-500/10 text-amber-400" },
+  { id: "aposentadoria", label: "Aposentadoria",      tagline: "Crescimento no longo prazo",    icon: Landmark,      color: "border-blue-500/60 bg-blue-500/10 text-blue-400" },
+  { id: "renda_mensal",  label: "Renda Mensal",       tagline: "Proventos todo mês",             icon: CalendarCheck, color: "border-emerald-500/60 bg-emerald-500/10 text-emerald-400" },
+  { id: "organizacao",   label: "Organizar Finanças", tagline: "Cartão, gastos e planejamento",  icon: Wallet,        color: "border-amber-500/60 bg-amber-500/10 text-amber-400" },
 ];
 
 const APORTE_OPTIONS: { id: Aporte; label: string }[] = [
@@ -79,6 +80,25 @@ const APORTE_OPTIONS: { id: Aporte; label: string }[] = [
   { id: "mais5k",  label: "Mais de R$ 5.000/mês" },
 ];
 
+const FAQ_ITEMS = [
+  {
+    q: "Precisa instalar alguma coisa?",
+    a: "Não. O IBANK é um PWA — abre direto no navegador do celular ou computador. Você pode salvar na tela inicial como um app normal, sem precisar da App Store ou Play Store.",
+  },
+  {
+    q: "Como funciona o período grátis de 15 dias?",
+    a: "Você recebe acesso completo por 15 dias sem pagar nada. Só cobramos após esse período, via Pix mensal. Se decidir não continuar, basta avisar pelo WhatsApp antes do fim do período — sem multa, sem burocracia.",
+  },
+  {
+    q: "Meus investimentos ficam seguros?",
+    a: "Sim. Cada usuário tem login e banco de dados individual — ninguém mais acessa seus dados. Não integramos com corretoras nem movimentamos dinheiro: você registra os dados manualmente, como numa planilha, mas muito mais organizado.",
+  },
+  {
+    q: "Posso cancelar quando quiser?",
+    a: "Sim, a qualquer momento. É só mandar mensagem no WhatsApp. Não há contrato, fidelidade mínima ou taxa de cancelamento.",
+  },
+];
+
 function whatsappUrl(lead: LeadData, plan: "assinante" | "completo") {
   const raw = process.env.NEXT_PUBLIC_WHATSAPP ?? "5500000000000";
   const phone = raw.replace(/\D/g, "");
@@ -86,18 +106,19 @@ function whatsappUrl(lead: LeadData, plan: "assinante" | "completo") {
   const aporteLabel = APORTE_OPTIONS.find((a) => a.id === lead.aporte)?.label ?? lead.aporte;
   const planLabel = plan === "completo" ? "Completo R$ 45 (app + bot)" : "Assinante R$ 30";
   const text = encodeURIComponent(
-    `Olá! Me chamo ${lead.nome} e tenho interesse no IBANK — plano ${planLabel}.\n\nMeu objetivo: ${goalLabel}\nInvisto: ${aporteLabel}\nWhatsApp: ${lead.whatsapp}\n\nPode me passar o Pix e liberar o acesso?`,
+    `Olá! Me chamo ${lead.nome} e tenho interesse no IBANK — plano ${planLabel}.\n\nMeu objetivo: ${goalLabel}\nInvisto: ${aporteLabel}\nWhatsApp: ${lead.whatsapp}\n\nPode me passar os detalhes para começar os 15 dias grátis?`,
   );
   return `https://wa.me/${phone}?text=${text}`;
 }
 
 // ── componente principal ──────────────────────────────────────────────────────
 export default function ComecarPage() {
-  const [step, setStep] = useState(0); // 0-3 = form; 4 = pricing
+  const [step, setStep] = useState(0);
   const [lead, setLead] = useState<LeadData>({ nome: "", whatsapp: "", objetivo: "", aporte: "" });
   const [saving, setSaving] = useState(false);
   const [slideDir, setSlideDir] = useState<"right" | "left">("right");
   const [animating, setAnimating] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
   const nomeRef = useRef<HTMLInputElement>(null);
   const waRef   = useRef<HTMLInputElement>(null);
 
@@ -110,10 +131,7 @@ export default function ComecarPage() {
     if (animating) return;
     setSlideDir(dir);
     setAnimating(true);
-    setTimeout(() => {
-      setStep(next);
-      setAnimating(false);
-    }, 220);
+    setTimeout(() => { setStep(next); setAnimating(false); }, 220);
   }
 
   async function finalize() {
@@ -124,7 +142,7 @@ export default function ComecarPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(lead),
       });
-    } catch { /* silencioso — não bloqueia o usuário */ }
+    } catch { /* silencioso */ }
     setSaving(false);
     goTo(4);
   }
@@ -136,11 +154,11 @@ export default function ComecarPage() {
 
       {/* ── painel esquerdo (desktop) ─────────────────────────────────────── */}
       <div className="hidden md:flex md:w-1/2 lg:w-[55%] flex-col justify-between px-12 py-12 border-r border-zinc-800 relative overflow-hidden">
-        {/* Fundo decorativo */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/30 via-transparent to-violet-950/20 pointer-events-none" />
 
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-16">
+        <div className="relative z-10 flex-1 flex flex-col">
+          {/* Logo */}
+          <div className="flex items-center gap-3 mb-10">
             <div className="h-10 w-10 rounded-xl overflow-hidden">
               <Image src="/logo.png" alt="IBANK" width={200} height={200}
                 className="h-full w-full object-cover" style={{ objectPosition: "50% 48%" }} priority />
@@ -148,13 +166,13 @@ export default function ComecarPage() {
             <span className="font-bold text-lg tracking-tight">IBANK</span>
           </div>
 
+          {/* Headline + features */}
           <div key={step} className="transition-all duration-300">
-            <h2 className="text-3xl lg:text-4xl font-bold leading-tight mb-4 text-white">
+            <h2 className="text-3xl lg:text-4xl font-bold leading-tight mb-3 text-white">
               {side.headline}
             </h2>
-            <p className="text-zinc-400 text-base leading-relaxed mb-10">{side.sub}</p>
-
-            <div className="grid grid-cols-1 gap-3">
+            <p className="text-zinc-400 text-base leading-relaxed mb-6">{side.sub}</p>
+            <div className="grid grid-cols-1 gap-2">
               {side.stats.map((s) => {
                 const Icon = s.icon;
                 return (
@@ -166,10 +184,16 @@ export default function ComecarPage() {
               })}
             </div>
           </div>
+
+          {/* Mockup do app — visível sempre no desktop */}
+          <div className="mt-8 flex justify-center">
+            <AppMockup />
+          </div>
         </div>
 
-        {/* Depoimento fixo no rodapé */}
-        <div className="relative z-10 mt-12">
+        {/* Social proof + depoimento */}
+        <div className="relative z-10 mt-8 space-y-3">
+          <SocialProofBar />
           <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-5">
             <div className="flex gap-0.5 mb-2">
               {[...Array(5)].map((_, i) => (
@@ -178,7 +202,7 @@ export default function ComecarPage() {
             </div>
             <p className="text-sm text-zinc-300 leading-relaxed">
               &ldquo;Finalmente tenho controle real da minha carteira. O cálculo de IR automático me
-              salvou muito tempo na declaração.&rdquo;
+              salvou muito tempo na declaração do imposto de renda.&rdquo;
             </p>
             <p className="text-xs text-zinc-500 mt-2 font-medium">— Investidor IBANK</p>
           </div>
@@ -205,25 +229,19 @@ export default function ComecarPage() {
               <span className="text-xs text-zinc-500 font-medium">{progress}%</span>
             </div>
             <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
+              <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}
 
         {/* Conteúdo animado */}
-        <div
-          className={cn(
-            "flex-1 flex flex-col transition-all duration-220",
-            animating
-              ? slideDir === "right"
-                ? "-translate-x-8 opacity-0"
-                : "translate-x-8 opacity-0"
-              : "translate-x-0 opacity-100",
-          )}
-        >
+        <div className={cn(
+          "flex-1 flex flex-col transition-all duration-220",
+          animating
+            ? slideDir === "right" ? "-translate-x-8 opacity-0" : "translate-x-8 opacity-0"
+            : "translate-x-0 opacity-100",
+        )}>
+
           {/* ETAPA 0 — Nome */}
           {step === 0 && (
             <FormStep
@@ -293,10 +311,7 @@ export default function ComecarPage() {
                     <button
                       key={g.id}
                       type="button"
-                      onClick={() => {
-                        setLead({ ...lead, objetivo: g.id });
-                        setTimeout(() => goTo(3), 180);
-                      }}
+                      onClick={() => { setLead({ ...lead, objetivo: g.id }); setTimeout(() => goTo(3), 180); }}
                       className={cn(
                         "flex items-center gap-4 rounded-xl border px-5 py-4 text-left transition-all duration-150 active:scale-[0.98]",
                         selected ? g.color : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-600",
@@ -329,10 +344,7 @@ export default function ComecarPage() {
                     <button
                       key={a.id}
                       type="button"
-                      onClick={() => {
-                        setLead({ ...lead, aporte: a.id });
-                        setTimeout(() => finalize(), 180);
-                      }}
+                      onClick={() => { setLead({ ...lead, aporte: a.id }); setTimeout(() => finalize(), 180); }}
                       className={cn(
                         "flex items-center justify-between rounded-xl border px-5 py-3.5 text-sm font-medium text-left transition-all duration-150 active:scale-[0.98]",
                         selected
@@ -341,10 +353,9 @@ export default function ComecarPage() {
                       )}
                     >
                       <span>{a.label}</span>
-                      {saving && selected && (
-                        <span className="text-xs text-zinc-500 animate-pulse">Salvando…</span>
-                      )}
-                      {selected && !saving && <Check className="h-4 w-4 shrink-0" />}
+                      {saving && selected
+                        ? <span className="text-xs text-zinc-500 animate-pulse">Salvando…</span>
+                        : selected && <Check className="h-4 w-4 shrink-0" />}
                     </button>
                   );
                 })}
@@ -355,7 +366,9 @@ export default function ComecarPage() {
 
           {/* ETAPA 4 — Preços */}
           {step === 4 && (
-            <div className="flex-1 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="flex-1 flex flex-col gap-5 animate-in fade-in slide-in-from-right-4 duration-300 pb-6">
+
+              {/* Cabeçalho */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-2">
                   Perfeito, {lead.nome.split(" ")[0]}!
@@ -363,9 +376,14 @@ export default function ComecarPage() {
                 <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
                   Escolha seu plano e comece hoje.
                 </h2>
-                <p className="text-zinc-400 text-sm mt-2">
-                  Acesso imediato após confirmação do pagamento via Pix.
-                </p>
+              </div>
+
+              {/* ① Social proof */}
+              <SocialProofBar />
+
+              {/* ② Mockup do app — só mobile (desktop já tem no painel esquerdo) */}
+              <div className="md:hidden flex justify-center py-2">
+                <AppMockup />
               </div>
 
               {/* Features resumidas */}
@@ -386,6 +404,47 @@ export default function ComecarPage() {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* ③ FAQ */}
+              <div className="rounded-2xl border border-zinc-800 overflow-hidden">
+                <p className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500 border-b border-zinc-800">
+                  Perguntas frequentes
+                </p>
+                {FAQ_ITEMS.map((item, i) => (
+                  <div key={i} className={cn("border-zinc-800", i < FAQ_ITEMS.length - 1 && "border-b")}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-zinc-900/40 transition-colors"
+                    >
+                      <span className="text-sm font-medium text-zinc-200">{item.q}</span>
+                      <ChevronDown className={cn(
+                        "h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200",
+                        openFaq === i && "rotate-180",
+                      )} />
+                    </button>
+                    {openFaq === i && (
+                      <p className="px-4 pb-4 text-sm text-zinc-400 leading-relaxed">
+                        {item.a}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* ④ Garantia */}
+              <div className="flex gap-3 items-start bg-emerald-500/8 border border-emerald-500/25 rounded-2xl px-4 py-4">
+                <div className="h-9 w-9 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
+                  <BadgeCheck className="h-5 w-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-emerald-400">15 dias grátis — sem risco nenhum</p>
+                  <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                    Acesso completo por 15 dias. Se não gostar, é só avisar pelo WhatsApp antes do período acabar.
+                    <strong className="text-zinc-300"> Não cobramos nada. Sem contrato.</strong>
+                  </p>
+                </div>
               </div>
 
               {/* Planos */}
@@ -474,6 +533,107 @@ export default function ComecarPage() {
   );
 }
 
+// ── Social proof bar ──────────────────────────────────────────────────────────
+function SocialProofBar() {
+  return (
+    <div className="grid grid-cols-3 gap-0 rounded-2xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+      <div className="flex flex-col items-center justify-center py-3.5 px-2 text-center border-r border-zinc-800">
+        <Users className="h-4 w-4 text-emerald-400 mb-1" />
+        <p className="text-base font-bold text-white leading-none">Exclusivo</p>
+        <p className="text-[10px] text-zinc-500 mt-0.5">acesso por convite</p>
+      </div>
+      <div className="flex flex-col items-center justify-center py-3.5 px-2 text-center border-r border-zinc-800">
+        <Zap className="h-4 w-4 text-amber-400 mb-1" />
+        <p className="text-base font-bold text-white leading-none">Suporte</p>
+        <p className="text-[10px] text-zinc-500 mt-0.5">direto via WhatsApp</p>
+      </div>
+      <div className="flex flex-col items-center justify-center py-3.5 px-2 text-center">
+        <Lock className="h-4 w-4 text-violet-400 mb-1" />
+        <p className="text-base font-bold text-white leading-none">Privado</p>
+        <p className="text-[10px] text-zinc-500 mt-0.5">só você acessa</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Mockup do app ─────────────────────────────────────────────────────────────
+function AppMockup() {
+  return (
+    <div className="w-48 shrink-0">
+      {/* Frame do celular */}
+      <div className="border-2 border-zinc-700 rounded-[2rem] bg-zinc-950 p-1.5 shadow-2xl shadow-black/60">
+        {/* Barra de status */}
+        <div className="flex items-center justify-between px-4 py-1.5">
+          <span className="text-[9px] text-zinc-500 font-medium">9:41</span>
+          <div className="flex gap-1">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-1 w-1 rounded-full bg-zinc-600" />
+            ))}
+          </div>
+        </div>
+
+        {/* Conteúdo da tela */}
+        <div className="bg-zinc-900 rounded-[1.5rem] overflow-hidden px-3 py-3 space-y-3">
+          {/* Header do app */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="h-5 w-5 rounded-lg overflow-hidden">
+                <Image src="/logo.png" alt="IBANK" width={40} height={40}
+                  className="h-full w-full object-cover" style={{ objectPosition: "50% 48%" }} />
+              </div>
+              <span className="text-[10px] font-bold text-zinc-100">IBANK</span>
+            </div>
+            <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center">
+              <span className="text-[7px] font-bold text-white">I</span>
+            </div>
+          </div>
+
+          {/* Patrimônio */}
+          <div className="bg-zinc-800/60 rounded-xl px-3 py-2.5">
+            <p className="text-[8px] text-zinc-500">Patrimônio total</p>
+            <p className="text-sm font-bold text-blue-400 tabular-nums">R$ 12.450,00</p>
+            <p className="text-[8px] text-zinc-600 mt-0.5">renda fixa + ações</p>
+          </div>
+
+          {/* Barra de alocação */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[8px] text-zinc-500">Alocação atual</span>
+              <span className="text-[8px] text-emerald-400">68% RF</span>
+            </div>
+            <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
+              <div className="bg-emerald-500 rounded-l-full" style={{ width: "68%" }} />
+              <div className="bg-blue-500 rounded-r-full flex-1" />
+            </div>
+            <div className="flex justify-between mt-1">
+              <span className="text-[7px] text-zinc-600">Renda Fixa</span>
+              <span className="text-[7px] text-zinc-600">Ações</span>
+            </div>
+          </div>
+
+          {/* Ativos */}
+          <div className="space-y-1.5">
+            {[
+              { name: "TURBO", sub: "Nubank", val: "R$ 5.110", color: "text-green-400" },
+              { name: "MXRF11", sub: "FII",   val: "R$ 3.240", color: "text-green-400" },
+              { name: "PETR4",  sub: "Ação",  val: "R$ 2.100", color: "text-blue-400" },
+            ].map((a) => (
+              <div key={a.name} className="flex items-center justify-between bg-zinc-800/40 rounded-lg px-2 py-1.5">
+                <div>
+                  <p className="text-[9px] font-bold text-zinc-200">{a.name}</p>
+                  <p className="text-[7px] text-zinc-600">{a.sub}</p>
+                </div>
+                <p className={cn("text-[9px] font-semibold tabular-nums", a.color)}>{a.val}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <p className="text-[10px] text-center text-zinc-600 mt-2">Dados ilustrativos</p>
+    </div>
+  );
+}
+
 // ── sub-componentes ───────────────────────────────────────────────────────────
 function FormStep({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
@@ -487,9 +647,7 @@ function FormStep({ title, subtitle, children }: { title: string; subtitle: stri
   );
 }
 
-function NextButton({
-  children, disabled, onClick, className,
-}: {
+function NextButton({ children, disabled, onClick, className }: {
   children: React.ReactNode; disabled?: boolean; onClick: () => void; className?: string;
 }) {
   return (
@@ -514,10 +672,7 @@ function BackButton({ onClick, className }: { onClick: () => void; className?: s
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors py-1",
-        className,
-      )}
+      className={cn("flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors py-1", className)}
     >
       <ChevronLeft className="h-4 w-4" /> Voltar
     </button>
