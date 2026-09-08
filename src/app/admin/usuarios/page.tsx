@@ -122,11 +122,13 @@ export default function UsuariosPage() {
   }
 
   function paidLabel(u: AppUser) {
-    if (u.is_admin) return "Admin";
+    if (u.is_admin) return null;
     if (!u.paid_until) return "Sem validade";
     const until = String(u.paid_until).slice(0, 10);
     const today = new Date().toISOString().slice(0, 10);
-    return until < today ? `Expirado ${until}` : `Até ${until}`;
+    const d = new Date(until + "T12:00:00");
+    const label = d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
+    return until < today ? `Expirado` : `Até ${label}`;
   }
 
   const active = users.filter((u) => u.is_active).length;
@@ -200,80 +202,76 @@ export default function UsuariosPage() {
           ) : (
             <div className="divide-y">
               {users.map((u) => (
-                <div key={u.id} className={`flex items-center gap-3 px-4 py-4 transition-colors hover:bg-muted/30 ${!u.is_active ? "opacity-50" : ""}`}>
-                  {/* Avatar */}
-                  <div
-                    className="h-11 w-11 shrink-0 rounded-full flex items-center justify-center text-base font-bold text-white shadow-sm"
-                    style={{ backgroundColor: u.color }}
-                  >
-                    {u.name[0].toUpperCase()}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-semibold text-sm">{u.name}</span>
-                      {u.is_admin && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
-                          <ShieldCheck className="h-3 w-3" /> Admin
-                        </span>
-                      )}
-                      {u.bot_enabled && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-300">
-                          <Bot className="h-3 w-3" /> Bot
-                        </span>
-                      )}
+                <div key={u.id} className={`px-4 py-3 transition-colors hover:bg-muted/30 ${!u.is_active ? "opacity-50" : ""}`}>
+                  {/* Linha 1: avatar + info + status */}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm"
+                      style={{ backgroundColor: u.color }}
+                    >
+                      {u.name[0].toUpperCase()}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      @{u.username} · {u.plan === "completo" ? "Completo R$45" : "Assinante R$30"} · {paidLabel(u)}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-sm">{u.name}</span>
+                        {u.is_admin && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
+                            <ShieldCheck className="h-3 w-3" /> Admin
+                          </span>
+                        )}
+                        {u.bot_enabled && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-300">
+                            <Bot className="h-3 w-3" /> Bot
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${u.is_active ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"}`}>
+                          {u.is_active ? "Ativo" : "Inativo"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        @{u.username} · {u.plan === "completo" ? "Completo R$45" : "R$30"}
+                        {paidLabel(u) && ` · ${paidLabel(u)}`}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Status + ações */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full mr-1 ${u.is_active ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"}`}>
-                      {u.is_active ? "Ativo" : "Inativo"}
-                    </span>
-
+                  {/* Linha 2: ações */}
+                  <div className="flex items-center justify-end gap-0.5 mt-1.5">
                     <button
                       type="button"
                       onClick={() => extendMonth(u)}
                       title="Renovar +30 dias"
-                      className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
                     >
                       <CalendarPlus className="h-4 w-4" />
                     </button>
-
                     <button
                       type="button"
                       onClick={() => toggleBot(u)}
                       title={u.bot_enabled ? "Remover bot" : "Ativar bot"}
-                      className={`flex h-11 w-11 items-center justify-center rounded-lg transition-colors touch-manipulation ${u.bot_enabled ? "text-violet-500 hover:bg-violet-500/10" : "text-muted-foreground hover:text-violet-500 hover:bg-violet-500/10"}`}
+                      className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors touch-manipulation ${u.bot_enabled ? "text-violet-500 hover:bg-violet-500/10" : "text-muted-foreground hover:text-violet-500 hover:bg-violet-500/10"}`}
                     >
                       <Bot className="h-4 w-4" />
                     </button>
-
                     <button
                       onClick={() => { setResetUser(u); setResetPass(""); setResetError(""); setShowResetPass(false); setResetDone(false); }}
                       title="Redefinir senha"
-                      className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
                     >
                       <KeyRound className="h-4 w-4" />
                     </button>
-
                     <button
                       onClick={() => toggleActive(u)}
                       title={u.is_active ? "Desativar" : "Ativar"}
-                      className={`flex h-11 w-11 items-center justify-center rounded-lg transition-colors touch-manipulation ${u.is_active ? "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10" : "text-muted-foreground hover:text-green-500 hover:bg-green-500/10"}`}
+                      className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors touch-manipulation ${u.is_active ? "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10" : "text-muted-foreground hover:text-green-500 hover:bg-green-500/10"}`}
                     >
                       <Power className="h-4 w-4" />
                     </button>
-
                     {!u.is_admin && (
                       <button
                         onClick={() => deleteUser(u)}
                         title="Excluir"
-                        className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

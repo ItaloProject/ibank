@@ -340,34 +340,34 @@ function PlanCard({
   return (
     <Card className={isDone ? "opacity-60" : ""}>
       <CardHeader className="pb-2 pt-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
+        {/* Linha 1: ícone + nome + badge status */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             {isDone
               ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
               : <Circle className="h-4 w-4 text-muted-foreground shrink-0" />
             }
-            <div className="min-w-0">
-              <CardTitle className="text-base truncate">{plan.description}</CardTitle>
-              <CardDescription className="text-xs mt-0.5">
-                Total: {fmt(plan.total_amount)}{formatStartDate(plan.start_date)}
-              </CardDescription>
-            </div>
+            <CardTitle className="text-base truncate">{plan.description}</CardTitle>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-0.5 shrink-0">
             {isDone
-              ? <Badge className="bg-green-100 text-green-700 border-green-200">Quitado</Badge>
-              : <Badge variant="outline">{remaining}x restante{remaining !== 1 ? "s" : ""}</Badge>
+              ? <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Quitado</Badge>
+              : <Badge variant="outline" className="text-xs">{remaining}x rest.</Badge>
             }
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"
               onClick={() => onEdit(plan)} title="Editar">
-              <Pencil className="h-4 w-4" />
+              <Pencil className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
               onClick={() => onDelete(plan.id)} title="Excluir">
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
+        {/* Linha 2: total + data de início */}
+        <CardDescription className="text-xs mt-1 pl-6">
+          {fmt(plan.total_amount)}{formatStartDate(plan.start_date)}
+        </CardDescription>
       </CardHeader>
       <CardContent className="pb-4 space-y-3">
         {/* Progress */}
