@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const HIDEABLE_PAGES = [
   { href: "/investimentos", label: "Investimentos",  icon: TrendingUp,   group: "Investimentos" },
   { href: "/proventos",     label: "Proventos",      icon: CalendarCheck, group: "Investimentos" },
+  { href: "/impostos",      label: "Imposto de Renda", icon: Landmark,    group: "Investimentos" },
   { href: "/metas",         label: "Metas",           icon: Target,        group: "Investimentos" },
   { href: "/cartao",        label: "Cartão",          icon: CreditCard,    group: "Finanças" },
   { href: "/planejamento",  label: "Planejamento",    icon: CalendarDays,  group: "Finanças" },
@@ -106,9 +107,9 @@ export default function ConfiguracoesPage() {
   ];
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-lg mx-auto px-4 py-6 space-y-6 pb-8">
       <div className="border-b pb-4">
-        <h1 className="text-xl font-bold">Configurações</h1>
+        <h1 className="text-xl sm:text-2xl font-bold">Configurações</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Gerencie seu perfil e segurança</p>
       </div>
 

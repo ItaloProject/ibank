@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Home, CreditCard, TrendingUp, BarChart2, CalendarDays,
   CalendarCheck, Repeat2, Receipt, LogOut, ChevronLeft, X,
-  Sun, Moon, Users, Target, Settings,
+  Sun, Moon, Users, Target, Settings, Landmark,
 } from "lucide-react";
 import Image from "next/image";
 import { useUser } from "@/context/user-context";
@@ -22,6 +22,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/investimentos", label: "Investimentos", icon: TrendingUp },
       { href: "/proventos",     label: "Proventos",     icon: CalendarCheck },
+      { href: "/impostos",      label: "Imposto de Renda", icon: Landmark },
       { href: "/metas",         label: "Metas",         icon: Target },
     ],
   },
@@ -91,6 +92,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         "fixed left-0 top-0 z-40 flex h-[100dvh] flex-col bg-sidebar",
         "transition-[width,transform] duration-150 ease-out",
         "w-60 -translate-x-full md:translate-x-0",
+        "pt-[var(--safe-top)] pb-[var(--safe-bottom)]",
         mobileOpen && "translate-x-0",
         isCollapsed && "md:w-[68px]",
       )}
