@@ -1,0 +1,519 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  ArrowRight, Check, TrendingUp, Wallet, Bot, Smartphone,
+  BarChart2, Shield, CalendarCheck, Landmark, Target,
+  ChevronLeft, MessageCircle, Star,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// ── tipos ─────────────────────────────────────────────────────────────────────
+type Goal = "aposentadoria" | "renda_mensal" | "organizacao";
+type Aporte = "nenhum" | "ate500" | "500a2k" | "2ka5k" | "mais5k";
+
+interface LeadData {
+  nome: string;
+  whatsapp: string;
+  objetivo: Goal | "";
+  aporte: Aporte | "";
+}
+
+// ── conteúdo lateral por etapa ────────────────────────────────────────────────
+const SIDE_CONTENT = [
+  {
+    headline: "Feito para quem leva investimento a sério.",
+    sub: "Controle cartão, acompanhe FIIs, calcule IR e planeje metas — tudo num só lugar.",
+    stats: [
+      { icon: TrendingUp,    label: "Carteira com alocação ideal", color: "text-emerald-400" },
+      { icon: Landmark,      label: "IR calculado automaticamente", color: "text-violet-400" },
+      { icon: CalendarCheck, label: "Proventos e dividendos",       color: "text-blue-400" },
+      { icon: BarChart2,     label: "Rentabilidade vs CDI",         color: "text-amber-400" },
+    ],
+  },
+  {
+    headline: "Seus dados ficam só com você.",
+    sub: "Login com senha, acesso individual. Ninguém mais vê seus investimentos.",
+    stats: [
+      { icon: Shield,     label: "Acesso restrito por senha",   color: "text-emerald-400" },
+      { icon: Smartphone, label: "PWA — funciona como app",     color: "text-blue-400" },
+      { icon: Bot,        label: "Bot opcional com IA",         color: "text-violet-400" },
+      { icon: Wallet,     label: "Controle de cartão integrado", color: "text-amber-400" },
+    ],
+  },
+  {
+    headline: "Cada perfil tem sua estratégia.",
+    sub: "Aposentadoria ou renda mensal: a carteira sugerida e o rebalanceamento se adaptam ao seu objetivo.",
+    stats: [
+      { icon: Target,     label: "Carteira sugerida por perfil",    color: "text-emerald-400" },
+      { icon: BarChart2,  label: "Rebalanceamento por aporte",      color: "text-violet-400" },
+      { icon: TrendingUp, label: "Metas com prazo e simulação",     color: "text-blue-400" },
+      { icon: Landmark,   label: "Impostos separados por categoria", color: "text-amber-400" },
+    ],
+  },
+  {
+    headline: "Simples de usar, poderoso para qualquer nível.",
+    sub: "Do iniciante que quer organizar ao veterano que acompanha IR e rentabilidade vs CDI.",
+    stats: [
+      { icon: Wallet,        label: "Controle de gastos no cartão", color: "text-emerald-400" },
+      { icon: CalendarCheck, label: "Calendário de proventos",      color: "text-blue-400" },
+      { icon: BarChart2,     label: "Relatórios de desempenho",     color: "text-violet-400" },
+      { icon: Bot,           label: "Pesquisa de mercado com IA",   color: "text-amber-400" },
+    ],
+  },
+];
+
+const GOAL_OPTIONS: { id: Goal; label: string; tagline: string; icon: React.ElementType; color: string }[] = [
+  { id: "aposentadoria", label: "Aposentadoria",    tagline: "Crescimento no longo prazo",   icon: Landmark,   color: "border-blue-500/60 bg-blue-500/10 text-blue-400" },
+  { id: "renda_mensal",  label: "Renda Mensal",     tagline: "Proventos todo mês",            icon: CalendarCheck, color: "border-emerald-500/60 bg-emerald-500/10 text-emerald-400" },
+  { id: "organizacao",   label: "Organizar Finanças", tagline: "Cartão, gastos e planejamento", icon: Wallet, color: "border-amber-500/60 bg-amber-500/10 text-amber-400" },
+];
+
+const APORTE_OPTIONS: { id: Aporte; label: string }[] = [
+  { id: "nenhum",  label: "Ainda não invisto" },
+  { id: "ate500",  label: "Até R$ 500/mês" },
+  { id: "500a2k",  label: "R$ 500 – R$ 2.000/mês" },
+  { id: "2ka5k",   label: "R$ 2.000 – R$ 5.000/mês" },
+  { id: "mais5k",  label: "Mais de R$ 5.000/mês" },
+];
+
+function whatsappUrl(lead: LeadData, plan: "assinante" | "completo") {
+  const raw = process.env.NEXT_PUBLIC_WHATSAPP ?? "5500000000000";
+  const phone = raw.replace(/\D/g, "");
+  const goalLabel = GOAL_OPTIONS.find((g) => g.id === lead.objetivo)?.label ?? lead.objetivo;
+  const aporteLabel = APORTE_OPTIONS.find((a) => a.id === lead.aporte)?.label ?? lead.aporte;
+  const planLabel = plan === "completo" ? "Completo R$ 45 (app + bot)" : "Assinante R$ 30";
+  const text = encodeURIComponent(
+    `Olá! Me chamo ${lead.nome} e tenho interesse no IBANK — plano ${planLabel}.\n\nMeu objetivo: ${goalLabel}\nInvisto: ${aporteLabel}\nWhatsApp: ${lead.whatsapp}\n\nPode me passar o Pix e liberar o acesso?`,
+  );
+  return `https://wa.me/${phone}?text=${text}`;
+}
+
+// ── componente principal ──────────────────────────────────────────────────────
+export default function ComecarPage() {
+  const [step, setStep] = useState(0); // 0-3 = form; 4 = pricing
+  const [lead, setLead] = useState<LeadData>({ nome: "", whatsapp: "", objetivo: "", aporte: "" });
+  const [saving, setSaving] = useState(false);
+  const [slideDir, setSlideDir] = useState<"right" | "left">("right");
+  const [animating, setAnimating] = useState(false);
+  const nomeRef = useRef<HTMLInputElement>(null);
+  const waRef   = useRef<HTMLInputElement>(null);
+
+  const TOTAL_STEPS = 5;
+  const progress = Math.round((step / (TOTAL_STEPS - 1)) * 100);
+
+  useEffect(() => { nomeRef.current?.focus(); }, []);
+
+  function goTo(next: number, dir: "right" | "left" = "right") {
+    if (animating) return;
+    setSlideDir(dir);
+    setAnimating(true);
+    setTimeout(() => {
+      setStep(next);
+      setAnimating(false);
+    }, 220);
+  }
+
+  async function finalize() {
+    setSaving(true);
+    try {
+      await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(lead),
+      });
+    } catch { /* silencioso — não bloqueia o usuário */ }
+    setSaving(false);
+    goTo(4);
+  }
+
+  const side = SIDE_CONTENT[Math.min(step, SIDE_CONTENT.length - 1)];
+
+  return (
+    <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col md:flex-row">
+
+      {/* ── painel esquerdo (desktop) ─────────────────────────────────────── */}
+      <div className="hidden md:flex md:w-1/2 lg:w-[55%] flex-col justify-between px-12 py-12 border-r border-zinc-800 relative overflow-hidden">
+        {/* Fundo decorativo */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/30 via-transparent to-violet-950/20 pointer-events-none" />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-16">
+            <div className="h-10 w-10 rounded-xl overflow-hidden">
+              <Image src="/logo.png" alt="IBANK" width={200} height={200}
+                className="h-full w-full object-cover" style={{ objectPosition: "50% 48%" }} priority />
+            </div>
+            <span className="font-bold text-lg tracking-tight">IBANK</span>
+          </div>
+
+          <div key={step} className="transition-all duration-300">
+            <h2 className="text-3xl lg:text-4xl font-bold leading-tight mb-4 text-white">
+              {side.headline}
+            </h2>
+            <p className="text-zinc-400 text-base leading-relaxed mb-10">{side.sub}</p>
+
+            <div className="grid grid-cols-1 gap-3">
+              {side.stats.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div key={s.label} className="flex items-center gap-3 bg-zinc-900/60 border border-zinc-800/60 rounded-xl px-4 py-3">
+                    <Icon className={cn("h-5 w-5 shrink-0", s.color)} />
+                    <span className="text-sm text-zinc-300 font-medium">{s.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Depoimento fixo no rodapé */}
+        <div className="relative z-10 mt-12">
+          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-5">
+            <div className="flex gap-0.5 mb-2">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              ))}
+            </div>
+            <p className="text-sm text-zinc-300 leading-relaxed">
+              &ldquo;Finalmente tenho controle real da minha carteira. O cálculo de IR automático me
+              salvou muito tempo na declaração.&rdquo;
+            </p>
+            <p className="text-xs text-zinc-500 mt-2 font-medium">— Investidor IBANK</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── painel direito — formulário ───────────────────────────────────── */}
+      <div className="flex-1 flex flex-col px-5 py-8 md:px-10 md:py-12 max-w-lg mx-auto w-full md:max-w-none md:mx-0">
+
+        {/* Mobile: logo */}
+        <div className="flex items-center gap-2 mb-8 md:hidden">
+          <div className="h-8 w-8 rounded-lg overflow-hidden">
+            <Image src="/logo.png" alt="IBANK" width={200} height={200}
+              className="h-full w-full object-cover" style={{ objectPosition: "50% 48%" }} />
+          </div>
+          <span className="font-bold text-base tracking-tight">IBANK</span>
+        </div>
+
+        {/* Barra de progresso */}
+        {step < 4 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-zinc-500 font-medium">Etapa {step + 1} de {TOTAL_STEPS - 1}</span>
+              <span className="text-xs text-zinc-500 font-medium">{progress}%</span>
+            </div>
+            <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Conteúdo animado */}
+        <div
+          className={cn(
+            "flex-1 flex flex-col transition-all duration-220",
+            animating
+              ? slideDir === "right"
+                ? "-translate-x-8 opacity-0"
+                : "translate-x-8 opacity-0"
+              : "translate-x-0 opacity-100",
+          )}
+        >
+          {/* ETAPA 0 — Nome */}
+          {step === 0 && (
+            <FormStep
+              title="Olá! Como podemos te chamar?"
+              subtitle="Vamos personalizar sua experiência com o IBANK."
+            >
+              <input
+                ref={nomeRef}
+                type="text"
+                placeholder="Seu nome"
+                value={lead.nome}
+                onChange={(e) => setLead({ ...lead, nome: e.target.value })}
+                onKeyDown={(e) => { if (e.key === "Enter" && lead.nome.trim().length >= 2) goTo(1); }}
+                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3.5 text-base placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-colors"
+                autoComplete="given-name"
+              />
+              <NextButton disabled={lead.nome.trim().length < 2} onClick={() => goTo(1)}>
+                Continuar
+              </NextButton>
+            </FormStep>
+          )}
+
+          {/* ETAPA 1 — WhatsApp */}
+          {step === 1 && (
+            <FormStep
+              title={`Ótimo, ${lead.nome.split(" ")[0]}! Qual é o seu WhatsApp?`}
+              subtitle="Usamos apenas para liberar seu acesso. Sem spam."
+            >
+              <div className="flex items-center bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30 transition-colors">
+                <span className="px-4 text-zinc-500 text-sm font-medium border-r border-zinc-700 py-3.5 shrink-0">+55</span>
+                <input
+                  ref={waRef}
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="(11) 99999-9999"
+                  value={lead.whatsapp}
+                  onChange={(e) => setLead({ ...lead, whatsapp: e.target.value.replace(/\D/g, "") })}
+                  onKeyDown={(e) => { if (e.key === "Enter" && lead.whatsapp.length >= 10) goTo(2); }}
+                  className="flex-1 bg-transparent px-4 py-3.5 text-base placeholder:text-zinc-600 focus:outline-none"
+                  autoComplete="tel"
+                  maxLength={11}
+                />
+              </div>
+              <p className="text-xs text-zinc-600 flex items-center gap-1.5">
+                <Shield className="h-3 w-3" /> Seus dados ficam apenas conosco
+              </p>
+              <div className="flex gap-3 mt-2">
+                <BackButton onClick={() => goTo(0, "left")} />
+                <NextButton disabled={lead.whatsapp.length < 10} onClick={() => goTo(2)} className="flex-1">
+                  Continuar
+                </NextButton>
+              </div>
+            </FormStep>
+          )}
+
+          {/* ETAPA 2 — Objetivo */}
+          {step === 2 && (
+            <FormStep
+              title="Qual é o seu principal objetivo?"
+              subtitle="Isso define sua carteira ideal e como a ferramenta vai te ajudar."
+            >
+              <div className="flex flex-col gap-3">
+                {GOAL_OPTIONS.map((g) => {
+                  const Icon = g.icon;
+                  const selected = lead.objetivo === g.id;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => {
+                        setLead({ ...lead, objetivo: g.id });
+                        setTimeout(() => goTo(3), 180);
+                      }}
+                      className={cn(
+                        "flex items-center gap-4 rounded-xl border px-5 py-4 text-left transition-all duration-150 active:scale-[0.98]",
+                        selected ? g.color : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-600",
+                      )}
+                    >
+                      <Icon className={cn("h-5 w-5 shrink-0", selected ? "" : "text-zinc-500")} />
+                      <div>
+                        <p className={cn("text-sm font-semibold", selected ? "" : "text-zinc-200")}>{g.label}</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">{g.tagline}</p>
+                      </div>
+                      {selected && <Check className="h-4 w-4 ml-auto shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <BackButton onClick={() => goTo(1, "left")} className="mt-2" />
+            </FormStep>
+          )}
+
+          {/* ETAPA 3 — Aporte */}
+          {step === 3 && (
+            <FormStep
+              title="Quanto você investe por mês hoje?"
+              subtitle="Nos ajuda a entender em que fase você está. Não precisa ser exato."
+            >
+              <div className="flex flex-col gap-2">
+                {APORTE_OPTIONS.map((a) => {
+                  const selected = lead.aporte === a.id;
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => {
+                        setLead({ ...lead, aporte: a.id });
+                        setTimeout(() => finalize(), 180);
+                      }}
+                      className={cn(
+                        "flex items-center justify-between rounded-xl border px-5 py-3.5 text-sm font-medium text-left transition-all duration-150 active:scale-[0.98]",
+                        selected
+                          ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-400"
+                          : "border-zinc-800 bg-zinc-900/60 text-zinc-200 hover:border-zinc-600",
+                      )}
+                    >
+                      <span>{a.label}</span>
+                      {saving && selected && (
+                        <span className="text-xs text-zinc-500 animate-pulse">Salvando…</span>
+                      )}
+                      {selected && !saving && <Check className="h-4 w-4 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <BackButton onClick={() => goTo(2, "left")} className="mt-2" />
+            </FormStep>
+          )}
+
+          {/* ETAPA 4 — Preços */}
+          {step === 4 && (
+            <div className="flex-1 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-2">
+                  Perfeito, {lead.nome.split(" ")[0]}!
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
+                  Escolha seu plano e comece hoje.
+                </h2>
+                <p className="text-zinc-400 text-sm mt-2">
+                  Acesso imediato após confirmação do pagamento via Pix.
+                </p>
+              </div>
+
+              {/* Features resumidas */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { icon: TrendingUp,    label: "Carteira inteligente" },
+                  { icon: Landmark,      label: "IR automático" },
+                  { icon: CalendarCheck, label: "Proventos" },
+                  { icon: BarChart2,     label: "Rentabilidade vs CDI" },
+                  { icon: Wallet,        label: "Controle de cartão" },
+                  { icon: Target,        label: "Metas e planejamento" },
+                ].map((f) => {
+                  const Icon = f.icon;
+                  return (
+                    <div key={f.label} className="flex items-center gap-2 text-xs text-zinc-400">
+                      <Icon className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      {f.label}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Planos */}
+              <div className="flex flex-col gap-3">
+                {/* Assinante */}
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-lg">Assinante</p>
+                      <p className="text-xs text-zinc-500">App completo sem bot</p>
+                    </div>
+                    <p className="text-2xl font-bold tabular-nums">
+                      R$ 30<span className="text-sm font-medium text-zinc-500">/mês</span>
+                    </p>
+                  </div>
+                  <ul className="space-y-1.5 text-sm text-zinc-400">
+                    {["Dashboard e cartão", "Planejamento e metas", "Investimentos e proventos", "IR e rentabilidade"].map((t) => (
+                      <li key={t} className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-emerald-500 shrink-0" /> {t}
+                      </li>
+                    ))}
+                  </ul>
+                  <a
+                    href={whatsappUrl(lead, "assinante")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors touch-manipulation"
+                  >
+                    <MessageCircle className="h-4 w-4" /> Quero Assinante — R$ 30/mês
+                  </a>
+                </div>
+
+                {/* Completo */}
+                <div className="rounded-2xl border-2 border-violet-500/40 bg-zinc-900/60 p-5 space-y-4 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 bg-violet-500 text-[10px] font-bold text-white px-3 py-1 rounded-bl-xl tracking-wide">
+                    RECOMENDADO
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-lg">Completo</p>
+                      <p className="text-xs text-zinc-500">App + IBANK Bot com IA</p>
+                    </div>
+                    <p className="text-2xl font-bold tabular-nums">
+                      R$ 45<span className="text-sm font-medium text-zinc-500">/mês</span>
+                    </p>
+                  </div>
+                  <ul className="space-y-1.5 text-sm text-zinc-400">
+                    {["Tudo do Assinante", "Bot de carteira e FIIs", "Pesquisa de mercado com IA", "Análise de ações em tempo real"].map((t) => (
+                      <li key={t} className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-violet-400 shrink-0" /> {t}
+                      </li>
+                    ))}
+                  </ul>
+                  <a
+                    href={whatsappUrl(lead, "completo")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3.5 text-sm font-semibold text-white hover:bg-violet-500 transition-colors touch-manipulation"
+                  >
+                    <Bot className="h-4 w-4" /> Quero Completo — R$ 45/mês
+                  </a>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-center text-zinc-600 leading-relaxed">
+                Acesso liberado após confirmação do Pix. Estimativas de renda não são recomendação
+                de investimento (CVM). Cancelamento a qualquer momento.
+              </p>
+
+              <div className="text-center">
+                <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
+                  Já sou assinante — entrar
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── sub-componentes ───────────────────────────────────────────────────────────
+function FormStep({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div className="flex-1 flex flex-col gap-5">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold leading-tight text-white">{title}</h1>
+        <p className="text-zinc-400 text-sm mt-2 leading-relaxed">{subtitle}</p>
+      </div>
+      <div className="flex flex-col gap-3">{children}</div>
+    </div>
+  );
+}
+
+function NextButton({
+  children, disabled, onClick, className,
+}: {
+  children: React.ReactNode; disabled?: boolean; onClick: () => void; className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold transition-all duration-150 touch-manipulation",
+        "bg-emerald-600 text-white hover:bg-emerald-500 active:scale-[0.98]",
+        "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600",
+        className,
+      )}
+    >
+      {children} <ArrowRight className="h-4 w-4" />
+    </button>
+  );
+}
+
+function BackButton({ onClick, className }: { onClick: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors py-1",
+        className,
+      )}
+    >
+      <ChevronLeft className="h-4 w-4" /> Voltar
+    </button>
+  );
+}

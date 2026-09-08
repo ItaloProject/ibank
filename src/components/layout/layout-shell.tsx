@@ -14,7 +14,7 @@ import { SessionTimeout } from "@/components/session-timeout";
 import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
 
-const PUBLIC_PATHS = new Set(["/vender"]);
+const PUBLIC_PATHS = new Set(["/vender", "/comecar"]);
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
