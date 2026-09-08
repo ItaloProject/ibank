@@ -123,7 +123,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
       </div>
 
       {/* Nav com grupos */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2 space-y-0">
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2 space-y-0 scrollbar-thin-dark">
         {NAV_GROUPS.map((group, gi) => {
           const visibleItems = group.items.filter((item) => isVisible(item.href));
           if (visibleItems.length === 0) return null;
