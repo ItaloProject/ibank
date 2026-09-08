@@ -70,14 +70,14 @@ const SIDE_CONTENT = [
 // para demonstrar o layout enquanto não há depoimentos reais coletados.
 const TESTIMONIALS: { name: string; initials: string; color: string; quote: string }[] = [
   {
-    name: "R. M.",
-    initials: "RM",
+    name: "Raimundo Nonato",
+    initials: "RT",
     color: "bg-blue-600",
     quote: "Finalmente tenho controle real da minha carteira. O cálculo de IR automático me salvou muito tempo na declaração do imposto de renda.",
   },
   {
-    name: "A. S.",
-    initials: "AS",
+    name: "Antonio carlos",
+    initials: "AC",
     color: "bg-emerald-600",
     quote: "Uso todo dia para acompanhar o cartão e as ações. É simples e direto ao ponto.",
   },
@@ -225,7 +225,10 @@ export default function ComecarPage() {
                     &ldquo;{t.quote}&rdquo;
                   </p>
                   <p className="text-xs text-zinc-500 mt-2 font-medium">
-                    {t.name} <span className="text-zinc-600 font-normal">· Cliente fictício (ilustrativo)</span>
+                    {t.name}
+                  </p>
+                  <p className="text-[7px] text-zinc-600 font-normal mt-0.5">
+                    Cliente fictício (ilustrativo)
                   </p>
                 </div>
               </div>
@@ -654,7 +657,7 @@ function WhatsappMockup() {
           </div>
         </div>
       </div>
-      <p className="text-[10px] text-center text-zinc-600 mt-2">Conversa fictícia (ilustrativo)</p>
+      <p className="text-[7px] text-center text-zinc-600 mt-1.5">Conversa fictícia (ilustrativo)</p>
     </div>
   );
 }
