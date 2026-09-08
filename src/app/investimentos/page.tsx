@@ -1519,13 +1519,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
       </div>
 
       {accounts.length === 0 && stockTrades.length === 0 ? (
-        <Card className="text-center py-16">
-          <CardContent>
-            <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Nenhum investimento cadastrado.</p>
-            <p className="text-sm text-muted-foreground">Crie uma conta ou registre uma compra de ações.</p>
-          </CardContent>
-        </Card>
+        <div className="text-center py-16 px-4">
+          <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Nenhum investimento cadastrado.</p>
+          <p className="text-sm text-muted-foreground">Crie uma conta ou registre uma compra de ações.</p>
+        </div>
       ) : (
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); localStorage.setItem("ibank_inv_tab", v); }}>
           <TabsList className="flex h-auto flex-wrap gap-1">
@@ -1543,91 +1541,80 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
           </TabsList>
 
           {/* ── Aba Total ── */}
-          <TabsContent value="total" className="space-y-6 mt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="border-2 border-primary/20">
-                <CardHeader className="pb-2">
-                  <CardDescription>Patrimônio total</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-primary tabular-nums">{formatCurrency(grandTotal)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">renda fixa + ações</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardDescription>Renda fixa</CardDescription></CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-green-600 tabular-nums">{formatCurrency(totalFixedIncome)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{accounts.length} conta{accounts.length !== 1 ? "s" : ""}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardDescription>Ações</CardDescription></CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-blue-600 tabular-nums">{formatCurrency(totalStocks)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{stockPositions.length} ativo{stockPositions.length !== 1 ? "s" : ""}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardDescription>Total de rendimentos</CardDescription></CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalYields)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">depositado: {formatCurrency(totalDeposited)}</p>
-                </CardContent>
-              </Card>
+          <TabsContent value="total" className="mt-4">
+            {/* Resumo flat — divide-x scroll horizontal */}
+            <div className="flex overflow-x-auto border-b">
+              <div className="px-4 py-3 flex-1 min-w-[110px] border-r shrink-0">
+                <p className="text-xs text-muted-foreground">Patrimônio total</p>
+                <p className="text-xl font-bold text-primary tabular-nums">{formatCurrency(grandTotal)}</p>
+                <p className="text-xs text-muted-foreground">renda fixa + ações</p>
+              </div>
+              <div className="px-4 py-3 flex-1 min-w-[100px] border-r shrink-0">
+                <p className="text-xs text-muted-foreground">Renda fixa</p>
+                <p className="text-xl font-bold text-green-600 tabular-nums">{formatCurrency(totalFixedIncome)}</p>
+                <p className="text-xs text-muted-foreground">{accounts.length} conta{accounts.length !== 1 ? "s" : ""}</p>
+              </div>
+              <div className="px-4 py-3 flex-1 min-w-[90px] border-r shrink-0">
+                <p className="text-xs text-muted-foreground">Ações</p>
+                <p className="text-xl font-bold text-blue-600 tabular-nums">{formatCurrency(totalStocks)}</p>
+                <p className="text-xs text-muted-foreground">{stockPositions.length} ativo{stockPositions.length !== 1 ? "s" : ""}</p>
+              </div>
+              <div className="px-4 py-3 flex-1 min-w-[90px] shrink-0">
+                <p className="text-xs text-muted-foreground">Rendimentos</p>
+                <p className="text-xl font-bold tabular-nums">{formatCurrency(totalYields)}</p>
+                <p className="text-xs text-muted-foreground">dep. {formatCurrency(totalDeposited)}</p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Contas de renda fixa</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {accountBalances.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma conta cadastrada.</p>
-                  ) : (
-                    accountBalances.map(({ account, balance }) => (
-                      <div key={account.id}
-                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/40 cursor-pointer"
-                        onClick={() => setActiveTab(account.id)}>
-                        <div>
-                          <p className="font-medium text-sm">{account.name}</p>
-                          {account.institution && (
-                            <p className="text-xs text-muted-foreground">{account.institution}</p>
-                          )}
-                        </div>
-                        <p className="font-semibold text-green-600 tabular-nums">{formatCurrency(balance)}</p>
+            {/* Contas de renda fixa — flat lista divide-y */}
+            <div className="border-b">
+              <div className="px-4 py-3 border-b bg-muted/30">
+                <p className="text-sm font-semibold">Contas de renda fixa</p>
+              </div>
+              {accountBalances.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6 px-4">Nenhuma conta cadastrada.</p>
+              ) : (
+                <div className="divide-y">
+                  {accountBalances.map(({ account, balance }) => (
+                    <div key={account.id}
+                      className="px-4 py-3 flex items-center justify-between hover:bg-muted/40 cursor-pointer"
+                      onClick={() => setActiveTab(account.id)}>
+                      <div className="min-w-0 mr-4">
+                        <p className="font-medium text-sm">{account.name}</p>
+                        {account.institution && (
+                          <p className="text-xs text-muted-foreground">{account.institution}</p>
+                        )}
                       </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Carteira de ações</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {stockPositions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma ação registrada.</p>
-                  ) : (
-                    stockPositions.map((p) => (
-                      <div key={p.ticker}
-                        className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/40 cursor-pointer"
-                        onClick={() => setActiveTab("acoes")}>
-                        <div>
-                          <p className="font-bold text-sm">{p.ticker}</p>
-                          <p className="text-xs text-muted-foreground">{p.quantity} ações · média {formatCurrency(p.avgPrice)}</p>
-                        </div>
-                        <p className="font-semibold text-blue-600 tabular-nums">{formatCurrency(p.totalInvested)}</p>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
+                      <p className="font-semibold text-green-600 tabular-nums shrink-0">{formatCurrency(balance)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Rentabilidade via dialog (i) */}
+            {/* Carteira de ações — flat lista divide-y */}
+            <div>
+              <div className="px-4 py-3 border-b bg-muted/30">
+                <p className="text-sm font-semibold">Carteira de ações</p>
+              </div>
+              {stockPositions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6 px-4">Nenhuma ação registrada.</p>
+              ) : (
+                <div className="divide-y">
+                  {stockPositions.map((p) => (
+                    <div key={p.ticker}
+                      className="px-4 py-3 flex items-center justify-between hover:bg-muted/40 cursor-pointer"
+                      onClick={() => setActiveTab("acoes")}>
+                      <div className="min-w-0 mr-4">
+                        <p className="font-bold text-sm">{p.ticker}</p>
+                        <p className="text-xs text-muted-foreground">{p.quantity} ações · média {formatCurrency(p.avgPrice)}</p>
+                      </div>
+                      <p className="font-semibold text-blue-600 tabular-nums shrink-0">{formatCurrency(p.totalInvested)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           {/* ── Abas por conta ── */}
@@ -1750,61 +1737,53 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                       </div>
                     </div>
                   ) : (
-                    /* ── Cards conta normal ── */
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Card>
-                        <CardHeader className="pb-2"><CardDescription>Saldo atual</CardDescription></CardHeader>
-                        <CardContent>
-                          <p className="text-2xl font-bold text-green-600 tabular-nums">{formatCurrency(computedBalance)}</p>
-                          {account.valor_liquido != null && (
-                            <div className="mt-1.5 space-y-0.5">
-                              <p className="text-sm font-semibold text-blue-600 tabular-nums">{formatCurrency(account.valor_liquido)} líquido</p>
-                              {computedBalance > account.valor_liquido && (
-                                <p className="text-xs text-muted-foreground">IR/taxas est. {formatCurrency(computedBalance - account.valor_liquido)}</p>
-                              )}
-                            </div>
-                          )}
-                          {account.institution && <p className="text-xs text-muted-foreground mt-1">{account.institution}</p>}
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2"><CardDescription>Total depositado</CardDescription></CardHeader>
-                        <CardContent>
-                          <p className="text-2xl font-bold tabular-nums">
-                            {formatCurrency(accountInvestments.filter((i) => i.type === "deposito").reduce((s, i) => s + i.amount, 0))}
-                          </p>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardHeader className="pb-2"><CardDescription>Total de rendimentos</CardDescription></CardHeader>
-                        <CardContent>
-                          <p className="text-2xl font-bold text-blue-600 tabular-nums">
-                            {formatCurrency(accountInvestments.filter((i) => i.type === "rendimento").reduce((s, i) => s + i.amount, 0))}
-                          </p>
-                        </CardContent>
-                      </Card>
+                    /* ── Cards conta normal → flat divide-x ── */
+                    <div className="flex overflow-x-auto border-y divide-x">
+                      <div className="px-4 py-3 flex-1 min-w-[130px] shrink-0">
+                        <p className="text-xs text-muted-foreground">Saldo atual</p>
+                        <p className="text-xl font-bold text-green-600 tabular-nums">{formatCurrency(computedBalance)}</p>
+                        {account.valor_liquido != null && (
+                          <div className="mt-1 space-y-0.5">
+                            <p className="text-sm font-semibold text-blue-600 tabular-nums">{formatCurrency(account.valor_liquido)} líquido</p>
+                            {computedBalance > account.valor_liquido && (
+                              <p className="text-xs text-muted-foreground">IR/taxas est. {formatCurrency(computedBalance - account.valor_liquido)}</p>
+                            )}
+                          </div>
+                        )}
+                        {account.institution && <p className="text-xs text-muted-foreground mt-1">{account.institution}</p>}
+                      </div>
+                      <div className="px-4 py-3 flex-1 min-w-[110px] shrink-0">
+                        <p className="text-xs text-muted-foreground">Total depositado</p>
+                        <p className="text-xl font-bold tabular-nums">
+                          {formatCurrency(accountInvestments.filter((i) => i.type === "deposito").reduce((s, i) => s + i.amount, 0))}
+                        </p>
+                      </div>
+                      <div className="px-4 py-3 flex-1 min-w-[110px] shrink-0">
+                        <p className="text-xs text-muted-foreground">Total de rendimentos</p>
+                        <p className="text-xl font-bold text-blue-600 tabular-nums">
+                          {formatCurrency(accountInvestments.filter((i) => i.type === "rendimento").reduce((s, i) => s + i.amount, 0))}
+                        </p>
+                      </div>
                     </div>
                   )}
 
                   {/* ── TURBO: histórico mensal ── */}
                   {account.is_turbo && (
                     <>
-                      <Card>
-                        <CardHeader>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <CardTitle>Evolução mensal TURBO</CardTitle>
-                              <CardDescription>Bruto, rendimento e líquido por mês</CardDescription>
-                            </div>
-                            <Button size="sm" onClick={() => {
-                              setTurboMonthForm({ month: format(new Date(), "yyyy-MM"), total_bruto: "", rendimento: "", valor_liquido: "" });
-                              setTurboMonthOpen(true);
-                            }}>
-                              <Plus className="h-4 w-4 mr-1" />Registrar mês
-                            </Button>
+                      <div className="border-t">
+                        <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold">Evolução mensal TURBO</p>
+                            <p className="text-xs text-muted-foreground">Bruto, rendimento e líquido por mês</p>
                           </div>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setTurboMonthForm({ month: format(new Date(), "yyyy-MM"), total_bruto: "", rendimento: "", valor_liquido: "" });
+                            setTurboMonthOpen(true);
+                          }}>
+                            <Plus className="h-3.5 w-3.5 mr-1" />Registrar mês
+                          </Button>
+                        </div>
+                        <div className="px-4 space-y-6 py-4">
                           {turboHistory.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-6">
                               Nenhum mês registrado ainda. Clique em &quot;Registrar mês&quot; para começar.
@@ -1997,15 +1976,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                                 )}
 
                                 {/* Tabela resumo */}
-                                <div className="overflow-x-auto">
-                                  <table className="w-full text-sm">
+                                <div className="overflow-x-auto -mx-4">
+                                  <table className="min-w-full text-sm">
                                     <thead>
                                       <tr className="border-b text-muted-foreground text-xs uppercase">
-                                        <th className="text-left py-2 pr-4 font-medium">Mês</th>
-                                        <th className="text-right py-2 pr-4 font-medium">Total bruto</th>
-                                        <th className="text-right py-2 pr-4 font-medium">Rendimento</th>
-                                        <th className="text-right py-2 pr-4 font-medium">Valor líquido</th>
-                                        <th className="py-2 w-8" />
+                                        <th className="text-left py-2 px-4 font-medium whitespace-nowrap">Mês</th>
+                                        <th className="text-right py-2 px-4 font-medium whitespace-nowrap">Total bruto</th>
+                                        <th className="text-right py-2 px-4 font-medium whitespace-nowrap">Rendimento</th>
+                                        <th className="text-right py-2 px-4 font-medium whitespace-nowrap">Valor líquido</th>
+                                        <th className="py-2 px-2 w-8" />
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -2015,16 +1994,18 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                                           className={`border-b last:border-0 transition-colors cursor-pointer ${r.month === selectedTurboMonth ? "bg-indigo-50 dark:bg-indigo-950/30" : "hover:bg-muted/40"}`}
                                           onClick={() => setSelectedTurboMonth((prev) => prev === r.month ? null : r.month)}
                                         >
-                                          <td className="py-2.5 pr-4 font-medium flex items-center gap-2">
-                                            {r.month === selectedTurboMonth && <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500" />}
-                                            {new Date(r.month + "-15").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                                          <td className="py-2.5 px-4 font-medium whitespace-nowrap">
+                                            <span className="flex items-center gap-2">
+                                              {r.month === selectedTurboMonth && <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />}
+                                              {new Date(r.month + "-15").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                                            </span>
                                           </td>
-                                          <td className="py-2.5 pr-4 text-right tabular-nums text-green-600 font-semibold">{formatCurrency(r.total_bruto)}</td>
-                                          <td className="py-2.5 pr-4 text-right tabular-nums text-amber-600 font-semibold">+{formatCurrency(r.rendimento)}</td>
-                                          <td className="py-2.5 pr-4 text-right tabular-nums text-blue-600 font-semibold">
+                                          <td className="py-2.5 px-4 text-right tabular-nums text-green-600 font-semibold whitespace-nowrap">{formatCurrency(r.total_bruto)}</td>
+                                          <td className="py-2.5 px-4 text-right tabular-nums text-amber-600 font-semibold whitespace-nowrap">+{formatCurrency(r.rendimento)}</td>
+                                          <td className="py-2.5 px-4 text-right tabular-nums text-blue-600 font-semibold whitespace-nowrap">
                                             {r.valor_liquido != null ? formatCurrency(r.valor_liquido) : "—"}
                                           </td>
-                                          <td className="py-2.5 text-right">
+                                          <td className="py-2.5 px-2 text-right">
                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
                                               onClick={(e) => { e.stopPropagation(); handleDeleteTurboRecord(r.id); }}>
                                               <Trash2 className="h-3.5 w-3.5" />
@@ -2035,14 +2016,14 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                                     </tbody>
                                     <tfoot>
                                       <tr className="border-t-2">
-                                        <td className="py-2 pr-4 text-xs text-muted-foreground font-semibold">Totais</td>
-                                        <td className="py-2 pr-4 text-right tabular-nums font-bold text-green-700">
+                                        <td className="py-2 px-4 text-xs text-muted-foreground font-semibold whitespace-nowrap">Totais</td>
+                                        <td className="py-2 px-4 text-right tabular-nums font-bold text-green-700 whitespace-nowrap">
                                           {formatCurrency(turboHistory[turboHistory.length - 1]?.total_bruto ?? 0)}
                                         </td>
-                                        <td className="py-2 pr-4 text-right tabular-nums font-bold text-amber-700">
+                                        <td className="py-2 px-4 text-right tabular-nums font-bold text-amber-700 whitespace-nowrap">
                                           +{formatCurrency(turboHistory.reduce((s, r) => s + r.rendimento, 0))}
                                         </td>
-                                        <td className="py-2 pr-4 text-right tabular-nums font-bold text-blue-700">
+                                        <td className="py-2 px-4 text-right tabular-nums font-bold text-blue-700 whitespace-nowrap">
                                           {turboHistory[turboHistory.length - 1]?.valor_liquido != null
                                             ? formatCurrency(turboHistory[turboHistory.length - 1].valor_liquido!)
                                             : "—"}
@@ -2055,8 +2036,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                               </>
                             );
                           })()}
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
 
                       {/* Dialog: registrar mês TURBO */}
                       <Dialog open={turboMonthOpen} onOpenChange={setTurboMonthOpen}>
@@ -2110,75 +2091,71 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
 
                     return (
                       <>
-                        {/* Card rendimento mensal */}
-                        <Card>
-                          <CardHeader>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <CardTitle>Rendimentos mensais</CardTitle>
-                                <CardDescription>
-                                  {rendData.length > 0
-                                    ? `${rendData.length} mês${rendData.length !== 1 ? "es" : ""} · total ${formatCurrency(totalRend)}`
-                                    : "Registre o rendimento de cada mês"}
-                                </CardDescription>
-                              </div>
-                              <Button size="sm" onClick={() => {
-                                setRendMonthForm({ month: format(new Date(), "yyyy-MM"), amount: "", description: "" });
-                                setRendMonthOpen(true);
-                              }}>
-                                <Plus className="h-4 w-4 mr-1" />Registrar rendimento
-                              </Button>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            {rendData.length === 0 ? (
-                              <p className="text-sm text-muted-foreground text-center py-8">
-                                Nenhum rendimento registrado ainda.
+                        {/* Rendimentos mensais — flat section */}
+                        <div className="border-t">
+                          <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-semibold">Rendimentos mensais</p>
+                              <p className="text-xs text-muted-foreground">
+                                {rendData.length > 0
+                                  ? `${rendData.length} mês${rendData.length !== 1 ? "es" : ""} · total ${formatCurrency(totalRend)}`
+                                  : "Registre o rendimento de cada mês"}
                               </p>
-                            ) : (
-                              <div className="space-y-4">
-                                {/* mini-stats */}
-                                <div className="grid grid-cols-3 gap-3">
-                                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 p-3 text-center">
-                                    <p className="text-xs text-amber-600 mb-1">Último mês</p>
-                                    <p className="text-base font-bold text-amber-700 tabular-nums">+{formatCurrency(lastRend)}</p>
-                                  </div>
-                                  <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 p-3 text-center">
-                                    <p className="text-xs text-blue-600 mb-1">Total acumulado</p>
-                                    <p className="text-base font-bold text-blue-700 tabular-nums">+{formatCurrency(totalRend)}</p>
-                                  </div>
-                                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 p-3 text-center">
-                                    <p className="text-xs text-emerald-600 mb-1">Média mensal</p>
-                                    <p className="text-base font-bold text-emerald-700 tabular-nums">+{formatCurrency(totalRend / rendData.length)}</p>
-                                  </div>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={() => {
+                              setRendMonthForm({ month: format(new Date(), "yyyy-MM"), amount: "", description: "" });
+                              setRendMonthOpen(true);
+                            }}>
+                              <Plus className="h-3.5 w-3.5 mr-1" />Registrar rendimento
+                            </Button>
+                          </div>
+                          {rendData.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-8 px-4">
+                              Nenhum rendimento registrado ainda.
+                            </p>
+                          ) : (
+                            <div className="px-4 py-4 space-y-4">
+                              {/* mini-stats flat */}
+                              <div className="flex overflow-x-auto divide-x border rounded-xl overflow-hidden">
+                                <div className="px-4 py-3 flex-1 min-w-[90px] text-center shrink-0">
+                                  <p className="text-xs text-amber-600 mb-1">Último mês</p>
+                                  <p className="text-sm font-bold text-amber-700 tabular-nums">+{formatCurrency(lastRend)}</p>
                                 </div>
-                                {/* gráfico de barras */}
-                                <ResponsiveContainer width="100%" height={200}>
-                                  <BarChart data={rendData} barCategoryGap="35%" barGap={4}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                                    <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                                    <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
-                                    <Tooltip
-                                      content={({ active, payload, label }) => {
-                                        if (!active || !payload?.length) return null;
-                                        return (
-                                          <div className="bg-white dark:bg-zinc-900 border rounded-xl shadow-lg p-3 min-w-[160px]">
-                                            <p className="text-xs font-bold border-b pb-1.5 mb-2">{label}</p>
-                                            <div className="flex justify-between text-sm gap-4">
-                                              <span className="text-muted-foreground">Rendimento</span>
-                                              <span className="font-bold text-amber-600 tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
-                                            </div>
-                                          </div>
-                                        );
-                                      }}
-                                    />
-                                    <Bar dataKey="Rendimento" fill="#f59e0b" radius={[6, 6, 0, 0]} />
-                                  </BarChart>
-                                </ResponsiveContainer>
+                                <div className="px-4 py-3 flex-1 min-w-[100px] text-center shrink-0">
+                                  <p className="text-xs text-blue-600 mb-1">Total acumulado</p>
+                                  <p className="text-sm font-bold text-blue-700 tabular-nums">+{formatCurrency(totalRend)}</p>
+                                </div>
+                                <div className="px-4 py-3 flex-1 min-w-[90px] text-center shrink-0">
+                                  <p className="text-xs text-emerald-600 mb-1">Média mensal</p>
+                                  <p className="text-sm font-bold text-emerald-700 tabular-nums">+{formatCurrency(totalRend / rendData.length)}</p>
+                                </div>
                               </div>
-                            )}
-                          </CardContent>
-                        </Card>
+                              {/* gráfico de barras */}
+                              <ResponsiveContainer width="100%" height={200}>
+                                <BarChart data={rendData} barCategoryGap="35%" barGap={4}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                  <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                                  <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
+                                  <Tooltip
+                                    content={({ active, payload, label }) => {
+                                      if (!active || !payload?.length) return null;
+                                      return (
+                                        <div className="bg-white dark:bg-zinc-900 border rounded-xl shadow-lg p-3 min-w-[160px]">
+                                          <p className="text-xs font-bold border-b pb-1.5 mb-2">{label}</p>
+                                          <div className="flex justify-between text-sm gap-4">
+                                            <span className="text-muted-foreground">Rendimento</span>
+                                            <span className="font-bold text-amber-600 tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
+                                          </div>
+                                        </div>
+                                      );
+                                    }}
+                                  />
+                                  <Bar dataKey="Rendimento" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          )}
+                        </div>
 
                         {/* Dialog registrar rendimento */}
                         <Dialog open={rendMonthOpen} onOpenChange={setRendMonthOpen}>
@@ -2217,14 +2194,14 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                           </DialogContent>
                         </Dialog>
 
-                        {/* Gráfico evolução do saldo */}
+                        {/* Gráfico evolução do saldo — flat section */}
                         {chartData.length > 1 && (
-                          <Card>
-                            <CardHeader>
-                              <CardTitle>Evolução do saldo</CardTitle>
-                              <CardDescription>Histórico acumulado — {account.name}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
+                          <div className="border-t">
+                            <div className="px-4 py-3 border-b bg-muted/30">
+                              <p className="text-sm font-semibold">Evolução do saldo</p>
+                              <p className="text-xs text-muted-foreground">Histórico acumulado — {account.name}</p>
+                            </div>
+                            <div className="px-4 py-4">
                               <ResponsiveContainer width="100%" height={220}>
                                 <AreaChart data={chartData}>
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -2235,52 +2212,50 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                                     fill="hsl(var(--primary) / 0.1)" strokeWidth={2} />
                                 </AreaChart>
                               </ResponsiveContainer>
-                            </CardContent>
-                          </Card>
+                            </div>
+                          </div>
                         )}
 
-                        {/* Histórico de movimentações */}
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>Histórico de movimentações</CardTitle>
-                            <CardDescription>{accountInvestments.length} registro{accountInvestments.length !== 1 ? "s" : ""}</CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            {accountInvestments.length === 0 ? (
-                              <p className="text-muted-foreground text-center py-8 text-sm">Nenhuma movimentação registrada.</p>
-                            ) : (
-                              <div className="space-y-2">
-                                {accountInvestments.map((inv) => {
-                                  const config = TYPE_CONFIG[inv.type];
-                                  const Icon = config.icon;
-                                  return (
-                                    <div key={inv.id}
-                                      className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <Icon className={`h-5 w-5 shrink-0 ${config.color}`} />
-                                        <div className="min-w-0">
-                                          <p className="font-medium text-sm truncate">{inv.description || config.label}</p>
-                                          <p className="text-xs text-muted-foreground">{formatDate(inv.date)}</p>
-                                        </div>
-                                        <Badge className={config.badgeClass}>{config.label}</Badge>
+                        {/* Histórico de movimentações — flat lista divide-y */}
+                        <div className="border-t">
+                          <div className="px-4 py-3 border-b bg-muted/30">
+                            <p className="text-sm font-semibold">Histórico de movimentações</p>
+                            <p className="text-xs text-muted-foreground">{accountInvestments.length} registro{accountInvestments.length !== 1 ? "s" : ""}</p>
+                          </div>
+                          {accountInvestments.length === 0 ? (
+                            <p className="text-muted-foreground text-center py-8 text-sm px-4">Nenhuma movimentação registrada.</p>
+                          ) : (
+                            <div className="divide-y">
+                              {accountInvestments.map((inv) => {
+                                const config = TYPE_CONFIG[inv.type];
+                                const Icon = config.icon;
+                                return (
+                                  <div key={inv.id}
+                                    className="px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                    <div className="flex items-center gap-3 min-w-0 mr-3">
+                                      <Icon className={`h-5 w-5 shrink-0 ${config.color}`} />
+                                      <div className="min-w-0">
+                                        <p className="font-medium text-sm">{inv.description || config.label}</p>
+                                        <p className="text-xs text-muted-foreground">{formatDate(inv.date)}</p>
                                       </div>
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        <p className={`font-semibold tabular-nums ${config.color}`}>
-                                          {inv.type === "retirada" ? "-" : "+"}{formatCurrency(inv.amount)}
-                                        </p>
-                                        <Button variant="ghost" size="icon"
-                                          className="text-muted-foreground hover:text-destructive"
-                                          onClick={() => handleDeleteInvestment(inv)}>
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
+                                      <Badge className={`${config.badgeClass} shrink-0`}>{config.label}</Badge>
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <p className={`font-semibold tabular-nums ${config.color}`}>
+                                        {inv.type === "retirada" ? "-" : "+"}{formatCurrency(inv.amount)}
+                                      </p>
+                                      <Button variant="ghost" size="icon"
+                                        className="text-muted-foreground hover:text-destructive"
+                                        onClick={() => handleDeleteInvestment(inv)}>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </>
                     );
                   })()}
@@ -2383,47 +2358,40 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
           </Dialog>
 
           {/* ── Aba Ações ── */}
-          <TabsContent value="acoes" className="space-y-6 mt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="pb-2"><CardDescription>Total investido em ações</CardDescription></CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-blue-600 tabular-nums">{formatCurrency(totalStocks)}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardDescription>Ativos na carteira</CardDescription></CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold tabular-nums">{stockPositions.length}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardDescription>Operações registradas</CardDescription></CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold tabular-nums">{stockTrades.length}</p>
-                </CardContent>
-              </Card>
+          <TabsContent value="acoes" className="mt-4">
+            {/* Summary flat row */}
+            <div className="flex overflow-x-auto border-b divide-x">
+              <div className="px-4 py-3 flex-1 min-w-[100px] shrink-0">
+                <p className="text-xs text-muted-foreground">Total em ações</p>
+                <p className="text-xl font-bold text-blue-600 tabular-nums">{formatCurrency(totalStocks)}</p>
+              </div>
+              <div className="px-4 py-3 flex-1 min-w-[80px] shrink-0">
+                <p className="text-xs text-muted-foreground">Ativos</p>
+                <p className="text-xl font-bold tabular-nums">{stockPositions.length}</p>
+              </div>
+              <div className="px-4 py-3 flex-1 min-w-[80px] shrink-0">
+                <p className="text-xs text-muted-foreground">Operações</p>
+                <p className="text-xl font-bold tabular-nums">{stockTrades.length}</p>
+              </div>
             </div>
 
             {stockPositions.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Posições atuais</CardTitle>
-                      <CardDescription>Clique no lápis individual ou atualize todas as cotações de uma vez</CardDescription>
-                    </div>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      const init: Record<string, string> = {};
-                      stockPositions.forEach((p) => { init[p.ticker] = quoteMap.has(p.ticker) ? String(quoteMap.get(p.ticker)) : ""; });
-                      setBulkPrices(init);
-                      setBulkQuoteOpen(true);
-                    }}>
-                      <TrendingUp className="h-4 w-4 mr-1.5" />Atualizar cotações
-                    </Button>
+              <div className="border-b">
+                <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">Posições atuais</p>
+                    <p className="text-xs text-muted-foreground">Clique no lápis para atualizar cotação individual</p>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const init: Record<string, string> = {};
+                    stockPositions.forEach((p) => { init[p.ticker] = quoteMap.has(p.ticker) ? String(quoteMap.get(p.ticker)) : ""; });
+                    setBulkPrices(init);
+                    setBulkQuoteOpen(true);
+                  }}>
+                    <TrendingUp className="h-3.5 w-3.5 mr-1" />Atualizar cotações
+                  </Button>
+                </div>
+                <div className="divide-y">
                   {stockPositions.map((p) => {
                     const curPrice = quoteMap.get(p.ticker);
                     const curValue = curPrice !== undefined ? curPrice * p.quantity : undefined;
@@ -2437,7 +2405,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                       Ação: "bg-blue-100 text-blue-800",
                     };
                     return (
-                      <div key={p.ticker} className="flex items-center justify-between p-3 rounded-lg border gap-3">
+                      <div key={p.ticker} className="px-4 py-3 flex items-center justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-bold">{p.ticker}</p>
@@ -2473,36 +2441,34 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                       </div>
                     );
                   })}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
-            {/* Evolução do portfólio */}
+            {/* Evolução do portfólio — flat section */}
             {portfolioSnapshots.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Evolução do portfólio</CardTitle>
-                      <CardDescription>Valor total vs. investido ao longo do tempo · {portfolioSnapshots.length} snapshot{portfolioSnapshots.length !== 1 ? "s" : ""}</CardDescription>
-                    </div>
-                    {(() => {
-                      const last = portfolioSnapshots[portfolioSnapshots.length - 1];
-                      const first = portfolioSnapshots[0];
-                      const gain = last.total - first.total;
-                      const gainPct = first.total > 0 ? (gain / first.total) * 100 : 0;
-                      return (
-                        <div className="text-right">
-                          <p className={`text-lg font-bold tabular-nums ${gain >= 0 ? "text-green-600" : "text-destructive"}`}>
-                            {gain >= 0 ? "+" : ""}{gainPct.toFixed(2)}%
-                          </p>
-                          <p className="text-xs text-muted-foreground">{gain >= 0 ? "+" : ""}{formatCurrency(gain)} no período</p>
-                        </div>
-                      );
-                    })()}
+              <div className="border-b">
+                <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">Evolução do portfólio</p>
+                    <p className="text-xs text-muted-foreground">Valor total vs. investido · {portfolioSnapshots.length} snapshot{portfolioSnapshots.length !== 1 ? "s" : ""}</p>
                   </div>
-                </CardHeader>
-                <CardContent>
+                  {(() => {
+                    const last = portfolioSnapshots[portfolioSnapshots.length - 1];
+                    const first = portfolioSnapshots[0];
+                    const gain = last.total - first.total;
+                    const gainPct = first.total > 0 ? (gain / first.total) * 100 : 0;
+                    return (
+                      <div className="text-right">
+                        <p className={`text-sm font-bold tabular-nums ${gain >= 0 ? "text-green-600" : "text-destructive"}`}>
+                          {gain >= 0 ? "+" : ""}{gainPct.toFixed(2)}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">{gain >= 0 ? "+" : ""}{formatCurrency(gain)} no período</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+                <div className="px-4 py-4">
                   <ResponsiveContainer width="100%" height={240}>
                     <AreaChart data={portfolioSnapshots.map((s) => ({
                       data: new Date(s.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
@@ -2552,8 +2518,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                       <Area type="monotone" dataKey="Valor atual" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gradTotal)" />
                     </AreaChart>
                   </ResponsiveContainer>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
             {/* Dialog: atualizar cotações em lote */}
@@ -2605,20 +2571,18 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
             </Dialog>
 
             {sectorData.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle>Diversificação por setor</CardTitle>
-                      <CardDescription>Distribuição do valor atual da carteira</CardDescription>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Total</p>
-                      <p className="text-sm font-bold tabular-nums">{formatCurrency(sectorData.reduce((s, d) => s + d.value, 0))}</p>
-                    </div>
+              <div className="border-b">
+                <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">Diversificação por setor</p>
+                    <p className="text-xs text-muted-foreground">Distribuição do valor atual da carteira</p>
                   </div>
-                </CardHeader>
-                <CardContent>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Total</p>
+                    <p className="text-sm font-bold tabular-nums">{formatCurrency(sectorData.reduce((s, d) => s + d.value, 0))}</p>
+                  </div>
+                </div>
+                <div className="px-4 py-4">
                   <div className="flex flex-col lg:flex-row gap-8 items-start">
                     {/* Donut clicável */}
                     <div className="relative shrink-0" style={{ width: 260, height: 260 }}>
@@ -2793,44 +2757,43 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                       })}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
-            <Card>
-              <CardHeader
-                className="cursor-pointer select-none"
+            {/* Histórico de operações — flat colapsável */}
+            <div className="border-b">
+              <div
+                className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between cursor-pointer select-none"
                 onClick={() => setHistoryOpen((v) => !v)}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Histórico de operações</CardTitle>
-                    <CardDescription>{stockTrades.length} registro{stockTrades.length !== 1 ? "s" : ""}</CardDescription>
-                  </div>
-                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${historyOpen ? "rotate-180" : ""}`} />
+                <div>
+                  <p className="text-sm font-semibold">Histórico de operações</p>
+                  <p className="text-xs text-muted-foreground">{stockTrades.length} registro{stockTrades.length !== 1 ? "s" : ""}</p>
                 </div>
-              </CardHeader>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${historyOpen ? "rotate-180" : ""}`} />
+              </div>
               {historyOpen && (
-                <CardContent>
+                <>
                   {stockTrades.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8 text-sm">
+                    <p className="text-muted-foreground text-center py-8 text-sm px-4">
                       Nenhuma operação registrada. Clique em &quot;Comprar ações&quot; para começar.
                     </p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="divide-y">
                       {stockTrades.map((trade) => (
                         <div key={trade.id}
-                          className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors">
-                          <div className="flex items-center gap-3 min-w-0">
+                          className="px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0 mr-3">
                             <LineChart className="h-5 w-5 shrink-0 text-blue-600" />
                             <div className="min-w-0">
                               <p className="font-bold text-sm">{trade.ticker}</p>
                               <p className="text-xs text-muted-foreground">
                                 {trade.quantity} ações × {formatCurrency(trade.price_per_share)} · {formatDate(trade.date)}
                               </p>
-                              {trade.notes && <p className="text-xs text-muted-foreground truncate">{trade.notes}</p>}
+                              {trade.notes && <p className="text-xs text-muted-foreground">{trade.notes}</p>}
                             </div>
-                            <Badge className="bg-blue-100 text-blue-800">Compra</Badge>
+                            <Badge className="bg-blue-100 text-blue-800 shrink-0">Compra</Badge>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <p className="font-semibold text-blue-600 tabular-nums">+{formatCurrency(trade.total_amount)}</p>
@@ -2844,9 +2807,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padd
                       ))}
                     </div>
                   )}
-                </CardContent>
+                </>
               )}
-            </Card>
+            </div>
           </TabsContent>
         </Tabs>
       )}
