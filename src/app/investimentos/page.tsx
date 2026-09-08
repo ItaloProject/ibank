@@ -717,12 +717,12 @@ export default function InvestimentosPage() {
           </div>
           <p className="text-sm text-muted-foreground">Poupança, renda fixa e ações</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {botEnabled ? (
             <Button
               variant="outline"
               onClick={() => setInvestorMode(true)}
-              className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950/40 min-h-11"
+              className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950/40 min-h-11 w-full sm:w-auto"
             >
               <Zap className="h-4 w-4" />
               Modo Investidor
@@ -730,7 +730,7 @@ export default function InvestimentosPage() {
           ) : (
             <a
               href="/vender"
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-violet-300/50 px-4 text-sm font-medium text-violet-700/80 dark:text-violet-300/80 min-h-11 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-violet-300/50 px-4 text-sm font-medium text-violet-700/80 dark:text-violet-300/80 min-h-11 hover:bg-violet-50 dark:hover:bg-violet-950/30 w-full sm:w-auto"
             >
               <Zap className="h-4 w-4" />
               Bot (+R$ 15)
@@ -738,7 +738,7 @@ export default function InvestimentosPage() {
           )}
           <Dialog open={accOpen} onOpenChange={setAccOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline"><TrendingUp className="h-4 w-4" />Nova conta</Button>
+              <Button variant="outline" className="w-full sm:w-auto"><TrendingUp className="h-4 w-4" />Nova conta</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Adicionar conta de investimento</DialogTitle></DialogHeader>
@@ -799,7 +799,7 @@ export default function InvestimentosPage() {
 
           <Dialog open={invOpen} onOpenChange={setInvOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" disabled={accounts.length === 0}>
+              <Button variant="outline" disabled={accounts.length === 0} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4" />Nova movimentação
               </Button>
             </DialogTrigger>
@@ -889,7 +889,7 @@ export default function InvestimentosPage() {
 
           <Dialog open={stockOpen} onOpenChange={setStockOpen}>
             <DialogTrigger asChild>
-              <Button><LineChart className="h-4 w-4" />Comprar ações</Button>
+              <Button className="w-full sm:w-auto"><LineChart className="h-4 w-4" />Comprar ações</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Registrar operação de ações</DialogTitle></DialogHeader>
@@ -962,15 +962,15 @@ export default function InvestimentosPage() {
       ) : (
         <div className="px-4 sm:px-6 lg:px-8">
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); localStorage.setItem("ibank_inv_tab", v); }}>
-          <TabsList className="flex h-auto flex-wrap gap-1 w-full justify-start overflow-x-auto scrollbar-none">
-            <TabsTrigger value="total" className="gap-1.5 min-h-10">
+          <TabsList className="flex h-auto w-full overflow-x-auto scrollbar-none gap-1 pb-0.5 justify-start flex-nowrap">
+            <TabsTrigger value="total" className="gap-1.5 min-h-10 shrink-0">
               <BarChart3 className="h-3.5 w-3.5" />
               Total
             </TabsTrigger>
             {accounts.map((a) => (
-              <TabsTrigger key={a.id} value={a.id} className="min-h-10">{a.name}</TabsTrigger>
+              <TabsTrigger key={a.id} value={a.id} className="min-h-10 shrink-0">{a.name}</TabsTrigger>
             ))}
-            <TabsTrigger value="acoes" className="gap-1.5 min-h-10">
+            <TabsTrigger value="acoes" className="gap-1.5 min-h-10 shrink-0">
               <LineChart className="h-3.5 w-3.5" />
               Ações
             </TabsTrigger>

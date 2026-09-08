@@ -33,26 +33,26 @@ export function TotalTab({
 }: TotalTabProps) {
   return (
     <>
-      {/* Resumo flat — divide-x scroll horizontal */}
-      <div className="flex overflow-x-auto border-b">
-        <div className="px-4 py-3 flex-1 min-w-[110px] border-r shrink-0">
+      {/* Resumo — grade 2x2 no mobile, 4 colunas no desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 border-b">
+        <div className="px-4 py-3 border-r border-b sm:border-b-0">
           <p className="text-xs text-muted-foreground">Patrimônio total</p>
-          <p className="text-xl font-bold text-primary tabular-nums">{formatCurrency(grandTotal)}</p>
+          <p className="text-base font-bold text-primary tabular-nums">{formatCurrency(grandTotal)}</p>
           <p className="text-xs text-muted-foreground">renda fixa + ações</p>
         </div>
-        <div className="px-4 py-3 flex-1 min-w-[100px] border-r shrink-0">
+        <div className="px-4 py-3 border-b sm:border-b-0 sm:border-r">
           <p className="text-xs text-muted-foreground">Renda fixa</p>
-          <p className="text-xl font-bold text-green-600 tabular-nums">{formatCurrency(totalFixedIncome)}</p>
+          <p className="text-base font-bold text-green-600 tabular-nums">{formatCurrency(totalFixedIncome)}</p>
           <p className="text-xs text-muted-foreground">{accounts.length} conta{accounts.length !== 1 ? "s" : ""}</p>
         </div>
-        <div className="px-4 py-3 flex-1 min-w-[90px] border-r shrink-0">
+        <div className="px-4 py-3 border-r">
           <p className="text-xs text-muted-foreground">Ações</p>
-          <p className="text-xl font-bold text-blue-600 tabular-nums">{formatCurrency(totalStocks)}</p>
+          <p className="text-base font-bold text-blue-600 tabular-nums">{formatCurrency(totalStocks)}</p>
           <p className="text-xs text-muted-foreground">{stockPositions.length} ativo{stockPositions.length !== 1 ? "s" : ""}</p>
         </div>
-        <div className="px-4 py-3 flex-1 min-w-[90px] shrink-0">
+        <div className="px-4 py-3">
           <p className="text-xs text-muted-foreground">Renda / mês</p>
-          <p className="text-xl font-bold text-emerald-500 tabular-nums">{formatCurrency(totalRendaMensal)}</p>
+          <p className="text-base font-bold text-emerald-500 tabular-nums">{formatCurrency(totalRendaMensal)}</p>
           <p className="text-xs text-muted-foreground">fontes de renda</p>
         </div>
       </div>
