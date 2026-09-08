@@ -124,7 +124,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main
-          className="flex-1 overflow-y-auto overflow-x-hidden bg-background pb-bottom-nav"
+          className="flex-1 overflow-y-auto overflow-x-hidden bg-background pb-bottom-nav scrollbar-thin-dark"
           onClick={() => { if (mobileOpen) setMobileOpen(false); }}
         >
           {children}
