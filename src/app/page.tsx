@@ -72,11 +72,11 @@ export default function DashboardPage() {
         ]);
       })
       .then(([t, a, i, st, sq]) => {
-        setTransactions(Array.isArray(t) ? t : []);
-        setAccounts(Array.isArray(a) ? a : []);
-        setInvestments(Array.isArray(i) ? i : []);
-        setStockTrades(Array.isArray(st) ? st : []);
-        setStockQuotes(Array.isArray(sq) ? sq : []);
+        setTransactions(Array.isArray(t) ? (t as Transaction[]) : []);
+        setAccounts(Array.isArray(a) ? (a as InvestmentAccount[]) : []);
+        setInvestments(Array.isArray(i) ? (i as Investment[]) : []);
+        setStockTrades(Array.isArray(st) ? (st as StockTrade[]) : []);
+        setStockQuotes(Array.isArray(sq) ? (sq as StockQuote[]) : []);
       })
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
