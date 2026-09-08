@@ -50,7 +50,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   if (!carteiraSugeridaVista) return (
     <CarteiraSugeridaScreen
       profile={investmentProfile}
-      onContinuar={() => {
+      onContinuar={(_aporte) => {
         try { localStorage.setItem("ibank_carteira_vista", "1"); } catch {}
         setCarteiraSugeridaVista(true);
       }}
