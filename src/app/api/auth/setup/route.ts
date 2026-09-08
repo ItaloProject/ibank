@@ -22,6 +22,9 @@ export async function GET() {
     await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`;
     await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false`;
     await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS investment_profile VARCHAR(50) DEFAULT NULL`;
+    await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS goal_target DECIMAL(12,2) DEFAULT NULL`;
+    await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS goal_deadline_year INT DEFAULT NULL`;
+    await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS goal_monthly_contribution DECIMAL(12,2) DEFAULT NULL`;
     await sql`UPDATE app_users SET is_admin = true WHERE user_id = 'italo'`;
 
     const defaultPassword = process.env.DEFAULT_PASSWORD ?? "ibank2026";

@@ -16,6 +16,8 @@ import {
   Sun,
   Moon,
   Users,
+  Target,
+  Settings,
 } from "lucide-react";
 import Image from "next/image";
 import { useUser } from "@/context/user-context";
@@ -27,10 +29,12 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/cartao", label: "Cartão de Crédito", icon: CreditCard },
   { href: "/investimentos", label: "Investimentos", icon: TrendingUp },
+  { href: "/metas", label: "Metas", icon: Target },
   { href: "/planejamento", label: "Planejamento", icon: CalendarDays },
   { href: "/entrada-saida", label: "Entrada/Saída", icon: Repeat2 },
   { href: "/relatorios", label: "Relatórios", icon: BarChart2 },
   { href: "/parcelamentos", label: "Parcelamentos", icon: Receipt },
+  { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 interface SidebarProps {
