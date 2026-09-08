@@ -7,6 +7,7 @@ import { Sidebar } from "./sidebar";
 import { LoginScreen } from "@/components/login-screen";
 import { ProfileSelectScreen } from "@/components/profile-select-screen";
 import { CarteiraSugeridaScreen } from "@/components/carteira-sugerida-screen";
+import { SessionTimeout } from "@/components/session-timeout";
 import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
 
@@ -117,6 +118,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      <SessionTimeout />
     </div>
   );
 }
