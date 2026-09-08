@@ -392,12 +392,15 @@ export default function ComecarPage() {
               <div className="flex flex-col gap-3">
                 {/* Assinante */}
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4">
-                  <div className="flex items-baseline justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-bold text-lg">Assinante</p>
                       <p className="text-xs text-zinc-500">App completo sem bot</p>
+                      <span className="inline-block mt-1.5 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-2.5 py-0.5">
+                        15 dias grátis, após R$ 30/mês
+                      </span>
                     </div>
-                    <p className="text-2xl font-bold tabular-nums">
+                    <p className="text-2xl font-bold tabular-nums shrink-0">
                       R$ 30<span className="text-sm font-medium text-zinc-500">/mês</span>
                     </p>
                   </div>
@@ -423,12 +426,15 @@ export default function ComecarPage() {
                   <div className="absolute top-0 right-0 bg-violet-500 text-[10px] font-bold text-white px-3 py-1 rounded-bl-xl tracking-wide">
                     RECOMENDADO
                   </div>
-                  <div className="flex items-baseline justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-bold text-lg">Completo</p>
                       <p className="text-xs text-zinc-500">App + IBANK Bot com IA</p>
+                      <span className="inline-block mt-1.5 text-[11px] font-semibold text-violet-400 bg-violet-500/10 border border-violet-500/30 rounded-full px-2.5 py-0.5">
+                        15 dias grátis, após R$ 45/mês
+                      </span>
                     </div>
-                    <p className="text-2xl font-bold tabular-nums">
+                    <p className="text-2xl font-bold tabular-nums shrink-0">
                       R$ 45<span className="text-sm font-medium text-zinc-500">/mês</span>
                     </p>
                   </div>
