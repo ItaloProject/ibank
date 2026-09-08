@@ -5,9 +5,7 @@ import {
   Plus, Trash2, CreditCard as CardIcon, Eraser, ChevronLeft, ChevronRight,
   FileDown, Receipt, Pencil, ArrowDownCircle, Search, RefreshCw,
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -36,16 +34,16 @@ const CATEGORIES: { value: TransactionCategory; label: string }[] = [
   { value: "outros", label: "Outros" },
 ];
 
-const CATEGORY_COLORS: Record<string, string> = {
-  alimentacao: "bg-blue-100 text-blue-800",
-  transporte: "bg-green-100 text-green-800",
-  saude: "bg-yellow-100 text-yellow-800",
-  lazer: "bg-purple-100 text-purple-800",
-  educacao: "bg-cyan-100 text-cyan-800",
-  moradia: "bg-red-100 text-red-800",
-  vestuario: "bg-orange-100 text-orange-800",
-  assinatura: "bg-violet-100 text-violet-800",
-  outros: "bg-gray-100 text-gray-800",
+const CATEGORY_DOT_COLORS: Record<string, string> = {
+  alimentacao: "bg-blue-500",
+  transporte: "bg-green-500",
+  saude: "bg-yellow-500",
+  lazer: "bg-purple-500",
+  educacao: "bg-cyan-500",
+  moradia: "bg-red-500",
+  vestuario: "bg-orange-500",
+  assinatura: "bg-violet-500",
+  outros: "bg-gray-400",
 };
 
 const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
@@ -85,47 +83,50 @@ function TxRow({
 }) {
   const isCredit = tx.amount < 0;
   const isAssinatura = tx.category === "assinatura";
+  const dotColor = isCredit ? "bg-green-500" : (CATEGORY_DOT_COLORS[tx.category] ?? "bg-gray-400");
+
   return (
-    <div
-      className={`flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors group/row ${isCredit ? "border-green-200 bg-green-50/40" : isAssinatura ? "border-violet-200 bg-violet-50/30" : ""}`}
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        {isCredit && <ArrowDownCircle className="h-4 w-4 text-green-600 shrink-0" />}
-        {isAssinatura && !isCredit && <RefreshCw className="h-3.5 w-3.5 text-violet-500 shrink-0" />}
-        <div className="min-w-0">
-          <p className="font-medium text-sm truncate">{tx.description}</p>
-          <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
-        </div>
-        {isCredit ? (
-          <Badge className="bg-green-100 text-green-700 border-green-200 shrink-0">Crédito</Badge>
-        ) : (
-          <Badge className={`${CATEGORY_COLORS[tx.category]} shrink-0`}>{CATEGORY_LABELS[tx.category] ?? tx.category}</Badge>
-        )}
-      </div>
-      <div className="flex items-center gap-1 shrink-0 ml-3">
-        <div className="text-right mr-2">
-          <p className={`font-semibold ${isCredit ? "text-green-600" : "text-destructive"}`}>
-            {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
-          </p>
-          {tx.installments > 1 && (
-            <p className="text-xs text-muted-foreground">{tx.installment_current}/{tx.installments}x</p>
+    <div className="flex items-center gap-3 py-3 px-4">
+      <span className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`} />
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{tx.description}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {formatDate(tx.date)}
+          {isCredit && (
+            <span className="ml-1.5 text-green-600">· crédito</span>
           )}
-        </div>
+          {isAssinatura && !isCredit && (
+            <span className="ml-1.5 text-violet-500">· assinatura</span>
+          )}
+          {tx.installments > 1 && (
+            <span className="ml-1.5">· {tx.installment_current}/{tx.installments}x</span>
+          )}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-1 shrink-0">
+        <span className={`text-sm font-semibold tabular-nums ${isCredit ? "text-green-600" : "text-destructive"}`}>
+          {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
+        </span>
         <button
           title={isAssinatura ? "Remover assinatura" : "Marcar como assinatura"}
           onClick={() => onToggleAssinatura(tx)}
-          className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors opacity-0 group-hover/row:opacity-100 ${isAssinatura ? "text-violet-600 bg-violet-100 hover:bg-violet-200 opacity-100" : "text-muted-foreground hover:text-violet-600 hover:bg-violet-50"}`}
+          className={`h-7 w-7 flex items-center justify-center rounded transition-colors ${
+            isAssinatura
+              ? "text-violet-500"
+              : "text-muted-foreground/30 hover:text-violet-500"
+          }`}
         >
-          <RefreshCw className="h-3.5 w-3.5" />
+          <RefreshCw className="h-3 w-3" />
         </button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover/row:opacity-100"
+        <button
+          title="Excluir"
           onClick={() => onDelete(tx.id)}
+          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground/30 hover:text-destructive transition-colors"
         >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+          <Trash2 className="h-3 w-3" />
+        </button>
       </div>
     </div>
   );
@@ -346,296 +347,310 @@ export default function CartaoPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+    <div className="flex flex-col">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Cartão de Crédito</h1>
-
-          {/* Cycle navigation */}
-          <div className="flex items-center gap-2 mt-2">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => changeCycle(prevCycle(selectedCycle))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-muted-foreground capitalize text-sm font-medium min-w-[180px] text-center">
-              Fatura {cycleLabelStr}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => changeCycle(nextCycle(selectedCycle))}
-              disabled={selectedCycle >= currentCycleId()}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+      <div className="px-4 pt-4 pb-3 border-b">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-lg font-bold">Cartão de Crédito</h1>
+          <div className="flex items-center gap-1">
+            {activeCard && cardTransactions.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground"
+                title="Relatório PDF"
+                onClick={() => generateMonthReport(cardTransactions.filter(t => t.amount > 0), activeCard, cycleLabelStr)}
+              >
+                <FileDown className="h-4 w-4" />
+              </Button>
+            )}
+            <NubankImport cards={cards} onImported={(cycle) => {
+              if (cycle) changeCycle(cycle);
+              load();
+            }} />
+            {cardTransactions.length > 0 && (
+              <Dialog open={clearOpen} onOpenChange={setClearOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Limpar transações">
+                    <Eraser className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Limpar transações</DialogTitle></DialogHeader>
+                  <p className="text-sm text-muted-foreground">
+                    Vai excluir todas as <strong>{cardTransactions.length} transações</strong> da{" "}
+                    <strong className="capitalize">Fatura {cycleLabelStr}</strong>. Ação irreversível.
+                  </p>
+                  <div className="flex gap-2 justify-end mt-2">
+                    <Button variant="outline" onClick={() => setClearOpen(false)} disabled={clearing}>Cancelar</Button>
+                    <Button variant="destructive" onClick={handleClearTransactions} disabled={clearing}>
+                      {clearing ? "Limpando..." : "Confirmar"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+            <Dialog open={cardOpen} onOpenChange={setCardOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="Novo cartão">
+                  <CardIcon className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Adicionar cartão</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>Nome do cartão</Label>
+                    <Input placeholder="Ex: Nubank Roxinho" value={cardForm.name}
+                      onChange={(e) => setCardForm({ ...cardForm, name: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Limite (R$)</Label>
+                    <Input type="number" placeholder="5000" value={cardForm.limit}
+                      onChange={(e) => setCardForm({ ...cardForm, limit: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Dia de fechamento</Label>
+                      <Input type="number" min={1} max={31} value={cardForm.closing_day}
+                        onChange={(e) => setCardForm({ ...cardForm, closing_day: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Dia de vencimento</Label>
+                      <Input type="number" min={1} max={31} value={cardForm.due_day}
+                        onChange={(e) => setCardForm({ ...cardForm, due_day: e.target.value })} />
+                    </div>
+                  </div>
+                  <Button className="w-full" onClick={addCard}>Adicionar cartão</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={txOpen} onOpenChange={setTxOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" disabled={cards.length === 0} className="h-8">
+                  <Plus className="h-4 w-4 mr-1" />Nova compra
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Registrar compra</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>Cartão</Label>
+                    <Select value={selectedCard ?? ""} onValueChange={setSelectedCard}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {cards.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Descrição</Label>
+                    <Input placeholder="Ex: Mercado" value={txForm.description}
+                      onChange={(e) => setTxForm({ ...txForm, description: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Valor total (R$)</Label>
+                      <Input type="number" placeholder="0.00" value={txForm.amount}
+                        onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Parcelas</Label>
+                      <Input type="number" min={1} max={36} value={txForm.installments}
+                        onChange={(e) => setTxForm({ ...txForm, installments: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Categoria</Label>
+                    <Select value={txForm.category}
+                      onValueChange={(v) => setTxForm({ ...txForm, category: v as TransactionCategory })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Data</Label>
+                    <Input type="date" value={txForm.date}
+                      onChange={(e) => setTxForm({ ...txForm, date: e.target.value })} />
+                  </div>
+                  <Button className="w-full" onClick={addTransaction}>Registrar compra</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
+        </div>
 
-          {/* Available cycles chips */}
-          {availableCycles.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {availableCycles.slice(0, 8).map((c) => (
-                <button key={c} onClick={() => changeCycle(c)}
-                  className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${c === selectedCycle ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>
-                  {cycleLabel(c)}
+        {/* Cycle navigation */}
+        <div className="flex items-center gap-1 mt-2">
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => changeCycle(prevCycle(selectedCycle))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="flex-1 text-center text-sm text-muted-foreground capitalize font-medium">
+            Fatura {cycleLabelStr}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={() => changeCycle(nextCycle(selectedCycle))}
+            disabled={selectedCycle >= currentCycleId()}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Available cycles chips */}
+        {availableCycles.length > 0 && (
+          <div className="flex gap-1 mt-2 overflow-x-auto pb-0.5">
+            {availableCycles.slice(0, 8).map((c) => (
+              <button
+                key={c}
+                onClick={() => changeCycle(c)}
+                className={`text-[11px] px-2.5 py-0.5 rounded-full border shrink-0 transition-colors ${
+                  c === selectedCycle
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                {cycleLabel(c)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {cards.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3 px-4">
+          <CardIcon className="h-12 w-12 text-muted-foreground/30" />
+          <div className="text-center">
+            <p className="font-medium text-muted-foreground">Nenhum cartão cadastrado</p>
+            <p className="text-sm text-muted-foreground/70 mt-1">Clique no ícone de cartão para começar.</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Card selector tabs */}
+          {cards.length > 1 && (
+            <div className="flex gap-1 px-4 py-2 border-b overflow-x-auto">
+              {cards.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedCard(c.id)}
+                  className={`text-sm px-3 py-1 rounded-full border shrink-0 transition-colors ${
+                    selectedCard === c.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  {c.name}
                 </button>
               ))}
             </div>
           )}
-        </div>
 
-        <div className="flex flex-wrap gap-2">
-          {activeCard && cardTransactions.length > 0 && (
-            <Button variant="outline" onClick={() => generateMonthReport(cardTransactions.filter(t => t.amount > 0), activeCard, cycleLabelStr)}>
-              <FileDown className="h-4 w-4" /> Relatório PDF
-            </Button>
-          )}
-          <NubankImport cards={cards} onImported={(cycle) => {
-            if (cycle) changeCycle(cycle);
-            load();
-          }} />
-          {cardTransactions.length > 0 && (
-            <Dialog open={clearOpen} onOpenChange={setClearOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
-                  <Eraser className="h-4 w-4" /> Limpar
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Limpar transações</DialogTitle></DialogHeader>
-                <p className="text-sm text-muted-foreground">
-                  Vai excluir todas as <strong>{cardTransactions.length} transações</strong> da{" "}
-                  <strong className="capitalize">Fatura {cycleLabelStr}</strong>. Ação irreversível.
-                </p>
-                <div className="flex gap-2 justify-end mt-2">
-                  <Button variant="outline" onClick={() => setClearOpen(false)} disabled={clearing}>Cancelar</Button>
-                  <Button variant="destructive" onClick={handleClearTransactions} disabled={clearing}>
-                    {clearing ? "Limpando..." : "Confirmar"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-          <Dialog open={cardOpen} onOpenChange={setCardOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline"><CardIcon className="h-4 w-4" />Novo cartão</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Adicionar cartão</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>Nome do cartão</Label>
-                  <Input placeholder="Ex: Nubank Roxinho" value={cardForm.name}
-                    onChange={(e) => setCardForm({ ...cardForm, name: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Limite (R$)</Label>
-                  <Input type="number" placeholder="5000" value={cardForm.limit}
-                    onChange={(e) => setCardForm({ ...cardForm, limit: e.target.value })} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Dia de fechamento</Label>
-                    <Input type="number" min={1} max={31} value={cardForm.closing_day}
-                      onChange={(e) => setCardForm({ ...cardForm, closing_day: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Dia de vencimento</Label>
-                    <Input type="number" min={1} max={31} value={cardForm.due_day}
-                      onChange={(e) => setCardForm({ ...cardForm, due_day: e.target.value })} />
-                  </div>
-                </div>
-                <Button className="w-full" onClick={addCard}>Adicionar cartão</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={txOpen} onOpenChange={setTxOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={cards.length === 0}><Plus className="h-4 w-4" />Nova compra</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Registrar compra</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>Cartão</Label>
-                  <Select value={selectedCard ?? ""} onValueChange={setSelectedCard}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {cards.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Descrição</Label>
-                  <Input placeholder="Ex: Mercado" value={txForm.description}
-                    onChange={(e) => setTxForm({ ...txForm, description: e.target.value })} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Valor total (R$)</Label>
-                    <Input type="number" placeholder="0.00" value={txForm.amount}
-                      onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Parcelas</Label>
-                    <Input type="number" min={1} max={36} value={txForm.installments}
-                      onChange={(e) => setTxForm({ ...txForm, installments: e.target.value })} />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Categoria</Label>
-                  <Select value={txForm.category}
-                    onValueChange={(v) => setTxForm({ ...txForm, category: v as TransactionCategory })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Data</Label>
-                  <Input type="date" value={txForm.date}
-                    onChange={(e) => setTxForm({ ...txForm, date: e.target.value })} />
-                </div>
-                <Button className="w-full" onClick={addTransaction}>Registrar compra</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      {cards.length === 0 ? (
-        <Card className="text-center py-16">
-          <CardContent>
-            <CardIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Nenhum cartão cadastrado.</p>
-            <p className="text-sm text-muted-foreground">Clique em &quot;Novo cartão&quot; para começar.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          {cards.length > 1 && (
-            <div className="flex gap-2 flex-wrap">
-              {cards.map((c) => (
-                <Button key={c.id} variant={selectedCard === c.id ? "default" : "outline"} size="sm"
-                  onClick={() => setSelectedCard(c.id)}>{c.name}</Button>
-              ))}
-            </div>
-          )}
-
-          {/* Summary cards */}
+          {/* Summary strip */}
           {activeCard && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="pb-2"><CardDescription>Total da fatura</CardDescription></CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-destructive">
-                    {totalNubank !== null ? fmt(totalNubank) : formatCurrency(compras)}
+            <div className="flex divide-x border-b">
+              <div className="flex-1 px-4 py-3 min-w-0">
+                <p className="text-xs text-muted-foreground">Total da fatura</p>
+                <p className="text-base font-bold text-destructive mt-0.5 tabular-nums">
+                  {totalNubank !== null ? fmt(totalNubank) : formatCurrency(compras)}
+                </p>
+                {futureFromInstallments > 0 && (
+                  <p className="text-[11px] text-amber-600 mt-0.5 tabular-nums">
+                    +{formatCurrency(futureFromInstallments)} futuras
                   </p>
-                  {futureFromInstallments > 0 && (
-                    <p className="text-xs text-amber-600 mt-1">
-                      + {formatCurrency(futureFromInstallments)} em parcelas futuras
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-              <Card className={limiteReal < 0 ? "border-destructive/40 bg-destructive/5" : ""}>
-                <CardHeader className="pb-2"><CardDescription>Limite disponível real</CardDescription></CardHeader>
-                <CardContent>
-                  <p className={`text-2xl font-bold ${limiteReal >= 0 ? "text-green-600" : "text-destructive"}`}>
-                    {formatCurrency(Math.max(0, limiteReal))}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {futureFromInstallments > 0
-                      ? `Fatura + ${formatCurrency(futureFromInstallments)} parcelas futuras`
-                      : "Fatura atual sem parcelas futuras"}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardDescription>Comprometimento do limite</CardDescription></CardHeader>
-                <CardContent>
-                  <p className={`text-2xl font-bold ${limitPercent > 80 ? "text-destructive" : ""}`}>
-                    {Math.min(limitPercent, 100).toFixed(0)}%
-                  </p>
-                  <Progress value={Math.min(limitPercent, 100)} className={`mt-2 h-2 ${limitPercent > 80 ? "[&>div]:bg-destructive" : ""}`} />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatCurrency(totalComprometido)} de {formatCurrency(activeCard.limit)}
-                  </p>
-                </CardContent>
-              </Card>
+                )}
+              </div>
+              <div className="flex-1 px-4 py-3 min-w-0">
+                <p className="text-xs text-muted-foreground">Disponível real</p>
+                <p className={`text-base font-bold mt-0.5 tabular-nums ${limiteReal >= 0 ? "text-green-600" : "text-destructive"}`}>
+                  {formatCurrency(Math.max(0, limiteReal))}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  de {formatCurrency(activeCard.limit)}
+                </p>
+              </div>
+              <div className="flex-1 px-4 py-3 min-w-0">
+                <p className="text-xs text-muted-foreground">Comprometido</p>
+                <p className={`text-base font-bold mt-0.5 tabular-nums ${limitPercent > 80 ? "text-destructive" : ""}`}>
+                  {Math.min(limitPercent, 100).toFixed(0)}%
+                </p>
+                <Progress
+                  value={Math.min(limitPercent, 100)}
+                  className={`mt-1.5 h-1.5 ${limitPercent > 80 ? "[&>div]:bg-destructive" : ""}`}
+                />
+              </div>
             </div>
           )}
 
           {/* Resumo da Fatura */}
           {hasFaturaData && (
             <>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Receipt className="h-4 w-4" />
-                    Resumo da Fatura
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="divide-y">
-                    <button
-                      className="w-full flex justify-between items-center py-2.5 px-1 -mx-1 hover:bg-muted/30 rounded transition-colors text-left"
-                      onClick={() => { setFaturaAntInput(String(faturaAnterior || "")); setFaturaAntOpen(true); }}
-                    >
-                      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        Fatura anterior <Pencil className="h-3 w-3" />
-                      </span>
-                      <span className="text-sm font-medium tabular-nums">
-                        {faturaAnterior > 0 ? fmt(faturaAnterior) : <span className="text-muted-foreground/50">— informar</span>}
-                      </span>
-                    </button>
-                    <div className="flex justify-between items-center py-2.5">
-                      <span className="text-sm text-muted-foreground">Pagamento recebido</span>
-                      <span className="text-sm font-medium text-green-600 tabular-nums">
-                        {pagamentosRecebidos > 0 ? `− ${fmt(pagamentosRecebidos)}` : "—"}
-                      </span>
-                    </div>
-                    {(faturaAnterior > 0 || pagamentosRecebidos > 0) && (
-                      <div className="flex justify-between items-center py-2 bg-muted/30 rounded px-2 -mx-2 my-0.5">
-                        <span className="text-xs text-muted-foreground font-medium">= Saldo do período anterior</span>
-                        <span className={`text-sm font-semibold tabular-nums ${saldoAnterior < 0 ? "text-green-600" : "text-destructive"}`}>
-                          {saldoAnterior < 0 ? `crédito de ${fmt(Math.abs(saldoAnterior))}` : fmt(saldoAnterior)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center py-2.5">
-                      <span className="text-sm text-muted-foreground">Total de compras</span>
-                      <span className="text-sm font-medium tabular-nums">
-                        {compras > 0 ? fmt(iofInternacional > 0 ? compras - iofInternacional : compras) : "—"}
-                      </span>
-                    </div>
-                    {iofInternacional > 0 && (
-                      <div className="flex justify-between items-center py-2.5">
-                        <span className="text-sm text-muted-foreground">IOF de compras internacionais</span>
-                        <span className="text-sm font-medium tabular-nums">{fmt(iofInternacional)}</span>
-                      </div>
-                    )}
-                    {creditos < 0 && (
-                      <div className="flex justify-between items-center py-2.5">
-                        <span className="text-sm text-muted-foreground">Outros lançamentos</span>
-                        <span className="text-sm font-medium text-green-600 tabular-nums">− {fmt(Math.abs(creditos))}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center pt-3 pb-0.5 border-t-2 border-foreground/20 mt-1">
-                      <span className="font-bold text-base">Total a pagar</span>
-                      <span className={`text-2xl font-bold tabular-nums ${(totalNubank ?? totalFatura) > 0 ? "text-destructive" : "text-green-600"}`}>
-                        {totalNubank !== null ? fmt(totalNubank) : fmt(totalFatura)}
-                      </span>
-                    </div>
-                    {totalNubank !== null && Math.abs(totalNubank - totalFatura) > 0.5 && (
-                      <p className="text-[10px] text-muted-foreground text-right pt-1">
-                        calculado: {fmt(totalFatura)} · oficial Nubank: {fmt(totalNubank)}
-                      </p>
-                    )}
+              <div className="border-b">
+                <div className="px-4 py-2.5 flex items-center gap-2 bg-muted/30 border-b">
+                  <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Resumo da fatura</span>
+                </div>
+                <div className="divide-y divide-border/50">
+                  <button
+                    className="w-full flex justify-between items-center py-2.5 px-4 hover:bg-muted/30 transition-colors text-left"
+                    onClick={() => { setFaturaAntInput(String(faturaAnterior || "")); setFaturaAntOpen(true); }}
+                  >
+                    <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      Fatura anterior <Pencil className="h-3 w-3" />
+                    </span>
+                    <span className="text-sm font-medium tabular-nums">
+                      {faturaAnterior > 0 ? fmt(faturaAnterior) : <span className="text-muted-foreground/50">— informar</span>}
+                    </span>
+                  </button>
+                  <div className="flex justify-between items-center py-2.5 px-4">
+                    <span className="text-sm text-muted-foreground">Pagamento recebido</span>
+                    <span className="text-sm font-medium text-green-600 tabular-nums">
+                      {pagamentosRecebidos > 0 ? `− ${fmt(pagamentosRecebidos)}` : "—"}
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
+                  {(faturaAnterior > 0 || pagamentosRecebidos > 0) && (
+                    <div className="flex justify-between items-center py-2.5 px-4 bg-muted/20">
+                      <span className="text-xs text-muted-foreground font-medium">= Saldo do período anterior</span>
+                      <span className={`text-sm font-semibold tabular-nums ${saldoAnterior < 0 ? "text-green-600" : "text-destructive"}`}>
+                        {saldoAnterior < 0 ? `crédito de ${fmt(Math.abs(saldoAnterior))}` : fmt(saldoAnterior)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center py-2.5 px-4">
+                    <span className="text-sm text-muted-foreground">Total de compras</span>
+                    <span className="text-sm font-medium tabular-nums">
+                      {compras > 0 ? fmt(iofInternacional > 0 ? compras - iofInternacional : compras) : "—"}
+                    </span>
+                  </div>
+                  {iofInternacional > 0 && (
+                    <div className="flex justify-between items-center py-2.5 px-4">
+                      <span className="text-sm text-muted-foreground">IOF de compras internacionais</span>
+                      <span className="text-sm font-medium tabular-nums">{fmt(iofInternacional)}</span>
+                    </div>
+                  )}
+                  {creditos < 0 && (
+                    <div className="flex justify-between items-center py-2.5 px-4">
+                      <span className="text-sm text-muted-foreground">Outros lançamentos</span>
+                      <span className="text-sm font-medium text-green-600 tabular-nums">− {fmt(Math.abs(creditos))}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center py-3 px-4 border-t-2 border-foreground/10">
+                    <span className="font-bold text-base">Total a pagar</span>
+                    <span className={`text-xl font-bold tabular-nums ${(totalNubank ?? totalFatura) > 0 ? "text-destructive" : "text-green-600"}`}>
+                      {totalNubank !== null ? fmt(totalNubank) : fmt(totalFatura)}
+                    </span>
+                  </div>
+                  {totalNubank !== null && Math.abs(totalNubank - totalFatura) > 0.5 && (
+                    <p className="text-[10px] text-muted-foreground text-right px-4 pb-2">
+                      calculado: {fmt(totalFatura)} · oficial Nubank: {fmt(totalNubank)}
+                    </p>
+                  )}
+                </div>
+              </div>
 
               <Dialog open={faturaAntOpen} onOpenChange={setFaturaAntOpen}>
                 <DialogContent className="max-w-sm">
@@ -685,86 +700,85 @@ export default function CartaoPage() {
           )}
 
           {/* Transaction list */}
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <CardTitle>Transações</CardTitle>
-                  <CardDescription>
-                    {filteredTransactions.length} lançamento{filteredTransactions.length !== 1 ? "s" : ""}{" "}
-                    · Fatura {cycleLabelStr}
-                    {searchQuery && ` · filtrando "${searchQuery}"`}
-                  </CardDescription>
+          <div>
+            {/* List header with search */}
+            <div className="px-4 py-2.5 border-b flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
+                {filteredTransactions.length} lançamento{filteredTransactions.length !== 1 ? "s" : ""}
+                {searchQuery && ` · "${searchQuery}"`}
+              </span>
+              {cardTransactions.length > 0 && (
+                <div className="relative max-w-[180px] w-full">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-7 h-7 text-xs"
+                  />
                 </div>
-                {cardTransactions.length > 0 && (
-                  <div className="relative w-full sm:w-56">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar transação..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-8 h-8 text-sm"
-                    />
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {cardTransactions.length === 0 ? (
-                <div className="text-center py-10">
-                  <Receipt className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                  <p className="font-medium">Nenhuma transação para {cycleLabelStr}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
+              )}
+            </div>
+
+            {cardTransactions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3 px-4">
+                <Receipt className="h-10 w-10 text-muted-foreground/30" />
+                <div className="text-center">
+                  <p className="font-medium text-muted-foreground">Nenhuma transação para {cycleLabelStr}</p>
+                  <p className="text-sm text-muted-foreground/70 mt-1">
                     Importe o CSV do Nubank ou registre uma compra manualmente.
                   </p>
                 </div>
-              ) : filteredTransactions.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8 text-sm">
-                  Nenhuma transação encontrada para &quot;{searchQuery}&quot;.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {subscriptionTxs.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <RefreshCw className="h-3.5 w-3.5 text-violet-600" />
-                        <span className="text-xs font-semibold text-violet-700 uppercase tracking-wide">
-                          Assinaturas ({subscriptionTxs.length})
-                        </span>
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          {formatCurrency(subscriptionTxs.reduce((s, t) => s + Math.abs(t.amount), 0))}
-                        </span>
-                      </div>
-                      <div className="space-y-1.5">
-                        {subscriptionTxs.map((tx) => (
-                          <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />
-                        ))}
-                      </div>
+              </div>
+            ) : filteredTransactions.length === 0 ? (
+              <p className="text-muted-foreground text-center py-10 text-sm px-4">
+                Nenhuma transação encontrada para &quot;{searchQuery}&quot;.
+              </p>
+            ) : (
+              <>
+                {/* Assinaturas */}
+                {subscriptionTxs.length > 0 && (
+                  <div className="border-b">
+                    <div className="px-4 py-2 flex items-center gap-2 bg-violet-50/50 dark:bg-violet-950/20 border-b border-violet-100 dark:border-violet-900/30">
+                      <RefreshCw className="h-3 w-3 text-violet-500 shrink-0" />
+                      <span className="text-xs font-medium text-violet-700 dark:text-violet-400">
+                        Assinaturas ({subscriptionTxs.length})
+                      </span>
+                      <span className="text-xs text-muted-foreground ml-auto tabular-nums">
+                        {formatCurrency(subscriptionTxs.reduce((s, t) => s + Math.abs(t.amount), 0))}
+                      </span>
                     </div>
-                  )}
-                  {regularTxs.length > 0 && (
-                    <div>
-                      {subscriptionTxs.length > 0 && (
-                        <div className="flex items-center gap-2 mb-2 pt-1 border-t">
-                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Compras ({regularTxs.length})
-                          </span>
-                          <span className="text-xs text-muted-foreground ml-auto">
-                            {formatCurrency(regularTxs.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0))}
-                          </span>
-                        </div>
-                      )}
-                      <div className="space-y-1.5">
-                        {regularTxs.map((tx) => (
-                          <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />
-                        ))}
-                      </div>
+                    <div className="divide-y divide-border/50">
+                      {subscriptionTxs.map((tx) => (
+                        <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />
+                      ))}
                     </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                )}
+
+                {/* Compras regulares */}
+                {regularTxs.length > 0 && (
+                  <div>
+                    {subscriptionTxs.length > 0 && (
+                      <div className="px-4 py-2 flex items-center gap-2 bg-muted/30 border-b">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Compras ({regularTxs.length})
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-auto tabular-nums">
+                          {formatCurrency(regularTxs.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0))}
+                        </span>
+                      </div>
+                    )}
+                    <div className="divide-y divide-border/50">
+                      {regularTxs.map((tx) => (
+                        <TxRow key={tx.id} tx={tx} onDelete={handleDeleteTransaction} onToggleAssinatura={toggleAssinatura} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </>
       )}
     </div>
