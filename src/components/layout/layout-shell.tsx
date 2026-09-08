@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Sidebar } from "./sidebar";
 import { LoginScreen } from "@/components/login-screen";
 import { ProfileSelectScreen } from "@/components/profile-select-screen";
+import { CarteiraSugeridaScreen } from "@/components/carteira-sugerida-screen";
 import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,9 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   const { userId, investmentProfile } = useUser();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [carteiraSugeridaVista, setCarteiraSugeridaVista] = useState(() => {
+    try { return !!localStorage.getItem("ibank_carteira_vista"); } catch { return false; }
+  });
 
   useEffect(() => {
     const saved = localStorage.getItem("ibank_sidebar");
@@ -42,6 +46,15 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
   if (!userId) return <LoginScreen />;
   if (!investmentProfile) return <ProfileSelectScreen />;
+  if (!carteiraSugeridaVista) return (
+    <CarteiraSugeridaScreen
+      profile={investmentProfile}
+      onContinuar={() => {
+        try { localStorage.setItem("ibank_carteira_vista", "1"); } catch {}
+        setCarteiraSugeridaVista(true);
+      }}
+    />
+  );
 
   return (
     <div className="flex h-[100dvh] overflow-hidden">
