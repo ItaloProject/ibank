@@ -81,7 +81,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg overflow-hidden bg-[#f0ede8] shadow-sm">
+            <div className="h-9 w-9 rounded-lg overflow-hidden">
               <Image
                 src="/logo.png"
                 alt="IBANK"

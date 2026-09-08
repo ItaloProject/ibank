@@ -40,7 +40,7 @@ export function LoginScreen() {
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-6">
       {/* Logo */}
       <div className="flex flex-col items-center gap-3 mb-10">
-        <div className="h-20 w-20 rounded-2xl overflow-hidden bg-[#f0ede8] shadow-xl">
+        <div className="h-20 w-20 rounded-2xl overflow-hidden">
           <Image
             src="/logo.png"
             alt="IBANK"
