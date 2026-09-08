@@ -8,12 +8,15 @@ interface AuthUser {
   name: string;
   color: string;
   isAdmin?: boolean;
+  investmentProfile?: string | null;
 }
 
 interface UserContextType {
   userId: string | null;
   user: AuthUser | null;
   isAdmin: boolean;
+  investmentProfile: string | null;
+  setProfile: (profile: string) => void;
   login: (user: AuthUser) => void;
   logout: () => Promise<void>;
   selectUser: (id: string) => void;
@@ -24,6 +27,8 @@ const UserContext = createContext<UserContextType>({
   userId: null,
   user: null,
   isAdmin: false,
+  investmentProfile: null,
+  setProfile: () => {},
   login: () => {},
   logout: async () => {},
   selectUser: () => {},
@@ -58,6 +63,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }
 
+  async function setProfile(profile: string) {
+    await fetch("/api/auth/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile }),
+    });
+    setUser((prev) => prev ? { ...prev, investmentProfile: profile } : prev);
+  }
+
   if (!ready) return null;
 
   return (
@@ -65,6 +79,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       userId: user?.id ?? null,
       user,
       isAdmin: user?.isAdmin ?? false,
+      investmentProfile: user?.investmentProfile ?? null,
+      setProfile,
       login,
       logout,
       selectUser: (id) => setCurrentUser(id),

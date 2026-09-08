@@ -17,6 +17,7 @@ export async function GET() {
       name: payload.name,
       color: payload.color,
       isAdmin: payload.isAdmin ?? false,
+      investmentProfile: payload.investmentProfile ?? null,
     },
   });
 }

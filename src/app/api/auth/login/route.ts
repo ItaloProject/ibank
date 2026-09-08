@@ -31,11 +31,12 @@ export async function POST(request: Request) {
       name: user.name,
       color: user.color,
       isAdmin: user.is_admin ?? false,
+      investmentProfile: user.investment_profile ?? undefined,
     });
 
     const response = NextResponse.json({
       ok: true,
-      user: { id: user.user_id, name: user.name, color: user.color, isAdmin: user.is_admin ?? false },
+      user: { id: user.user_id, name: user.name, color: user.color, isAdmin: user.is_admin ?? false, investmentProfile: user.investment_profile ?? null },
     });
 
     response.cookies.set("ibank_session", token, {

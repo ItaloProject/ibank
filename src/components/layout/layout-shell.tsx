@@ -5,11 +5,12 @@ import { Menu } from "lucide-react";
 import Image from "next/image";
 import { Sidebar } from "./sidebar";
 import { LoginScreen } from "@/components/login-screen";
+import { ProfileSelectScreen } from "@/components/profile-select-screen";
 import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
-  const { userId } = useUser();
+  const { userId, investmentProfile } = useUser();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -40,6 +41,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   }
 
   if (!userId) return <LoginScreen />;
+  if (!investmentProfile) return <ProfileSelectScreen />;
 
   return (
     <div className="flex h-[100dvh] overflow-hidden">
