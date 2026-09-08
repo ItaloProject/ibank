@@ -231,6 +231,9 @@ export default function ComecarPage() {
               </div>
             </div>
           ))}
+          <div className="pt-1">
+            <WhatsappMockup />
+          </div>
         </div>
       </div>
 
@@ -594,6 +597,68 @@ function SocialProofBar() {
 }
 
 // ── Mockup do app ─────────────────────────────────────────────────────────────
+function WhatsappMockup() {
+  return (
+    <div className="w-48 shrink-0 mx-auto">
+      <div className="border-2 border-zinc-700 rounded-[2rem] bg-zinc-950 p-1.5 shadow-2xl shadow-black/60">
+        {/* Barra de status */}
+        <div className="flex items-center justify-between px-4 py-1.5">
+          <span className="text-[9px] text-zinc-500 font-medium">9:41</span>
+          <div className="flex gap-1">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-1 w-1 rounded-full bg-zinc-600" />
+            ))}
+          </div>
+        </div>
+
+        {/* Tela do WhatsApp */}
+        <div className="bg-[#0b141a] rounded-[1.5rem] overflow-hidden">
+          {/* Header do contato */}
+          <div className="flex items-center gap-2 bg-[#1f2c34] px-3 py-2">
+            <ChevronLeft className="h-3.5 w-3.5 text-zinc-400" />
+            <div className="h-6 w-6 rounded-full bg-emerald-600 flex items-center justify-center text-[8px] font-bold text-white">
+              IB
+            </div>
+            <div>
+              <p className="text-[9px] font-semibold text-zinc-100">IBANK Suporte</p>
+              <p className="text-[7px] text-emerald-400">online</p>
+            </div>
+          </div>
+
+          {/* Mensagens */}
+          <div className="px-2.5 py-3 space-y-2 min-h-[180px]">
+            <div className="flex justify-start">
+              <div className="bg-[#1f2c34] rounded-lg rounded-tl-none px-2.5 py-1.5 max-w-[80%]">
+                <p className="text-[8px] text-zinc-200 leading-relaxed">
+                  Oi! Consegui organizar tudo minha carteira e o cartão no mesmo lugar 🙌
+                </p>
+                <p className="text-[6px] text-zinc-500 text-right mt-0.5">09:12</p>
+              </div>
+            </div>
+            <div className="flex justify-start">
+              <div className="bg-[#1f2c34] rounded-lg rounded-tl-none px-2.5 py-1.5 max-w-[80%]">
+                <p className="text-[8px] text-zinc-200 leading-relaxed">
+                  Muito obrigada pela ajuda, era exatamente isso que eu precisava!
+                </p>
+                <p className="text-[6px] text-zinc-500 text-right mt-0.5">09:13</p>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <div className="bg-[#005c4b] rounded-lg rounded-tr-none px-2.5 py-1.5 max-w-[80%]">
+                <p className="text-[8px] text-zinc-100 leading-relaxed">
+                  Que bom saber! Qualquer coisa é só chamar 😊
+                </p>
+                <p className="text-[6px] text-emerald-200/70 text-right mt-0.5">09:14 ✓✓</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className="text-[10px] text-center text-zinc-600 mt-2">Conversa fictícia (ilustrativo)</p>
+    </div>
+  );
+}
+
 function AppMockup() {
   return (
     <div className="w-48 shrink-0">
