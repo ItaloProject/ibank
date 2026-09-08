@@ -2,8 +2,42 @@
 
 import { useState } from "react";
 import { useUser } from "@/context/user-context";
-import { Eye, EyeOff, CheckCircle2, User, Lock, TrendingUp, Landmark } from "lucide-react";
+import {
+  Eye, EyeOff, CheckCircle2, User, Lock, TrendingUp, Landmark,
+  Home, CreditCard, CalendarDays, CalendarCheck, Repeat2,
+  BarChart2, Receipt, Target, LayoutList,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const HIDEABLE_PAGES = [
+  { href: "/investimentos", label: "Investimentos",  icon: TrendingUp,   group: "Investimentos" },
+  { href: "/proventos",     label: "Proventos",      icon: CalendarCheck, group: "Investimentos" },
+  { href: "/metas",         label: "Metas",           icon: Target,        group: "Investimentos" },
+  { href: "/cartao",        label: "Cartão",          icon: CreditCard,    group: "Finanças" },
+  { href: "/planejamento",  label: "Planejamento",    icon: CalendarDays,  group: "Finanças" },
+  { href: "/entrada-saida", label: "Entrada/Saída",   icon: Repeat2,       group: "Finanças" },
+  { href: "/parcelamentos", label: "Parcelamentos",   icon: Receipt,       group: "Finanças" },
+  { href: "/relatorios",    label: "Relatórios",      icon: BarChart2,     group: "Relatórios" },
+];
+
+const ALWAYS_VISIBLE = [
+  { href: "/",              label: "Dashboard",       icon: Home },
+  { href: "/configuracoes", label: "Configurações",   icon: LayoutList },
+];
+
+function readHidden(): Set<string> {
+  try {
+    const saved = localStorage.getItem("ibank_hidden_pages");
+    return new Set(saved ? JSON.parse(saved) : []);
+  } catch { return new Set(); }
+}
+
+function saveHidden(set: Set<string>) {
+  try {
+    localStorage.setItem("ibank_hidden_pages", JSON.stringify([...set]));
+    window.dispatchEvent(new Event("ibank_hidden_pages_changed"));
+  } catch {}
+}
 
 export default function ConfiguracoesPage() {
   const { user, investmentProfile, setProfile } = useUser();
@@ -16,6 +50,17 @@ export default function ConfiguracoesPage() {
   const [showNova, setShowNova] = useState(false);
   const [senhaLoading, setSenhaLoading] = useState(false);
   const [senhaMsg, setSenhaMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+
+  // Visibilidade
+  const [hiddenPages, setHiddenPages] = useState<Set<string>>(() => readHidden());
+
+  function togglePage(href: string) {
+    const next = new Set(hiddenPages);
+    if (next.has(href)) next.delete(href);
+    else next.add(href);
+    setHiddenPages(next);
+    saveHidden(next);
+  }
 
   // Perfil
   const [perfilLoading, setPerfilLoading] = useState(false);
@@ -118,6 +163,49 @@ export default function ConfiguracoesPage() {
             {perfilMsg.texto}
           </p>
         )}
+      </section>
+
+      {/* Visibilidade do menu */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <LayoutList className="h-4 w-4 text-muted-foreground" />
+          <h2 className="font-semibold text-sm">Visibilidade do Menu</h2>
+        </div>
+        <div className="border rounded-xl overflow-hidden divide-y">
+          {/* Sempre visíveis */}
+          {ALWAYS_VISIBLE.map(({ href, label, icon: Icon }) => (
+            <div key={href} className="flex items-center gap-3 px-4 py-3 opacity-50">
+              <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-sm flex-1">{label}</span>
+              <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">sempre visível</span>
+            </div>
+          ))}
+          {/* Páginas oculháveis */}
+          {HIDEABLE_PAGES.map(({ href, label, icon: Icon }) => {
+            const hidden = hiddenPages.has(href);
+            return (
+              <div key={href} className={cn("flex items-center gap-3 px-4 py-3 transition-colors", hidden ? "opacity-50" : "")}>
+                <Icon className={cn("h-4 w-4 shrink-0", hidden ? "text-muted-foreground" : "text-foreground")} />
+                <span className={cn("text-sm flex-1", hidden ? "text-muted-foreground line-through" : "")}>{label}</span>
+                <button
+                  type="button"
+                  onClick={() => togglePage(href)}
+                  className={cn(
+                    "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none",
+                    hidden ? "bg-muted-foreground/20" : "bg-primary",
+                  )}
+                  aria-label={hidden ? `Mostrar ${label}` : `Ocultar ${label}`}
+                >
+                  <span className={cn(
+                    "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-150",
+                    hidden ? "translate-x-0.5" : "translate-x-[18px]",
+                  )} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-2">As páginas ocultas somem do menu lateral. Dashboard e Configurações são sempre visíveis.</p>
       </section>
 
       {/* Alterar senha */}
