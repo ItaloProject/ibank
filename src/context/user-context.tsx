@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { type UserId, getCurrentUser, setCurrentUser, hasSelectedUser } from "@/lib/user";
+import { type UserId, getCurrentUser, setCurrentUser, clearCurrentUser, hasSelectedUser } from "@/lib/user";
 
 interface UserContextType {
   userId: UserId | null;
@@ -30,6 +30,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }
 
   function switchUser() {
+    clearCurrentUser();
     setUserId(null);
   }
 
