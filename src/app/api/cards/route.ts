@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const user = new URL(request.url).searchParams.get("user") ?? "italo";
-    const rows = await sql`SELECT * FROM credit_cards WHERE user_id = ${user} ORDER BY created_at`;
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
+    const rows = await sql`SELECT * FROM credit_cards WHERE user_id = ${userId} ORDER BY created_at`;
     return NextResponse.json(rows);
   } catch (err) {
     console.error("[GET /api/cards]", err);
@@ -14,10 +17,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { name, limit, closing_day, due_day, user_id = "italo" } = await request.json();
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
+    const { name, limit, closing_day, due_day } = await request.json();
     const rows = await sql`
       INSERT INTO credit_cards (name, "limit", closing_day, due_day, user_id)
-      VALUES (${name}, ${limit}, ${closing_day}, ${due_day}, ${user_id})
+      VALUES (${name}, ${limit}, ${closing_day}, ${due_day}, ${userId})
       RETURNING *
     `;
     return NextResponse.json(rows[0], { status: 201 });

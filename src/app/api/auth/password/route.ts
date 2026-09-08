@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import sql from "@/lib/db";
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ibank_session")?.value;
-  if (!token) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-
-  const payload = await verifyToken(token);
-  if (!payload) return NextResponse.json({ error: "Token inválido" }, { status: 401 });
+  const payload = await getSession();
+  if (!payload) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
   const { senhaAtual, novaSenha } = await request.json();
   if (!senhaAtual || !novaSenha) {

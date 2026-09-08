@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const { id } = await params;
     const { category } = await request.json();
-    const rows = await sql`UPDATE transactions SET category = ${category} WHERE id = ${id} RETURNING *`;
+    const rows = await sql`
+      UPDATE transactions SET category = ${category}
+      WHERE id = ${id} AND user_id = ${userId}
+      RETURNING *
+    `;
     return NextResponse.json(rows[0]);
   } catch (err) {
     console.error("[PATCH /api/transactions/[id]]", err);
@@ -15,8 +23,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const { id } = await params;
-    await sql`DELETE FROM transactions WHERE id = ${id}`;
+    await sql`DELETE FROM transactions WHERE id = ${id} AND user_id = ${userId}`;
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     console.error("[DELETE /api/transactions/[id]]", err);

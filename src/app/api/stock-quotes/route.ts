@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
 async function ensureTable() {
@@ -13,12 +14,13 @@ async function ensureTable() {
   `;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     await ensureTable();
-    const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
-    const rows = await sql`SELECT * FROM stock_quotes WHERE user_id = ${user}`;
+    const rows = await sql`SELECT * FROM stock_quotes WHERE user_id = ${userId}`;
     return NextResponse.json(rows);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
@@ -27,14 +29,15 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     await ensureTable();
-    const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
     const { ticker, current_price } = await request.json();
 
     const [row] = await sql`
       INSERT INTO stock_quotes (user_id, ticker, current_price, updated_at)
-      VALUES (${user}, ${ticker}, ${current_price}, NOW())
+      VALUES (${userId}, ${ticker}, ${current_price}, NOW())
       ON CONFLICT (user_id, ticker)
       DO UPDATE SET current_price = ${current_price}, updated_at = NOW()
       RETURNING *

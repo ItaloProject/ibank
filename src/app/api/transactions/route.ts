@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
     const start = searchParams.get("start");
     const end = searchParams.get("end");
     const cardId = searchParams.get("card_id");
@@ -16,7 +19,7 @@ export async function GET(request: Request) {
     if (listCycles && cardId) {
       const rows = await sql`
         SELECT DISTINCT billing_cycle FROM transactions
-        WHERE user_id = ${user} AND credit_card_id = ${cardId} AND billing_cycle IS NOT NULL
+        WHERE user_id = ${userId} AND credit_card_id = ${cardId} AND billing_cycle IS NOT NULL
         ORDER BY billing_cycle DESC
       `;
       return NextResponse.json(rows.map((r) => r.billing_cycle));
@@ -27,41 +30,41 @@ export async function GET(request: Request) {
       // Future committed installments (billing_cycle > afterCycle, only debits)
       rows = await sql`
         SELECT * FROM transactions
-        WHERE user_id = ${user} AND credit_card_id = ${cardId}
+        WHERE user_id = ${userId} AND credit_card_id = ${cardId}
           AND billing_cycle > ${afterCycle} AND amount > 0
         ORDER BY billing_cycle ASC, date ASC
       `;
     } else if (billingCycle && cardId) {
       rows = await sql`
         SELECT * FROM transactions
-        WHERE user_id = ${user} AND credit_card_id = ${cardId} AND billing_cycle = ${billingCycle}
+        WHERE user_id = ${userId} AND credit_card_id = ${cardId} AND billing_cycle = ${billingCycle}
         ORDER BY date DESC, created_at DESC
       `;
     } else if (billingCycle) {
       // Dashboard: todos os cartões do usuário no ciclo atual
       rows = await sql`
         SELECT * FROM transactions
-        WHERE user_id = ${user} AND billing_cycle = ${billingCycle}
+        WHERE user_id = ${userId} AND billing_cycle = ${billingCycle}
         ORDER BY date DESC, created_at DESC
       `;
     } else if (start && end && cardId) {
       rows = await sql`
         SELECT * FROM transactions
-        WHERE user_id = ${user} AND credit_card_id = ${cardId} AND date >= ${start} AND date <= ${end}
+        WHERE user_id = ${userId} AND credit_card_id = ${cardId} AND date >= ${start} AND date <= ${end}
         ORDER BY date DESC
       `;
     } else if (start && end) {
       rows = await sql`
         SELECT * FROM transactions
-        WHERE user_id = ${user} AND date >= ${start} AND date <= ${end}
+        WHERE user_id = ${userId} AND date >= ${start} AND date <= ${end}
         ORDER BY date DESC
       `;
     } else if (cardId) {
       rows = await sql`
-        SELECT * FROM transactions WHERE user_id = ${user} AND credit_card_id = ${cardId} ORDER BY date DESC
+        SELECT * FROM transactions WHERE user_id = ${userId} AND credit_card_id = ${cardId} ORDER BY date DESC
       `;
     } else {
-      rows = await sql`SELECT * FROM transactions WHERE user_id = ${user} ORDER BY date DESC`;
+      rows = await sql`SELECT * FROM transactions WHERE user_id = ${userId} ORDER BY date DESC`;
     }
 
     return NextResponse.json(rows);
@@ -73,8 +76,10 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
     const cardId = searchParams.get("card_id");
     const start = searchParams.get("start");
     const end = searchParams.get("end");
@@ -85,15 +90,15 @@ export async function DELETE(request: Request) {
     if (billingCycleDelete) {
       await sql`
         DELETE FROM transactions
-        WHERE user_id = ${user} AND credit_card_id = ${cardId} AND billing_cycle = ${billingCycleDelete}
+        WHERE user_id = ${userId} AND credit_card_id = ${cardId} AND billing_cycle = ${billingCycleDelete}
       `;
     } else if (start && end) {
       await sql`
         DELETE FROM transactions
-        WHERE user_id = ${user} AND credit_card_id = ${cardId} AND date >= ${start} AND date <= ${end}
+        WHERE user_id = ${userId} AND credit_card_id = ${cardId} AND date >= ${start} AND date <= ${end}
       `;
     } else {
-      await sql`DELETE FROM transactions WHERE user_id = ${user} AND credit_card_id = ${cardId}`;
+      await sql`DELETE FROM transactions WHERE user_id = ${userId} AND credit_card_id = ${cardId}`;
     }
 
     return NextResponse.json({ ok: true });
@@ -105,6 +110,9 @@ export async function DELETE(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const body = await request.json();
     const rows: unknown[] = Array.isArray(body) ? body : [body];
 
@@ -112,7 +120,7 @@ export async function POST(request: Request) {
       rows.map((row: unknown) => {
         const r = row as {
           credit_card_id: string; description: string; amount: number; category: string;
-          date: string; installments?: number; installment_current?: number; user_id?: string;
+          date: string; installments?: number; installment_current?: number;
           billing_cycle?: string | null;
         };
         return sql`
@@ -120,7 +128,7 @@ export async function POST(request: Request) {
             (credit_card_id, description, amount, category, date, installments, installment_current, user_id, billing_cycle)
           VALUES
             (${r.credit_card_id}, ${r.description}, ${r.amount}, ${r.category}, ${r.date},
-             ${r.installments ?? 1}, ${r.installment_current ?? 1}, ${r.user_id ?? "italo"},
+             ${r.installments ?? 1}, ${r.installment_current ?? 1}, ${userId},
              ${r.billing_cycle ?? null})
           RETURNING *
         `;

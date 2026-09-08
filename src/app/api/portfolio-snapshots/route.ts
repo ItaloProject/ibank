@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
 async function ensureTable() {
@@ -15,14 +16,15 @@ async function ensureTable() {
   `;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     await ensureTable();
-    const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
     const rows = await sql`
       SELECT * FROM portfolio_snapshots
-      WHERE user_id = ${user}
+      WHERE user_id = ${userId}
       ORDER BY date ASC
     `;
     return NextResponse.json(rows);
@@ -33,13 +35,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     await ensureTable();
-    const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
     const { date, total, invested } = await request.json();
     const [row] = await sql`
       INSERT INTO portfolio_snapshots (user_id, date, total, invested)
-      VALUES (${user}, ${date}, ${total}, ${invested})
+      VALUES (${userId}, ${date}, ${total}, ${invested})
       ON CONFLICT (user_id, date)
       DO UPDATE SET total = ${total}, invested = ${invested}
       RETURNING *

@@ -1,21 +1,14 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { cookies } from "next/headers";
-import { verifyToken } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import sql from "@/lib/db";
-
-async function requireAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ibank_session")?.value;
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload || !payload.isAdmin) return null;
-  return payload;
-}
+import { ensureSubscriptionColumns } from "@/lib/subscription";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
+  if (admin instanceof NextResponse) return admin;
+
+  await ensureSubscriptionColumns();
 
   const { id } = await params;
   const body = await request.json();
@@ -33,9 +26,40 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body.color) {
     await sql`UPDATE app_users SET color = ${body.color} WHERE id = ${id}`;
   }
+  if (typeof body.bot_enabled === "boolean") {
+    await sql`UPDATE app_users SET bot_enabled = ${body.bot_enabled} WHERE id = ${id}`;
+    if (body.bot_enabled) {
+      await sql`UPDATE app_users SET plan = 'completo' WHERE id = ${id}`;
+    } else {
+      await sql`UPDATE app_users SET plan = 'assinante' WHERE id = ${id}`;
+    }
+  }
+  if (body.paid_until !== undefined) {
+    const until = body.paid_until ? String(body.paid_until).slice(0, 10) : null;
+    await sql`UPDATE app_users SET paid_until = ${until} WHERE id = ${id}`;
+  }
+  if (body.plan === "assinante" || body.plan === "completo") {
+    const withBot = body.plan === "completo";
+    await sql`
+      UPDATE app_users
+      SET plan = ${body.plan}, bot_enabled = ${withBot}
+      WHERE id = ${id}
+    `;
+  }
+  if (typeof body.extend_days === "number" && body.extend_days > 0) {
+    await sql`
+      UPDATE app_users
+      SET paid_until = (
+        GREATEST(COALESCE(paid_until, CURRENT_DATE), CURRENT_DATE)
+        + (${body.extend_days}::int)
+      )
+      WHERE id = ${id}
+    `;
+  }
 
   const [user] = await sql`
-    SELECT id, user_id, username, name, color, is_active, is_admin, created_at
+    SELECT id, user_id, username, name, color, is_active, is_admin, created_at,
+           bot_enabled, paid_until, plan
     FROM app_users WHERE id = ${id}
   `;
   return NextResponse.json(user);
@@ -43,7 +67,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
+  if (admin instanceof NextResponse) return admin;
 
   const { id } = await params;
   await sql`DELETE FROM app_users WHERE id = ${id} AND is_admin = false`;

@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import sql from "@/lib/db";
 import { signToken } from "@/lib/auth";
+import {
+  ensureSubscriptionColumns,
+  hasBotAccess,
+  isSubscriptionActive,
+} from "@/lib/subscription";
 
 export async function POST(request: Request) {
   try {
@@ -10,6 +15,8 @@ export async function POST(request: Request) {
     if (!username || !password) {
       return NextResponse.json({ error: "Preencha todos os campos" }, { status: 400 });
     }
+
+    await ensureSubscriptionColumns();
 
     const rows = await sql`
       SELECT * FROM app_users WHERE username = ${username.toLowerCase().trim()}
@@ -26,17 +33,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Usuário ou senha incorretos" }, { status: 401 });
     }
 
+    if (user.is_active === false) {
+      return NextResponse.json({ error: "Conta desativada. Fale conosco no WhatsApp." }, { status: 403 });
+    }
+
+    const subscriptionActive = isSubscriptionActive(user);
+    const botEnabled = hasBotAccess(user);
+
     const token = await signToken({
       userId: user.user_id,
       name: user.name,
       color: user.color,
       isAdmin: user.is_admin ?? false,
       investmentProfile: user.investment_profile ?? undefined,
+      botEnabled,
     });
 
     const response = NextResponse.json({
       ok: true,
-      user: { id: user.user_id, name: user.name, color: user.color, isAdmin: user.is_admin ?? false, investmentProfile: user.investment_profile ?? null },
+      user: {
+        id: user.user_id,
+        name: user.name,
+        color: user.color,
+        isAdmin: user.is_admin ?? false,
+        investmentProfile: user.investment_profile ?? null,
+        botEnabled,
+        subscriptionActive,
+        paidUntil: user.paid_until ? String(user.paid_until).slice(0, 10) : null,
+        plan: user.plan ?? "assinante",
+      },
     });
 
     response.cookies.set("ibank_session", token, {

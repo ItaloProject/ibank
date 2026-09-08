@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const { id } = await params;
     const body = await request.json();
 
@@ -11,7 +15,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const rows = await sql`
         UPDATE investment_accounts
         SET name = ${body.name}, institution = ${body.institution ?? null}
-        WHERE id = ${id} RETURNING *
+        WHERE id = ${id} AND user_id = ${userId} RETURNING *
       `;
       return NextResponse.json(rows[0]);
     }
@@ -29,14 +33,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           cdi_percent    = ${cdiPct},
           max_rendimento = ${maxRend},
           valor_liquido  = ${liquido}
-        WHERE id = ${id} RETURNING *
+        WHERE id = ${id} AND user_id = ${userId} RETURNING *
       `;
       return NextResponse.json(rows[0]);
     }
 
     // Update balance only
     const rows = await sql`
-      UPDATE investment_accounts SET current_balance = ${body.current_balance} WHERE id = ${id} RETURNING *
+      UPDATE investment_accounts SET current_balance = ${body.current_balance}
+      WHERE id = ${id} AND user_id = ${userId} RETURNING *
     `;
     return NextResponse.json(rows[0]);
   } catch (err) {
@@ -47,9 +52,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const { id } = await params;
-    await sql`DELETE FROM investments WHERE account_id = ${id}`;
-    await sql`DELETE FROM investment_accounts WHERE id = ${id}`;
+    await sql`DELETE FROM investments WHERE account_id = ${id} AND user_id = ${userId}`;
+    await sql`DELETE FROM investment_accounts WHERE id = ${id} AND user_id = ${userId}`;
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     console.error("[DELETE /api/investment-accounts/[id]]", err);

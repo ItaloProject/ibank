@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
     const month = searchParams.get("month");
     if (!month) return NextResponse.json({ error: "month obrigatório" }, { status: 400 });
     const rows = await sql`
-      SELECT * FROM plan_items WHERE user_id = ${user} AND month = ${month} ORDER BY created_at
+      SELECT * FROM plan_items WHERE user_id = ${userId} AND month = ${month} ORDER BY created_at
     `;
     return NextResponse.json(rows);
   } catch (err) {
@@ -19,10 +22,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { user_id = "italo", group_id, month, name, type, planned, actual } = await request.json();
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
+    const { group_id, month, name, type, planned, actual } = await request.json();
     const rows = await sql`
       INSERT INTO plan_items (user_id, group_id, month, name, type, planned, actual)
-      VALUES (${user_id}, ${group_id}, ${month}, ${name}, ${type}, ${planned ?? 0}, ${actual ?? 0})
+      VALUES (${userId}, ${group_id}, ${month}, ${name}, ${type}, ${planned ?? 0}, ${actual ?? 0})
       RETURNING *
     `;
     return NextResponse.json(rows[0], { status: 201 });

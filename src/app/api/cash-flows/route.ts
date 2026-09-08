@@ -1,21 +1,24 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
     const month = searchParams.get("month");
 
     const rows = month
       ? await sql`
           SELECT * FROM cash_flows
-          WHERE user_id = ${user} AND month = ${month}
+          WHERE user_id = ${userId} AND month = ${month}
           ORDER BY date DESC, created_at DESC
         `
       : await sql`
           SELECT * FROM cash_flows
-          WHERE user_id = ${user}
+          WHERE user_id = ${userId}
           ORDER BY date DESC, created_at DESC
         `;
     return NextResponse.json(rows);
@@ -27,11 +30,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { user_id = "italo", description, type, amount, date } = await request.json();
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
+    const { description, type, amount, date } = await request.json();
     const month = String(date).slice(0, 7);
     const rows = await sql`
       INSERT INTO cash_flows (user_id, month, description, type, amount, date)
-      VALUES (${user_id}, ${month}, ${description}, ${type}, ${amount ?? 0}, ${date})
+      VALUES (${userId}, ${month}, ${description}, ${type}, ${amount ?? 0}, ${date})
       RETURNING *
     `;
     return NextResponse.json(rows[0], { status: 201 });

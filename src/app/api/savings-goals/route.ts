@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
 
     const rows = await sql`
       SELECT goal_amount, saved_amount FROM savings_goals
-      WHERE user_id = ${user}
+      WHERE user_id = ${userId}
       ORDER BY CASE WHEN month = 'geral' THEN 0 ELSE 1 END, month DESC
       LIMIT 1
     `;
@@ -24,10 +26,13 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { user_id = "italo", goal_amount = 0, saved_amount = 0 } = await request.json();
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
+    const { goal_amount = 0, saved_amount = 0 } = await request.json();
     await sql`
       INSERT INTO savings_goals (user_id, month, goal_amount, saved_amount)
-      VALUES (${user_id}, 'geral', ${goal_amount}, ${saved_amount})
+      VALUES (${userId}, 'geral', ${goal_amount}, ${saved_amount})
       ON CONFLICT (user_id, month) DO UPDATE SET
         goal_amount = ${goal_amount},
         saved_amount = ${saved_amount}

@@ -1,20 +1,12 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyToken } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
-
-async function getUserId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("ibank_session")?.value;
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  return payload?.userId ?? null;
-}
 
 export async function GET() {
   try {
-    const userId = await getUserId();
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
 
     await sql`
       CREATE TABLE IF NOT EXISTS proventos (
@@ -43,8 +35,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const userId = await getUserId();
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
 
     const { ticker, amount, payment_day, type } = await request.json();
 

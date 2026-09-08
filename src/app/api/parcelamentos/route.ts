@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
 async function ensureTable() {
@@ -16,14 +17,15 @@ async function ensureTable() {
   `;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     await ensureTable();
-    const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
     const rows = await sql`
       SELECT * FROM installment_plans
-      WHERE user_id = ${user}
+      WHERE user_id = ${userId}
       ORDER BY
         CASE WHEN paid_installments >= installments THEN 1 ELSE 0 END,
         created_at DESC
@@ -37,9 +39,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     await ensureTable();
-    const { searchParams } = new URL(request.url);
-    const user = searchParams.get("user") ?? "italo";
     const body = await request.json();
     const { description, total_amount, installments, paid_installments = 0, start_date } = body;
 
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
 
     const [row] = await sql`
       INSERT INTO installment_plans (user_id, description, total_amount, installments, paid_installments, start_date)
-      VALUES (${user}, ${description}, ${total_amount}, ${installments}, ${paid_installments}, ${start_date ?? null})
+      VALUES (${userId}, ${description}, ${total_amount}, ${installments}, ${paid_installments}, ${start_date ?? null})
       RETURNING *
     `;
     return NextResponse.json(row, { status: 201 });

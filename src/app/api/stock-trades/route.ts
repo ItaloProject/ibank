@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
+import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const user = new URL(request.url).searchParams.get("user") ?? "italo";
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const rows = await sql`
       SELECT * FROM stock_trades
-      WHERE user_id = ${user}
+      WHERE user_id = ${userId}
       ORDER BY date DESC, created_at DESC
     `;
     return NextResponse.json(rows);
@@ -18,8 +21,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUserId();
+    if (auth instanceof NextResponse) return auth;
+    const { userId } = auth;
     const {
-      user_id = "italo",
       ticker,
       type = "compra",
       quantity,
@@ -32,7 +37,7 @@ export async function POST(request: Request) {
     const rows = await sql`
       INSERT INTO stock_trades (user_id, ticker, type, quantity, price_per_share, total_amount, notes, date)
       VALUES (
-        ${user_id},
+        ${userId},
         ${String(ticker).toUpperCase()},
         ${type},
         ${quantity},
