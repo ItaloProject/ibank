@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@/context/user-context";
 import { useRouter } from "next/navigation";
-import { Users, UserPlus, Trash2, Power, ShieldCheck, Eye, EyeOff, KeyRound, X, Check } from "lucide-react";
+import { Users, UserPlus, Trash2, Power, ShieldCheck, Eye, EyeOff, KeyRound, X, Check, Bot, CalendarPlus } from "lucide-react";
 
 interface AppUser {
   id: number;
@@ -14,9 +14,22 @@ interface AppUser {
   is_active: boolean;
   is_admin: boolean;
   created_at: string;
+  bot_enabled?: boolean;
+  paid_until?: string | null;
+  plan?: string | null;
 }
 
 const COLORS = ["#3b82f6","#ec4899","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#f97316"];
+
+const emptyForm = {
+  username: "",
+  name: "",
+  password: "",
+  color: COLORS[0],
+  is_admin: false,
+  bot_enabled: false,
+  paid_days: 30,
+};
 
 export default function UsuariosPage() {
   const { isAdmin } = useUser();
@@ -24,7 +37,7 @@ export default function UsuariosPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ username: "", name: "", password: "", color: COLORS[0], is_admin: false });
+  const [form, setForm] = useState(emptyForm);
   const [showPass, setShowPass] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -86,8 +99,34 @@ export default function UsuariosPage() {
     });
     const data = await res.json();
     if (!res.ok) { setError(data.error ?? "Erro ao criar"); }
-    else { setShowForm(false); setForm({ username: "", name: "", password: "", color: COLORS[0], is_admin: false }); loadUsers(); }
+    else { setShowForm(false); setForm(emptyForm); loadUsers(); }
     setSaving(false);
+  }
+
+  async function toggleBot(user: AppUser) {
+    await fetch(`/api/admin/users/${user.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bot_enabled: !user.bot_enabled }),
+    });
+    loadUsers();
+  }
+
+  async function extendMonth(user: AppUser) {
+    await fetch(`/api/admin/users/${user.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ extend_days: 30 }),
+    });
+    loadUsers();
+  }
+
+  function paidLabel(u: AppUser) {
+    if (u.is_admin) return "Admin";
+    if (!u.paid_until) return "Sem validade";
+    const until = String(u.paid_until).slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    return until < today ? `Expirado ${until}` : `Até ${until}`;
   }
 
   const active = users.filter((u) => u.is_active).length;
@@ -179,8 +218,15 @@ export default function UsuariosPage() {
                           <ShieldCheck className="h-3 w-3" /> Admin
                         </span>
                       )}
+                      {u.bot_enabled && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-300">
+                          <Bot className="h-3 w-3" /> Bot
+                        </span>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">@{u.username}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      @{u.username} · {u.plan === "completo" ? "Completo R$45" : "Assinante R$30"} · {paidLabel(u)}
+                    </p>
                   </div>
 
                   {/* Status + ações */}
@@ -190,28 +236,46 @@ export default function UsuariosPage() {
                     </span>
 
                     <button
+                      type="button"
+                      onClick={() => extendMonth(u)}
+                      title="Renovar +30 dias"
+                      className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleBot(u)}
+                      title={u.bot_enabled ? "Remover bot" : "Ativar bot"}
+                      className={`flex h-11 w-11 items-center justify-center rounded-lg transition-colors touch-manipulation ${u.bot_enabled ? "text-violet-500 hover:bg-violet-500/10" : "text-muted-foreground hover:text-violet-500 hover:bg-violet-500/10"}`}
+                    >
+                      <Bot className="h-4 w-4" />
+                    </button>
+
+                    <button
                       onClick={() => { setResetUser(u); setResetPass(""); setResetError(""); setShowResetPass(false); setResetDone(false); }}
                       title="Redefinir senha"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
                     >
-                      <KeyRound className="h-3.5 w-3.5" />
+                      <KeyRound className="h-4 w-4" />
                     </button>
 
                     <button
                       onClick={() => toggleActive(u)}
                       title={u.is_active ? "Desativar" : "Ativar"}
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${u.is_active ? "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10" : "text-muted-foreground hover:text-green-500 hover:bg-green-500/10"}`}
+                      className={`flex h-11 w-11 items-center justify-center rounded-lg transition-colors touch-manipulation ${u.is_active ? "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10" : "text-muted-foreground hover:text-green-500 hover:bg-green-500/10"}`}
                     >
-                      <Power className="h-3.5 w-3.5" />
+                      <Power className="h-4 w-4" />
                     </button>
 
                     {!u.is_admin && (
                       <button
                         onClick={() => deleteUser(u)}
                         title="Excluir"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     )}
                   </div>
@@ -265,6 +329,30 @@ export default function UsuariosPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none rounded-xl border px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={form.bot_enabled}
+                    onChange={(e) => setForm({ ...form, bot_enabled: e.target.checked })}
+                    className="accent-violet-600"
+                  />
+                  <Bot className="h-4 w-4 text-violet-500" />
+                  <span className="text-xs font-medium">Bot (+R$ 15)</span>
+                </label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Validade (dias)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={730}
+                    value={form.paid_days}
+                    onChange={(e) => setForm({ ...form, paid_days: Number(e.target.value) || 30 })}
+                    className="w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+              </div>
+
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-1.5 flex-1">
                   <label className="text-xs font-medium text-muted-foreground">Cor do avatar</label>
@@ -285,6 +373,10 @@ export default function UsuariosPage() {
                   <span className="font-medium text-xs">Admin</span>
                 </label>
               </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                Plano: {form.bot_enabled ? "Completo R$ 45" : "Assinante R$ 30"} · {form.paid_days} dias
+              </p>
 
               {error && <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-3 py-2">{error}</p>}
             </div>
