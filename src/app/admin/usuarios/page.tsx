@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@/context/user-context";
 import { useRouter } from "next/navigation";
-import { Users, UserPlus, Trash2, Power, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { Users, UserPlus, Trash2, Power, ShieldCheck, Eye, EyeOff, KeyRound } from "lucide-react";
 
 interface AppUser {
   id: number;
@@ -28,6 +28,11 @@ export default function UsuariosPage() {
   const [showPass, setShowPass] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [resetUser, setResetUser] = useState<AppUser | null>(null);
+  const [resetPass, setResetPass] = useState("");
+  const [showResetPass, setShowResetPass] = useState(false);
+  const [resetSaving, setResetSaving] = useState(false);
+  const [resetError, setResetError] = useState("");
 
   useEffect(() => {
     if (!isAdmin) { router.replace("/"); return; }
@@ -54,6 +59,20 @@ export default function UsuariosPage() {
     if (!confirm(`Excluir ${user.name}? Esta ação não pode ser desfeita.`)) return;
     await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
     loadUsers();
+  }
+
+  async function resetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetUser || !resetPass.trim()) return;
+    setResetSaving(true); setResetError("");
+    const res = await fetch(`/api/admin/users/${resetUser.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: resetPass }),
+    });
+    if (!res.ok) { setResetError("Erro ao redefinir senha"); }
+    else { setResetUser(null); setResetPass(""); }
+    setResetSaving(false);
   }
 
   async function createUser(e: React.FormEvent) {
@@ -191,6 +210,10 @@ export default function UsuariosPage() {
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${u.is_active ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"}`}>
                     {u.is_active ? "Ativo" : "Inativo"}
                   </span>
+                  <button onClick={() => { setResetUser(u); setResetPass(""); setResetError(""); setShowResetPass(false); }} title="Redefinir senha"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-all text-muted-foreground hover:text-foreground">
+                    <KeyRound className="h-3.5 w-3.5" />
+                  </button>
                   <button onClick={() => toggleActive(u)} title={u.is_active ? "Desativar" : "Ativar"}
                     className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-all text-muted-foreground hover:text-foreground">
                     <Power className="h-3.5 w-3.5" />
@@ -207,6 +230,51 @@ export default function UsuariosPage() {
           </div>
         )}
       </div>
+      {/* Modal reset de senha */}
+      {resetUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <form onSubmit={resetPassword} className="w-full max-w-sm bg-background border rounded-2xl p-6 shadow-2xl space-y-4">
+            <div>
+              <h2 className="font-bold text-base flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-primary" />
+                Redefinir senha
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {resetUser.name} <span className="text-xs">(@{resetUser.username})</span>
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground font-medium">Nova senha</label>
+              <div className="relative">
+                <input
+                  type={showResetPass ? "text" : "password"}
+                  value={resetPass}
+                  onChange={(e) => setResetPass(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  autoFocus
+                  className="w-full rounded-xl border bg-background px-3 py-2.5 pr-10 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                <button type="button" onClick={() => setShowResetPass((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground">
+                  {showResetPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            {resetError && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{resetError}</p>}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setResetUser(null)}
+                className="flex-1 rounded-xl border py-2.5 text-sm text-muted-foreground hover:bg-muted transition-all">
+                Cancelar
+              </button>
+              <button type="submit" disabled={resetSaving || !resetPass.trim()}
+                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 transition-all">
+                {resetSaving ? "Salvando..." : "Redefinir"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

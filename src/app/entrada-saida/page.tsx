@@ -7,13 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Plus, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle, Wallet,
-  Target, Loader2, TrendingUp, PiggyBank, ChevronLeft, ChevronRight,
+  Loader2, TrendingUp, PiggyBank, ChevronLeft, ChevronRight,
   CreditCard, BarChart3, CalendarRange,
 } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
@@ -40,7 +39,6 @@ export default function EntradaSaidaPage() {
 function EntradaSaidaContent({ userId }: { userId: string }) {
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [flows, setFlows] = useState<CashFlow[]>([]);
-  const [goal, setGoal] = useState(0);
   const [savedAmount, setSavedAmount] = useState(0);
   const [planejado, setPlanejado] = useState(0);
   const [faturaCartao, setFaturaCartao] = useState(0);
@@ -48,11 +46,9 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
 
   const [entryOpen, setEntryOpen] = useState(false);
-  const [goalOpen, setGoalOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [editing, setEditing] = useState<CashFlow | null>(null);
   const [form, setForm] = useState({ description: "", type: "entrada" as "entrada" | "saida", amount: "", date: format(new Date(), "yyyy-MM-dd") });
-  const [goalInput, setGoalInput] = useState("");
   const [savedInput, setSavedInput] = useState("");
 
   const monthKey = format(currentMonth, "yyyy-MM");
@@ -77,11 +73,8 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
     ]);
 
     setFlows(Array.isArray(flowsData) ? flowsData.map(toFlow) : []);
-    const goalAmount = Number(goalData.goal_amount) || 0;
     const saved = Number(goalData.saved_amount) || 0;
-    setGoal(goalAmount);
     setSavedAmount(saved);
-    setGoalInput(goalAmount > 0 ? String(goalAmount) : "");
     setSavedInput(saved > 0 ? String(saved) : "");
 
     const planItems = Array.isArray(planData) ? planData : [];
@@ -115,9 +108,6 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const totalEntradas = entradas.reduce((s, f) => s + f.amount, 0);
   const totalSaidas = saidas.reduce((s, f) => s + f.amount, 0);
   const saldo = totalEntradas - totalSaidas;
-  const faltaParaMeta = goal > savedAmount ? goal - savedAmount : 0;
-  const metaProgress = goal > 0 ? Math.min((savedAmount / goal) * 100, 100) : 0;
-  const metaAtingida = goal > 0 && savedAmount >= goal;
   const sobra = totalEntradas - faturaCartao - investidoMes;
 
   function openNew(type: "entrada" | "saida") {
@@ -145,15 +135,9 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
     await fetch(`/api/cash-flows/${id}`, { method: "DELETE" });
     setFlows((prev) => prev.filter((f) => f.id !== id));
   }
-  async function saveGoal() {
-    const value = parseFloat(goalInput) || 0;
-    await fetch("/api/savings-goals", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: userId, goal_amount: value, saved_amount: savedAmount }) });
-    setGoal(value);
-    setGoalOpen(false);
-  }
   async function saveSavedAmount() {
     const value = parseFloat(savedInput) || 0;
-    await fetch("/api/savings-goals", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: userId, goal_amount: goal, saved_amount: value }) });
+    await fetch("/api/savings-goals", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: userId, goal_amount: 0, saved_amount: value }) });
     setSavedAmount(value);
     setSavedOpen(false);
   }
@@ -278,34 +262,6 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
         </div>
       </button>
 
-      {/* Meta financeira */}
-      <button
-        onClick={() => { setGoalInput(goal > 0 ? String(goal) : ""); setGoalOpen(true); }}
-        className="flex flex-col px-4 py-3.5 border-b border-border hover:bg-muted/30 transition-colors w-full text-left"
-      >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Meta financeira</span>
-            {metaAtingida && <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px] px-1.5">Atingida!</Badge>}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold tabular-nums">{goal > 0 ? formatCurrency(goal) : <span className="text-muted-foreground font-normal">definir</span>}</span>
-            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-          </div>
-        </div>
-        {goal > 0 && (
-          <>
-            <Progress value={metaProgress} className="h-1.5 mb-1.5" />
-            <div className="flex justify-between text-[11px] text-muted-foreground">
-              <span>{metaProgress.toFixed(0)}% — guardado {formatCurrency(savedAmount)}</span>
-              {metaAtingida
-                ? <span className="text-green-600">+{formatCurrency(savedAmount - goal)}</span>
-                : <span>faltam <strong className="text-foreground">{formatCurrency(faltaParaMeta)}</strong></span>}
-            </div>
-          </>
-        )}
-      </button>
 
       {/* Listas de entradas e saídas */}
       <div className="flex-1 divide-y divide-border">
@@ -337,25 +293,6 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
             <div className="flex gap-2 pt-1">
               <Button variant="outline" className="flex-1" onClick={() => setEntryOpen(false)}>Cancelar</Button>
               <Button className="flex-1" onClick={submitEntry}>{editing ? "Salvar" : "Adicionar"}</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog: goal */}
-      <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Meta financeira</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Defina quanto você quer acumular.</p>
-          <div className="space-y-3 pt-1">
-            <div className="space-y-1.5">
-              <Label>Valor da meta (R$)</Label>
-              <Input type="number" placeholder="Ex: 3000,00" value={goalInput}
-                onChange={(e) => setGoalInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveGoal()} autoFocus />
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setGoalOpen(false)}>Cancelar</Button>
-              <Button className="flex-1" onClick={saveGoal}>Salvar</Button>
             </div>
           </div>
         </DialogContent>
