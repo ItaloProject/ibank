@@ -66,6 +66,23 @@ const SIDE_CONTENT = [
   },
 ];
 
+// Depoimentos ilustrativos — não representam clientes reais, usados apenas
+// para demonstrar o layout enquanto não há depoimentos reais coletados.
+const TESTIMONIALS: { name: string; initials: string; color: string; quote: string }[] = [
+  {
+    name: "R. M.",
+    initials: "RM",
+    color: "bg-blue-600",
+    quote: "Finalmente tenho controle real da minha carteira. O cálculo de IR automático me salvou muito tempo na declaração do imposto de renda.",
+  },
+  {
+    name: "A. S.",
+    initials: "AS",
+    color: "bg-emerald-600",
+    quote: "Uso todo dia para acompanhar o cartão e as ações. É simples e direto ao ponto.",
+  },
+];
+
 const GOAL_OPTIONS: { id: Goal; label: string; tagline: string; icon: React.ElementType; color: string }[] = [
   { id: "aposentadoria", label: "Aposentadoria",      tagline: "Crescimento no longo prazo",    icon: Landmark,      color: "border-blue-500/60 bg-blue-500/10 text-blue-400" },
   { id: "renda_mensal",  label: "Renda Mensal",       tagline: "Proventos todo mês",             icon: CalendarCheck, color: "border-emerald-500/60 bg-emerald-500/10 text-emerald-400" },
@@ -153,7 +170,7 @@ export default function ComecarPage() {
     <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col md:flex-row">
 
       {/* ── painel esquerdo (desktop) ─────────────────────────────────────── */}
-      <div className="hidden md:flex md:w-1/2 lg:w-[55%] flex-col justify-between px-12 py-12 border-r border-zinc-800 relative overflow-hidden">
+      <div className="hidden md:flex md:w-1/2 lg:w-[55%] md:sticky md:top-0 md:h-[100dvh] md:overflow-y-auto flex-col px-12 py-12 border-r border-zinc-800 relative">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/30 via-transparent to-violet-950/20 pointer-events-none" />
 
         <div className="relative z-10 flex-1 flex flex-col">
@@ -191,21 +208,29 @@ export default function ComecarPage() {
           </div>
         </div>
 
-        {/* Social proof + depoimento */}
+        {/* Social proof + depoimentos */}
         <div className="relative z-10 mt-8 space-y-3">
           <SocialProofBar />
-          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-5">
-            <div className="flex gap-0.5 mb-2">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-              ))}
+          {TESTIMONIALS.map((t, i) => (
+            <div key={i} className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-5">
+              <div className="flex items-start gap-3">
+                <Avatar initials={t.initials} color={t.color} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex gap-0.5 mb-1.5">
+                    {[...Array(5)].map((_, j) => (
+                      <Star key={j} className="h-3 w-3 fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+                  <p className="text-sm text-zinc-300 leading-relaxed">
+                    &ldquo;{t.quote}&rdquo;
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-2 font-medium">
+                    {t.name} <span className="text-zinc-600 font-normal">· Cliente fictício (ilustrativo)</span>
+                  </p>
+                </div>
+              </div>
             </div>
-            <p className="text-sm text-zinc-300 leading-relaxed">
-              &ldquo;Finalmente tenho controle real da minha carteira. O cálculo de IR automático me
-              salvou muito tempo na declaração do imposto de renda.&rdquo;
-            </p>
-            <p className="text-xs text-zinc-500 mt-2 font-medium">— Investidor IBANK</p>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -529,6 +554,18 @@ export default function ComecarPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Avatar ilustrativo (iniciais, não é foto de pessoa real) ─────────────────
+function Avatar({ initials, color }: { initials: string; color: string }) {
+  return (
+    <div className={cn(
+      "h-10 w-10 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0",
+      color
+    )}>
+      {initials}
     </div>
   );
 }
