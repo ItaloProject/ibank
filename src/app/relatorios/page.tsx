@@ -173,7 +173,7 @@ export default function RelatoriosPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between" data-no-print>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Relatórios</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Relatórios</h1>
           <p className="text-muted-foreground text-sm">
             {viewMode === "mes" ? `Visão mensal — ${monthLabel}` : `Análise dos últimos ${period} meses`}
           </p>
@@ -182,14 +182,16 @@ export default function RelatoriosPage() {
           {/* Modo toggle */}
           <div className="flex rounded-lg border border-border overflow-hidden text-sm">
             <button
+              type="button"
               onClick={() => setViewMode("mes")}
-              className={`px-3 py-1.5 transition-colors ${viewMode === "mes" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              className={`px-3 py-2.5 min-h-11 transition-colors touch-manipulation ${viewMode === "mes" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
             >
               Mês a mês
             </button>
             <button
+              type="button"
               onClick={() => setViewMode("periodo")}
-              className={`px-3 py-1.5 transition-colors ${viewMode === "periodo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              className={`px-3 py-2.5 min-h-11 transition-colors touch-manipulation ${viewMode === "periodo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
             >
               Período
             </button>

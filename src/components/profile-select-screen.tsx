@@ -51,7 +51,7 @@ export function ProfileSelectScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-10">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-4 py-10 safe-pt safe-pb">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
@@ -129,7 +129,7 @@ export function ProfileSelectScreen() {
                       disabled={loading !== null}
                       onClick={() => handleSelect(p.id)}
                       className={cn(
-                        "w-full py-2.5 rounded-lg text-sm font-semibold transition-colors mt-1",
+                        "w-full py-3 min-h-12 rounded-lg text-sm font-semibold transition-colors mt-1 touch-manipulation",
                         "bg-foreground text-background hover:opacity-90 active:opacity-80",
                         "disabled:opacity-50 disabled:cursor-not-allowed",
                       )}

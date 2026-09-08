@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CreditCard, TrendingUp, AlertTriangle, ArrowUpRight } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
+import { CreditCard, TrendingUp, AlertTriangle, ArrowUpRight, Wallet, Zap, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -10,11 +11,14 @@ import {
 } from "recharts";
 import { getCards, getTransactions, getAvailableCycles, getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { computeMonthlyPassiveIncome } from "@/lib/passive-income";
 import type { CreditCard as CreditCardType, Transaction, InvestmentAccount, Investment, StockTrade } from "@/types/database";
 import type { StockQuote } from "@/lib/api";
 import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTheme } from "@/components/theme-provider";
+import { PageHeader } from "@/components/mobile";
+import { ChartFrame } from "@/components/mobile/chart-frame";
 
 const CATEGORY_COLORS: Record<string, string> = {
   alimentacao: "#3b82f6", transporte: "#10b981", saude: "#f59e0b",
@@ -79,7 +83,7 @@ export default function DashboardPage() {
         return Promise.all([
           getTransactions({ billingCycle: cycle }),
           getInvestmentAccounts(),
-          getInvestments({ start: monthStart, end: monthEnd }),
+          getInvestments(), // histórico completo — necessário para renda mensal média
           getStockTrades(),
           getStockQuotes(),
         ]);
@@ -135,8 +139,22 @@ export default function DashboardPage() {
     .filter((t) => t.type === "compra" && t.date >= monthStart && t.date <= monthEnd)
     .reduce((s, t) => s + t.total_amount, 0);
   const monthDeposits = investments
-    .filter((i) => i.type === "deposito" || i.type === "rendimento")
+    .filter((i) =>
+      (i.type === "deposito" || i.type === "rendimento") &&
+      i.date >= monthStart && i.date <= monthEnd
+    )
     .reduce((s, i) => s + i.amount, 0) + stockPurchasesMonth;
+
+  const { sources: incomeSources, total: monthlyIncome } = useMemo(
+    () => computeMonthlyPassiveIncome(accounts, investments, stockTrades),
+    [accounts, investments, stockTrades],
+  );
+
+  const SOURCE_COLORS: Record<string, string> = {
+    TURBO: "#10b981",
+    FIIs: "#a855f7",
+    "Dividendos de ações": "#3b82f6",
+  };
 
   const byCategory = transactions.reduce<Record<string, number>>((acc, t) => {
     acc[t.category] = (acc[t.category] ?? 0) + t.amount;
@@ -170,11 +188,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
-      </div>
+    <div className="space-y-6 sm:space-y-8 pb-4">
+      <PageHeader title="Dashboard" description="Visão geral das suas finanças" />
 
+      <div className="px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -235,6 +252,75 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Renda passiva mensal */}
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between space-y-0">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-emerald-500" />
+              Renda passiva mensal
+            </CardTitle>
+            <CardDescription>Estimativa atual das suas fontes de renda</CardDescription>
+          </div>
+          <div className="text-left sm:text-right">
+            <p className="text-2xl font-bold text-emerald-500 tabular-nums">{formatCurrency(monthlyIncome)}</p>
+            <p className="text-xs text-muted-foreground">por mês</p>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {incomeSources.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Nenhuma fonte de renda cadastrada. Configure TURBO, renda fixa ou ações em Investimentos.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {incomeSources.map((src) => {
+                const color =
+                  SOURCE_COLORS[src.label] ??
+                  (src.detail?.includes("TURBO") ? "#10b981" :
+                    src.detail?.includes("CDI") ? "#10b981" :
+                    src.detail?.includes("0,85%") ? "#a855f7" :
+                    src.detail?.includes("0,4%") ? "#3b82f6" : "#f59e0b");
+                const pct = monthlyIncome > 0 ? (src.value / monthlyIncome) * 100 : 0;
+                return (
+                  <div key={src.label + (src.detail ?? "")} className="rounded-xl border p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground truncate">{src.label}</p>
+                    </div>
+                    <p className="text-xl font-bold tabular-nums text-foreground">+{formatCurrency(src.value)}</p>
+                    <p className="text-xs text-muted-foreground mt-1 truncate">{src.detail ?? "/mês"}</p>
+                    <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pt-1">
+            <p className="text-xs text-muted-foreground">
+              Mesma base da Minha Meta e do Modo Investidor
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/metas"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:underline"
+              >
+                Ver meta <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+              <Link
+                href="/investimentos?modo=investidor"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:underline"
+              >
+                <Zap className="h-3.5 w-3.5" />
+                Modo Investidor
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -247,33 +333,32 @@ export default function DashboardPage() {
                 Nenhum gasto registrado este mês
               </p>
             ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-6">
-                {/* Rosca com total no centro */}
-                <div className="relative shrink-0">
-                  <PieChart width={200} height={200}>
-                    <Pie
-                      data={pieData}
-                      cx={100} cy={100}
-                      innerRadius={62} outerRadius={95}
-                      paddingAngle={3}
-                      dataKey="value"
-                      strokeWidth={0}
-                    >
-                      {pieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip
-                      formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)}
-                      contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText, fontSize: 12 }}
-                    />
-                  </PieChart>
-                  {/* Total no centro */}
+              <div className="flex flex-col md:flex-row items-center gap-6 w-full min-w-0">
+                <div className="relative w-full max-w-[220px] aspect-square shrink-0">
+                  <ChartFrame aspect="square" minHeight={200} className="max-w-[220px]">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%" cy="50%"
+                        innerRadius="62%" outerRadius="95%"
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={0}
+                      >
+                        {pieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip
+                        formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)}
+                        contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText, fontSize: 12 }}
+                      />
+                    </PieChart>
+                  </ChartFrame>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
-                    <p className="text-base font-bold tabular-nums leading-tight">{formatCurrency(totalSpent)}</p>
+                    <p className="text-sm sm:text-base font-bold tabular-nums leading-tight px-4 text-center">{formatCurrency(totalSpent)}</p>
                   </div>
                 </div>
 
-                {/* Legenda detalhada */}
                 <div className="flex-1 w-full space-y-1.5 min-w-0">
                   {[...pieData].sort((a, b) => b.value - a.value).map((entry) => {
                     const pct = totalSpent > 0 ? (entry.value / totalSpent * 100) : 0;
@@ -311,27 +396,29 @@ export default function DashboardPage() {
                 Nenhum investimento cadastrado
               </p>
             ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-6">
-                <div className="relative shrink-0">
-                  <PieChart width={200} height={200}>
-                    <Pie
-                      data={portfolioPieData}
-                      cx={100} cy={100}
-                      innerRadius={62} outerRadius={95}
-                      paddingAngle={3}
-                      dataKey="value"
-                      strokeWidth={0}
-                    >
-                      {portfolioPieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip
-                      formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)}
-                      contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText, fontSize: 12 }}
-                    />
-                  </PieChart>
+              <div className="flex flex-col md:flex-row items-center gap-6 w-full min-w-0">
+                <div className="relative w-full max-w-[220px] aspect-square shrink-0">
+                  <ChartFrame aspect="square" minHeight={200} className="max-w-[220px]">
+                    <PieChart>
+                      <Pie
+                        data={portfolioPieData}
+                        cx="50%" cy="50%"
+                        innerRadius="62%" outerRadius="95%"
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={0}
+                      >
+                        {portfolioPieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip
+                        formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)}
+                        contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText, fontSize: 12 }}
+                      />
+                    </PieChart>
+                  </ChartFrame>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
-                    <p className="text-base font-bold tabular-nums leading-tight">{formatCurrency(totalSaved)}</p>
+                    <p className="text-sm sm:text-base font-bold tabular-nums leading-tight px-4 text-center">{formatCurrency(totalSaved)}</p>
                   </div>
                 </div>
                 <div className="flex-1 w-full space-y-1.5 min-w-0">
@@ -407,7 +494,16 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={accounts.map((a) => ({ name: a.name, saldo: a.current_balance }))} style={{ background: "transparent" }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
-                <XAxis dataKey="name" tick={{ fill: chartTextColor, fontSize: 12 }} axisLine={{ stroke: chartGridColor }} tickLine={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: chartTextColor, fontSize: 10 }}
+                  axisLine={{ stroke: chartGridColor }}
+                  tickLine={false}
+                  interval={0}
+                  angle={-25}
+                  textAnchor="end"
+                  height={50}
+                />
                 <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} tick={{ fill: chartTextColor, fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip
                   formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)}
@@ -420,6 +516,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

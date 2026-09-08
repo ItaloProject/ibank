@@ -154,15 +154,15 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
     <div className="flex flex-col min-h-full">
       {/* Header + month nav */}
       <div className="px-4 pt-5 pb-2 border-b border-border">
-        <h1 className="text-2xl font-bold mb-3">Entrada/Saída</h1>
-        <div className="flex items-center justify-center gap-4">
-          <button onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors">
+        <h1 className="text-xl sm:text-2xl font-bold mb-3">Entrada/Saída</h1>
+        <div className="flex items-center justify-center gap-2 sm:gap-4">
+          <button type="button" onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors touch-manipulation">
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <span className="text-base font-semibold capitalize min-w-[170px] text-center">{monthLabel}</span>
-          <button onClick={() => setCurrentMonth((m) => addMonths(m, 1))} disabled={isCurrentMonth}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30">
+          <span className="text-sm sm:text-base font-semibold capitalize flex-1 text-center truncate px-1">{monthLabel}</span>
+          <button type="button" onClick={() => setCurrentMonth((m) => addMonths(m, 1))} disabled={isCurrentMonth}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 touch-manipulation">
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
@@ -170,19 +170,19 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
 
       {/* Resumo 3 colunas */}
       <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
-        <div className="flex flex-col items-center py-4 gap-0.5">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Receita</p>
-          <p className="text-lg font-bold text-green-600 tabular-nums">{formatCurrency(receita)}</p>
+        <div className="flex flex-col items-center py-4 px-1 gap-0.5 min-w-0">
+          <p className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Receita</p>
+          <p className="text-sm sm:text-lg font-bold text-green-600 tabular-nums truncate max-w-full">{formatCurrency(receita)}</p>
           <p className="text-[10px] text-muted-foreground">do mês</p>
         </div>
-        <div className="flex flex-col items-center py-4 gap-0.5">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Saídas</p>
-          <p className="text-lg font-bold text-destructive tabular-nums">{formatCurrency(totalSaidas)}</p>
+        <div className="flex flex-col items-center py-4 px-1 gap-0.5 min-w-0">
+          <p className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Saídas</p>
+          <p className="text-sm sm:text-lg font-bold text-destructive tabular-nums truncate max-w-full">{formatCurrency(totalSaidas)}</p>
           <p className="text-[10px] text-muted-foreground">automático</p>
         </div>
-        <div className="flex flex-col items-center py-4 gap-0.5">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Disponível</p>
-          <p className={`text-lg font-bold tabular-nums ${disponivel >= 0 ? "text-green-600" : "text-destructive"}`}>
+        <div className="flex flex-col items-center py-4 px-1 gap-0.5 min-w-0">
+          <p className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Disponível</p>
+          <p className={`text-sm sm:text-lg font-bold tabular-nums truncate max-w-full ${disponivel >= 0 ? "text-green-600" : "text-destructive"}`}>
             {formatCurrency(disponivel)}
           </p>
           <p className="text-[10px] text-muted-foreground">calculado</p>
@@ -301,14 +301,14 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
 
       {/* Modal: receita */}
       {receitaOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-4 sm:pb-0">
-          <div className="w-full max-w-sm bg-background border rounded-2xl shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-[max(1rem,var(--safe-bottom))] sm:pb-0">
+          <div className="w-full max-w-sm bg-background border rounded-2xl shadow-2xl overflow-hidden max-h-[min(90dvh,calc(100dvh-var(--safe-top)-1rem))] overflow-y-auto">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <div className="flex items-center gap-2">
                 <ArrowDownCircle className="h-4 w-4 text-green-600" />
                 <h2 className="font-bold text-sm">Receita de {format(currentMonth, "MMMM", { locale: ptBR })}</h2>
               </div>
-              <button onClick={() => setReceitaOpen(false)} className="text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={() => setReceitaOpen(false)} className="h-11 w-11 flex items-center justify-center text-muted-foreground hover:text-foreground touch-manipulation -mr-2">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -345,14 +345,14 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
 
       {/* Modal: valor guardado */}
       {savedOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-4 sm:pb-0">
-          <div className="w-full max-w-sm bg-background border rounded-2xl shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-[max(1rem,var(--safe-bottom))] sm:pb-0">
+          <div className="w-full max-w-sm bg-background border rounded-2xl shadow-2xl overflow-hidden max-h-[min(90dvh,calc(100dvh-var(--safe-top)-1rem))] overflow-y-auto">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <div className="flex items-center gap-2">
                 <PiggyBank className="h-4 w-4 text-primary" />
                 <h2 className="font-bold text-sm">Valor guardado</h2>
               </div>
-              <button onClick={() => setSavedOpen(false)} className="text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={() => setSavedOpen(false)} className="h-11 w-11 flex items-center justify-center text-muted-foreground hover:text-foreground touch-manipulation -mr-2">
                 <X className="h-4 w-4" />
               </button>
             </div>

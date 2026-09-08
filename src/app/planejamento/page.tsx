@@ -328,15 +328,15 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           <h1 className="text-xl font-bold">Planejamento</h1>
           <p className="text-xs text-muted-foreground mt-0.5 capitalize">{monthLabel}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {items.length === 0 && (
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setCopyOpen(true)}>
+            <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => setCopyOpen(true)}>
               <Copy className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Copiar mês anterior</span>
             </Button>
           )}
           {items.length > 0 && (
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => {
+            <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => {
               const userName = USERS.find(u => u.id === userId)?.name ?? userId;
               generatePlanReport(
                 groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
@@ -348,7 +348,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <span className="hidden sm:inline">Gerar PDF</span>
             </Button>
           )}
-          <Button onClick={openNewGroup} size="sm" className="h-8 text-xs">
+          <Button onClick={openNewGroup} size="sm" className="min-h-11 text-xs">
             <FolderPlus className="h-3.5 w-3.5" />
             Novo grupo
           </Button>
@@ -446,13 +446,13 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                       <p className={`text-sm font-semibold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</p>
                     </div>
                     <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
-                      <button className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      <button type="button" className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
                         onClick={() => openEditGroup(group)}>
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-4 w-4" />
                       </button>
-                      <button className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                      <button type="button" className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors touch-manipulation"
                         onClick={() => deleteGroup(group.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                     {isCollapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
@@ -475,25 +475,28 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                                 : <TrendingUp className="h-3.5 w-3.5 text-orange-400 shrink-0" />}
                               <span className="text-sm font-medium truncate">{item.name}</span>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex flex-col items-end gap-1 shrink-0 sm:flex-row sm:items-center sm:gap-2">
                               {item.planned > 0 && (
-                                <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">{fmt(item.planned)}</span>
+                                <span className="text-[10px] sm:text-xs text-muted-foreground tabular-nums">
+                                  plan. {fmt(item.planned)}
+                                </span>
                               )}
                               <Input
                                 type="number"
-                                className="h-8 text-xs text-right w-24 border-0 bg-muted/50 focus:bg-background"
+                                inputMode="decimal"
+                                className="h-11 sm:h-9 text-sm text-right w-[5.5rem] sm:w-24 border-0 bg-muted/50 focus:bg-background"
                                 defaultValue={item.actual || ""}
                                 placeholder="0,00"
                                 onBlur={(e) => updateActual(item, e.target.value)}
                               />
                               <div className="flex gap-0.5">
-                                <button className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                <button type="button" className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
                                   onClick={() => openEditItem(item)}>
-                                  <Pencil className="h-3 w-3" />
+                                  <Pencil className="h-4 w-4" />
                                 </button>
-                                <button className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                <button type="button" className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors touch-manipulation"
                                   onClick={() => deleteItem(item.id)}>
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
                             </div>
@@ -503,7 +506,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                         <div className="flex items-center justify-between px-4 py-2 bg-muted/20">
                           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subtotal</span>
                           <div className="flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">plan. {fmt(gPlanned)}</span>
+                            <span className="text-xs text-muted-foreground tabular-nums">plan. {fmt(gPlanned)}</span>
                             <span className={`text-sm font-bold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</span>
                           </div>
                         </div>

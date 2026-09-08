@@ -9,6 +9,10 @@ interface AuthUser {
   color: string;
   isAdmin?: boolean;
   investmentProfile?: string | null;
+  botEnabled?: boolean;
+  subscriptionActive?: boolean;
+  paidUntil?: string | null;
+  plan?: string | null;
 }
 
 interface UserContextType {
@@ -16,6 +20,8 @@ interface UserContextType {
   user: AuthUser | null;
   isAdmin: boolean;
   investmentProfile: string | null;
+  botEnabled: boolean;
+  subscriptionActive: boolean;
   setProfile: (profile: string) => void;
   login: (user: AuthUser) => void;
   logout: () => Promise<void>;
@@ -28,6 +34,8 @@ const UserContext = createContext<UserContextType>({
   user: null,
   isAdmin: false,
   investmentProfile: null,
+  botEnabled: false,
+  subscriptionActive: true,
   setProfile: () => {},
   login: () => {},
   logout: async () => {},
@@ -69,23 +77,29 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile }),
     });
-    setUser((prev) => prev ? { ...prev, investmentProfile: profile } : prev);
+    setUser((prev) => (prev ? { ...prev, investmentProfile: profile } : prev));
   }
 
   if (!ready) return null;
 
   return (
-    <UserContext.Provider value={{
-      userId: user?.id ?? null,
-      user,
-      isAdmin: user?.isAdmin ?? false,
-      investmentProfile: user?.investmentProfile ?? null,
-      setProfile,
-      login,
-      logout,
-      selectUser: (id) => setCurrentUser(id),
-      switchUser: () => { logout(); },
-    }}>
+    <UserContext.Provider
+      value={{
+        userId: user?.id ?? null,
+        user,
+        isAdmin: user?.isAdmin ?? false,
+        investmentProfile: user?.investmentProfile ?? null,
+        botEnabled: user?.botEnabled ?? false,
+        subscriptionActive: user?.subscriptionActive !== false,
+        setProfile,
+        login,
+        logout,
+        selectUser: (id) => setCurrentUser(id),
+        switchUser: () => {
+          void logout();
+        },
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

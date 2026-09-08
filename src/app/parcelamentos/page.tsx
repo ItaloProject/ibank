@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { useUser } from "@/context/user-context";
+import { UserSelect } from "@/components/user-select";
 
 interface Plan {
   id: string;
@@ -24,15 +26,13 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-const USER = "italo";
-
-async function fetchPlans(): Promise<Plan[]> {
-  const res = await fetch(`/api/parcelamentos?user=${USER}`);
+async function fetchPlans(userId: string): Promise<Plan[]> {
+  const res = await fetch(`/api/parcelamentos?user=${userId}`);
   return res.json();
 }
 
-async function createPlan(body: Partial<Plan>): Promise<Plan> {
-  const res = await fetch(`/api/parcelamentos?user=${USER}`, {
+async function createPlan(userId: string, body: Partial<Plan>): Promise<Plan> {
+  const res = await fetch(`/api/parcelamentos?user=${userId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -63,6 +63,12 @@ async function deletePlan(id: string): Promise<void> {
 }
 
 export default function ParcelamentosPage() {
+  const { userId } = useUser();
+  if (!userId) return <UserSelect />;
+  return <ParcelamentosContent userId={userId} />;
+}
+
+function ParcelamentosContent({ userId }: { userId: string }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -77,12 +83,12 @@ export default function ParcelamentosPage() {
 
   const load = useCallback(async () => {
     try {
-      const data = await fetchPlans();
-      setPlans(data);
+      const data = await fetchPlans(userId);
+      setPlans(Array.isArray(data) ? data : []);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -117,7 +123,7 @@ export default function ParcelamentosPage() {
       closeForm();
       return;
     }
-    await createPlan({
+    await createPlan(userId, {
       description: form.description,
       total_amount: parseFloat(form.total_amount),
       installments: parseInt(form.installments),
@@ -352,13 +358,13 @@ function PlanCard({
               ? <Badge className="bg-green-100 text-green-700 border-green-200">Quitado</Badge>
               : <Badge variant="outline">{remaining}x restante{remaining !== 1 ? "s" : ""}</Badge>
             }
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground"
               onClick={() => onEdit(plan)} title="Editar">
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive"
               onClick={() => onDelete(plan.id)} title="Excluir">
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -396,7 +402,7 @@ function PlanCard({
 
           {/* Pay/unpay controls */}
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8"
+            <Button variant="outline" size="icon"
               disabled={plan.paid_installments <= 0}
               onClick={() => onPay(plan, -1)}
               title="Desfazer última parcela">
@@ -405,7 +411,7 @@ function PlanCard({
             <span className="text-sm font-semibold tabular-nums w-10 text-center">
               {plan.paid_installments}/{plan.installments}
             </span>
-            <Button variant="outline" size="icon" className="h-8 w-8"
+            <Button variant="outline" size="icon"
               disabled={isDone}
               onClick={() => onPay(plan, +1)}
               title="Marcar próxima parcela como paga">

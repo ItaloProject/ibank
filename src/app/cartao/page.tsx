@@ -87,7 +87,7 @@ function TxRow({
 
   return (
     <div className="flex items-center gap-3 py-3 px-4">
-      <span className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`} />
+      <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${dotColor}`} />
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{tx.description}</p>
@@ -105,29 +105,29 @@ function TxRow({
         </p>
       </div>
 
-      <div className="flex items-center gap-1 shrink-0">
-        <span className={`text-sm font-semibold tabular-nums ${isCredit ? "text-green-600" : "text-destructive"}`}>
-          {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
-        </span>
-        <button
-          title={isAssinatura ? "Remover assinatura" : "Marcar como assinatura"}
-          onClick={() => onToggleAssinatura(tx)}
-          className={`h-7 w-7 flex items-center justify-center rounded transition-colors ${
-            isAssinatura
-              ? "text-violet-500"
-              : "text-muted-foreground/30 hover:text-violet-500"
-          }`}
-        >
-          <RefreshCw className="h-3 w-3" />
-        </button>
-        <button
-          title="Excluir"
-          onClick={() => onDelete(tx.id)}
-          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground/30 hover:text-destructive transition-colors"
-        >
-          <Trash2 className="h-3 w-3" />
-        </button>
-      </div>
+      <span className={`text-sm font-semibold tabular-nums shrink-0 ${isCredit ? "text-green-600" : "text-destructive"}`}>
+        {isCredit ? "+" : "-"}{formatCurrency(Math.abs(tx.amount))}
+      </span>
+      <button
+        type="button"
+        title={isAssinatura ? "Remover assinatura" : "Marcar como assinatura"}
+        onClick={() => onToggleAssinatura(tx)}
+        className={`h-11 w-11 flex items-center justify-center rounded-lg touch-manipulation transition-colors ${
+          isAssinatura
+            ? "text-violet-500"
+            : "text-muted-foreground/40 hover:text-violet-500"
+        }`}
+      >
+        <RefreshCw className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        title="Excluir"
+        onClick={() => onDelete(tx.id)}
+        className="h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-destructive touch-manipulation transition-colors"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
     </div>
   );
 }
@@ -347,11 +347,11 @@ export default function CartaoPage() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col pb-4 sm:pb-6">
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b">
+      <div className="px-4 sm:px-6 pt-4 pb-3 border-b">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-lg font-bold">Cartão de Crédito</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Cartão de Crédito</h1>
           <div className="flex items-center gap-1">
             {activeCard && cardTransactions.length > 0 && (
               <Button
@@ -484,7 +484,7 @@ export default function CartaoPage() {
 
         {/* Cycle navigation */}
         <div className="flex items-center gap-1 mt-2">
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => changeCycle(prevCycle(selectedCycle))}>
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => changeCycle(prevCycle(selectedCycle))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="flex-1 text-center text-sm text-muted-foreground capitalize font-medium">
@@ -493,7 +493,7 @@ export default function CartaoPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 shrink-0"
+            className="shrink-0"
             onClick={() => changeCycle(nextCycle(selectedCycle))}
             disabled={selectedCycle >= currentCycleId()}
           >
@@ -503,20 +503,23 @@ export default function CartaoPage() {
 
         {/* Available cycles chips */}
         {availableCycles.length > 0 && (
-          <div className="flex gap-1 mt-2 overflow-x-auto pb-0.5">
-            {availableCycles.slice(0, 8).map((c) => (
-              <button
-                key={c}
-                onClick={() => changeCycle(c)}
-                className={`text-[11px] px-2.5 py-0.5 rounded-full border shrink-0 transition-colors ${
-                  c === selectedCycle
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border text-muted-foreground hover:border-primary/50"
-                }`}
-              >
-                {cycleLabel(c)}
-              </button>
-            ))}
+          <div className="relative mt-2">
+            <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none pr-6">
+              {availableCycles.slice(0, 8).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => changeCycle(c)}
+                  className={`text-[11px] px-3 py-1.5 rounded-full border shrink-0 transition-colors min-h-9 touch-manipulation ${
+                    c === selectedCycle
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  {cycleLabel(c)}
+                </button>
+              ))}
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent" />
           </div>
         )}
       </div>
@@ -553,29 +556,29 @@ export default function CartaoPage() {
           {/* Summary strip */}
           {activeCard && (
             <div className="flex divide-x border-b">
-              <div className="flex-1 px-4 py-3 min-w-0">
-                <p className="text-xs text-muted-foreground">Total da fatura</p>
-                <p className="text-base font-bold text-destructive mt-0.5 tabular-nums">
+              <div className="flex-1 px-2 sm:px-4 py-3 min-w-0">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Total da fatura</p>
+                <p className="text-sm sm:text-base font-bold text-destructive mt-0.5 tabular-nums truncate">
                   {totalNubank !== null ? fmt(totalNubank) : formatCurrency(compras)}
                 </p>
                 {futureFromInstallments > 0 && (
-                  <p className="text-[11px] text-amber-600 mt-0.5 tabular-nums">
+                  <p className="text-[10px] sm:text-[11px] text-amber-600 mt-0.5 tabular-nums truncate">
                     +{formatCurrency(futureFromInstallments)} futuras
                   </p>
                 )}
               </div>
-              <div className="flex-1 px-4 py-3 min-w-0">
-                <p className="text-xs text-muted-foreground">Disponível real</p>
-                <p className={`text-base font-bold mt-0.5 tabular-nums ${limiteReal >= 0 ? "text-green-600" : "text-destructive"}`}>
+              <div className="flex-1 px-2 sm:px-4 py-3 min-w-0">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Disponível real</p>
+                <p className={`text-sm sm:text-base font-bold mt-0.5 tabular-nums truncate ${limiteReal >= 0 ? "text-green-600" : "text-destructive"}`}>
                   {formatCurrency(Math.max(0, limiteReal))}
                 </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
                   de {formatCurrency(activeCard.limit)}
                 </p>
               </div>
-              <div className="flex-1 px-4 py-3 min-w-0">
-                <p className="text-xs text-muted-foreground">Comprometido</p>
-                <p className={`text-base font-bold mt-0.5 tabular-nums ${limitPercent > 80 ? "text-destructive" : ""}`}>
+              <div className="flex-1 px-2 sm:px-4 py-3 min-w-0">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Comprometido</p>
+                <p className={`text-sm sm:text-base font-bold mt-0.5 tabular-nums ${limitPercent > 80 ? "text-destructive" : ""}`}>
                   {Math.min(limitPercent, 100).toFixed(0)}%
                 </p>
                 <Progress

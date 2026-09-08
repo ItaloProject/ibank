@@ -77,7 +77,7 @@ export function CarteiraSugeridaScreen({ profile, onContinuar }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-10">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-4 py-10 safe-pt safe-pb">
       <div className="w-full max-w-md space-y-5">
 
         {/* Header */}
@@ -177,7 +177,7 @@ export function CarteiraSugeridaScreen({ profile, onContinuar }: Props) {
           type="button"
           disabled={loading}
           onClick={handleContinuar}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-foreground text-background font-semibold text-sm hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 py-3.5 min-h-12 rounded-xl bg-foreground text-background font-semibold text-sm hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-50 touch-manipulation"
         >
           {loading ? "Salvando..." : "Montar minha carteira"}
           <ChevronRight className="h-4 w-4" />

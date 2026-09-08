@@ -37,7 +37,7 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-6">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-6 safe-pt safe-pb">
       {/* Logo */}
       <div className="flex flex-col items-center gap-3 mb-10">
         <div className="h-20 w-20 rounded-2xl overflow-hidden">
@@ -102,8 +102,9 @@ export function LoginScreen() {
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 flex items-center justify-center text-muted-foreground/60 hover:text-foreground transition-colors touch-manipulation"
               tabIndex={-1}
+              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -121,7 +122,7 @@ export function LoginScreen() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 min-h-12 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2 touch-manipulation"
         >
           {loading ? (
             <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />

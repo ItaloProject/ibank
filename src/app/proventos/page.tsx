@@ -158,10 +158,10 @@ export default function ProventosPage() {
         </div>
         <Button
           size="sm"
-          className="h-8 text-xs"
+          className="min-h-11"
           onClick={() => setFormOpen((v) => !v)}
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-4 w-4" />
           Adicionar
         </Button>
       </div>
@@ -313,11 +313,12 @@ export default function ProventosPage() {
                           {fmt(p.amount)}
                         </span>
                         <button
+                          type="button"
                           onClick={() => handleDelete(p.id)}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                          className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors touch-manipulation"
                           title="Excluir"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>

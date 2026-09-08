@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useUser } from "@/context/user-context";
-import { Target, TrendingUp, Landmark, Calendar, DollarSign, ChevronRight, Calculator, Loader2 } from "lucide-react";
+import { Target, TrendingUp, Landmark, Calendar, DollarSign, ChevronRight, Calculator, Loader2, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { computeMonthlyPassiveIncome } from "@/lib/passive-income";
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -22,7 +24,7 @@ function calcAporteNecessario(meta: number, anos: number, taxaAnual = 0.08): num
 }
 
 export default function MetasPage() {
-  const { investmentProfile } = useUser();
+  const { investmentProfile, userId, botEnabled } = useUser();
   const isAposentadoria = investmentProfile === "aposentadoria";
 
   const anoAtual = new Date().getFullYear();
@@ -65,33 +67,51 @@ export default function MetasPage() {
     setCalcLoading(true);
     setCalcBreakdown(null);
     try {
-      // Busca proventos (dividendos mensais cadastrados)
-      const [provRes, invRes] = await Promise.all([
-        fetch("/api/proventos"),
-        fetch("/api/investments"),
+      const uid = userId ?? "italo";
+      // Mesma base da aba Fontes de Renda em Investimentos
+      const [accRes, invRes, stockRes] = await Promise.all([
+        fetch(`/api/investment-accounts?user=${uid}`),
+        fetch(`/api/investments?user=${uid}`),
+        fetch(`/api/stock-trades?user=${uid}`),
       ]);
-      const provData = await provRes.json();
+      const accData = await accRes.json();
       const invData = await invRes.json();
+      const stockData = await stockRes.json();
 
-      const breakdown: { label: string; value: number }[] = [];
+      const accounts = Array.isArray(accData)
+        ? accData.map((a: Record<string, unknown>) => ({
+            id: String(a.id),
+            name: String(a.name),
+            is_turbo: Boolean(a.is_turbo),
+            cdi_percent: a.cdi_percent != null ? Number(a.cdi_percent) : null,
+            current_balance: Number(a.current_balance) || 0,
+          }))
+        : [];
 
-      // Soma todos os proventos (FIIs, dividendos, JCP - são mensais)
-      const proventos = Array.isArray(provData) ? provData : [];
-      const totalProventos = proventos.reduce((s: number, p: Record<string, unknown>) => s + (Number(p.amount) || 0), 0);
-      if (totalProventos > 0) {
-        breakdown.push({ label: `Proventos (${proventos.length} ativos)`, value: totalProventos });
-      }
+      const investments = Array.isArray(invData)
+        ? invData.map((i: Record<string, unknown>) => ({
+            account_id: String(i.account_id),
+            type: String(i.type),
+            amount: Number(i.amount) || 0,
+            date: String(i.date).slice(0, 10),
+          }))
+        : [];
 
-      // Soma rendimentos de investimentos (tipo "rendimento")
-      const invList = Array.isArray(invData) ? invData : [];
-      const totalRendimentos = invList
-        .filter((i: Record<string, unknown>) => i.type === "rendimento")
-        .reduce((s: number, i: Record<string, unknown>) => s + (Number(i.amount) || 0), 0);
-      if (totalRendimentos > 0) {
-        breakdown.push({ label: "Rendimentos (renda fixa)", value: totalRendimentos });
-      }
+      const stockTrades = Array.isArray(stockData)
+        ? stockData.map((t: Record<string, unknown>) => ({
+            ticker: String(t.ticker),
+            type: String(t.type),
+            quantity: Number(t.quantity) || 0,
+            total_amount: Number(t.total_amount) || 0,
+          }))
+        : [];
 
-      const total = totalProventos + totalRendimentos;
+      const { sources, total } = computeMonthlyPassiveIncome(accounts, investments, stockTrades);
+      const breakdown = sources.map((s) => ({
+        label: s.detail ? `${s.label} · ${s.detail}` : s.label,
+        value: s.value,
+      }));
+
       setCalcBreakdown(breakdown);
       setRendaAtual(total > 0 ? String(Math.round(total * 100) / 100) : rendaAtual);
     } catch {}
@@ -100,15 +120,20 @@ export default function MetasPage() {
 
   async function salvar() {
     setSaving(true);
+    const target = isAposentadoria ? Number(valorAlvo) || null : Number(metaRenda) || null;
     await fetch("/api/goals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        goal_target: isAposentadoria ? Number(valorAlvo) || null : Number(metaRenda) || null,
+        goal_target: target,
         goal_deadline_year: isAposentadoria ? Number(prazoAno) || null : null,
         goal_monthly_contribution: isAposentadoria ? Number(aporteAtual) || null : Number(rendaAtual) || null,
       }),
     });
+    // Sincroniza meta de renda com o Modo Investidor
+    if (!isAposentadoria && target) {
+      try { localStorage.setItem("ibank_income_goal", String(target)); } catch {}
+    }
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
@@ -127,13 +152,13 @@ export default function MetasPage() {
   if (loading) return <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Carregando...</div>;
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-lg mx-auto px-4 py-6 space-y-6 pb-8">
       <div className="border-b pb-4 flex items-center gap-2">
         {isAposentadoria
           ? <Landmark className="h-5 w-5 text-blue-500" />
           : <TrendingUp className="h-5 w-5 text-emerald-500" />}
         <div>
-          <h1 className="text-xl font-bold">Minha Meta</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Minha Meta</h1>
           <p className="text-sm text-muted-foreground">{isAposentadoria ? "Aposentadoria" : "Renda Mensal"}</p>
         </div>
       </div>
@@ -270,7 +295,7 @@ export default function MetasPage() {
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 space-y-1.5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Base de cálculo</p>
                   {calcBreakdown.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhum dado encontrado. Cadastre proventos ou rendimentos em Investimentos.</p>
+                    <p className="text-xs text-muted-foreground">Nenhuma fonte encontrada. Cadastre contas TURBO, renda fixa ou ações em Investimentos.</p>
                   ) : (
                     calcBreakdown.map((b) => (
                       <div key={b.label} className="flex items-center justify-between">
@@ -329,6 +354,27 @@ export default function MetasPage() {
               </div>
             </section>
           )}
+
+          {/* Atalho para Modo Investidor / upsell bot */}
+          <Link
+            href={botEnabled ? "/investimentos?modo=investidor" : "/vender"}
+            className="flex items-start gap-3 rounded-xl border border-violet-500/30 bg-violet-500/5 px-4 py-3.5 hover:bg-violet-500/10 transition-colors"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-500">
+              <Zap className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                {botEnabled ? "Ver onde investir para a meta" : "Desbloquear Bot (+R$ 15)"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {botEnabled
+                  ? "Abre o Modo Investidor com simulador de capital em FIIs, TURBO e dividendos."
+                  : "Pesquisa de mercado e modo investidor — peça o plano Completo no WhatsApp."}
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground mt-1" />
+          </Link>
         </>
       )}
 
