@@ -317,7 +317,10 @@ export default function ComecarPage() {
                 />
               </div>
               <p className="text-xs text-zinc-600 flex items-center gap-1.5">
-                <Shield className="h-3 w-3" /> Seus dados ficam apenas conosco
+                <Shield className="h-3 w-3" /> Seus dados ficam apenas conosco ·{" "}
+                <Link href="/politica-privacidade" className="underline hover:text-zinc-400" target="_blank">
+                  Política de privacidade
+                </Link>
               </p>
               <div className="flex gap-3 mt-2">
                 <BackButton onClick={() => goTo(0, "left")} />
