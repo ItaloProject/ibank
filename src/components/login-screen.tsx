@@ -1,17 +1,46 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
-import { USERS, type UserId } from "@/lib/user";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useUser } from "@/context/user-context";
 
 export function LoginScreen() {
-  const { selectUser } = useUser();
+  const { login } = useUser();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Erro ao entrar");
+      } else {
+        login(data.user);
+      }
+    } catch {
+      setError("Erro de conexão. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-6">
       {/* Logo */}
-      <div className="flex flex-col items-center gap-4 mb-10">
-        <div className="h-24 w-24 rounded-2xl overflow-hidden bg-[#f0ede8] shadow-xl">
+      <div className="flex flex-col items-center gap-3 mb-10">
+        <div className="h-20 w-20 rounded-2xl overflow-hidden bg-[#f0ede8] shadow-xl">
           <Image
             src="/logo.png"
             alt="IBANK"
@@ -23,51 +52,87 @@ export function LoginScreen() {
           />
         </div>
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">IBANK</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gestão Financeira Inteligente</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">IBANK</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Gestão Financeira Inteligente</p>
         </div>
       </div>
 
-      {/* Card de seleção */}
-      <div className="w-full max-w-sm">
-        <p className="text-center text-sm font-medium text-muted-foreground mb-4">
-          Selecione seu perfil para continuar
-        </p>
+      {/* Formulário */}
+      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
+        <div>
+          <p className="text-center text-base font-semibold text-foreground mb-6">
+            Entrar na sua conta
+          </p>
+        </div>
 
-        <div className="space-y-3">
-          {USERS.map((user) => (
+        {/* Usuário */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground/80" htmlFor="username">
+            Usuário
+          </label>
+          <input
+            id="username"
+            type="text"
+            autoComplete="username"
+            autoCapitalize="none"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="seu usuário"
+            required
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+          />
+        </div>
+
+        {/* Senha */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground/80" htmlFor="password">
+            Senha
+          </label>
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            />
             <button
-              key={user.id}
               type="button"
-              onClick={() => selectUser(user.id as UserId)}
-              className="w-full flex items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left transition-all duration-150 hover:border-primary/40 hover:bg-accent active:scale-[0.98] shadow-sm"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+              tabIndex={-1}
             >
-              <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white shadow-md"
-                style={{ backgroundColor: user.color }}
-              >
-                {user.name[0]}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground">{user.name}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Perfil pessoal</p>
-              </div>
-              <svg
-                className="h-4 w-4 text-muted-foreground/50 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
-          ))}
+          </div>
         </div>
-      </div>
 
-      {/* Rodapé */}
-      <p className="mt-12 text-xs text-muted-foreground/50 text-center">
+        {/* Erro */}
+        {error && (
+          <p className="text-sm text-destructive text-center bg-destructive/10 rounded-lg py-2 px-3">
+            {error}
+          </p>
+        )}
+
+        {/* Botão */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+        >
+          {loading ? (
+            <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+          ) : (
+            <LogIn className="h-4 w-4" />
+          )}
+          {loading ? "Entrando..." : "Entrar"}
+        </button>
+      </form>
+
+      <p className="mt-10 text-xs text-muted-foreground/40 text-center">
         Seus dados são privados e armazenados com segurança.
       </p>
     </div>

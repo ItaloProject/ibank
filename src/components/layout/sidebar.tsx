@@ -41,7 +41,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
-  const { userId, switchUser } = useUser();
+  const { userId, logout } = useUser();
   const { theme, toggleTheme } = useTheme();
   const currentUser = USERS.find((u) => u.id === userId);
   const isCollapsed = collapsed && !mobileOpen;
@@ -176,7 +176,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
             </span>
             <button
               type="button"
-              onClick={switchUser}
+              onClick={logout}
               title="Sair"
               className={cn(
                 "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-all duration-100",
