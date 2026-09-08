@@ -2,12 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useUser } from "@/context/user-context";
-import { UserSelect } from "@/components/user-select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +21,7 @@ import {
 import {
   Plus, Pencil, Trash2, FolderPlus, TrendingUp, TrendingDown,
   Wallet, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  Copy, FileDown, Loader2, LogOut, DollarSign,
+  Copy, FileDown, Loader2, DollarSign,
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -64,13 +61,12 @@ function toItem(r: Record<string, unknown>): ExpenseItem {
 
 export default function PlanejamentoPage() {
   const { userId } = useUser();
-  if (!userId) return <UserSelect />;
+  if (!userId) return null;
   return <PlanejamentoContent userId={userId} />;
 }
 
 function PlanejamentoContent({ userId }: { userId: string }) {
-  const { switchUser } = useUser();
-  const currentUser = USERS.find(u => u.id === userId)!;
+  const currentUser = USERS.find(u => u.id === userId);
   const [currentMonth, setCurrentMonth] = useState(() => format(startOfMonth(new Date()), "yyyy-MM"));
   const [groups, setGroups] = useState<ExpenseGroup[]>([]);
   const [items, setItems] = useState<ExpenseItem[]>([]);
@@ -325,150 +321,107 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-5xl mx-auto">
+    <div className="flex flex-col min-h-full">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Planejamento</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Organize seus gastos por grupo</p>
+          <h1 className="text-xl font-bold">Planejamento</h1>
+          <p className="text-xs text-muted-foreground mt-0.5 capitalize">{monthLabel}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* User switcher */}
-          <button
-            onClick={switchUser}
-            className="group flex items-center gap-2.5 rounded-xl border border-white/10 px-3 py-2 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-            style={{
-              background: `linear-gradient(135deg, ${currentUser.color}22 0%, ${currentUser.color}10 100%)`,
-              borderColor: `${currentUser.color}40`,
-              boxShadow: `0 2px 8px ${currentUser.color}20`,
-            }}
-          >
-            <div
-              className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-inner shrink-0 ring-2 ring-white/20"
-              style={{
-                background: `linear-gradient(135deg, ${currentUser.color} 0%, ${currentUser.color}cc 100%)`,
-              }}
-            >
-              {currentUser.name[0]}
-            </div>
-            <div className="flex flex-col items-start leading-none">
-              <span className="text-[11px] font-medium opacity-50 tracking-wide uppercase" style={{ color: currentUser.color }}>usuário</span>
-              <span className="text-sm font-semibold mt-0.5">{currentUser.name}</span>
-            </div>
-            <LogOut className="h-3.5 w-3.5 ml-1 opacity-40 group-hover:opacity-70 transition-opacity" />
-          </button>
+        <div className="flex items-center gap-2">
           {items.length === 0 && (
-            <Button variant="outline" size="sm" onClick={() => setCopyOpen(true)}>
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setCopyOpen(true)}>
               <Copy className="h-3.5 w-3.5" />
-              Copiar mês anterior
+              <span className="hidden sm:inline">Copiar mês anterior</span>
             </Button>
           )}
           {items.length > 0 && (
-            <Button variant="outline" size="sm" onClick={() => {
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => {
               const userName = USERS.find(u => u.id === userId)?.name ?? userId;
               generatePlanReport(
                 groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
                 items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
-                monthLabel,
-                userName,
-                salary,
+                monthLabel, userName, salary,
               );
             }}>
               <FileDown className="h-3.5 w-3.5" />
-              Gerar PDF
+              <span className="hidden sm:inline">Gerar PDF</span>
             </Button>
           )}
-          <Button onClick={openNewGroup} variant="outline">
-            <FolderPlus className="h-4 w-4" />
+          <Button onClick={openNewGroup} size="sm" className="h-8 text-xs">
+            <FolderPlus className="h-3.5 w-3.5" />
             Novo grupo
           </Button>
         </div>
       </div>
 
       {/* Month navigation */}
-      <div className="flex items-center justify-center gap-4">
-        <Button variant="ghost" size="icon" onClick={goToPrev}>
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <span className="text-lg font-semibold capitalize w-44 text-center">{monthLabel}</span>
-        <Button variant="ghost" size="icon" onClick={goToNext}>
-          <ChevronRight className="h-5 w-5" />
-        </Button>
+      <div className="flex items-center justify-between px-4 py-2 border-b">
+        <button onClick={goToPrev} className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted transition-colors">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-semibold capitalize">{monthLabel}</span>
+        <button onClick={goToNext} className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted transition-colors">
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Salário */}
       <div
-        className="flex flex-col gap-2 rounded-xl border px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors sm:flex-row sm:items-center sm:justify-between sm:px-5"
+        className="flex items-center justify-between px-4 py-3 border-b cursor-pointer hover:bg-muted/30 transition-colors"
         onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
       >
-        <div className="flex items-center gap-2.5">
-          <DollarSign className="h-4 w-4 text-green-600" />
-          <span className="text-sm font-medium">Salário recebido em {monthLabel}</span>
+        <div className="flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-green-500" />
+          <span className="text-sm font-medium">Salário</span>
         </div>
-        <div className="flex items-center gap-3">
-          {salary > 0 ? (
-            <span className="text-lg font-bold text-green-600 tabular-nums">{fmt(salary)}</span>
-          ) : (
-            <span className="text-sm text-muted-foreground">Clique para informar</span>
-          )}
-          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-2">
+          <span className={`text-sm font-bold tabular-nums ${salary > 0 ? "text-green-500" : "text-muted-foreground"}`}>
+            {salary > 0 ? fmt(salary) : "Informar"}
+          </span>
+          <Pencil className="h-3 w-3 text-muted-foreground/50" />
         </div>
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="h-2 w-2 rounded-full bg-blue-500" />
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Gastos Fixos</p>
-            </div>
-            <p className="text-2xl font-bold">{fmt(totalFixoActual)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">planejado: {fmt(totalFixoPlanned)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="h-2 w-2 rounded-full bg-orange-400" />
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Gastos Variáveis</p>
-            </div>
-            <p className="text-2xl font-bold">{fmt(totalVarActual)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">planejado: {fmt(totalVarPlanned)}</p>
-          </CardContent>
-        </Card>
-        <Card className={`border-2 ${sobra >= 0 ? "border-green-200" : "border-red-200"}`}
-          style={{ background: sobra >= 0 ? "linear-gradient(135deg,#dcfce708,transparent)" : "linear-gradient(135deg,#fee2e208,transparent)" }}>
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet className={`h-3.5 w-3.5 ${sobra >= 0 ? "text-green-600" : "text-destructive"}`} />
-              <p className="text-xs font-bold uppercase tracking-wide"
-                style={{ color: sobra >= 0 ? "#16a34a" : "hsl(var(--destructive))" }}>Sobra</p>
-            </div>
-            <p className={`text-2xl font-bold tabular-nums ${sobra >= 0 ? "text-green-600" : "text-destructive"}`}>
-              {salary > 0 ? fmt(sobra) : "—"}
-            </p>
-            {salary > 0 && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                planejado: {fmt(sobraPlanned)}
-              </p>
-            )}
-            {salary === 0 && (
-              <p className="text-xs text-muted-foreground mt-0.5">informe o salário acima</p>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-3 divide-x border-b">
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Fixos</p>
+          </div>
+          <p className="text-base font-bold tabular-nums">{fmt(totalFixoActual)}</p>
+          <p className="text-[10px] text-muted-foreground">plan. {fmt(totalFixoPlanned)}</p>
+        </div>
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="h-2 w-2 rounded-full bg-orange-400 shrink-0" />
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Variáveis</p>
+          </div>
+          <p className="text-base font-bold tabular-nums">{fmt(totalVarActual)}</p>
+          <p className="text-[10px] text-muted-foreground">plan. {fmt(totalVarPlanned)}</p>
+        </div>
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Wallet className={`h-3 w-3 shrink-0 ${sobra >= 0 ? "text-green-500" : "text-destructive"}`} />
+            <p className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: sobra >= 0 ? "#16a34a" : "hsl(var(--destructive))" }}>Sobra</p>
+          </div>
+          <p className={`text-base font-bold tabular-nums ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
+            {salary > 0 ? fmt(sobra) : "—"}
+          </p>
+          {salary > 0 && <p className="text-[10px] text-muted-foreground">plan. {fmt(sobraPlanned)}</p>}
+        </div>
       </div>
 
       {/* Groups */}
       {groups.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <FolderPlus className="h-10 w-10 mx-auto mb-3 opacity-30" />
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <FolderPlus className="h-10 w-10 mb-3 opacity-30" />
           <p className="font-medium">Nenhum grupo criado</p>
           <p className="text-sm mt-1">Clique em &quot;Novo grupo&quot; para começar</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="divide-y">
           {groups.map((group) => {
             const groupItems = items.filter(i => i.group_id === group.id);
             const gPlanned = groupItems.reduce((s, i) => s + i.planned, 0);
@@ -477,167 +430,95 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             const isCollapsed = collapsed[group.id];
 
             return (
-              <Card key={group.id} className="overflow-hidden">
+              <div key={group.id}>
+                {/* Group header */}
                 <div
-                  className="flex flex-col gap-3 px-4 py-4 cursor-pointer select-none hover:bg-muted/30 transition-colors sm:flex-row sm:items-center sm:justify-between sm:px-5"
+                  className="flex items-center justify-between px-4 py-3 cursor-pointer select-none hover:bg-muted/20 transition-colors"
                   onClick={() => toggleCollapse(group.id)}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
                     <span className="font-bold text-sm tracking-wide uppercase">{group.name}</span>
-                    <Badge variant="secondary" className="text-xs font-normal">
-                      {groupItems.length} {groupItems.length === 1 ? "item" : "itens"}
-                    </Badge>
+                    <span className="text-xs text-muted-foreground">{groupItems.length} {groupItems.length === 1 ? "item" : "itens"}</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                    <div className="text-right">
-                      <p className={`text-sm font-semibold ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</p>
-                      {gPlanned > 0 && <p className="text-xs text-muted-foreground">/ {fmt(gPlanned)}</p>}
+                  <div className="flex items-center gap-2">
+                    <div className="text-right" onClick={e => e.stopPropagation()}>
+                      <p className={`text-sm font-semibold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</p>
                     </div>
-                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditGroup(group)}>
+                    <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                      <button className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => openEditGroup(group)}>
                         <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      </button>
+                      <button className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                         onClick={() => deleteGroup(group.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      </button>
                     </div>
                     {isCollapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
                   </div>
                 </div>
 
                 {!isCollapsed && (
-                  <CardContent className="px-5 pb-4 pt-0">
-                    {groupItems.length > 0 && (
-                      <div className="hidden sm:grid grid-cols-[1fr_80px_110px_110px_72px] gap-2 text-xs text-muted-foreground uppercase tracking-wide mb-2 px-1">
-                        <span>Descrição</span><span>Tipo</span>
-                        <span className="text-right">Planejado</span>
-                        <span className="text-right">Real</span>
-                        <span />
-                      </div>
-                    )}
-
-                    <div className="space-y-2 sm:space-y-1">
-                      {groupItems.length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-2 px-1">
-                          Nenhum item em {monthLabel}. Clique em &quot;Adicionar&quot; para começar.
-                        </p>
-                      ) : (
-                        groupItems.map((item) => (
-                          <div key={item.id}>
-                            {/* Mobile layout */}
-                            <div className="rounded-lg border p-3 space-y-2 sm:hidden">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {item.type === "fixo"
-                                    ? <TrendingDown className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                                    : <TrendingUp className="h-3.5 w-3.5 text-orange-400 shrink-0" />}
-                                  <span className="text-sm font-medium cursor-pointer hover:underline"
-                                    onClick={() => openEditItem(item)}>
-                                    {item.name}
-                                  </span>
-                                </div>
-                                <div className="flex gap-0.5 shrink-0">
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditItem(item)}>
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                    onClick={() => deleteItem(item.id)}>
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <Badge className={`text-xs px-2 py-0 border ${item.type === "fixo" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-orange-100 text-orange-700 border-orange-200"}`}>
-                                  {item.type === "fixo" ? "Fixo" : "Variável"}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  Planejado: {item.planned > 0 ? fmt(item.planned) : "—"}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2">
-                                <Label className="text-xs text-muted-foreground">Real</Label>
-                                <Input
-                                  type="number"
-                                  className="h-9 text-sm text-right w-32"
-                                  defaultValue={item.actual || ""}
-                                  placeholder="0,00"
-                                  onBlur={(e) => updateActual(item, e.target.value)}
-                                />
-                              </div>
+                  <div className="bg-muted/10">
+                    {groupItems.length === 0 ? (
+                      <p className="px-4 py-3 text-sm text-muted-foreground">
+                        Nenhum item em {monthLabel}. Clique em &quot;Adicionar&quot; para começar.
+                      </p>
+                    ) : (
+                      <div className="divide-y divide-border/50">
+                        {groupItems.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between px-4 py-2.5 gap-3">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              {item.type === "fixo"
+                                ? <TrendingDown className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                                : <TrendingUp className="h-3.5 w-3.5 text-orange-400 shrink-0" />}
+                              <span className="text-sm font-medium truncate">{item.name}</span>
                             </div>
-
-                            {/* Desktop layout */}
-                            <div className="hidden sm:grid grid-cols-[1fr_80px_110px_110px_72px] gap-2 items-center py-1.5 px-1 rounded-lg hover:bg-muted/40 group/row">
-                              <div className="flex items-center gap-2">
-                                {item.type === "fixo"
-                                  ? <TrendingDown className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                                  : <TrendingUp className="h-3.5 w-3.5 text-orange-400 shrink-0" />}
-                                <span className="text-sm font-medium cursor-pointer hover:underline"
+                            <div className="flex items-center gap-2 shrink-0">
+                              {item.planned > 0 && (
+                                <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">{fmt(item.planned)}</span>
+                              )}
+                              <Input
+                                type="number"
+                                className="h-8 text-xs text-right w-24 border-0 bg-muted/50 focus:bg-background"
+                                defaultValue={item.actual || ""}
+                                placeholder="0,00"
+                                onBlur={(e) => updateActual(item, e.target.value)}
+                              />
+                              <div className="flex gap-0.5">
+                                <button className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                   onClick={() => openEditItem(item)}>
-                                  {item.name}
-                                </span>
-                              </div>
-                              <Badge className={`text-xs w-fit px-2 py-0 border ${item.type === "fixo" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-orange-100 text-orange-700 border-orange-200"}`}>
-                                {item.type === "fixo" ? "Fixo" : "Variável"}
-                              </Badge>
-                              <p className="text-sm text-right text-muted-foreground">
-                                {item.planned > 0 ? fmt(item.planned) : "—"}
-                              </p>
-                              <div className="flex justify-end">
-                                <Input
-                                  type="number"
-                                  className="h-7 text-xs text-right w-28"
-                                  defaultValue={item.actual || ""}
-                                  placeholder="0,00"
-                                  onBlur={(e) => updateActual(item, e.target.value)}
-                                />
-                              </div>
-                              <div className="flex justify-end gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditItem(item)}>
                                   <Pencil className="h-3 w-3" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                </button>
+                                <button className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                                   onClick={() => deleteItem(item.id)}>
                                   <Trash2 className="h-3 w-3" />
-                                </Button>
+                                </button>
                               </div>
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
-
-                    {groupItems.length > 0 && (
-                      <div className="hidden sm:grid grid-cols-[1fr_80px_110px_110px_72px] gap-2 mt-2 pt-2 border-t px-1">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase">Subtotal</span>
-                        <span />
-                        <span className="text-xs font-semibold text-right text-muted-foreground">{fmt(gPlanned)}</span>
-                        <span className={`text-xs font-bold text-right ${over ? "text-destructive" : "text-foreground"}`}>{fmt(gActual)}</span>
-                        <span />
-                      </div>
-                    )}
-
-                    {groupItems.length > 0 && (
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t px-1 sm:hidden">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase">Subtotal</span>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Planejado: {fmt(gPlanned)}</p>
-                          <p className={`text-sm font-bold ${over ? "text-destructive" : "text-foreground"}`}>Real: {fmt(gActual)}</p>
+                        ))}
+                        {/* Subtotal */}
+                        <div className="flex items-center justify-between px-4 py-2 bg-muted/20">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subtotal</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">plan. {fmt(gPlanned)}</span>
+                            <span className={`text-sm font-bold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</span>
+                          </div>
                         </div>
                       </div>
                     )}
-
-                    <Button variant="ghost" size="sm"
-                      className="mt-3 h-8 text-xs text-muted-foreground hover:text-foreground"
-                      onClick={() => openNewItem(group.id)}>
+                    <button
+                      className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+                      onClick={() => openNewItem(group.id)}
+                    >
                       <Plus className="h-3.5 w-3.5" />
                       Adicionar item
-                    </Button>
-                  </CardContent>
+                    </button>
+                  </div>
                 )}
-              </Card>
+              </div>
             );
           })}
         </div>
