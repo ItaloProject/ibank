@@ -6,6 +6,7 @@ import {
   Home, CreditCard, TrendingUp, BarChart2, CalendarDays,
   CalendarCheck, Repeat2, Receipt, LogOut, ChevronLeft, X,
   Sun, Moon, Users, Target, Settings, Landmark, LineChart, Scale,
+  PlayCircle,
 } from "lucide-react";
 import Image from "next/image";
 import { useUser } from "@/context/user-context";
@@ -46,6 +47,14 @@ const NAV_GROUPS = [
     accent: false,
     items: [
       { href: "/relatorios", label: "Relatórios", icon: BarChart2 },
+    ],
+  },
+  {
+    id: "aprenda",
+    label: "Aprenda",
+    accent: false,
+    items: [
+      { href: "/videos", label: "Vídeos", icon: PlayCircle },
     ],
   },
 ];

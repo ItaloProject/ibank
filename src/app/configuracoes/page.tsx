@@ -5,7 +5,7 @@ import { useUser } from "@/context/user-context";
 import {
   Eye, EyeOff, CheckCircle2, User, Lock, TrendingUp, Landmark,
   Home, CreditCard, CalendarDays, CalendarCheck, Repeat2,
-  BarChart2, Receipt, Target, LayoutList,
+  BarChart2, Receipt, Target, LayoutList, PlayCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,7 @@ const HIDEABLE_PAGES = [
   { href: "/entrada-saida", label: "Entrada/Saída",   icon: Repeat2,       group: "Finanças" },
   { href: "/parcelamentos", label: "Parcelamentos",   icon: Receipt,       group: "Finanças" },
   { href: "/relatorios",    label: "Relatórios",      icon: BarChart2,     group: "Relatórios" },
+  { href: "/videos",        label: "Vídeos",          icon: PlayCircle,    group: "Aprenda" },
 ];
 
 const ALWAYS_VISIBLE = [
