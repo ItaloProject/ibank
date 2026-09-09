@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { PlayCircle, GraduationCap, Lightbulb, ImageIcon, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { PlayCircle, GraduationCap, Lightbulb, X } from "lucide-react";
+import { ContributionSimulator } from "@/components/videos/contribution-simulator";
 
 type Video = {
   title: string;
@@ -11,19 +11,62 @@ type Video = {
   duration: string;
 };
 
-type ExplanatoryImage = {
-  src: string;
-  caption: string;
-};
+// Curadoria pública do YouTube (educação financeira).
+// Substitua por tutoriais oficiais do IBANK quando forem publicados.
+// youtubeId = código depois de "v=" no link do vídeo.
+const INICIANTES: Video[] = [
+  {
+    title: "Educação financeira para iniciantes: o que é e como começar",
+    description: "Pilares básicos: receitas, despesas, reserva e uso consciente do crédito.",
+    youtubeId: "7NNsg7N6__Q",
+    duration: "8:00",
+  },
+  {
+    title: "Como organizar sua vida financeira em 30 dias",
+    description: "Método simples de Me Poupe! para mapear para onde o dinheiro vai.",
+    youtubeId: "85NKII6eLmE",
+    duration: "12:00",
+  },
+  {
+    title: "Orçamento familiar de forma simples",
+    description: "Como montar um orçamento e comparar o planejado com o realizado.",
+    youtubeId: "_LetMq26HJU",
+    duration: "15:00",
+  },
+];
 
-// Adicione os vídeos aqui conforme forem gravados/publicados no YouTube.
-// youtubeId é o código depois de "v=" no link do vídeo.
-const INICIANTES: Video[] = [];
-
-const DICAS: Video[] = [];
-
-// Adicione imagens explicativas em /public e referencie o caminho aqui.
-const EXPLANATORY_IMAGES: ExplanatoryImage[] = [];
+const DICAS: Video[] = [
+  {
+    title: "Guia da renda fixa: CDB, CDI, Selic, LCI e LCA",
+    description: "Entenda as siglas que aparecem nos seus investimentos e no IBANK.",
+    youtubeId: "LLG2RrpMwkA",
+    duration: "18:00",
+  },
+  {
+    title: "Tesouro Direto: guia completo para iniciantes",
+    description: "Como funciona o Tesouro e por onde começar com segurança.",
+    youtubeId: "bolG9pgxEAU",
+    duration: "20:00",
+  },
+  {
+    title: "Tesouro Selic: passo a passo para investir",
+    description: "Ideal para reserva de emergência — liquidez e baixo risco.",
+    youtubeId: "9q8fWrCR2ZI",
+    duration: "14:00",
+  },
+  {
+    title: "Aula sobre fundos imobiliários (FIIs)",
+    description: "Com Primo Pobre: tijolo, papel e o essencial para começar.",
+    youtubeId: "xQOWiQMzq3M",
+    duration: "25:00",
+  },
+  {
+    title: "10 anos investindo em FIIs — o que aprendi",
+    description: "Lições práticas sobre carteira, vacância e tese de longo prazo.",
+    youtubeId: "xOWMQloIlGM",
+    duration: "21:00",
+  },
+];
 
 function VideoCard({ video, onPlay }: { video: Video; onPlay: () => void }) {
   return (
@@ -88,7 +131,6 @@ function VideoSection({
 
 export default function VideosPage() {
   const [playing, setPlaying] = useState<Video | null>(null);
-  const [zoomedImage, setZoomedImage] = useState<ExplanatoryImage | null>(null);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-8 pb-8">
@@ -96,41 +138,17 @@ export default function VideosPage() {
         <PlayCircle className="h-5 w-5 text-primary" />
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">Vídeos</h1>
-          <p className="text-sm text-muted-foreground">Aprenda a usar o IBANK com conteúdo gratuito</p>
+          <p className="text-sm text-muted-foreground">
+            Educação financeira gratuita para usar melhor o IBANK
+          </p>
         </div>
       </div>
 
       <VideoSection icon={GraduationCap} title="Iniciantes" videos={INICIANTES} onPlay={setPlaying} />
       <VideoSection icon={Lightbulb} title="Dicas" videos={DICAS} onPlay={setPlaying} />
 
-      {/* Imagens explicativas */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <ImageIcon className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Imagens explicativas</h2>
-        </div>
-        {EXPLANATORY_IMAGES.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">
-            Em breve novas imagens explicativas.
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {EXPLANATORY_IMAGES.map((img) => (
-              <button
-                key={img.src}
-                type="button"
-                onClick={() => setZoomedImage(img)}
-                className="rounded-xl overflow-hidden border bg-card text-left hover:border-primary/50 transition-colors"
-              >
-                <img src={img.src} alt={img.caption} className="w-full aspect-video object-cover" />
-                <p className="text-xs text-muted-foreground p-2 line-clamp-2">{img.caption}</p>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+      <ContributionSimulator />
 
-      {/* Modal de vídeo */}
       {playing && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
@@ -162,19 +180,6 @@ export default function VideosPage() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Zoom de imagem */}
-      {zoomedImage && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-          onClick={() => setZoomedImage(null)}
-        >
-          <div className="max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
-            <img src={zoomedImage.src} alt={zoomedImage.caption} className="w-full rounded-xl" />
-            <p className="text-sm text-white/80 text-center mt-3">{zoomedImage.caption}</p>
           </div>
         </div>
       )}
