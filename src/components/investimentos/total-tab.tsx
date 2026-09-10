@@ -1,5 +1,6 @@
 "use client";
 
+import { Zap, Shield, Landmark } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { InvestmentAccount } from "@/types/database";
 
@@ -21,6 +22,61 @@ export type TotalTabProps = {
   setActiveTab: (tab: string) => void;
 };
 
+function isEmergencyAccount(name: string) {
+  const n = name.toLowerCase();
+  return n.includes("eme") || n.includes("emergên") || n.includes("emergencia") ||
+    n.includes("reserva") || n.includes("caixinha");
+}
+
+function AccountGroup({
+  icon: Icon,
+  iconColor,
+  label,
+  items,
+  total,
+  emptyLabel,
+  setActiveTab,
+}: {
+  icon: React.ElementType;
+  iconColor: string;
+  label: string;
+  items: { account: InvestmentAccount; balance: number }[];
+  total: number;
+  emptyLabel: string;
+  setActiveTab: (tab: string) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="border-b">
+      <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} />
+          <p className="text-sm font-semibold truncate">{label}</p>
+          <span className="text-xs text-muted-foreground shrink-0">
+            {items.length} conta{items.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <p className="text-sm font-bold text-green-600 tabular-nums shrink-0">{formatCurrency(total)}</p>
+      </div>
+      <div className="divide-y">
+        {items.map(({ account, balance }) => (
+          <div key={account.id}
+            className="px-4 py-3 flex items-center justify-between hover:bg-muted/40 cursor-pointer"
+            onClick={() => setActiveTab(account.id)}>
+            <div className="min-w-0 mr-4">
+              <p className="font-medium text-sm">{account.name}</p>
+              {account.institution && (
+                <p className="text-xs text-muted-foreground">{account.institution}</p>
+              )}
+            </div>
+            <p className="font-semibold text-green-600 tabular-nums shrink-0">{formatCurrency(balance)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function TotalTab({
   grandTotal,
   totalFixedIncome,
@@ -31,6 +87,16 @@ export function TotalTab({
   totalRendaMensal,
   setActiveTab,
 }: TotalTabProps) {
+  const turboItems = accountBalances.filter((x) => x.account.is_turbo);
+  const emergenciaItems = accountBalances.filter((x) => !x.account.is_turbo && isEmergencyAccount(x.account.name));
+  const investimentosItems = accountBalances.filter(
+    (x) => !x.account.is_turbo && !isEmergencyAccount(x.account.name)
+  );
+
+  const turboTotal = turboItems.reduce((s, x) => s + x.balance, 0);
+  const emergenciaTotal = emergenciaItems.reduce((s, x) => s + x.balance, 0);
+  const investimentosTotal = investimentosItems.reduce((s, x) => s + x.balance, 0);
+
   return (
     <>
       {/* Resumo — grade 2x2 no mobile, 4 colunas no desktop */}
@@ -57,31 +123,38 @@ export function TotalTab({
         </div>
       </div>
 
-      {/* Contas de renda fixa — flat lista divide-y */}
-      <div className="border-b">
-        <div className="px-4 py-3 border-b bg-muted/30">
-          <p className="text-sm font-semibold">Contas de renda fixa</p>
-        </div>
-        {accountBalances.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6 px-4">Nenhuma conta cadastrada.</p>
-        ) : (
-          <div className="divide-y">
-            {accountBalances.map(({ account, balance }) => (
-              <div key={account.id}
-                className="px-4 py-3 flex items-center justify-between hover:bg-muted/40 cursor-pointer"
-                onClick={() => setActiveTab(account.id)}>
-                <div className="min-w-0 mr-4">
-                  <p className="font-medium text-sm">{account.name}</p>
-                  {account.institution && (
-                    <p className="text-xs text-muted-foreground">{account.institution}</p>
-                  )}
-                </div>
-                <p className="font-semibold text-green-600 tabular-nums shrink-0">{formatCurrency(balance)}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Contas de renda fixa — agrupadas por categoria */}
+      <AccountGroup
+        icon={Zap}
+        iconColor="text-amber-500"
+        label="Caixinha Turbo"
+        items={turboItems}
+        total={turboTotal}
+        emptyLabel="Nenhuma conta turbo."
+        setActiveTab={setActiveTab}
+      />
+      <AccountGroup
+        icon={Shield}
+        iconColor="text-blue-500"
+        label="Caixinha Emergência"
+        items={emergenciaItems}
+        total={emergenciaTotal}
+        emptyLabel="Nenhuma reserva de emergência."
+        setActiveTab={setActiveTab}
+      />
+      <AccountGroup
+        icon={Landmark}
+        iconColor="text-emerald-600"
+        label="Investimentos"
+        items={investimentosItems}
+        total={investimentosTotal}
+        emptyLabel="Nenhuma conta cadastrada."
+        setActiveTab={setActiveTab}
+      />
+
+      {accountBalances.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-6 px-4 border-b">Nenhuma conta cadastrada.</p>
+      )}
 
       {/* Carteira de ações — flat lista divide-y */}
       <div>

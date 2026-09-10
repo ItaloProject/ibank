@@ -412,23 +412,25 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                   <button
                     key={asset.ticker}
                     onClick={() => openBuy(asset)}
-                    className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 flex items-center justify-between gap-3 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
+                    className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 flex items-start justify-between gap-3 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: asset.color }} />
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0 mt-1" style={{ background: asset.color }} />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-bold text-white">{asset.ticker}</p>
-                          {asset.isReal && (
-                            <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-400 border border-emerald-500/30 rounded px-1 py-[1px]">
-                              cotação real
-                            </span>
-                          )}
-                          {ownedTickers.has(asset.ticker) && (
-                            <span className="text-[8px] font-bold uppercase tracking-wide text-white/40">· você tem</span>
-                          )}
-                        </div>
+                        <p className="text-sm font-bold text-white">{asset.ticker}</p>
                         <p className="text-[11px] text-white/40 truncate">{asset.name} · {asset.category}</p>
+                        {(asset.isReal || ownedTickers.has(asset.ticker)) && (
+                          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                            {asset.isReal && (
+                              <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-400 border border-emerald-500/30 rounded px-1 py-[1px] shrink-0">
+                                cotação real
+                              </span>
+                            )}
+                            {ownedTickers.has(asset.ticker) && (
+                              <span className="text-[8px] font-bold uppercase tracking-wide text-white/40 shrink-0">você já tem</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
