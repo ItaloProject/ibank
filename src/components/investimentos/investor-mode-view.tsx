@@ -9,7 +9,8 @@ import { InvestorBot } from "@/components/investor-bot";
 import { InvestorLiveView } from "@/components/investimentos/investor-live-view";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
-import type { ScoreSnapshot } from "@/types/database";
+import { categorizeAccount } from "@/lib/account-groups";
+import type { ScoreSnapshot, InvestmentAccount } from "@/types/database";
 
 type IncomeSource = {
   nome: string;
@@ -78,6 +79,7 @@ export type InvestorModeViewProps = {
   grandTotal: number;
   stockPositions: StockPosition[];
   quoteMap: Map<string, number>;
+  accountBalances: { account: InvestmentAccount; balance: number }[];
   onGenerateReport: () => void;
 };
 
@@ -93,6 +95,7 @@ export function InvestorModeView({
   grandTotal,
   stockPositions,
   quoteMap,
+  accountBalances,
   onGenerateReport,
 }: InvestorModeViewProps) {
   const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
@@ -110,22 +113,33 @@ export function InvestorModeView({
   }
 
   if (liveMode) {
-    const realFixedIncome = allSources
-      .map((s) => ({
-        nome: s.nome,
-        tipo: s.tipo,
-        valor: s.capital,
-        cor: s.cor,
-        instituicao: s.instituicao,
-        rendaMensal: s.rendaMensal,
-        badge: s.badge,
-      }))
-      .sort((a, b) => b.valor - a.valor);
+    const toItem = (x: { account: InvestmentAccount; balance: number }) => ({
+      id: x.account.id,
+      nome: x.account.name,
+      instituicao: x.account.institution,
+      valor: x.balance,
+      isTurbo: x.account.is_turbo,
+      cdiPercent: x.account.cdi_percent,
+      maxRendimento: x.account.max_rendimento,
+    });
+    const sortByValor = <T extends { valor: number }>(arr: T[]) => [...arr].sort((a, b) => b.valor - a.valor);
+
+    const turboAccountsReal = sortByValor(
+      accountBalances.filter((x) => categorizeAccount(x.account) === "turbo").map(toItem)
+    );
+    const emergenciaAccountsReal = sortByValor(
+      accountBalances.filter((x) => categorizeAccount(x.account) === "emergencia").map(toItem)
+    );
+    const investimentosAccountsReal = sortByValor(
+      accountBalances.filter((x) => categorizeAccount(x.account) === "investimentos").map(toItem)
+    );
 
     return (
       <InvestorLiveView
         grandTotal={grandTotal}
-        realFixedIncome={realFixedIncome}
+        turboAccountsReal={turboAccountsReal}
+        emergenciaAccountsReal={emergenciaAccountsReal}
+        investimentosAccountsReal={investimentosAccountsReal}
         stockPositions={stockPositions}
         quoteMap={quoteMap}
         onClose={() => setLiveMode(false)}

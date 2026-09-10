@@ -819,6 +819,7 @@ export default function InvestimentosPage() {
         grandTotal={grandTotal}
         stockPositions={stockPositions}
         quoteMap={quoteMap}
+        accountBalances={accountBalances}
         onGenerateReport={generateReport}
       />
     );
