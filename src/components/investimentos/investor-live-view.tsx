@@ -887,22 +887,6 @@ export function InvestorLiveView({
 
           {/* Conteúdo scrollável */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pb-4 relative">
-            {marketOpen && (
-              <SimulatorInvestFlow
-                cash={cash}
-                catalog={marketCatalog}
-                tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
-                turboAccounts={turboAccountsLive}
-                emergenciaAccounts={emergenciaAccountsLive}
-                section={marketSection}
-                onSectionChange={setMarketSection}
-                onClose={() => setMarketOpen(false)}
-                onBuyStock={handleBuyStock}
-                onBuyTesouro={handleBuyTesouro}
-                onAporte={handleAporte}
-              />
-            )}
-
             {!marketOpen && tab === "investimentos" && focusGroup === "all" && (
               <div className="space-y-4">
                 <CaixinhaHeader label="Total das caixinhas" total={totalCaixinhas} />
@@ -1515,6 +1499,25 @@ export function InvestorLiveView({
           <div className="flex justify-center pb-2 pt-1 shrink-0 bg-black/40">
             <div className="h-1 w-32 rounded-full bg-white/30" />
           </div>
+
+          {/* Simulador de investimentos (overlay sobre o frame inteiro) */}
+          {marketOpen && (
+            <div className="absolute inset-0 z-10 bg-[#05050a] flex flex-col overflow-hidden">
+              <SimulatorInvestFlow
+                cash={cash}
+                catalog={marketCatalog}
+                tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
+                turboAccounts={turboAccountsLive}
+                emergenciaAccounts={emergenciaAccountsLive}
+                section={marketSection}
+                onSectionChange={setMarketSection}
+                onClose={() => setMarketOpen(false)}
+                onBuyStock={handleBuyStock}
+                onBuyTesouro={handleBuyTesouro}
+                onAporte={handleAporte}
+              />
+            </div>
+          )}
 
           {/* Flash de confirmação */}
           {confirmedFlash && (
