@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
 import {
-  X, Signal, Wifi, BatteryFull, Zap, Shield, Landmark, Calculator,
+  X, Signal, Wifi, BatteryFull, Landmark, Calculator, Zap, Shield,
   ArrowUpRight, ArrowDownRight, Check, ChevronLeft, Pencil, Home, ChevronRight,
+  CreditCard, CalendarRange, Layers, TrendingUp,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { detectAssetType } from "@/lib/stock-utils";
+import {
+  SimulatorFinancePanel,
+  type FinancePanelId,
+} from "@/components/investimentos/simulator-finance-panels";
 
 type Asset = {
   ticker: string;
@@ -45,6 +51,45 @@ const ASSETS: Asset[] = [
 ];
 
 const INITIAL_CASH = 10000;
+const CASH_STORAGE_KEY = "ibank_live_cash";
+
+function readStoredCash(): number {
+  try {
+    const raw = localStorage.getItem(CASH_STORAGE_KEY);
+    if (raw == null) return INITIAL_CASH;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : INITIAL_CASH;
+  } catch {
+    return INITIAL_CASH;
+  }
+}
+
+function writeStoredCash(value: number) {
+  try {
+    localStorage.setItem(CASH_STORAGE_KEY, String(value));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Máscara BRL: dígitos → centavos → "2.000,00" */
+function formatBRLMask(digits: string): string {
+  const cleaned = digits.replace(/\D/g, "").slice(0, 12);
+  const cents = parseInt(cleaned || "0", 10);
+  return (cents / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function parseBRLMask(masked: string): number {
+  const cents = parseInt(masked.replace(/\D/g, "") || "0", 10);
+  return cents / 100;
+}
+
+function cashToMaskDigits(value: number): string {
+  return String(Math.round(Math.max(0, value) * 100));
+}
 
 function formatQty(qty: number) {
   if (Number.isInteger(qty)) return String(qty);
@@ -94,6 +139,81 @@ function PhoneStatusBar() {
   );
 }
 
+function CaixinhaRow({
+  title,
+  subtitle,
+  value,
+  icon: Icon,
+  tone,
+  onClick,
+}: {
+  title: string;
+  subtitle: string;
+  value: number;
+  icon: ElementType;
+  tone: "amber" | "blue" | "emerald" | "rose" | "violet" | "cyan";
+  onClick: () => void;
+}) {
+  const tones = {
+    amber: {
+      border: "border-amber-500/25",
+      bg: "bg-amber-500/[0.07] hover:bg-amber-500/[0.12]",
+      iconBg: "bg-amber-500/15",
+      icon: "text-amber-400",
+    },
+    blue: {
+      border: "border-blue-500/25",
+      bg: "bg-blue-500/[0.07] hover:bg-blue-500/[0.12]",
+      iconBg: "bg-blue-500/15",
+      icon: "text-blue-400",
+    },
+    emerald: {
+      border: "border-emerald-500/25",
+      bg: "bg-emerald-500/[0.07] hover:bg-emerald-500/[0.12]",
+      iconBg: "bg-emerald-500/15",
+      icon: "text-emerald-400",
+    },
+    rose: {
+      border: "border-rose-500/25",
+      bg: "bg-rose-500/[0.07] hover:bg-rose-500/[0.12]",
+      iconBg: "bg-rose-500/15",
+      icon: "text-rose-400",
+    },
+    violet: {
+      border: "border-violet-500/25",
+      bg: "bg-violet-500/[0.07] hover:bg-violet-500/[0.12]",
+      iconBg: "bg-violet-500/15",
+      icon: "text-violet-400",
+    },
+    cyan: {
+      border: "border-cyan-500/25",
+      bg: "bg-cyan-500/[0.07] hover:bg-cyan-500/[0.12]",
+      iconBg: "bg-cyan-500/15",
+      icon: "text-cyan-400",
+    },
+  }[tone];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left rounded-xl border ${tones.border} ${tones.bg} p-3 grid grid-cols-[2rem_minmax(0,1fr)_auto_1rem] items-center gap-x-2.5 transition-colors`}
+    >
+      <span className={`h-8 w-8 rounded-full ${tones.iconBg} flex items-center justify-center`}>
+        <Icon className={`h-3.5 w-3.5 ${tones.icon}`} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-white leading-tight truncate">{title}</p>
+        <p className="text-[10px] text-white/40 leading-tight mt-0.5 truncate">{subtitle}</p>
+      </div>
+      <p className="text-[13px] font-extrabold tabular-nums text-white text-right whitespace-nowrap">
+        {formatCurrency(value)}
+      </p>
+      <ChevronRight className="h-4 w-4 text-white/25 justify-self-end" />
+    </button>
+  );
+}
+
 function CaixinhaHeader({ label, total }: { label: string; total: number }) {
   const animated = useCountUp(total, 1200);
   return (
@@ -102,6 +222,37 @@ function CaixinhaHeader({ label, total }: { label: string; total: number }) {
       <p className="text-[30px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
         {formatCurrency(animated)}
       </p>
+    </div>
+  );
+}
+
+function isTesouroAccount(name: string) {
+  const n = name.toLowerCase();
+  return (
+    n.includes("tesouro") ||
+    n.includes("selic") ||
+    n.includes("prefix") ||
+    n.includes("ipca") ||
+    n.includes("ntn") ||
+    n.includes("ltn") ||
+    n.includes("lft")
+  );
+}
+
+function PortfolioSection({
+  title,
+  children,
+  empty,
+}: {
+  title: string;
+  children: ReactNode;
+  empty?: boolean;
+}) {
+  if (empty) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">{title}</p>
+      {children}
     </div>
   );
 }
@@ -118,14 +269,80 @@ function RealAccountList({
       {items.map((item) => (
         <button
           key={item.id}
+          type="button"
           onClick={() => onSelect(item)}
           className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5 flex items-center justify-between gap-3 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
         >
           <div className="min-w-0">
             <p className="text-sm font-semibold text-white truncate">{item.nome}</p>
-            {item.instituicao && <p className="text-[10px] text-white/40 truncate">{item.instituicao}</p>}
+            {item.instituicao && (
+              <p className="text-[10px] text-white/40 truncate">{item.instituicao}</p>
+            )}
           </div>
-          <p className="text-sm font-extrabold tabular-nums text-white shrink-0">{formatCurrency(item.valor)}</p>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <p className="text-sm font-extrabold tabular-nums text-white">
+              {formatCurrency(item.valor)}
+            </p>
+            <ChevronRight className="h-4 w-4 text-white/25" />
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+type HoldingRowItem = {
+  ticker: string;
+  name: string;
+  typeLabel: string;
+  quantity: number;
+  value: number;
+  gain: number;
+  gainPct: number;
+  color: string;
+};
+
+function HoldingList({
+  items,
+  onSelect,
+}: {
+  items: HoldingRowItem[];
+  onSelect: (ticker: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      {items.map((item) => (
+        <button
+          key={item.ticker}
+          type="button"
+          onClick={() => onSelect(item.ticker)}
+          className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5 flex items-center justify-between gap-3 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span
+              className="h-2.5 w-2.5 rounded-full shrink-0"
+              style={{ background: item.color }}
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{item.ticker}</p>
+              <p className="text-[10px] text-white/40 truncate">
+                {item.typeLabel} · {formatQty(item.quantity)} un.
+              </p>
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-sm font-extrabold tabular-nums text-white">
+              {formatCurrency(item.value)}
+            </p>
+            <p
+              className={`text-[10px] font-semibold tabular-nums ${
+                item.gain >= 0 ? "text-emerald-400" : "text-red-400"
+              }`}
+            >
+              {item.gainPct >= 0 ? "+" : ""}
+              {item.gainPct.toFixed(1)}%
+            </p>
+          </div>
         </button>
       ))}
     </div>
@@ -151,10 +368,13 @@ export function InvestorLiveView({
   quoteMap,
   onClose,
 }: InvestorLiveViewProps) {
-  const [tab, setTab] = useState<"inicio" | "turbo" | "emergencia" | "investimentos" | "simular">("inicio");
-  const [cash, setCash] = useState(INITIAL_CASH);
+  const [tab, setTab] = useState<"inicio" | "investimentos" | "simular">("inicio");
+  const [focusGroup, setFocusGroup] = useState<"all" | "turbo" | "emergencia" | "investimentos">("all");
+  const [investSubPage, setInvestSubPage] = useState<"tesouro" | "acoes" | null>(null);
+  const [cash, setCash] = useState(readStoredCash);
   const [editingCash, setEditingCash] = useState(false);
   const [cashInput, setCashInput] = useState("");
+  const [financePanel, setFinancePanel] = useState<FinancePanelId | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>(() =>
     stockPositions
       .filter((p) => p.quantity > 0)
@@ -177,15 +397,18 @@ export function InvestorLiveView({
     });
     const extra: Asset[] = stockPositions
       .filter((p) => !knownTickers.has(p.ticker))
-      .map((p, i) => ({
-        ticker: p.ticker,
-        name: p.ticker,
-        category: "Ação" as const,
-        price: quoteMap.get(p.ticker) ?? p.avgPrice,
-        variation: 0,
-        color: extraColors[i % extraColors.length],
-        isReal: quoteMap.has(p.ticker),
-      }));
+      .map((p, i) => {
+        const kind = detectAssetType(p.ticker);
+        return {
+          ticker: p.ticker,
+          name: p.ticker,
+          category: kind === "FII" ? ("FII" as const) : ("Ação" as const),
+          price: quoteMap.get(p.ticker) ?? p.avgPrice,
+          variation: 0,
+          color: extraColors[i % extraColors.length],
+          isReal: quoteMap.has(p.ticker),
+        };
+      });
     return [...base, ...extra];
   }, [quoteMap, stockPositions]);
 
@@ -222,20 +445,132 @@ export function InvestorLiveView({
     () => investimentosAccountsReal.reduce((s, x) => s + x.valor, 0),
     [investimentosAccountsReal]
   );
-  const investimentosTotal = investimentosFixedTotal + investedValue + cash;
-  const patrimonioGeral = turboTotal + emergenciaTotal + investimentosTotal;
+  /** Valor da caixinha Investimentos (sem o caixa livre do simulador). */
+  const caixinhaInvestimentos = investimentosFixedTotal + investedValue;
+  /** Soma das três caixinhas exibidas no Início. */
+  const totalCaixinhas = turboTotal + emergenciaTotal + caixinhaInvestimentos;
+
+  const tesouroAccounts = useMemo(
+    () => investimentosAccountsReal.filter((a) => isTesouroAccount(a.nome)),
+    [investimentosAccountsReal]
+  );
+  const outrasRendaFixa = useMemo(
+    () => investimentosAccountsReal.filter((a) => !isTesouroAccount(a.nome)),
+    [investimentosAccountsReal]
+  );
+
+  const portfolioHoldings = useMemo((): HoldingRowItem[] => {
+    return holdings
+      .map((h) => {
+        const asset = liveAssets.find((a) => a.ticker === h.ticker);
+        if (!asset) return null;
+        const price = asset.price * (1 + asset.variation);
+        const value = h.quantity * price;
+        const cost = h.quantity * h.avgPrice;
+        const gain = value - cost;
+        const gainPct = cost > 0 ? (gain / cost) * 100 : 0;
+        return {
+          ticker: h.ticker,
+          name: asset.name,
+          typeLabel: detectAssetType(h.ticker),
+          quantity: h.quantity,
+          value,
+          gain,
+          gainPct,
+          color: asset.color,
+        };
+      })
+      .filter((x): x is HoldingRowItem => x != null)
+      .sort((a, b) => b.value - a.value);
+  }, [holdings, liveAssets]);
+
+  const acoesHoldings = useMemo(
+    () =>
+      portfolioHoldings.filter((h) => {
+        const t = detectAssetType(h.ticker);
+        return t === "Ação" || t === "BDR";
+      }),
+    [portfolioHoldings]
+  );
+  const fiiHoldings = useMemo(
+    () => portfolioHoldings.filter((h) => detectAssetType(h.ticker) === "FII"),
+    [portfolioHoldings]
+  );
+  const etfHoldings = useMemo(
+    () => portfolioHoldings.filter((h) => detectAssetType(h.ticker) === "ETF"),
+    [portfolioHoldings]
+  );
+
+  const tesouroTotal = useMemo(
+    () => tesouroAccounts.reduce((s, a) => s + a.valor, 0) + outrasRendaFixa.reduce((s, a) => s + a.valor, 0),
+    [tesouroAccounts, outrasRendaFixa]
+  );
+  const acoesPageHoldings = useMemo(
+    () => [...acoesHoldings, ...fiiHoldings, ...etfHoldings],
+    [acoesHoldings, fiiHoldings, etfHoldings]
+  );
+  const acoesPageTotal = useMemo(
+    () => acoesPageHoldings.reduce((s, h) => s + h.value, 0),
+    [acoesPageHoldings]
+  );
+
+  const caixinhaPageMeta = useMemo(() => {
+    if (focusGroup === "turbo") {
+      return {
+        title: "Turbo",
+        subtitle: `${turboAccountsReal.length} conta${turboAccountsReal.length !== 1 ? "s" : ""}`,
+        total: turboTotal,
+      };
+    }
+    if (focusGroup === "emergencia") {
+      return {
+        title: "EME",
+        subtitle: `${emergenciaAccountsReal.length} conta${emergenciaAccountsReal.length !== 1 ? "s" : ""}`,
+        total: emergenciaTotal,
+      };
+    }
+    if (focusGroup === "investimentos") {
+      return {
+        title: "Investimentos",
+        subtitle: `${investimentosAccountsReal.length + holdings.length} ativo${
+          investimentosAccountsReal.length + holdings.length !== 1 ? "s" : ""
+        }`,
+        total: caixinhaInvestimentos,
+      };
+    }
+    return null;
+  }, [
+    focusGroup,
+    turboAccountsReal.length,
+    emergenciaAccountsReal.length,
+    investimentosAccountsReal.length,
+    holdings.length,
+    turboTotal,
+    emergenciaTotal,
+    caixinhaInvestimentos,
+  ]);
 
   const animatedCash = useCountUp(cash);
 
+  function setCashAndPersist(value: number) {
+    setCash(value);
+    writeStoredCash(value);
+  }
+
   function startEditCash() {
-    setCashInput(String(Math.round(cash)));
+    setCashInput(formatBRLMask(cashToMaskDigits(cash)));
     setEditingCash(true);
   }
 
   function commitEditCash() {
-    const v = parseFloat(cashInput.replace(/\./g, "").replace(",", "."));
-    if (!isNaN(v) && v >= 0) setCash(v);
+    const v = parseBRLMask(cashInput);
+    if (!isNaN(v) && v >= 0) setCashAndPersist(v);
     setEditingCash(false);
+  }
+
+  function onCashMaskChange(raw: string) {
+    const digits = raw.replace(/\D/g, "").slice(0, 12);
+    setCashInput(formatBRLMask(digits));
   }
 
   function openBuy(asset: Asset) {
@@ -259,7 +594,7 @@ export function InvestorLiveView({
       }
       return [...prev, { ticker: buyAsset.ticker, quantity: qty, avgPrice: buyAsset.price }];
     });
-    setCash((prev) => prev - amount);
+    setCashAndPersist(cash - amount);
     setBuyAsset(null);
     setConfirmedFlash(true);
     setTimeout(() => setConfirmedFlash(false), 1600);
@@ -320,313 +655,281 @@ export function InvestorLiveView({
 
           {/* Conteúdo scrollável */}
           <div className="flex-1 overflow-y-auto scrollbar-thin-dark px-5 pb-4">
-            {tab === "inicio" && (
+            {tab === "investimentos" && focusGroup === "all" && (
+              <div className="space-y-4">
+                <CaixinhaHeader label="Total das caixinhas" total={totalCaixinhas} />
+
+                <div className="space-y-2">
+                  <CaixinhaRow
+                    title="Turbo"
+                    subtitle={`${turboAccountsReal.length} conta${turboAccountsReal.length !== 1 ? "s" : ""}`}
+                    value={turboTotal}
+                    icon={Zap}
+                    tone="amber"
+                    onClick={() => setFocusGroup("turbo")}
+                  />
+                  <CaixinhaRow
+                    title="EME"
+                    subtitle={`${emergenciaAccountsReal.length} conta${emergenciaAccountsReal.length !== 1 ? "s" : ""}`}
+                    value={emergenciaTotal}
+                    icon={Shield}
+                    tone="blue"
+                    onClick={() => setFocusGroup("emergencia")}
+                  />
+                  <CaixinhaRow
+                    title="Investimentos"
+                    subtitle={`${investimentosAccountsReal.length + holdings.length} ativo${
+                      investimentosAccountsReal.length + holdings.length !== 1 ? "s" : ""
+                    }`}
+                    value={caixinhaInvestimentos}
+                    icon={Landmark}
+                    tone="emerald"
+                    onClick={() => {
+                      setInvestSubPage(null);
+                      setFocusGroup("investimentos");
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {tab === "investimentos" && caixinhaPageMeta && !investSubPage && (
               <div className="space-y-5">
-                <CaixinhaHeader label="Patrimônio total" total={patrimonioGeral} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFocusGroup("all");
+                    setInvestSubPage(null);
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/55 hover:text-white/80"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Caixinhas
+                </button>
 
-                <div className="space-y-2.5">
-                  <button
-                    onClick={() => setTab("turbo")}
-                    className="w-full text-left rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] backdrop-blur-xl p-4 flex items-center justify-between gap-3 hover:bg-amber-500/[0.1] transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="h-9 w-9 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
-                        <Zap className="h-4 w-4 text-amber-400" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-white">Caixinha Turbo</p>
-                        <p className="text-[11px] text-white/40">{turboAccountsReal.length} conta{turboAccountsReal.length !== 1 ? "s" : ""}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(turboTotal)}</p>
-                      <ChevronRight className="h-4 w-4 text-white/30" />
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => setTab("emergencia")}
-                    className="w-full text-left rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] backdrop-blur-xl p-4 flex items-center justify-between gap-3 hover:bg-blue-500/[0.1] transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="h-9 w-9 rounded-full bg-blue-500/15 flex items-center justify-center shrink-0">
-                        <Shield className="h-4 w-4 text-blue-400" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-white">Caixinha Emergência</p>
-                        <p className="text-[11px] text-white/40">{emergenciaAccountsReal.length} conta{emergenciaAccountsReal.length !== 1 ? "s" : ""}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(emergenciaTotal)}</p>
-                      <ChevronRight className="h-4 w-4 text-white/30" />
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => setTab("investimentos")}
-                    className="w-full text-left rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-4 flex items-center justify-between gap-3 hover:bg-emerald-500/[0.1] transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="h-9 w-9 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
-                        <Landmark className="h-4 w-4 text-emerald-400" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-white">Investimentos</p>
-                        <p className="text-[11px] text-white/40">
-                          {investimentosAccountsReal.length + holdings.length} ativo{investimentosAccountsReal.length + holdings.length !== 1 ? "s" : ""}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(investimentosTotal)}</p>
-                      <ChevronRight className="h-4 w-4 text-white/30" />
-                    </div>
-                  </button>
+                <div className="text-center pt-1 pb-1">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-1">
+                    {caixinhaPageMeta.title}
+                  </p>
+                  <p className="text-[11px] text-white/35 mb-2">{caixinhaPageMeta.subtitle}</p>
+                  <p className="text-[28px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
+                    {formatCurrency(caixinhaPageMeta.total)}
+                  </p>
                 </div>
-              </div>
-            )}
 
-            {tab === "turbo" && (
-              <div className="space-y-4">
-                <CaixinhaHeader label="Caixinha Turbo" total={turboTotal} />
-                {turboAccountsReal.length === 0 ? (
-                  <p className="text-sm text-white/40 text-center py-8">Nenhuma conta turbo registrada.</p>
-                ) : (
-                  <RealAccountList items={turboAccountsReal} onSelect={setSelectedFixedIncome} />
-                )}
-              </div>
-            )}
-
-            {tab === "emergencia" && (
-              <div className="space-y-4">
-                <CaixinhaHeader label="Caixinha Emergência" total={emergenciaTotal} />
-                {emergenciaAccountsReal.length === 0 ? (
-                  <p className="text-sm text-white/40 text-center py-8">Nenhuma reserva de emergência registrada.</p>
-                ) : (
-                  <RealAccountList items={emergenciaAccountsReal} onSelect={setSelectedFixedIncome} />
-                )}
-              </div>
-            )}
-
-            {tab === "investimentos" && !buyAsset && (
-              <div className="space-y-6">
-                <CaixinhaHeader label="Investimentos" total={investimentosTotal} />
-
-                {investedCost > 0 && (
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Investido</p>
-                      <p className="text-base font-extrabold tabular-nums text-white mt-1">{formatCurrency(investedCost)}</p>
-                      <p className="text-[10px] text-white/30 mt-0.5">líquido em ações/FIIs</p>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Rendimento</p>
-                      <p className={`text-base font-extrabold tabular-nums mt-1 inline-flex items-center gap-1 ${totalGain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                        {totalGain >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                        {formatCurrency(Math.abs(totalGain))}
-                      </p>
-                      <p className="text-[10px] text-white/30 mt-0.5">{totalGainPct >= 0 ? "+" : ""}{totalGainPct.toFixed(1)}% desde a compra</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 space-y-3">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Saldo disponível</p>
-                    {editingCash ? (
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-sm font-bold text-white/50">R$</span>
-                        <input
-                          autoFocus
-                          type="text"
-                          inputMode="decimal"
-                          value={cashInput}
-                          onChange={(e) => setCashInput(e.target.value.replace(/[^0-9,]/g, ""))}
-                          onKeyDown={(e) => { if (e.key === "Enter") commitEditCash(); if (e.key === "Escape") setEditingCash(false); }}
-                          onBlur={commitEditCash}
-                          className="w-32 bg-transparent border-b border-violet-400 text-lg font-extrabold tabular-nums text-white focus:outline-none"
+                <div className="space-y-5">
+                  {focusGroup === "turbo" && (
+                    turboAccountsReal.length > 0 ? (
+                      <PortfolioSection title="Contas">
+                        <RealAccountList
+                          items={turboAccountsReal}
+                          onSelect={setSelectedFixedIncome}
                         />
-                      </div>
+                      </PortfolioSection>
                     ) : (
-                      <button
-                        onClick={startEditCash}
-                        className="flex items-center gap-1.5 text-lg font-extrabold tabular-nums text-white mt-0.5 hover:text-violet-300 transition-colors"
-                      >
-                        <span>{formatCurrency(animatedCash)}</span>
-                        <Pencil className="h-3 w-3 text-white/30 shrink-0" />
-                      </button>
-                    )}
-                  </div>
-                </div>
+                      <p className="text-sm text-white/40 text-center py-8">Nenhuma conta turbo.</p>
+                    )
+                  )}
 
-                {investimentosAccountsReal.length > 0 && (
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">Renda fixa</p>
-                    <RealAccountList items={investimentosAccountsReal} onSelect={setSelectedFixedIncome} />
-                  </div>
-                )}
+                  {focusGroup === "emergencia" && (
+                    emergenciaAccountsReal.length > 0 ? (
+                      <PortfolioSection title="Contas">
+                        <RealAccountList
+                          items={emergenciaAccountsReal}
+                          onSelect={setSelectedFixedIncome}
+                        />
+                      </PortfolioSection>
+                    ) : (
+                      <p className="text-sm text-white/40 text-center py-8">
+                        Nenhuma conta de emergência.
+                      </p>
+                    )
+                  )}
 
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">Ações &amp; FIIs</p>
-                  {holdings.length === 0 ? (
-                    <p className="text-sm text-white/40 text-center py-6">Você ainda não tem posições. Explore os ativos abaixo.</p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {holdings.map((h) => {
-                        const asset = liveAssets.find((a) => a.ticker === h.ticker)!;
-                        const value = h.quantity * asset.price * (1 + asset.variation);
-                        const gain = value - h.quantity * h.avgPrice;
-                        return (
-                          <button
-                            key={h.ticker}
-                            onClick={() => setSelectedTicker(h.ticker)}
-                            className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: asset.color }} />
-                                <div className="min-w-0">
-                                  <p className="text-sm font-bold text-white truncate">{asset.ticker}</p>
-                                  <p className="text-[11px] text-white/40 truncate">{formatQty(h.quantity)} un · {asset.category}</p>
-                                </div>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(value)}</p>
-                                <p className={`text-[11px] font-semibold ${gain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                                  {gain >= 0 ? "+" : ""}{formatCurrency(gain)}
-                                </p>
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
+                  {focusGroup === "investimentos" && (
+                    <div className="space-y-2">
+                      <CaixinhaRow
+                        title="Tesouro Direto"
+                        subtitle={`${tesouroAccounts.length + outrasRendaFixa.length} título${
+                          tesouroAccounts.length + outrasRendaFixa.length !== 1 ? "s" : ""
+                        }`}
+                        value={tesouroTotal}
+                        icon={Landmark}
+                        tone="emerald"
+                        onClick={() => setInvestSubPage("tesouro")}
+                      />
+                      <CaixinhaRow
+                        title="Ações"
+                        subtitle={`${acoesPageHoldings.length} ativo${
+                          acoesPageHoldings.length !== 1 ? "s" : ""
+                        }`}
+                        value={acoesPageTotal}
+                        icon={TrendingUp}
+                        tone="violet"
+                        onClick={() => setInvestSubPage("acoes")}
+                      />
                     </div>
                   )}
                 </div>
-
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-1">Explorar ativos</p>
-                  <p className="text-xs text-white/40 mb-3">Cotação real quando o ativo já está na sua carteira.</p>
-                  <div className="space-y-3">
-                    {liveAssets.map((asset) => (
-                      <button
-                        key={asset.ticker}
-                        onClick={() => openBuy(asset)}
-                        className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 flex items-start justify-between gap-3 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
-                      >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <span className="h-2.5 w-2.5 rounded-full shrink-0 mt-1" style={{ background: asset.color }} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-white">{asset.ticker}</p>
-                            <p className="text-[11px] text-white/40 truncate">{asset.name} · {asset.category}</p>
-                            {(asset.isReal || ownedTickers.has(asset.ticker)) && (
-                              <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                                {asset.isReal && (
-                                  <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-400 border border-emerald-500/30 rounded px-1 py-[1px] shrink-0">
-                                    cotação real
-                                  </span>
-                                )}
-                                {ownedTickers.has(asset.ticker) && (
-                                  <span className="text-[8px] font-bold uppercase tracking-wide text-white/40 shrink-0">você já tem</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(asset.price)}</p>
-                          {!asset.isReal && (
-                            <p className={`text-[11px] font-semibold ${asset.variation >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                              {asset.variation >= 0 ? "+" : ""}{(asset.variation * 100).toFixed(1)}%
-                            </p>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
 
-            {tab === "investimentos" && buyAsset && (
-              <div className="pt-2">
+            {tab === "investimentos" && focusGroup === "investimentos" && investSubPage === "tesouro" && (
+              <div className="space-y-5">
                 <button
-                  onClick={() => setBuyAsset(null)}
-                  className="flex items-center gap-1 text-xs text-white/50 hover:text-white/80 mb-4"
+                  type="button"
+                  onClick={() => setInvestSubPage(null)}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/55 hover:text-white/80"
                 >
-                  <ChevronLeft className="h-3.5 w-3.5" /> Voltar
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Investimentos
                 </button>
 
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="h-3 w-3 rounded-full shrink-0" style={{ background: buyAsset.color }} />
-                  <div>
-                    <p className="text-lg font-bold text-white">{buyAsset.ticker}</p>
-                    <p className="text-xs text-white/40">{buyAsset.name} · cota {formatCurrency(buyAsset.price)}</p>
+                <div className="text-center pt-1 pb-1">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">
+                    Tesouro Direto
+                  </p>
+                  <p className="text-[28px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
+                    {formatCurrency(tesouroTotal)}
+                  </p>
+                </div>
+
+                {tesouroAccounts.length === 0 && outrasRendaFixa.length === 0 ? (
+                  <p className="text-sm text-white/40 text-center py-8">Nenhum título cadastrado.</p>
+                ) : (
+                  <div className="space-y-5">
+                    <PortfolioSection title="Títulos" empty={tesouroAccounts.length === 0}>
+                      <RealAccountList
+                        items={tesouroAccounts}
+                        onSelect={setSelectedFixedIncome}
+                      />
+                    </PortfolioSection>
+                    <PortfolioSection title="Renda fixa" empty={outrasRendaFixa.length === 0}>
+                      <RealAccountList
+                        items={outrasRendaFixa}
+                        onSelect={setSelectedFixedIncome}
+                      />
+                    </PortfolioSection>
                   </div>
+                )}
+              </div>
+            )}
+
+            {tab === "investimentos" && focusGroup === "investimentos" && investSubPage === "acoes" && (
+              <div className="space-y-5">
+                <button
+                  type="button"
+                  onClick={() => setInvestSubPage(null)}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/55 hover:text-white/80"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Investimentos
+                </button>
+
+                <div className="text-center pt-1 pb-1">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">
+                    Ações
+                  </p>
+                  <p className="text-[28px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
+                    {formatCurrency(acoesPageTotal)}
+                  </p>
                 </div>
 
-                <p className="text-[11px] font-bold uppercase tracking-wider text-white/40 mb-2">Quanto deseja investir?</p>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-black text-white/50">R$</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      value={buyAmount}
-                      onChange={(e) => setBuyAmount(e.target.value.replace(/[^0-9,]/g, ""))}
-                      className="flex-1 bg-transparent text-2xl font-black text-white placeholder:text-white/20 focus:outline-none tabular-nums"
-                    />
+                {acoesPageHoldings.length === 0 ? (
+                  <p className="text-sm text-white/40 text-center py-8">Nenhuma ação cadastrada.</p>
+                ) : (
+                  <div className="space-y-5">
+                    <PortfolioSection title="Ações" empty={acoesHoldings.length === 0}>
+                      <HoldingList items={acoesHoldings} onSelect={setSelectedTicker} />
+                    </PortfolioSection>
+                    <PortfolioSection title="FIIs" empty={fiiHoldings.length === 0}>
+                      <HoldingList items={fiiHoldings} onSelect={setSelectedTicker} />
+                    </PortfolioSection>
+                    <PortfolioSection title="ETFs" empty={etfHoldings.length === 0}>
+                      <HoldingList items={etfHoldings} onSelect={setSelectedTicker} />
+                    </PortfolioSection>
                   </div>
-                </div>
+                )}
+              </div>
+            )}
 
-                <div className="flex gap-2 mb-6">
-                  {[100, 500, 1000].map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setBuyAmount(String(v))}
-                      className="flex-1 rounded-full border border-white/10 bg-white/[0.04] py-1.5 text-xs font-semibold text-white/70 hover:bg-white/[0.08]"
-                    >
-                      +{v}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setBuyAmount(String(Math.floor(cash)))}
-                    className="flex-1 rounded-full border border-white/10 bg-white/[0.04] py-1.5 text-xs font-semibold text-white/70 hover:bg-white/[0.08]"
-                  >
-                    Máx.
-                  </button>
-                </div>
+            {tab === "inicio" && financePanel && (
+              <SimulatorFinancePanel panel={financePanel} onBack={() => setFinancePanel(null)} />
+            )}
 
-                {(() => {
-                  const amount = parseFloat(buyAmount.replace(",", ".")) || 0;
-                  const qty = amount > 0 ? amount / buyAsset.price : 0;
-                  const insufficient = amount > cash;
-                  return (
-                    <>
-                      <div className="flex justify-between text-xs text-white/40 mb-4 px-1">
-                        <span>≈ {formatQty(qty)} unidades</span>
-                        <span>Saldo: {formatCurrency(cash)}</span>
-                      </div>
-                      {insufficient && (
-                        <p className="text-xs text-red-400 mb-3 text-center">Saldo insuficiente para esse valor.</p>
-                      )}
+            {tab === "inicio" && !financePanel && (
+              <div className="space-y-5 pt-2">
+                <CaixinhaHeader label="Saldo na conta" total={cash} />
+
+                <div className="grid grid-cols-3 gap-2.5 px-1">
+                  {[
+                    { label: "Cartão", icon: CreditCard, id: "cartao" as const, tone: "rose" as const },
+                    { label: "Planejamento", icon: CalendarRange, id: "planejamento" as const, tone: "violet" as const },
+                    { label: "Parcelamentos", icon: Layers, id: "parcelamentos" as const, tone: "cyan" as const },
+                  ].map((item) => {
+                    const tones = {
+                      rose: { bg: "bg-rose-500/15", icon: "text-rose-400", border: "border-rose-500/25" },
+                      violet: { bg: "bg-violet-500/15", icon: "text-violet-400", border: "border-violet-500/25" },
+                      cyan: { bg: "bg-cyan-500/15", icon: "text-cyan-400", border: "border-cyan-500/25" },
+                    }[item.tone];
+                    const Icon = item.icon;
+                    return (
                       <button
-                        onClick={confirmBuy}
-                        disabled={!amount || amount <= 0 || insufficient}
-                        className="w-full rounded-full bg-violet-600 hover:bg-violet-500 disabled:bg-white/10 disabled:text-white/30 py-3 text-sm font-bold text-white transition-colors"
+                        key={item.id}
+                        type="button"
+                        onClick={() => setFinancePanel(item.id)}
+                        className={`flex flex-col items-center gap-2 rounded-2xl border ${tones.border} bg-white/[0.03] px-2 py-3.5 hover:bg-white/[0.06] transition-colors`}
                       >
-                        Confirmar compra
+                        <span className={`h-11 w-11 rounded-full ${tones.bg} flex items-center justify-center`}>
+                          <Icon className={`h-5 w-5 ${tones.icon}`} />
+                        </span>
+                        <span className="text-[10px] font-semibold text-white/75 text-center leading-tight">
+                          {item.label}
+                        </span>
                       </button>
-                    </>
-                  );
-                })()}
+                    );
+                  })}
+                </div>
+
+                <p className="text-center text-xs text-white/40 px-4">
+                  Para alterar o saldo disponível, use a aba Simular.
+                </p>
               </div>
             )}
 
             {tab === "simular" && (
               <div className="space-y-5 pt-2">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 space-y-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Saldo disponível</p>
+                  {editingCash ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold text-white/50">R$</span>
+                      <input
+                        autoFocus
+                        type="text"
+                        inputMode="numeric"
+                        value={cashInput}
+                        onChange={(e) => onCashMaskChange(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") commitEditCash(); if (e.key === "Escape") setEditingCash(false); }}
+                        onBlur={commitEditCash}
+                        className="min-w-[7.5rem] w-auto bg-transparent border-b border-violet-400 text-lg font-extrabold tabular-nums text-white focus:outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={startEditCash}
+                      className="flex items-center gap-1.5 text-lg font-extrabold tabular-nums text-white hover:text-violet-300 transition-colors"
+                    >
+                      <span>{formatCurrency(animatedCash)}</span>
+                      <Pencil className="h-3 w-3 text-white/30 shrink-0" />
+                    </button>
+                  )}
+                  <p className="text-[11px] text-white/35">
+                    Esse saldo aparece na aba Início como “Saldo na conta”.
+                  </p>
+                </div>
+
                 <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">Simulador de rendimentos</p>
 
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 space-y-4">
@@ -709,14 +1012,18 @@ export function InvestorLiveView({
           <div className="flex items-center justify-around border-t border-white/10 bg-black/40 backdrop-blur-xl px-1 pt-2 pb-1 shrink-0">
             {[
               { id: "inicio" as const, label: "Início", icon: Home },
-              { id: "turbo" as const, label: "Turbo", icon: Zap },
-              { id: "emergencia" as const, label: "Emergência", icon: Shield },
               { id: "investimentos" as const, label: "Investir", icon: Landmark },
               { id: "simular" as const, label: "Simular", icon: Calculator },
             ].map((t) => (
               <button
                 key={t.id}
-                onClick={() => { setTab(t.id); if (t.id !== "investimentos") setBuyAsset(null); }}
+                onClick={() => {
+                  setTab(t.id);
+                  setFocusGroup("all");
+                  setInvestSubPage(null);
+                  setBuyAsset(null);
+                  setFinancePanel(null);
+                }}
                 className={`flex flex-col items-center gap-1 px-2.5 py-1.5 rounded-xl transition-colors ${
                   tab === t.id ? "text-white" : "text-white/35"
                 }`}
@@ -755,12 +1062,29 @@ export function InvestorLiveView({
                 </div>
 
                 <div className="flex items-start gap-3 mb-5">
-                  <span className={`h-3 w-3 rounded-full shrink-0 mt-1.5 ${selectedFixedIncome.isTurbo ? "bg-amber-400" : "bg-blue-400"}`} />
+                  <span
+                    className={`h-3 w-3 rounded-full shrink-0 mt-1.5 ${
+                      selectedFixedIncome.isTurbo
+                        ? "bg-amber-400"
+                        : isTesouroAccount(selectedFixedIncome.nome)
+                          ? "bg-emerald-400"
+                          : "bg-blue-400"
+                    }`}
+                  />
                   <div className="min-w-0">
                     <p className="text-lg font-bold text-white leading-snug">{selectedFixedIncome.nome}</p>
-                    {selectedFixedIncome.instituicao && (
-                      <p className="text-xs text-white/40 mt-0.5">{selectedFixedIncome.instituicao}</p>
-                    )}
+                    <p className="text-xs text-white/40 mt-0.5">
+                      {[
+                        selectedFixedIncome.isTurbo
+                          ? "Turbo"
+                          : isTesouroAccount(selectedFixedIncome.nome)
+                            ? "Tesouro Direto"
+                            : "Renda fixa",
+                        selectedFixedIncome.instituicao,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
                   </div>
                 </div>
 
@@ -814,7 +1138,9 @@ export function InvestorLiveView({
                   <span className="h-3 w-3 rounded-full shrink-0 mt-1.5" style={{ background: selectedHolding.asset.color }} />
                   <div className="min-w-0">
                     <p className="text-lg font-bold text-white leading-snug">{selectedHolding.asset.ticker}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{selectedHolding.asset.name} · {selectedHolding.asset.category}</p>
+                    <p className="text-xs text-white/40 mt-0.5">
+                      {selectedHolding.asset.name} · {detectAssetType(selectedHolding.asset.ticker)}
+                    </p>
                   </div>
                 </div>
 
