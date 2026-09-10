@@ -1,10 +1,12 @@
 "use client";
 
-import { FileText, Target } from "lucide-react";
+import { useState } from "react";
+import { FileText, Target, Radio } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { InvestorBot } from "@/components/investor-bot";
+import { InvestorLiveView } from "@/components/investimentos/investor-live-view";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
 import type { ScoreSnapshot } from "@/types/database";
@@ -96,6 +98,21 @@ export function InvestorModeView({
   const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
   const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
   const circumference = 2 * Math.PI * 118;
+  const [liveMode, setLiveMode] = useState(false);
+
+  if (liveMode) {
+    return (
+      <InvestorLiveView
+        totalRendaMensal={totalRendaMensal}
+        incomeGoal={incomeGoal}
+        allSources={allSources}
+        chartMonths={chartMonths}
+        score={portfolioAnalysis.score}
+        grandTotal={grandTotal}
+        onClose={() => setLiveMode(false)}
+      />
+    );
+  }
 
   return (
         <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#05050a] text-white">
@@ -121,6 +138,13 @@ export function InvestorModeView({
                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Modo Investidor</span>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setLiveMode(true)}
+                  className="flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-sm font-medium text-red-300 backdrop-blur-xl transition-colors hover:bg-red-500/20 hover:text-red-200"
+                >
+                  <Radio className="h-3.5 w-3.5" />
+                  Live
+                </button>
                 <button
                   onClick={onGenerateReport}
                   className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 text-sm font-medium text-violet-300 backdrop-blur-xl transition-colors hover:bg-violet-500/20 hover:text-violet-200"
