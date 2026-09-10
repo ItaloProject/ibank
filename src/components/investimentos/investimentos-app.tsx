@@ -803,7 +803,10 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         stockPositions={stockPositions}
         quoteMap={quoteMap}
         accountBalances={accountBalances}
+        stockTrades={stockTrades}
+        investments={investments}
         onGenerateReport={generateReport}
+        onRefresh={load}
       />
     );
   }

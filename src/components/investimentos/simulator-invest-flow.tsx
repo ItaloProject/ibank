@@ -13,50 +13,6 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
-export type SimHolding = {
-  ticker: string;
-  quantity: number;
-  avgPrice: number;
-};
-
-export type SimTesouroBuy = {
-  id: string;
-  nome: string;
-  valor: number;
-  taxa: string;
-};
-
-export type SimInvestState = {
-  holdings: SimHolding[];
-  aportes: Record<string, number>;
-  tesouro: SimTesouroBuy[];
-};
-
-export const SIM_INVEST_STORAGE_KEY = "ibank_live_sim_invest";
-
-export function readSimInvestState(): SimInvestState {
-  try {
-    const raw = localStorage.getItem(SIM_INVEST_STORAGE_KEY);
-    if (!raw) return { holdings: [], aportes: {}, tesouro: [] };
-    const parsed = JSON.parse(raw) as Partial<SimInvestState>;
-    return {
-      holdings: Array.isArray(parsed.holdings) ? parsed.holdings : [],
-      aportes:
-        parsed.aportes && typeof parsed.aportes === "object" ? parsed.aportes : {},
-      tesouro: Array.isArray(parsed.tesouro) ? parsed.tesouro : [],
-    };
-  } catch {
-    return { holdings: [], aportes: {}, tesouro: [] };
-  }
-}
-
-export function writeSimInvestState(state: SimInvestState) {
-  try {
-    localStorage.setItem(SIM_INVEST_STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    /* ignore */
-  }
-}
 
 export type MarketCatalogAsset = {
   ticker: string;
@@ -101,9 +57,9 @@ type Props = {
   section: MarketSection;
   onSectionChange: (section: MarketSection) => void;
   onClose: () => void;
-  onBuyStock: (ticker: string, name: string, price: number, amount: number) => void;
-  onBuyTesouro: (product: TesouroProduct, amount: number) => void;
-  onAporte: (accountId: string, amount: number) => void;
+  onBuyStock: (ticker: string, name: string, price: number, amount: number) => Promise<void> | void;
+  onBuyTesouro: (product: TesouroProduct, amount: number) => Promise<void> | void;
+  onAporte: (accountId: string, amount: number) => Promise<void> | void;
 };
 
 function formatBRLMask(digits: string): string {
@@ -243,6 +199,8 @@ export function SimulatorInvestFlow({
   const [buyTarget, setBuyTarget] = useState<BuyTarget | null>(null);
   const [amountMask, setAmountMask] = useState("");
   const [justBought, setJustBought] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [customTicker, setCustomTicker] = useState("");
   const [customPriceMask, setCustomPriceMask] = useState("");
   const [customQtyMask, setCustomQtyMask] = useState("");
@@ -263,10 +221,11 @@ export function SimulatorInvestFlow({
     customPrice > 0 &&
     customQty > 0 &&
     customTotal <= cash + 0.001 &&
-    !justBought;
+    !justBought &&
+    !submitting;
 
   const canConfirmPreset =
-    !isCustom && amount > 0 && amount <= cash + 0.001 && !justBought;
+    !isCustom && amount > 0 && amount <= cash + 0.001 && !justBought && !submitting;
 
   const canConfirm = isCustom ? canConfirmCustom : canConfirmPreset;
 
@@ -286,6 +245,7 @@ export function SimulatorInvestFlow({
     setBuyTarget(target);
     setAmountMask("");
     setJustBought(false);
+    setSubmitError(null);
     resetCustomFields();
   }
 
@@ -296,34 +256,33 @@ export function SimulatorInvestFlow({
     );
   }
 
-  function confirm() {
+  async function confirm() {
     if (!buyTarget || !canConfirm) return;
-    if (buyTarget.kind === "custom") {
-      onBuyStock(
-        customTickerClean,
-        customTickerClean,
-        customPrice,
-        customTotal
-      );
-    } else if (buyTarget.kind === "stock") {
-      onBuyStock(
-        buyTarget.asset.ticker,
-        buyTarget.asset.name,
-        buyTarget.asset.price,
-        amount
-      );
-    } else if (buyTarget.kind === "tesouro") {
-      onBuyTesouro(buyTarget.product, amount);
-    } else {
-      onAporte(buyTarget.account.id, amount);
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (buyTarget.kind === "custom") {
+        await onBuyStock(customTickerClean, customTickerClean, customPrice, customTotal);
+      } else if (buyTarget.kind === "stock") {
+        await onBuyStock(buyTarget.asset.ticker, buyTarget.asset.name, buyTarget.asset.price, amount);
+      } else if (buyTarget.kind === "tesouro") {
+        await onBuyTesouro(buyTarget.product, amount);
+      } else {
+        await onAporte(buyTarget.account.id, amount);
+      }
+      setJustBought(true);
+      setTimeout(() => {
+        setBuyTarget(null);
+        setJustBought(false);
+        setAmountMask("");
+        resetCustomFields();
+      }, 1100);
+    } catch (err) {
+      console.error("Erro ao confirmar investimento:", err);
+      setSubmitError("Não foi possível concluir. Tente novamente.");
+    } finally {
+      setSubmitting(false);
     }
-    setJustBought(true);
-    setTimeout(() => {
-      setBuyTarget(null);
-      setJustBought(false);
-      setAmountMask("");
-      resetCustomFields();
-    }, 1100);
   }
 
   const sectionTitle =
@@ -687,6 +646,9 @@ export function SimulatorInvestFlow({
                     Saldo insuficiente para esse total.
                   </p>
                 )}
+                {submitError && (
+                  <p className="text-xs text-red-400 mb-3">{submitError}</p>
+                )}
 
                 <button
                   type="button"
@@ -694,7 +656,7 @@ export function SimulatorInvestFlow({
                   onClick={confirm}
                   className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3.5 text-sm font-bold text-white disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
                 >
-                  Confirmar investimento
+                  {submitting ? "Processando…" : "Confirmar investimento"}
                 </button>
               </>
             ) : (
@@ -780,6 +742,9 @@ export function SimulatorInvestFlow({
                     Saldo insuficiente para esse valor.
                   </p>
                 )}
+                {submitError && (
+                  <p className="text-xs text-red-400 mb-3">{submitError}</p>
+                )}
 
                 <button
                   type="button"
@@ -787,7 +752,7 @@ export function SimulatorInvestFlow({
                   onClick={confirm}
                   className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3.5 text-sm font-bold text-white disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
                 >
-                  Confirmar investimento
+                  {submitting ? "Processando…" : "Confirmar investimento"}
                 </button>
               </>
             )}

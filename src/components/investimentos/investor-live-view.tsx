@@ -8,6 +8,14 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
+import { CASH_ACCOUNT_NAME } from "@/lib/account-groups";
+import type { StockTrade, Investment } from "@/types/database";
+import {
+  createStockTrade,
+  createInvestment,
+  updateAccountBalance,
+  createInvestmentAccount,
+} from "@/lib/api";
 import {
   SimulatorFinancePanel,
   type FinancePanelId,
@@ -15,12 +23,13 @@ import {
 import {
   SimulatorInvestFlow,
   DEFAULT_TESOURO_PRODUCTS,
-  readSimInvestState,
-  writeSimInvestState,
   type MarketSection,
-  type SimInvestState,
   type TesouroProduct,
 } from "@/components/investimentos/simulator-invest-flow";
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 type Asset = {
   ticker: string;
@@ -60,58 +69,6 @@ const ASSETS: Asset[] = [
   { ticker: "HGLG11", name: "CSHG Logística",     category: "FII",  price: 165.4, variation: 0.019,  color: "#8b5cf6" },
   { ticker: "XPML11", name: "XP Malls",           category: "FII",  price: 98.5,  variation: 0.008,  color: "#ec4899" },
 ];
-
-function mergeHoldings(base: Holding[], sim: Holding[]): Holding[] {
-  const map = new Map<string, Holding>();
-  for (const h of base) map.set(h.ticker, { ...h });
-  for (const h of sim) {
-    const cur = map.get(h.ticker);
-    if (!cur) {
-      map.set(h.ticker, { ...h });
-      continue;
-    }
-    const quantity = cur.quantity + h.quantity;
-    const cost = cur.quantity * cur.avgPrice + h.quantity * h.avgPrice;
-    map.set(h.ticker, {
-      ticker: h.ticker,
-      quantity,
-      avgPrice: quantity > 0 ? cost / quantity : 0,
-    });
-  }
-  return [...map.values()].filter((h) => h.quantity > 0.0001);
-}
-
-function applyAportes(
-  accounts: RealAccountItem[],
-  aportes: Record<string, number>
-): RealAccountItem[] {
-  return accounts.map((a) => ({
-    ...a,
-    valor: a.valor + (aportes[a.id] ?? 0),
-  }));
-}
-
-const INITIAL_CASH = 10000;
-const CASH_STORAGE_KEY = "ibank_live_cash";
-
-function readStoredCash(): number {
-  try {
-    const raw = localStorage.getItem(CASH_STORAGE_KEY);
-    if (raw == null) return INITIAL_CASH;
-    const n = Number(raw);
-    return Number.isFinite(n) && n >= 0 ? n : INITIAL_CASH;
-  } catch {
-    return INITIAL_CASH;
-  }
-}
-
-function writeStoredCash(value: number) {
-  try {
-    localStorage.setItem(CASH_STORAGE_KEY, String(value));
-  } catch {
-    /* ignore */
-  }
-}
 
 /** Máscara BRL: dígitos → centavos → "2.000,00" */
 function formatBRLMask(digits: string): string {
@@ -397,6 +354,11 @@ export type InvestorLiveViewProps = {
   investimentosAccountsReal: RealAccountItem[];
   stockPositions: StockPosition[];
   quoteMap: Map<string, number>;
+  stockTrades: StockTrade[];
+  investments: Investment[];
+  cashAccountId: string | null;
+  cashBalance: number;
+  onRefresh: () => Promise<void> | void;
   onClose: () => void;
 };
 
@@ -407,6 +369,11 @@ export function InvestorLiveView({
   investimentosAccountsReal,
   stockPositions,
   quoteMap,
+  stockTrades,
+  investments,
+  cashAccountId,
+  cashBalance,
+  onRefresh,
   onClose,
 }: InvestorLiveViewProps) {
   const [tab, setTab] = useState<"inicio" | "investimentos" | "simular">("inicio");
@@ -414,52 +381,27 @@ export function InvestorLiveView({
   const [investSubPage, setInvestSubPage] = useState<"tesouro" | "acoes" | null>(null);
   const [marketOpen, setMarketOpen] = useState(false);
   const [marketSection, setMarketSection] = useState<MarketSection>("hub");
-  const [cash, setCash] = useState(INITIAL_CASH);
-  useEffect(() => { setCash(readStoredCash()); }, []);
+  const cash = cashBalance;
   const [editingCash, setEditingCash] = useState(false);
   const [cashInput, setCashInput] = useState("");
   const [financePanel, setFinancePanel] = useState<FinancePanelId | null>(null);
-  const [simInvest, setSimInvest] = useState<SimInvestState>(() => readSimInvestState());
-  const [holdings, setHoldings] = useState<Holding[]>(() =>
-    mergeHoldings(
-      stockPositions
-        .filter((p) => p.quantity > 0)
-        .map((p) => ({ ticker: p.ticker, quantity: p.quantity, avgPrice: p.avgPrice })),
-      readSimInvestState().holdings
-    )
-  );
   const [confirmedFlash, setConfirmedFlash] = useState(false);
   const [selectedFixedIncome, setSelectedFixedIncome] = useState<RealAccountItem | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
+  const holdings: Holding[] = useMemo(
+    () =>
+      stockPositions
+        .filter((p) => p.quantity > 0)
+        .map((p) => ({ ticker: p.ticker, quantity: p.quantity, avgPrice: p.avgPrice })),
+    [stockPositions]
+  );
+
   const ownedTickers = useMemo(() => new Set(stockPositions.map((p) => p.ticker)), [stockPositions]);
 
-  const turboAccountsLive = useMemo(
-    () => applyAportes(turboAccountsReal, simInvest.aportes),
-    [turboAccountsReal, simInvest.aportes]
-  );
-  const emergenciaAccountsLive = useMemo(
-    () => applyAportes(emergenciaAccountsReal, simInvest.aportes),
-    [emergenciaAccountsReal, simInvest.aportes]
-  );
-  const investimentosAccountsLive = useMemo(() => {
-    const base = applyAportes(investimentosAccountsReal, simInvest.aportes);
-    const simTesouro: RealAccountItem[] = simInvest.tesouro.map((t) => ({
-      id: `sim-tesouro-${t.id}`,
-      nome: t.nome,
-      instituicao: t.taxa,
-      valor: t.valor,
-      isTurbo: false,
-      cdiPercent: null,
-      maxRendimento: null,
-    }));
-    return [...base, ...simTesouro];
-  }, [investimentosAccountsReal, simInvest.aportes, simInvest.tesouro]);
-
-  function persistSimInvest(next: SimInvestState) {
-    setSimInvest(next);
-    writeSimInvestState(next);
-  }
+  const turboAccountsLive = turboAccountsReal;
+  const emergenciaAccountsLive = emergenciaAccountsReal;
+  const investimentosAccountsLive = investimentosAccountsReal;
 
   function openMarket(section: MarketSection = "hub") {
     setFinancePanel(null);
@@ -491,19 +433,10 @@ export function InvestorLiveView({
       return realPrice !== undefined ? { ...a, price: realPrice, variation: 0, isReal: true } : { ...a, isReal: false };
     });
 
-    // Tickers fora do catálogo: posições reais + compras do simulador (ex.: personalizadas)
+    // Tickers fora do catálogo: posições reais (ex.: compras personalizadas)
     const extraByTicker = new Map<string, number>();
     for (const p of stockPositions) {
       if (!knownTickers.has(p.ticker)) extraByTicker.set(p.ticker, p.avgPrice);
-    }
-    for (const h of simInvest.holdings) {
-      if (!knownTickers.has(h.ticker) && !extraByTicker.has(h.ticker)) {
-        extraByTicker.set(h.ticker, h.avgPrice);
-      } else if (!knownTickers.has(h.ticker)) {
-        // Preferir cotação de compra do sim se ainda não houver quote real
-        const cur = extraByTicker.get(h.ticker) ?? h.avgPrice;
-        if (!quoteMap.has(h.ticker)) extraByTicker.set(h.ticker, cur);
-      }
     }
 
     const extra: Asset[] = [...extraByTicker.entries()].map(([ticker, avgPrice], i) => {
@@ -519,7 +452,7 @@ export function InvestorLiveView({
       };
     });
     return [...base, ...extra];
-  }, [quoteMap, stockPositions, simInvest.holdings]);
+  }, [quoteMap, stockPositions]);
 
   const investedValue = useMemo(() => {
     return holdings.reduce((sum, h) => {
@@ -564,35 +497,25 @@ export function InvestorLiveView({
   /** Conta + investimentos (visão de patrimônio do Início). */
   const patrimonioTotal = cash + totalCaixinhas;
 
-  /** Movimentações derivadas do estado do simulador (compras / aportes). */
+  /** Movimentações reais recentes (compras de ações + aportes em caixinhas). */
   const homeMovements = useMemo(() => {
     type Mov = {
       id: string;
       title: string;
       subtitle: string;
       amount: number;
+      date: string;
     };
     const items: Mov[] = [];
 
-    for (const h of simInvest.holdings) {
-      const cost = h.quantity * h.avgPrice;
-      if (cost <= 0.009) continue;
-      const asset = liveAssets.find((a) => a.ticker === h.ticker);
+    for (const t of stockTrades) {
+      if (t.type !== "compra") continue;
       items.push({
-        id: `stock-${h.ticker}`,
-        title: `Compra ${h.ticker}`,
-        subtitle: `${formatQty(h.quantity)} un. · ${asset?.category ?? "Ações"}`,
-        amount: cost,
-      });
-    }
-
-    for (const t of simInvest.tesouro) {
-      if (t.valor <= 0.009) continue;
-      items.push({
-        id: `tesouro-${t.id}`,
-        title: t.nome,
-        subtitle: `Tesouro Direto · ${t.taxa}`,
-        amount: t.valor,
+        id: `stock-${t.id}`,
+        title: `Compra ${t.ticker}`,
+        subtitle: `${formatQty(t.quantity)} un. · Ações/FIIs`,
+        amount: t.total_amount,
+        date: t.date,
       });
     }
 
@@ -602,34 +525,26 @@ export function InvestorLiveView({
         a,
       ])
     );
-    for (const [accountId, amount] of Object.entries(simInvest.aportes)) {
-      if (amount <= 0.009) continue;
-      const acc = aporteLookup.get(accountId);
-      const group = acc
-        ? acc.isTurbo
-          ? "Turbo"
-          : emergenciaAccountsReal.some((e) => e.id === accountId)
-            ? "EME"
-            : "Investimentos"
-        : "Caixinha";
+    for (const inv of investments) {
+      if (inv.type !== "deposito" || inv.account_id === cashAccountId) continue;
+      const acc = aporteLookup.get(inv.account_id);
+      if (!acc) continue;
+      const group = acc.isTurbo
+        ? "Turbo"
+        : emergenciaAccountsReal.some((e) => e.id === inv.account_id)
+          ? "EME"
+          : "Investimentos";
       items.push({
-        id: `aporte-${accountId}`,
-        title: `Aporte · ${acc?.nome ?? "Caixinha"}`,
+        id: `inv-${inv.id}`,
+        title: `Aporte · ${acc.nome}`,
         subtitle: group,
-        amount,
+        amount: inv.amount,
+        date: inv.date,
       });
     }
 
-    return items.sort((a, b) => b.amount - a.amount).slice(0, 6);
-  }, [
-    simInvest.holdings,
-    simInvest.tesouro,
-    simInvest.aportes,
-    liveAssets,
-    turboAccountsReal,
-    emergenciaAccountsReal,
-    investimentosAccountsReal,
-  ]);
+    return items.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, 6);
+  }, [stockTrades, investments, cashAccountId, turboAccountsReal, emergenciaAccountsReal, investimentosAccountsReal]);
 
   const tesouroAccounts = useMemo(
     () => investimentosAccountsLive.filter((a) => isTesouroAccount(a.nome)),
@@ -734,20 +649,39 @@ export function InvestorLiveView({
 
   const animatedCash = useCountUp(cash);
 
-  function setCashAndPersist(value: number) {
-    setCash(value);
-    writeStoredCash(value);
-  }
+  const [savingCash, setSavingCash] = useState(false);
 
   function startEditCash() {
     setCashInput(formatBRLMask(cashToMaskDigits(cash)));
     setEditingCash(true);
   }
 
-  function commitEditCash() {
-    const v = parseBRLMask(cashInput);
-    if (!isNaN(v) && v >= 0) setCashAndPersist(v);
+  async function commitEditCash() {
+    if (!editingCash) return;
     setEditingCash(false);
+    const v = parseBRLMask(cashInput);
+    if (isNaN(v) || v < 0 || Math.abs(v - cash) < 0.005) return;
+    const delta = v - cash;
+    setSavingCash(true);
+    try {
+      let id = cashAccountId;
+      if (!id) {
+        const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
+        id = acc.id;
+      }
+      await createInvestment({
+        account_id: id,
+        type: delta > 0 ? "deposito" : "retirada",
+        amount: Math.abs(delta),
+        description: "Ajuste de saldo via Simulador",
+        date: today(),
+      });
+      await onRefresh();
+    } catch (err) {
+      console.error("Erro ao ajustar saldo:", err);
+    } finally {
+      setSavingCash(false);
+    }
   }
 
   function onCashMaskChange(raw: string) {
@@ -773,62 +707,87 @@ export function InvestorLiveView({
     setTimeout(() => setConfirmedFlash(false), 1600);
   }
 
-  function handleBuyStock(ticker: string, _name: string, price: number, amount: number) {
-    if (amount <= 0 || amount > cash + 0.001 || price <= 0) return;
+  async function handleBuyStock(ticker: string, _name: string, price: number, amount: number) {
+    if (!cashAccountId || amount <= 0 || amount > cash + 0.001 || price <= 0) return;
     const qty = amount / price;
-    const nextHoldingsSim = (() => {
-      const existing = simInvest.holdings.find((h) => h.ticker === ticker);
-      if (existing) {
-        const totalQty = existing.quantity + qty;
-        const totalCost = existing.quantity * existing.avgPrice + amount;
-        return simInvest.holdings.map((h) =>
-          h.ticker === ticker
-            ? { ...h, quantity: totalQty, avgPrice: totalCost / totalQty }
-            : h
-        );
-      }
-      return [...simInvest.holdings, { ticker, quantity: qty, avgPrice: price }];
-    })();
-    const next: SimInvestState = { ...simInvest, holdings: nextHoldingsSim };
-    persistSimInvest(next);
-    setHoldings(
-      mergeHoldings(
-        stockPositions
-          .filter((p) => p.quantity > 0)
-          .map((p) => ({ ticker: p.ticker, quantity: p.quantity, avgPrice: p.avgPrice })),
-        nextHoldingsSim
-      )
-    );
-    setCashAndPersist(cash - amount);
-    flashConfirm();
-  }
-
-  function handleBuyTesouro(product: TesouroProduct, amount: number) {
-    if (amount <= 0 || amount > cash + 0.001) return;
-    const existing = simInvest.tesouro.find((t) => t.id === product.id);
-    const nextTesouro = existing
-      ? simInvest.tesouro.map((t) =>
-          t.id === product.id ? { ...t, valor: t.valor + amount } : t
-        )
-      : [
-          ...simInvest.tesouro,
-          { id: product.id, nome: product.nome, valor: amount, taxa: product.taxa },
-        ];
-    persistSimInvest({ ...simInvest, tesouro: nextTesouro });
-    setCashAndPersist(cash - amount);
-    flashConfirm();
-  }
-
-  function handleAporte(accountId: string, amount: number) {
-    if (amount <= 0 || amount > cash + 0.001) return;
-    persistSimInvest({
-      ...simInvest,
-      aportes: {
-        ...simInvest.aportes,
-        [accountId]: (simInvest.aportes[accountId] ?? 0) + amount,
-      },
+    await createStockTrade({
+      ticker,
+      type: "compra",
+      quantity: qty,
+      price_per_share: price,
+      total_amount: amount,
+      date: today(),
     });
-    setCashAndPersist(cash - amount);
+    await createInvestment({
+      account_id: cashAccountId,
+      type: "retirada",
+      amount,
+      description: `Compra ${ticker}`,
+      date: today(),
+    });
+    await onRefresh();
+    flashConfirm();
+  }
+
+  async function handleBuyTesouro(product: TesouroProduct, amount: number) {
+    if (!cashAccountId || amount <= 0 || amount > cash + 0.001) return;
+    const existing = investimentosAccountsReal.find((a) => a.nome === product.nome);
+    let accountId: string;
+    if (existing) {
+      accountId = existing.id;
+      await createInvestment({
+        account_id: accountId,
+        type: "deposito",
+        amount,
+        description: "Compra Tesouro Direto",
+        date: today(),
+      });
+      await updateAccountBalance(accountId, existing.valor + amount);
+    } else {
+      const acc = await createInvestmentAccount({ name: product.nome, institution: product.taxa });
+      accountId = acc.id;
+      await createInvestment({
+        account_id: accountId,
+        type: "deposito",
+        amount,
+        description: "Compra Tesouro Direto",
+        date: today(),
+      });
+      await updateAccountBalance(accountId, amount);
+    }
+    await createInvestment({
+      account_id: cashAccountId,
+      type: "retirada",
+      amount,
+      description: `Compra ${product.nome}`,
+      date: today(),
+    });
+    await onRefresh();
+    flashConfirm();
+  }
+
+  async function handleAporte(accountId: string, amount: number) {
+    if (!cashAccountId || amount <= 0 || amount > cash + 0.001) return;
+    const acc = [...turboAccountsReal, ...emergenciaAccountsReal, ...investimentosAccountsReal].find(
+      (a) => a.id === accountId
+    );
+    if (!acc) return;
+    await createInvestment({
+      account_id: accountId,
+      type: "deposito",
+      amount,
+      description: "Aporte via Simulador",
+      date: today(),
+    });
+    await updateAccountBalance(accountId, acc.valor + amount);
+    await createInvestment({
+      account_id: cashAccountId,
+      type: "retirada",
+      amount,
+      description: `Aporte · ${acc.nome}`,
+      date: today(),
+    });
+    await onRefresh();
     flashConfirm();
   }
 
@@ -1379,10 +1338,15 @@ export function InvestorLiveView({
                     <button
                       type="button"
                       onClick={startEditCash}
-                      className="flex items-center gap-1.5 text-lg font-extrabold tabular-nums text-white hover:text-violet-300 transition-colors"
+                      disabled={savingCash}
+                      className="flex items-center gap-1.5 text-lg font-extrabold tabular-nums text-white hover:text-violet-300 transition-colors disabled:opacity-60"
                     >
                       <span>{formatCurrency(animatedCash)}</span>
-                      <Pencil className="h-3 w-3 text-white/30 shrink-0" />
+                      {savingCash ? (
+                        <span className="text-[10px] font-semibold text-white/40">salvando…</span>
+                      ) : (
+                        <Pencil className="h-3 w-3 text-white/30 shrink-0" />
+                      )}
                     </button>
                   )}
                   <p className="text-[11px] text-white/35">

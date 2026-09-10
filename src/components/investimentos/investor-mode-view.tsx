@@ -9,8 +9,8 @@ import { InvestorBot } from "@/components/investor-bot";
 import { InvestorLiveView } from "@/components/investimentos/investor-live-view";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
-import { categorizeAccount } from "@/lib/account-groups";
-import type { ScoreSnapshot, InvestmentAccount } from "@/types/database";
+import { categorizeAccount, isCashAccountName } from "@/lib/account-groups";
+import type { ScoreSnapshot, InvestmentAccount, StockTrade, Investment } from "@/types/database";
 
 type IncomeSource = {
   nome: string;
@@ -80,7 +80,10 @@ export type InvestorModeViewProps = {
   stockPositions: StockPosition[];
   quoteMap: Map<string, number>;
   accountBalances: { account: InvestmentAccount; balance: number }[];
+  stockTrades: StockTrade[];
+  investments: Investment[];
   onGenerateReport: () => void;
+  onRefresh: () => Promise<void> | void;
 };
 
 export function InvestorModeView({
@@ -96,7 +99,10 @@ export function InvestorModeView({
   stockPositions,
   quoteMap,
   accountBalances,
+  stockTrades,
+  investments,
   onGenerateReport,
+  onRefresh,
 }: InvestorModeViewProps) {
   const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
   const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
@@ -124,14 +130,17 @@ export function InvestorModeView({
     });
     const sortByValor = <T extends { valor: number }>(arr: T[]) => [...arr].sort((a, b) => b.valor - a.valor);
 
+    const cashEntry = accountBalances.find((x) => isCashAccountName(x.account.name));
+    const nonCashBalances = accountBalances.filter((x) => x !== cashEntry);
+
     const turboAccountsReal = sortByValor(
-      accountBalances.filter((x) => categorizeAccount(x.account) === "turbo").map(toItem)
+      nonCashBalances.filter((x) => categorizeAccount(x.account) === "turbo").map(toItem)
     );
     const emergenciaAccountsReal = sortByValor(
-      accountBalances.filter((x) => categorizeAccount(x.account) === "emergencia").map(toItem)
+      nonCashBalances.filter((x) => categorizeAccount(x.account) === "emergencia").map(toItem)
     );
     const investimentosAccountsReal = sortByValor(
-      accountBalances.filter((x) => categorizeAccount(x.account) === "investimentos").map(toItem)
+      nonCashBalances.filter((x) => categorizeAccount(x.account) === "investimentos").map(toItem)
     );
 
     return (
@@ -142,6 +151,11 @@ export function InvestorModeView({
         investimentosAccountsReal={investimentosAccountsReal}
         stockPositions={stockPositions}
         quoteMap={quoteMap}
+        stockTrades={stockTrades}
+        investments={investments}
+        cashAccountId={cashEntry?.account.id ?? null}
+        cashBalance={cashEntry?.balance ?? 0}
+        onRefresh={onRefresh}
         onClose={() => setLiveMode(false)}
       />
     );
