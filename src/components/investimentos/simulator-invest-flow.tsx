@@ -572,7 +572,7 @@ export function SimulatorInvestFlow({
           onClick={() => !justBought && setBuyTarget(null)}
         >
           <div
-            className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 px-5 pt-3 pb-7"
+            className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 px-5 pt-3 pb-7 overflow-x-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center mb-5">

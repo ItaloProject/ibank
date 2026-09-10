@@ -414,7 +414,8 @@ export function InvestorLiveView({
   const [investSubPage, setInvestSubPage] = useState<"tesouro" | "acoes" | null>(null);
   const [marketOpen, setMarketOpen] = useState(false);
   const [marketSection, setMarketSection] = useState<MarketSection>("hub");
-  const [cash, setCash] = useState(readStoredCash);
+  const [cash, setCash] = useState(INITIAL_CASH);
+  useEffect(() => { setCash(readStoredCash()); }, []);
   const [editingCash, setEditingCash] = useState(false);
   const [cashInput, setCashInput] = useState("");
   const [financePanel, setFinancePanel] = useState<FinancePanelId | null>(null);
@@ -885,7 +886,7 @@ export function InvestorLiveView({
           </div>
 
           {/* Conteúdo scrollável */}
-          <div className="flex-1 overflow-y-auto scrollbar-thin-dark px-5 pb-4 relative">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pb-4 relative">
             {marketOpen && (
               <SimulatorInvestFlow
                 cash={cash}
