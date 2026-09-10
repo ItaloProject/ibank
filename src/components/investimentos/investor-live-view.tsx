@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   X, Signal, Wifi, BatteryFull, Zap, Shield, Landmark, Calculator,
-  ArrowUpRight, ArrowDownRight, Check, ChevronLeft, Pencil,
+  ArrowUpRight, ArrowDownRight, Check, ChevronLeft, Pencil, Home, ChevronRight,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -151,7 +151,7 @@ export function InvestorLiveView({
   quoteMap,
   onClose,
 }: InvestorLiveViewProps) {
-  const [tab, setTab] = useState<"turbo" | "emergencia" | "investimentos" | "simular">("turbo");
+  const [tab, setTab] = useState<"inicio" | "turbo" | "emergencia" | "investimentos" | "simular">("inicio");
   const [cash, setCash] = useState(INITIAL_CASH);
   const [editingCash, setEditingCash] = useState(false);
   const [cashInput, setCashInput] = useState("");
@@ -223,6 +223,7 @@ export function InvestorLiveView({
     [investimentosAccountsReal]
   );
   const investimentosTotal = investimentosFixedTotal + investedValue + cash;
+  const patrimonioGeral = turboTotal + emergenciaTotal + investimentosTotal;
 
   const animatedCash = useCountUp(cash);
 
@@ -319,6 +320,73 @@ export function InvestorLiveView({
 
           {/* Conteúdo scrollável */}
           <div className="flex-1 overflow-y-auto scrollbar-thin-dark px-5 pb-4">
+            {tab === "inicio" && (
+              <div className="space-y-5">
+                <CaixinhaHeader label="Patrimônio total" total={patrimonioGeral} />
+
+                <div className="space-y-2.5">
+                  <button
+                    onClick={() => setTab("turbo")}
+                    className="w-full text-left rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] backdrop-blur-xl p-4 flex items-center justify-between gap-3 hover:bg-amber-500/[0.1] transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="h-9 w-9 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+                        <Zap className="h-4 w-4 text-amber-400" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-white">Caixinha Turbo</p>
+                        <p className="text-[11px] text-white/40">{turboAccountsReal.length} conta{turboAccountsReal.length !== 1 ? "s" : ""}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(turboTotal)}</p>
+                      <ChevronRight className="h-4 w-4 text-white/30" />
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setTab("emergencia")}
+                    className="w-full text-left rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] backdrop-blur-xl p-4 flex items-center justify-between gap-3 hover:bg-blue-500/[0.1] transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="h-9 w-9 rounded-full bg-blue-500/15 flex items-center justify-center shrink-0">
+                        <Shield className="h-4 w-4 text-blue-400" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-white">Caixinha Emergência</p>
+                        <p className="text-[11px] text-white/40">{emergenciaAccountsReal.length} conta{emergenciaAccountsReal.length !== 1 ? "s" : ""}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(emergenciaTotal)}</p>
+                      <ChevronRight className="h-4 w-4 text-white/30" />
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setTab("investimentos")}
+                    className="w-full text-left rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-4 flex items-center justify-between gap-3 hover:bg-emerald-500/[0.1] transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="h-9 w-9 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                        <Landmark className="h-4 w-4 text-emerald-400" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-white">Investimentos</p>
+                        <p className="text-[11px] text-white/40">
+                          {investimentosAccountsReal.length + holdings.length} ativo{investimentosAccountsReal.length + holdings.length !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(investimentosTotal)}</p>
+                      <ChevronRight className="h-4 w-4 text-white/30" />
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {tab === "turbo" && (
               <div className="space-y-4">
                 <CaixinhaHeader label="Caixinha Turbo" total={turboTotal} />
@@ -640,6 +708,7 @@ export function InvestorLiveView({
           {/* Bottom tab bar */}
           <div className="flex items-center justify-around border-t border-white/10 bg-black/40 backdrop-blur-xl px-1 pt-2 pb-1 shrink-0">
             {[
+              { id: "inicio" as const, label: "Início", icon: Home },
               { id: "turbo" as const, label: "Turbo", icon: Zap },
               { id: "emergencia" as const, label: "Emergência", icon: Shield },
               { id: "investimentos" as const, label: "Investir", icon: Landmark },
