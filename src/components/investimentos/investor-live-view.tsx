@@ -297,8 +297,8 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                   </div>
                 )}
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 space-y-3">
+                  <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Saldo disponível</p>
                     {editingCash ? (
                       <div className="flex items-center gap-1.5 mt-1">
@@ -311,7 +311,7 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                           onChange={(e) => setCashInput(e.target.value.replace(/[^0-9,]/g, ""))}
                           onKeyDown={(e) => { if (e.key === "Enter") commitEditCash(); if (e.key === "Escape") setEditingCash(false); }}
                           onBlur={commitEditCash}
-                          className="w-28 bg-transparent border-b border-violet-400 text-lg font-extrabold tabular-nums text-white focus:outline-none"
+                          className="w-32 bg-transparent border-b border-violet-400 text-lg font-extrabold tabular-nums text-white focus:outline-none"
                         />
                       </div>
                     ) : (
@@ -319,14 +319,14 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                         onClick={startEditCash}
                         className="flex items-center gap-1.5 text-lg font-extrabold tabular-nums text-white mt-0.5 hover:text-violet-300 transition-colors"
                       >
-                        {formatCurrency(animatedCash)}
-                        <Pencil className="h-3 w-3 text-white/30" />
+                        <span>{formatCurrency(animatedCash)}</span>
+                        <Pencil className="h-3 w-3 text-white/30 shrink-0" />
                       </button>
                     )}
                   </div>
                   <button
                     onClick={() => setTab("investir")}
-                    className="rounded-full bg-violet-600 hover:bg-violet-500 px-4 py-2 text-xs font-bold text-white transition-colors shrink-0"
+                    className="w-full rounded-full bg-violet-600 hover:bg-violet-500 py-2.5 text-sm font-bold text-white transition-colors"
                   >
                     Investir
                   </button>
