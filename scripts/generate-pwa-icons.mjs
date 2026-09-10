@@ -6,17 +6,18 @@ const src = "public/logo.png";
 const outDir = "public/icons";
 const bgWhite = { r: 255, g: 255, b: 255, alpha: 1 };
 const bgMaskable = { r: 15, g: 23, b: 42, alpha: 1 }; // slate-900
+const bgTransparent = { r: 0, g: 0, b: 0, alpha: 0 };
 
 fs.mkdirSync(outDir, { recursive: true });
 
-async function square(size, file) {
+async function square(size, file, background = bgTransparent) {
   const inner = Math.round(size * 0.75);
   const logo = await sharp(src)
     .resize(inner, inner, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();
   await sharp({
-    create: { width: size, height: size, channels: 4, background: bgWhite },
+    create: { width: size, height: size, channels: 4, background },
   })
     .composite([{ input: logo, gravity: "centre" }])
     .png()
@@ -37,9 +38,9 @@ async function maskable(size, file) {
     .toFile(path.join(outDir, file));
 }
 
-await square(192, "icon-192.png");
-await square(512, "icon-512.png");
+await square(192, "icon-192.png"); // transparente: usado como favicon da aba
+await square(512, "icon-512.png"); // transparente
 await maskable(512, "icon-maskable-512.png");
 await maskable(192, "icon-maskable-192.png");
-await square(180, "apple-touch-icon.png");
+await square(180, "apple-touch-icon.png", bgWhite); // iOS nao lida bem com transparencia
 console.log("PWA icons generated in", outDir);
