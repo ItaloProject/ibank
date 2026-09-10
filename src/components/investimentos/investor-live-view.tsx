@@ -77,7 +77,15 @@ function PhoneStatusBar() {
   );
 }
 
-type RealFixedIncome = { nome: string; tipo: string; valor: number; cor: string };
+type RealFixedIncome = {
+  nome: string;
+  tipo: string;
+  valor: number;
+  cor: string;
+  instituicao: string;
+  rendaMensal: number;
+  badge: string;
+};
 
 type StockPosition = { ticker: string; quantity: number; totalInvested: number; avgPrice: number };
 
@@ -94,6 +102,7 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
   const [cash, setCash] = useState(INITIAL_CASH);
   const [editingCash, setEditingCash] = useState(false);
   const [cashInput, setCashInput] = useState("");
+  const [selectedFixedIncome, setSelectedFixedIncome] = useState<RealFixedIncome | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>(() =>
     stockPositions
       .filter((p) => p.quantity > 0)
@@ -309,8 +318,12 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">Renda fixa</p>
                     <div className="space-y-2">
-                      {realFixedIncome.slice(0, 4).map((r, i) => (
-                        <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5 flex items-center justify-between gap-3">
+                      {realFixedIncome.map((r, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setSelectedFixedIncome(r)}
+                          className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5 flex items-center justify-between gap-3 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
+                        >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <span className="h-2 w-2 rounded-full shrink-0" style={{ background: r.cor }} />
                             <div className="min-w-0">
@@ -319,7 +332,7 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                             </div>
                           </div>
                           <p className="text-sm font-extrabold tabular-nums text-white shrink-0">{formatCurrency(r.valor)}</p>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -595,6 +608,63 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
             <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-xl">
               <Check className="h-3.5 w-3.5" />
               Compra confirmada
+            </div>
+          )}
+
+          {/* Detalhe de renda fixa */}
+          {selectedFixedIncome && (
+            <div
+              className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-end"
+              onClick={() => setSelectedFixedIncome(null)}
+            >
+              <div
+                className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 p-5 pb-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-center mb-4">
+                  <div className="h-1 w-10 rounded-full bg-white/20" />
+                </div>
+
+                <div className="flex items-start gap-3 mb-5">
+                  <span className="h-3 w-3 rounded-full shrink-0 mt-1.5" style={{ background: selectedFixedIncome.cor }} />
+                  <div className="min-w-0">
+                    <p className="text-lg font-bold text-white leading-snug">{selectedFixedIncome.nome}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{selectedFixedIncome.tipo}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Valor investido</p>
+                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{formatCurrency(selectedFixedIncome.valor)}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Renda mensal</p>
+                    <p className="text-base font-extrabold tabular-nums text-emerald-400 mt-0.5">+{formatCurrency(selectedFixedIncome.rendaMensal)}</p>
+                  </div>
+                </div>
+
+                {selectedFixedIncome.instituicao && (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 mb-3">
+                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Instituição / ativos</p>
+                    <p className="text-sm font-medium text-white mt-0.5">{selectedFixedIncome.instituicao}</p>
+                  </div>
+                )}
+
+                {selectedFixedIncome.badge && (
+                  <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-3 mb-5">
+                    <p className="text-[10px] text-violet-300/70 uppercase tracking-wide">Detalhe</p>
+                    <p className="text-sm font-medium text-white mt-0.5">{selectedFixedIncome.badge}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setSelectedFixedIncome(null)}
+                  className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           )}
         </div>

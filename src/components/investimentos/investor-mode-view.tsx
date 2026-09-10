@@ -111,7 +111,15 @@ export function InvestorModeView({
 
   if (liveMode) {
     const realFixedIncome = allSources
-      .map((s) => ({ nome: s.nome, tipo: s.tipo, valor: s.capital, cor: s.cor }))
+      .map((s) => ({
+        nome: s.nome,
+        tipo: s.tipo,
+        valor: s.capital,
+        cor: s.cor,
+        instituicao: s.instituicao,
+        rendaMensal: s.rendaMensal,
+        badge: s.badge,
+      }))
       .sort((a, b) => b.valor - a.valor);
 
     return (
