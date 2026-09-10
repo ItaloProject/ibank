@@ -1502,20 +1502,22 @@ export function InvestorLiveView({
 
           {/* Simulador de investimentos (overlay sobre o frame inteiro) */}
           {marketOpen && (
-            <div className="absolute inset-0 z-10 bg-[#05050a] flex flex-col overflow-hidden">
-              <SimulatorInvestFlow
-                cash={cash}
-                catalog={marketCatalog}
-                tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
-                turboAccounts={turboAccountsLive}
-                emergenciaAccounts={emergenciaAccountsLive}
-                section={marketSection}
-                onSectionChange={setMarketSection}
-                onClose={() => setMarketOpen(false)}
-                onBuyStock={handleBuyStock}
-                onBuyTesouro={handleBuyTesouro}
-                onAporte={handleAporte}
-              />
+            <div className="absolute inset-0 z-10 bg-[#05050a] flex flex-col">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pt-4 pb-4">
+                <SimulatorInvestFlow
+                  cash={cash}
+                  catalog={marketCatalog}
+                  tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
+                  turboAccounts={turboAccountsLive}
+                  emergenciaAccounts={emergenciaAccountsLive}
+                  section={marketSection}
+                  onSectionChange={setMarketSection}
+                  onClose={() => setMarketOpen(false)}
+                  onBuyStock={handleBuyStock}
+                  onBuyTesouro={handleBuyTesouro}
+                  onAporte={handleAporte}
+                />
+              </div>
             </div>
           )}
 
