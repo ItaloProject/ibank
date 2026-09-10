@@ -1224,42 +1224,6 @@ export function InvestorLiveView({
                   })}
                 </div>
 
-                {/* Resumo do patrimônio */}
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Wallet className="h-3.5 w-3.5 text-white/45" />
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">
-                      Resumo do patrimônio
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <div className="rounded-xl bg-white/[0.04] border border-white/10 px-2 py-2 overflow-hidden">
-                      <p className="text-[8px] font-semibold uppercase tracking-wider text-white/35 mb-0.5">
-                        Conta
-                      </p>
-                      <p className="text-[10px] font-extrabold tabular-nums text-white leading-tight truncate">
-                        {formatCurrency(cash)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-white/[0.04] border border-white/10 px-2 py-2 overflow-hidden">
-                      <p className="text-[8px] font-semibold uppercase tracking-wider text-white/35 mb-0.5">
-                        Investido
-                      </p>
-                      <p className="text-[10px] font-extrabold tabular-nums text-emerald-300 leading-tight truncate">
-                        {formatCurrency(totalCaixinhas)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 px-2 py-2 overflow-hidden">
-                      <p className="text-[8px] font-semibold uppercase tracking-wider text-violet-200/60 mb-0.5">
-                        Total
-                      </p>
-                      <p className="text-[10px] font-extrabold tabular-nums text-white leading-tight truncate">
-                        {formatCurrency(patrimonioTotal)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Meus investimentos */}
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between px-0.5">
