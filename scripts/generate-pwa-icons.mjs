@@ -9,8 +9,15 @@ const bg = { r: 9, g: 9, b: 11, alpha: 1 };
 fs.mkdirSync(outDir, { recursive: true });
 
 async function square(size, file) {
-  await sharp(src)
-    .resize(size, size, { fit: "cover", position: "centre" })
+  const inner = Math.round(size * 0.75);
+  const logo = await sharp(src)
+    .resize(inner, inner, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+  await sharp({
+    create: { width: size, height: size, channels: 4, background: bg },
+  })
+    .composite([{ input: logo, gravity: "centre" }])
     .png()
     .toFile(path.join(outDir, file));
 }
