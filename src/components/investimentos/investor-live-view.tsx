@@ -14,6 +14,7 @@ type Asset = {
   price: number;
   variation: number; // variação simulada desde a compra, ex 0.023 = +2,3%
   color: string;
+  isReal?: boolean;
 };
 
 type Holding = {
@@ -76,11 +77,19 @@ function PhoneStatusBar() {
   );
 }
 
+type RealHolding = { nome: string; tipo: string; valor: number; cor: string };
+
+type StockPosition = { ticker: string; quantity: number; totalInvested: number; avgPrice: number };
+
 export type InvestorLiveViewProps = {
+  grandTotal: number;
+  realHoldings: RealHolding[];
+  stockPositions: StockPosition[];
+  quoteMap: Map<string, number>;
   onClose: () => void;
 };
 
-export function InvestorLiveView({ onClose }: InvestorLiveViewProps) {
+export function InvestorLiveView({ grandTotal, realHoldings, stockPositions, quoteMap, onClose }: InvestorLiveViewProps) {
   const [tab, setTab] = useState<"home" | "investir" | "simular">("home");
   const [cash, setCash] = useState(INITIAL_CASH);
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -88,21 +97,31 @@ export function InvestorLiveView({ onClose }: InvestorLiveViewProps) {
   const [buyAmount, setBuyAmount] = useState("");
   const [confirmedFlash, setConfirmedFlash] = useState(false);
 
-  const [simAporteInicial, setSimAporteInicial] = useState(1000);
+  const ownedTickers = useMemo(() => new Set(stockPositions.map((p) => p.ticker)), [stockPositions]);
+  const liveAssets = useMemo(
+    () => ASSETS.map((a) => {
+      const realPrice = quoteMap.get(a.ticker);
+      return realPrice !== undefined ? { ...a, price: realPrice, variation: 0, isReal: true } : { ...a, isReal: false };
+    }),
+    [quoteMap]
+  );
+
+  const animatedRealPatrimonio = useCountUp(grandTotal, 1400);
+
+  const simMax = Math.max(20000, Math.ceil((grandTotal * 2) / 1000) * 1000 || 20000);
+  const [simAporteInicial, setSimAporteInicial] = useState(() => Math.round(grandTotal) || 1000);
   const [simAporteMensal, setSimAporteMensal] = useState(300);
   const [simMeses, setSimMeses] = useState(24);
   const [simTaxa, setSimTaxa] = useState(0.9); // % ao mês
 
   const investedValue = useMemo(() => {
     return holdings.reduce((sum, h) => {
-      const asset = ASSETS.find((a) => a.ticker === h.ticker);
+      const asset = liveAssets.find((a) => a.ticker === h.ticker);
       if (!asset) return sum;
       return sum + h.quantity * asset.price * (1 + asset.variation);
     }, 0);
-  }, [holdings]);
+  }, [holdings, liveAssets]);
 
-  const patrimonioTotal = cash + investedValue;
-  const animatedPatrimonio = useCountUp(patrimonioTotal);
   const animatedCash = useCountUp(cash);
 
   const investedCost = useMemo(
@@ -157,8 +176,8 @@ export function InvestorLiveView({ onClose }: InvestorLiveViewProps) {
   const maxSimValue = Math.max(1, ...simProjection.map((p) => p.value));
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center select-none">
-      <div className="relative w-full h-full sm:w-[390px] sm:h-[844px] sm:rounded-[3rem] sm:border-[8px] sm:border-zinc-800 overflow-hidden bg-[#05050a]">
+    <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center select-none p-0 sm:p-4">
+      <div className="relative w-full h-full sm:h-[min(844px,92dvh)] sm:aspect-[390/844] sm:w-auto sm:max-w-[92vw] sm:rounded-[3rem] sm:border-[8px] sm:border-zinc-800 overflow-hidden bg-[#05050a]">
         {/* Mesh de fundo */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-violet-600/25 blur-[90px]" />
@@ -189,23 +208,44 @@ export function InvestorLiveView({ onClose }: InvestorLiveViewProps) {
           {/* Conteúdo scrollável */}
           <div className="flex-1 overflow-y-auto scrollbar-thin-dark px-5 pb-4">
             {tab === "home" && (
-              <div className="space-y-5">
+              <div className="space-y-6">
+                {/* Dados reais da conta */}
                 <div className="text-center pt-2 pb-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">Patrimônio total</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">Seu patrimônio real</p>
                   <p className="text-[34px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
-                    {formatCurrency(animatedPatrimonio)}
+                    {formatCurrency(animatedRealPatrimonio)}
                   </p>
-                  {investedCost > 0 && (
-                    <p className={`text-xs font-semibold mt-2 inline-flex items-center gap-1 ${totalGain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                      {totalGain >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                      {formatCurrency(Math.abs(totalGain))} ({totalGainPct >= 0 ? "+" : ""}{totalGainPct.toFixed(1)}%)
-                    </p>
-                  )}
+                  <p className="text-xs text-white/40 mt-2">registrado na sua conta IBANK</p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 flex items-center justify-between">
+                {realHoldings.length > 0 && (
+                  <div className="space-y-2">
+                    {realHoldings.slice(0, 4).map((h, i) => (
+                      <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: h.cor }} />
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">{h.nome}</p>
+                            <p className="text-[10px] text-white/40 truncate">{h.tipo}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm font-extrabold tabular-nums text-white shrink-0">{formatCurrency(h.valor)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Laboratório simulado */}
+                <div className="pt-2 border-t border-white/10">
+                  <div className="flex items-center justify-between mt-5 mb-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">Laboratório · simulação</p>
+                  </div>
+                  <p className="text-[11px] text-white/30 mb-3">Experimente comprar ativos com saldo fictício — não afeta seus dados reais.</p>
+                </div>
+
+                <div className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] backdrop-blur-xl p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Saldo disponível</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Saldo simulado</p>
                     <p className="text-lg font-extrabold tabular-nums text-white mt-0.5">{formatCurrency(animatedCash)}</p>
                   </div>
                   <button
@@ -216,8 +256,15 @@ export function InvestorLiveView({ onClose }: InvestorLiveViewProps) {
                   </button>
                 </div>
 
+                {investedCost > 0 && (
+                  <p className={`text-xs font-semibold text-center inline-flex items-center gap-1 justify-center w-full ${totalGain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {totalGain >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                    {formatCurrency(Math.abs(totalGain))} ({totalGainPct >= 0 ? "+" : ""}{totalGainPct.toFixed(1)}%) na carteira simulada
+                  </p>
+                )}
+
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">Sua carteira</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">Carteira simulada</p>
                   {holdings.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-white/15 py-8 text-center">
                       <p className="text-sm text-white/40">Você ainda não tem investimentos.</p>
@@ -231,7 +278,7 @@ export function InvestorLiveView({ onClose }: InvestorLiveViewProps) {
                   ) : (
                     <div className="space-y-2.5">
                       {holdings.map((h) => {
-                        const asset = ASSETS.find((a) => a.ticker === h.ticker)!;
+                        const asset = liveAssets.find((a) => a.ticker === h.ticker)!;
                         const value = h.quantity * asset.price * (1 + asset.variation);
                         const gain = value - h.quantity * h.avgPrice;
                         return (
@@ -263,8 +310,8 @@ export function InvestorLiveView({ onClose }: InvestorLiveViewProps) {
             {tab === "investir" && !buyAsset && (
               <div className="space-y-3 pt-2">
                 <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-1">Explorar ativos</p>
-                <p className="text-xs text-white/40 mb-3">Cotações simuladas para fins de demonstração.</p>
-                {ASSETS.map((asset) => (
+                <p className="text-xs text-white/40 mb-3">Compra simulada com saldo fictício. Cotação real quando disponível na sua carteira.</p>
+                {liveAssets.map((asset) => (
                   <button
                     key={asset.ticker}
                     onClick={() => openBuy(asset)}
@@ -273,15 +320,27 @@ export function InvestorLiveView({ onClose }: InvestorLiveViewProps) {
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: asset.color }} />
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-white">{asset.ticker}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-bold text-white">{asset.ticker}</p>
+                          {asset.isReal && (
+                            <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-400 border border-emerald-500/30 rounded px-1 py-[1px]">
+                              cotação real
+                            </span>
+                          )}
+                          {ownedTickers.has(asset.ticker) && (
+                            <span className="text-[8px] font-bold uppercase tracking-wide text-white/40">· você tem</span>
+                          )}
+                        </div>
                         <p className="text-[11px] text-white/40 truncate">{asset.name} · {asset.category}</p>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(asset.price)}</p>
-                      <p className={`text-[11px] font-semibold ${asset.variation >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                        {asset.variation >= 0 ? "+" : ""}{(asset.variation * 100).toFixed(1)}%
-                      </p>
+                      {!asset.isReal && (
+                        <p className={`text-[11px] font-semibold ${asset.variation >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {asset.variation >= 0 ? "+" : ""}{(asset.variation * 100).toFixed(1)}%
+                        </p>
+                      )}
                     </div>
                   </button>
                 ))}
@@ -375,7 +434,7 @@ export function InvestorLiveView({ onClose }: InvestorLiveViewProps) {
                       <span className="font-bold text-white">{formatCurrency(simAporteInicial)}</span>
                     </div>
                     <input
-                      type="range" min={0} max={20000} step={100}
+                      type="range" min={0} max={simMax} step={100}
                       value={simAporteInicial}
                       onChange={(e) => setSimAporteInicial(Number(e.target.value))}
                       className="w-full accent-violet-500"
