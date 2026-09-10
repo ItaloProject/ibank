@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Plus, TrendingUp, BarChart3, LineChart, Info, Zap,
+  Plus, TrendingUp, LineChart, Info, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -33,10 +33,60 @@ import {
 } from "@/lib/stock-utils";
 import { printInvestorReport } from "@/lib/generate-investor-report";
 import { InvestorModeView } from "@/components/investimentos/investor-mode-view";
-import { TotalTab } from "@/components/investimentos/total-tab";
 import { AccountTab } from "@/components/investimentos/account-tab";
 import { AcoesTab } from "@/components/investimentos/acoes-tab";
 import { useUser } from "@/context/user-context";
+import { categorizeAccount, type AccountGroupId } from "@/lib/account-groups";
+import { Shield, Landmark, PlusCircle } from "lucide-react";
+
+function SubPills({
+  items, active, onSelect,
+}: {
+  items: { id: string; label: string }[];
+  active: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto scrollbar-none flex-nowrap pb-0.5">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onSelect(item.id)}
+          className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium min-h-9 transition-colors ${
+            active === item.id
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:bg-muted/70"
+          }`}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function EmptyCaixinha({
+  icon: Icon, iconColor, label, desc, onCreate,
+}: {
+  icon: React.ElementType;
+  iconColor: string;
+  label: string;
+  desc: string;
+  onCreate: () => void;
+}) {
+  return (
+    <div className="text-center py-12 px-4 rounded-xl border border-dashed">
+      <Icon className={`h-10 w-10 mx-auto mb-3 ${iconColor}`} />
+      <p className="font-medium">{label}</p>
+      <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">{desc}</p>
+      <Button variant="outline" className="mt-4" onClick={onCreate}>
+        <PlusCircle className="h-4 w-4" />
+        Criar conta
+      </Button>
+    </div>
+  );
+}
 
 export default function InvestimentosPage() {
   const { botEnabled } = useUser();
@@ -54,6 +104,17 @@ export default function InvestimentosPage() {
     }
     return "total";
   });
+  const [mainTab, setMainTabState] = useState<AccountGroupId>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("ibank_inv_maintab");
+      if (saved === "turbo" || saved === "emergencia" || saved === "investimentos") return saved;
+    }
+    return "turbo";
+  });
+  function setMainTab(v: AccountGroupId) {
+    setMainTabState(v);
+    try { localStorage.setItem("ibank_inv_maintab", v); } catch { /* ignore */ }
+  }
   const [invOpen, setInvOpen] = useState(false);
   const [accOpen, setAccOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
@@ -229,6 +290,59 @@ export default function InvestimentosPage() {
     [accountBalances],
   );
   const grandTotal = totalFixedIncome + totalStocks;
+
+  const turboAccountsList = useMemo(
+    () => accountBalances.filter((x) => categorizeAccount(x.account) === "turbo"),
+    [accountBalances],
+  );
+  const emergenciaAccountsList = useMemo(
+    () => accountBalances.filter((x) => categorizeAccount(x.account) === "emergencia"),
+    [accountBalances],
+  );
+  const investimentosAccountsList = useMemo(
+    () => accountBalances.filter((x) => categorizeAccount(x.account) === "investimentos"),
+    [accountBalances],
+  );
+  const turboTotal = useMemo(() => turboAccountsList.reduce((s, x) => s + x.balance, 0), [turboAccountsList]);
+  const emergenciaTotal = useMemo(() => emergenciaAccountsList.reduce((s, x) => s + x.balance, 0), [emergenciaAccountsList]);
+  const investimentosFixedTotal = useMemo(() => investimentosAccountsList.reduce((s, x) => s + x.balance, 0), [investimentosAccountsList]);
+  const investimentosTotal = investimentosFixedTotal + totalStocks;
+
+  const hasStocks = stockPositions.length > 0 || stockTrades.length > 0;
+
+  function belongsToGroup(tabId: string, group: AccountGroupId): boolean {
+    if (tabId === "acoes") return group === "investimentos" && hasStocks;
+    const acc = accounts.find((a) => a.id === tabId);
+    if (!acc) return false;
+    return categorizeAccount(acc) === group;
+  }
+
+  function defaultSubTabFor(group: AccountGroupId): string {
+    if (group === "turbo") return turboAccountsList[0]?.account.id ?? "total";
+    if (group === "emergencia") return emergenciaAccountsList[0]?.account.id ?? "total";
+    return investimentosAccountsList[0]?.account.id ?? (hasStocks ? "acoes" : "total");
+  }
+
+  function handleMainTabChange(group: AccountGroupId) {
+    setMainTab(group);
+    if (!belongsToGroup(activeTab, group)) {
+      const def = defaultSubTabFor(group);
+      setActiveTab(def);
+      try { localStorage.setItem("ibank_inv_tab", def); } catch { /* ignore */ }
+    }
+  }
+
+  useEffect(() => {
+    if (loading) return;
+    if (!belongsToGroup(activeTab, mainTab)) {
+      const def = defaultSubTabFor(mainTab);
+      if (def !== activeTab) {
+        setActiveTab(def);
+        try { localStorage.setItem("ibank_inv_tab", def); } catch { /* ignore */ }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, accounts, stockPositions, stockTrades]);
 
   const balancesByCategory = useMemo(
     () => accounts.reduce<Partial<Record<RateCategory, number>>>((acc, a) => {
@@ -962,6 +1076,39 @@ export default function InvestimentosPage() {
         </div>
       </div>
 
+      {(accounts.length > 0 || stockTrades.length > 0) && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-xl border bg-card px-3.5 py-3">
+            <p className="text-xs text-muted-foreground">Patrimônio total</p>
+            <p className="text-base font-bold text-primary tabular-nums">{formatCurrency(grandTotal)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleMainTabChange("turbo")}
+            className={`rounded-xl border px-3.5 py-3 text-left transition-colors ${mainTab === "turbo" ? "border-amber-500/50 bg-amber-500/5" : "bg-card hover:bg-muted/40"}`}
+          >
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><Zap className="h-3 w-3 text-amber-500" />Turbo</p>
+            <p className="text-base font-bold text-amber-600 dark:text-amber-500 tabular-nums">{formatCurrency(turboTotal)}</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleMainTabChange("emergencia")}
+            className={`rounded-xl border px-3.5 py-3 text-left transition-colors ${mainTab === "emergencia" ? "border-blue-500/50 bg-blue-500/5" : "bg-card hover:bg-muted/40"}`}
+          >
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><Shield className="h-3 w-3 text-blue-500" />Emergência</p>
+            <p className="text-base font-bold text-blue-600 dark:text-blue-400 tabular-nums">{formatCurrency(emergenciaTotal)}</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleMainTabChange("investimentos")}
+            className={`rounded-xl border px-3.5 py-3 text-left transition-colors ${mainTab === "investimentos" ? "border-emerald-500/50 bg-emerald-500/5" : "bg-card hover:bg-muted/40"}`}
+          >
+            <p className="text-xs text-muted-foreground flex items-center gap-1"><Landmark className="h-3 w-3 text-emerald-600" />Investimentos</p>
+            <p className="text-base font-bold text-emerald-600 tabular-nums">{formatCurrency(investimentosTotal)}</p>
+          </button>
+        </div>
+      )}
+
       {accounts.length === 0 && stockTrades.length === 0 ? (
         <div className="text-center py-16 px-4 sm:px-6 lg:px-8">
           <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -970,63 +1117,190 @@ export default function InvestimentosPage() {
         </div>
       ) : (
         <div className="px-4 sm:px-6 lg:px-8">
-        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); localStorage.setItem("ibank_inv_tab", v); }}>
-          <TabsList className="flex h-auto w-full overflow-x-auto scrollbar-none gap-1 pb-0.5 justify-start flex-nowrap">
-            <TabsTrigger value="total" className="gap-1.5 min-h-10 shrink-0">
-              <BarChart3 className="h-3.5 w-3.5" />
-              Total
+        <Tabs value={mainTab} onValueChange={(v) => handleMainTabChange(v as AccountGroupId)}>
+          <TabsList className="grid grid-cols-3 w-full h-auto gap-1">
+            <TabsTrigger value="turbo" className="gap-1.5 min-h-11 flex-col sm:flex-row py-2">
+              <Zap className="h-3.5 w-3.5 text-amber-500" />
+              <span>Turbo</span>
             </TabsTrigger>
-            {accounts.map((a) => (
-              <TabsTrigger key={a.id} value={a.id} className="min-h-10 shrink-0">{a.name}</TabsTrigger>
-            ))}
-            <TabsTrigger value="acoes" className="gap-1.5 min-h-10 shrink-0">
-              <LineChart className="h-3.5 w-3.5" />
-              Ações
+            <TabsTrigger value="emergencia" className="gap-1.5 min-h-11 flex-col sm:flex-row py-2">
+              <Shield className="h-3.5 w-3.5 text-blue-500" />
+              <span>Emergência</span>
+            </TabsTrigger>
+            <TabsTrigger value="investimentos" className="gap-1.5 min-h-11 flex-col sm:flex-row py-2">
+              <Landmark className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Investimentos</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="total" className="mt-4">
-            <TotalTab
-              grandTotal={grandTotal}
-              totalFixedIncome={totalFixedIncome}
-              totalStocks={totalStocks}
-              accounts={accounts}
-              stockPositions={stockPositions}
-              accountBalances={accountBalances}
-              totalRendaMensal={investorData.totalRendaMensal}
-              setActiveTab={setActiveTab}
-            />
+          <TabsContent value="turbo" className="space-y-4 mt-4">
+            {turboAccountsList.length === 0 ? (
+              <EmptyCaixinha
+                icon={Zap} iconColor="text-amber-500"
+                label="Nenhuma Caixinha Turbo ainda"
+                desc="Contas TURBO rendem acima de 100% do CDI, geralmente com teto de rendimento."
+                onCreate={() => { setAccForm({ name: "", institution: "", is_turbo: true, cdi_percent: "", max_rendimento: "", valor_bruto: "", valor_liquido: "" }); setAccOpen(true); }}
+              />
+            ) : (
+              <>
+                {turboAccountsList.length > 1 && (
+                  <SubPills
+                    items={turboAccountsList.map((x) => ({ id: x.account.id, label: x.account.name }))}
+                    active={activeTab}
+                    onSelect={(id) => { setActiveTab(id); localStorage.setItem("ibank_inv_tab", id); }}
+                  />
+                )}
+                {activeAccount && (
+                  <AccountTab
+                    account={activeAccount}
+                    activeTab={activeTab}
+                    accountInvestments={accountInvestments}
+                    computedBalance={computedBalance}
+                    chartData={chartData}
+                    turboHistory={turboHistory}
+                    selectedTurboMonth={selectedTurboMonth}
+                    setSelectedTurboMonth={setSelectedTurboMonth}
+                    turboMonthOpen={turboMonthOpen}
+                    setTurboMonthOpen={setTurboMonthOpen}
+                    turboMonthForm={turboMonthForm}
+                    setTurboMonthForm={setTurboMonthForm}
+                    rendMonthOpen={rendMonthOpen}
+                    setRendMonthOpen={setRendMonthOpen}
+                    rendMonthForm={rendMonthForm}
+                    setRendMonthForm={setRendMonthForm}
+                    setRenameForm={setRenameForm}
+                    setRenameOpen={setRenameOpen}
+                    handleDeleteAccount={handleDeleteAccount}
+                    handleDeleteTurboRecord={handleDeleteTurboRecord}
+                    handleSaveTurboMonth={handleSaveTurboMonth}
+                    handleDeleteInvestment={handleDeleteInvestment}
+                    load={load}
+                  />
+                )}
+              </>
+            )}
           </TabsContent>
 
-          {accounts.map((account) => (
-            <TabsContent key={account.id} value={account.id} className="space-y-6 mt-4">
-              <AccountTab
-                account={account}
-                activeTab={activeTab}
-                accountInvestments={accountInvestments}
-                computedBalance={computedBalance}
-                chartData={chartData}
-                turboHistory={turboHistory}
-                selectedTurboMonth={selectedTurboMonth}
-                setSelectedTurboMonth={setSelectedTurboMonth}
-                turboMonthOpen={turboMonthOpen}
-                setTurboMonthOpen={setTurboMonthOpen}
-                turboMonthForm={turboMonthForm}
-                setTurboMonthForm={setTurboMonthForm}
-                rendMonthOpen={rendMonthOpen}
-                setRendMonthOpen={setRendMonthOpen}
-                rendMonthForm={rendMonthForm}
-                setRendMonthForm={setRendMonthForm}
-                setRenameForm={setRenameForm}
-                setRenameOpen={setRenameOpen}
-                handleDeleteAccount={handleDeleteAccount}
-                handleDeleteTurboRecord={handleDeleteTurboRecord}
-                handleSaveTurboMonth={handleSaveTurboMonth}
-                handleDeleteInvestment={handleDeleteInvestment}
-                load={load}
+          <TabsContent value="emergencia" className="space-y-4 mt-4">
+            {emergenciaAccountsList.length === 0 ? (
+              <EmptyCaixinha
+                icon={Shield} iconColor="text-blue-500"
+                label="Nenhuma reserva de emergência ainda"
+                desc="Crie uma conta com 'Reserva' ou 'Emergência' no nome. Recomendado: mínimo 3 meses de gastos."
+                onCreate={() => { setAccForm({ name: "Reserva de Emergência", institution: "", is_turbo: false, cdi_percent: "", max_rendimento: "", valor_bruto: "", valor_liquido: "" }); setAccOpen(true); }}
               />
-            </TabsContent>
-          ))}
+            ) : (
+              <>
+                {emergenciaAccountsList.length > 1 && (
+                  <SubPills
+                    items={emergenciaAccountsList.map((x) => ({ id: x.account.id, label: x.account.name }))}
+                    active={activeTab}
+                    onSelect={(id) => { setActiveTab(id); localStorage.setItem("ibank_inv_tab", id); }}
+                  />
+                )}
+                {activeAccount && (
+                  <AccountTab
+                    account={activeAccount}
+                    activeTab={activeTab}
+                    accountInvestments={accountInvestments}
+                    computedBalance={computedBalance}
+                    chartData={chartData}
+                    turboHistory={turboHistory}
+                    selectedTurboMonth={selectedTurboMonth}
+                    setSelectedTurboMonth={setSelectedTurboMonth}
+                    turboMonthOpen={turboMonthOpen}
+                    setTurboMonthOpen={setTurboMonthOpen}
+                    turboMonthForm={turboMonthForm}
+                    setTurboMonthForm={setTurboMonthForm}
+                    rendMonthOpen={rendMonthOpen}
+                    setRendMonthOpen={setRendMonthOpen}
+                    rendMonthForm={rendMonthForm}
+                    setRendMonthForm={setRendMonthForm}
+                    setRenameForm={setRenameForm}
+                    setRenameOpen={setRenameOpen}
+                    handleDeleteAccount={handleDeleteAccount}
+                    handleDeleteTurboRecord={handleDeleteTurboRecord}
+                    handleSaveTurboMonth={handleSaveTurboMonth}
+                    handleDeleteInvestment={handleDeleteInvestment}
+                    load={load}
+                  />
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="investimentos" className="space-y-4 mt-4">
+            {investimentosAccountsList.length === 0 && !hasStocks ? (
+              <EmptyCaixinha
+                icon={Landmark} iconColor="text-emerald-600"
+                label="Nenhum investimento por aqui ainda"
+                desc="Contas de renda fixa comuns, Tesouro Direto e ações/FIIs aparecem juntos aqui."
+                onCreate={() => { setAccForm({ name: "", institution: "", is_turbo: false, cdi_percent: "", max_rendimento: "", valor_bruto: "", valor_liquido: "" }); setAccOpen(true); }}
+              />
+            ) : (
+              <>
+                {(investimentosAccountsList.length + (hasStocks ? 1 : 0)) > 1 && (
+                  <SubPills
+                    items={[
+                      ...investimentosAccountsList.map((x) => ({ id: x.account.id, label: x.account.name })),
+                      ...(hasStocks ? [{ id: "acoes", label: "Ações" }] : []),
+                    ]}
+                    active={activeTab}
+                    onSelect={(id) => { setActiveTab(id); localStorage.setItem("ibank_inv_tab", id); }}
+                  />
+                )}
+                {activeTab === "acoes" ? (
+                  <AcoesTab
+                    totalStocks={totalStocks}
+                    stockPositions={stockPositions}
+                    stockTrades={stockTrades}
+                    quoteMap={quoteMap}
+                    portfolioSnapshots={portfolioSnapshots}
+                    sectorData={sectorData}
+                    selectedSector={selectedSector}
+                    setSelectedSector={setSelectedSector}
+                    historyOpen={historyOpen}
+                    setHistoryOpen={setHistoryOpen}
+                    bulkQuoteOpen={bulkQuoteOpen}
+                    setBulkQuoteOpen={setBulkQuoteOpen}
+                    bulkPrices={bulkPrices}
+                    setBulkPrices={setBulkPrices}
+                    setQuoteForm={setQuoteForm}
+                    setQuoteOpen={setQuoteOpen}
+                    handleBulkSaveQuotes={handleBulkSaveQuotes}
+                    handleDeleteStock={handleDeleteStock}
+                  />
+                ) : activeAccount ? (
+                  <AccountTab
+                    account={activeAccount}
+                    activeTab={activeTab}
+                    accountInvestments={accountInvestments}
+                    computedBalance={computedBalance}
+                    chartData={chartData}
+                    turboHistory={turboHistory}
+                    selectedTurboMonth={selectedTurboMonth}
+                    setSelectedTurboMonth={setSelectedTurboMonth}
+                    turboMonthOpen={turboMonthOpen}
+                    setTurboMonthOpen={setTurboMonthOpen}
+                    turboMonthForm={turboMonthForm}
+                    setTurboMonthForm={setTurboMonthForm}
+                    rendMonthOpen={rendMonthOpen}
+                    setRendMonthOpen={setRendMonthOpen}
+                    rendMonthForm={rendMonthForm}
+                    setRendMonthForm={setRendMonthForm}
+                    setRenameForm={setRenameForm}
+                    setRenameOpen={setRenameOpen}
+                    handleDeleteAccount={handleDeleteAccount}
+                    handleDeleteTurboRecord={handleDeleteTurboRecord}
+                    handleSaveTurboMonth={handleSaveTurboMonth}
+                    handleDeleteInvestment={handleDeleteInvestment}
+                    load={load}
+                  />
+                ) : null}
+              </>
+            )}
+          </TabsContent>
+
           {/* ── Dialog: renomear conta ── */}
           <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
             <DialogContent className="max-w-sm">
@@ -1119,29 +1393,6 @@ export default function InvestimentosPage() {
               <InvestmentRates balances={balancesByCategory} userId={getCurrentUser()} />
             </DialogContent>
           </Dialog>
-
-          <TabsContent value="acoes" className="mt-4">
-            <AcoesTab
-              totalStocks={totalStocks}
-              stockPositions={stockPositions}
-              stockTrades={stockTrades}
-              quoteMap={quoteMap}
-              portfolioSnapshots={portfolioSnapshots}
-              sectorData={sectorData}
-              selectedSector={selectedSector}
-              setSelectedSector={setSelectedSector}
-              historyOpen={historyOpen}
-              setHistoryOpen={setHistoryOpen}
-              bulkQuoteOpen={bulkQuoteOpen}
-              setBulkQuoteOpen={setBulkQuoteOpen}
-              bulkPrices={bulkPrices}
-              setBulkPrices={setBulkPrices}
-              setQuoteForm={setQuoteForm}
-              setQuoteOpen={setQuoteOpen}
-              handleBulkSaveQuotes={handleBulkSaveQuotes}
-              handleDeleteStock={handleDeleteStock}
-            />
-          </TabsContent>
         </Tabs>
         </div>
       )}
