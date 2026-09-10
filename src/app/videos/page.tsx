@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PlayCircle, GraduationCap, Lightbulb, X } from "lucide-react";
 import { ContributionSimulator } from "@/components/videos/contribution-simulator";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 type Video = {
   title: string;
@@ -133,17 +134,12 @@ export default function VideosPage() {
   const [playing, setPlaying] = useState<Video | null>(null);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-8 pb-8">
-      <div className="border-b pb-4 flex items-center gap-2">
-        <PlayCircle className="h-5 w-5 text-primary" />
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Vídeos</h1>
-          <p className="text-sm text-muted-foreground">
-            Educação financeira gratuita para usar melhor o IBANK
-          </p>
-        </div>
-      </div>
-
+    <PageShell>
+      <PageHeader
+        title="Vídeos"
+        description="Educação financeira gratuita para usar melhor o IBANK"
+      />
+      <PageBody width="wide" className="space-y-8">
       <VideoSection icon={GraduationCap} title="Iniciantes" videos={INICIANTES} onPlay={setPlaying} />
       <VideoSection icon={Lightbulb} title="Dicas" videos={DICAS} onPlay={setPlaying} />
 
@@ -183,6 +179,7 @@ export default function VideosPage() {
           </div>
         </div>
       )}
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

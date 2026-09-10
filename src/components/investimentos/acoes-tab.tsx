@@ -377,24 +377,41 @@ export function AcoesTab({
                   return (
                     <div key={s.name}>
                       <div
-                        className={`space-y-1 rounded-lg px-2 py-1.5 transition-colors cursor-pointer ${isSelected ? "bg-muted/60" : "hover:bg-muted/30"}`}
+                        className={`rounded-xl px-3 py-2.5 transition-colors cursor-pointer ${isSelected ? "bg-muted/60" : "hover:bg-muted/30"}`}
                         onClick={() => setSelectedSector((prev) => prev === s.name ? null : s.name)}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                            <span className="text-sm font-medium truncate">{s.name}</span>
-                            <span className="text-xs text-muted-foreground">({sectorStocks.length} ativo{sectorStocks.length !== 1 ? "s" : ""})</span>
+                        <div className="flex items-start gap-2">
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-full shrink-0 mt-1.5"
+                            style={{ backgroundColor: color }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium leading-snug break-words">{s.name}</p>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                  {sectorStocks.length} ativo{sectorStocks.length !== 1 ? "s" : ""}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                                <span className="text-sm font-bold tabular-nums" style={{ color }}>
+                                  {s.pct.toFixed(1)}%
+                                </span>
+                                <span className="text-sm font-semibold tabular-nums text-foreground w-[5.5rem] text-right">
+                                  {formatCurrency(s.value)}
+                                </span>
+                                <ChevronDown
+                                  className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isSelected ? "rotate-180" : ""}`}
+                                />
+                              </div>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-2">
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${s.pct}%`, backgroundColor: color }}
+                              />
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span className="text-sm font-bold tabular-nums" style={{ color }}>{s.pct.toFixed(1)}%</span>
-                            <span className="text-xs text-muted-foreground tabular-nums w-24 text-right">{formatCurrency(s.value)}</span>
-                            <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isSelected ? "rotate-180" : ""}`} />
-                          </div>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${s.pct}%`, backgroundColor: color }} />
                         </div>
                       </div>
 

@@ -10,12 +10,13 @@ import {
   type MonthlyTax, type TaxCategory,
 } from "@/lib/tax-ir";
 import {
-  Landmark, AlertTriangle, CheckCircle2, ChevronDown, Loader2,
+  AlertTriangle, CheckCircle2, ChevronDown, Loader2,
   TrendingDown, Info, Receipt,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 const CAT_COLOR: Record<TaxCategory, string> = {
   acoes: "text-blue-500 bg-blue-500/10",
@@ -62,23 +63,10 @@ export default function ImpostosPage() {
   }
 
   return (
-    <div className="min-h-full">
-      {/* Header */}
-      <div className="border-b px-4 sm:px-6 py-5">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-              <Landmark className="h-5 w-5 text-amber-500" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold leading-tight">Imposto de Renda</h1>
-              <p className="text-xs text-muted-foreground">Ganho de capital em renda variável</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader title="Imposto de Renda" description="Ganho de capital em renda variável" />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5 space-y-5">
+      <PageBody width="medium">
         {allRows.length === 0 ? (
           <div className="rounded-2xl border bg-card py-14 text-center px-6">
             <Receipt className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
@@ -181,8 +169,8 @@ export default function ImpostosPage() {
             <p>Confirme com seu contador antes de recolher. Código DARF de renda variável: <strong className="text-foreground">{DARF_CODE}</strong>. Dispensado abaixo de {formatCurrency(DARF_MINIMUM)}.</p>
           </div>
         </div>
-      </div>
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }
 

@@ -1,4 +1,5 @@
 export { PageHeader } from "./page-header";
+export { PageShell, PageBody, type PageBodyWidth } from "./page-shell";
 export { TouchIconButton } from "./touch-icon-button";
 export { MobileListRow } from "./mobile-list-row";
 export { ChartFrame } from "./chart-frame";

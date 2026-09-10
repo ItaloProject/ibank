@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useUser } from "@/context/user-context";
-import { Target, TrendingUp, Landmark, Calendar, DollarSign, ChevronRight, Calculator, Loader2, Zap } from "lucide-react";
+import { Target, Calendar, DollarSign, ChevronRight, Calculator, Loader2, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { computeMonthlyPassiveIncome } from "@/lib/passive-income";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -152,17 +153,12 @@ export default function MetasPage() {
   if (loading) return <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Carregando...</div>;
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-6 pb-8">
-      <div className="border-b pb-4 flex items-center gap-2">
-        {isAposentadoria
-          ? <Landmark className="h-5 w-5 text-blue-500" />
-          : <TrendingUp className="h-5 w-5 text-emerald-500" />}
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Minha Meta</h1>
-          <p className="text-sm text-muted-foreground">{isAposentadoria ? "Aposentadoria" : "Renda Mensal"}</p>
-        </div>
-      </div>
-
+    <PageShell>
+      <PageHeader
+        title="Minha Meta"
+        description={isAposentadoria ? "Aposentadoria" : "Renda Mensal"}
+      />
+      <PageBody width="narrow">
       {isAposentadoria ? (
         <>
           {/* Formulário Aposentadoria */}
@@ -388,6 +384,7 @@ export default function MetasPage() {
         {saving ? "Salvando..." : saved ? "Salvo!" : "Salvar Meta"}
         {!saving && !saved && <ChevronRight className="h-4 w-4" />}
       </button>
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

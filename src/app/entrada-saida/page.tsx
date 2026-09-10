@@ -11,6 +11,7 @@ import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/utils";
 import { getCurrentUser } from "@/lib/user";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 export default function EntradaSaidaPage() {
   const { userId } = useUser();
@@ -151,10 +152,11 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const monthLabel = format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR });
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Header + month nav */}
-      <div className="px-4 pt-5 pb-2 border-b border-border">
-        <h1 className="text-xl sm:text-2xl font-bold mb-3">Entrada/Saída</h1>
+    <PageShell>
+      <PageHeader title="Entrada/Saída" />
+
+      {/* Month navigation */}
+      <div className="px-4 sm:px-6 lg:px-8 pb-3 border-b border-border">
         <div className="flex items-center justify-center gap-2 sm:gap-4">
           <button type="button" onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
             className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors touch-manipulation">
@@ -168,6 +170,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
         </div>
       </div>
 
+      <PageBody className="px-0 sm:px-0 lg:px-0 pt-0 space-y-0">
       {/* Resumo 3 colunas */}
       <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
         <div className="flex flex-col items-center py-4 px-1 gap-0.5 min-w-0">
@@ -385,6 +388,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
           </div>
         </div>
       )}
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

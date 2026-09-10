@@ -3,42 +3,42 @@
 import { useState } from "react";
 import { useUser } from "@/context/user-context";
 import {
-  Eye, EyeOff, CheckCircle2, User, Lock, TrendingUp, Landmark,
-  Home, CreditCard, CalendarDays, CalendarCheck, Repeat2,
-  BarChart2, Receipt, Target, LayoutList, PlayCircle,
+  Eye, EyeOff, CheckCircle2, User, Lock, LayoutList, Home,
+  Landmark, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  ALWAYS_VISIBLE_HREFS,
+  SYSTEM_NAV_ITEMS,
+  flattenNavItems,
+  getHideableNavItems,
+  readHiddenPages,
+  HIDDEN_PAGES_KEY,
+} from "@/lib/nav";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
-const HIDEABLE_PAGES = [
-  { href: "/investimentos", label: "Investimentos",  icon: TrendingUp,   group: "Investimentos" },
-  { href: "/rentabilidade", label: "Rentabilidade",  icon: BarChart2,    group: "Investimentos" },
-  { href: "/rebalancear",   label: "Rebalancear",    icon: Target,       group: "Investimentos" },
-  { href: "/proventos",     label: "Proventos",      icon: CalendarCheck, group: "Investimentos" },
-  { href: "/impostos",      label: "Imposto de Renda", icon: Landmark,    group: "Investimentos" },
-  { href: "/metas",         label: "Metas",           icon: Target,        group: "Investimentos" },
-  { href: "/cartao",        label: "Cartão",          icon: CreditCard,    group: "Finanças" },
-  { href: "/planejamento",  label: "Planejamento",    icon: CalendarDays,  group: "Finanças" },
-  { href: "/entrada-saida", label: "Entrada/Saída",   icon: Repeat2,       group: "Finanças" },
-  { href: "/parcelamentos", label: "Parcelamentos",   icon: Receipt,       group: "Finanças" },
-  { href: "/relatorios",    label: "Relatórios",      icon: BarChart2,     group: "Relatórios" },
-  { href: "/videos",        label: "Vídeos",          icon: PlayCircle,    group: "Aprenda" },
-];
+const HIDEABLE_PAGES = getHideableNavItems();
 
-const ALWAYS_VISIBLE = [
-  { href: "/",              label: "Dashboard",       icon: Home },
-  { href: "/configuracoes", label: "Configurações",   icon: LayoutList },
-];
+const ALWAYS_VISIBLE = (() => {
+  const byHref = new Map(
+    [
+      { href: "/", label: "Dashboard", icon: Home },
+      ...flattenNavItems(),
+      ...SYSTEM_NAV_ITEMS,
+    ].map((item) => [item.href, item] as const)
+  );
+  return [...ALWAYS_VISIBLE_HREFS]
+    .map((href) => byHref.get(href))
+    .filter((item): item is NonNullable<typeof item> => !!item);
+})();
 
 function readHidden(): Set<string> {
-  try {
-    const saved = localStorage.getItem("ibank_hidden_pages");
-    return new Set(saved ? JSON.parse(saved) : []);
-  } catch { return new Set(); }
+  return readHiddenPages();
 }
 
 function saveHidden(set: Set<string>) {
   try {
-    localStorage.setItem("ibank_hidden_pages", JSON.stringify([...set]));
+    localStorage.setItem(HIDDEN_PAGES_KEY, JSON.stringify([...set]));
     window.dispatchEvent(new Event("ibank_hidden_pages_changed"));
   } catch {}
 }
@@ -110,12 +110,9 @@ export default function ConfiguracoesPage() {
   ];
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-6 pb-8">
-      <div className="border-b pb-4">
-        <h1 className="text-xl sm:text-2xl font-bold">Configurações</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Gerencie seu perfil e segurança</p>
-      </div>
-
+    <PageShell>
+      <PageHeader title="Configurações" description="Gerencie seu perfil e segurança" />
+      <PageBody width="narrow">
       {/* Info do usuário */}
       <div className="flex items-center gap-3 border rounded-xl px-4 py-3">
         <div
@@ -209,7 +206,7 @@ export default function ConfiguracoesPage() {
             );
           })}
         </div>
-        <p className="text-[11px] text-muted-foreground mt-2">As páginas ocultas somem do menu lateral. Dashboard e Configurações são sempre visíveis.</p>
+        <p className="text-[11px] text-muted-foreground mt-2">As páginas ocultas somem do menu. Dashboard, Investimentos e Configurações são sempre visíveis.</p>
       </section>
 
       {/* Alterar senha */}
@@ -271,6 +268,7 @@ export default function ConfiguracoesPage() {
           </button>
         </form>
       </section>
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

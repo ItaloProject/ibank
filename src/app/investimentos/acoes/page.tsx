@@ -12,10 +12,10 @@ function Fallback() {
   );
 }
 
-export default function InvestimentosPage() {
+export default function InvestimentosAcoesPage() {
   return (
     <Suspense fallback={<Fallback />}>
-      <InvestimentosApp section="hub" />
+      <InvestimentosApp section="acoes" />
     </Suspense>
   );
 }

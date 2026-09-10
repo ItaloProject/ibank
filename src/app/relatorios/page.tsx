@@ -14,6 +14,7 @@ import type { Transaction, Investment, InvestmentAccount, StockTrade } from "@/t
 import { format, subMonths, addMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTheme } from "@/components/theme-provider";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 const CATEGORY_COLORS: Record<string, string> = {
   alimentacao: "#3b82f6", transporte: "#10b981", saude: "#f59e0b",
@@ -169,51 +170,49 @@ export default function RelatoriosPage() {
   const tooltipStyle = { background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText, fontSize: 12 };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between" data-no-print>
-        <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Relatórios</h1>
-          <p className="text-muted-foreground text-sm">
-            {viewMode === "mes" ? `Visão mensal — ${monthLabel}` : `Análise dos últimos ${period} meses`}
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap items-center">
-          {/* Modo toggle */}
-          <div className="flex rounded-lg border border-border overflow-hidden text-sm">
-            <button
-              type="button"
-              onClick={() => setViewMode("mes")}
-              className={`px-3 py-2.5 min-h-11 transition-colors touch-manipulation ${viewMode === "mes" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-            >
-              Mês a mês
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("periodo")}
-              className={`px-3 py-2.5 min-h-11 transition-colors touch-manipulation ${viewMode === "periodo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-            >
-              Período
-            </button>
+    <PageShell>
+      <PageHeader
+        title="Relatórios"
+        description={viewMode === "mes" ? `Visão mensal — ${monthLabel}` : `Análise dos últimos ${period} meses`}
+        actions={
+          <div className="flex gap-2 flex-wrap items-center" data-no-print>
+            {/* Modo toggle */}
+            <div className="flex rounded-lg border border-border overflow-hidden text-sm">
+              <button
+                type="button"
+                onClick={() => setViewMode("mes")}
+                className={`px-3 py-2.5 min-h-11 transition-colors touch-manipulation ${viewMode === "mes" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              >
+                Mês a mês
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("periodo")}
+                className={`px-3 py-2.5 min-h-11 transition-colors touch-manipulation ${viewMode === "periodo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              >
+                Período
+              </button>
+            </div>
+
+            {viewMode === "periodo" && ([3, 6, 12] as Period[]).map((p) => (
+              <Button key={p} variant={period === p ? "default" : "outline"} size="sm"
+                onClick={() => setPeriod(p)}>{p} meses</Button>
+            ))}
+
+            <div className="w-px bg-border mx-1 h-6" />
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleFoto} disabled={capturing}>
+              {capturing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+              {capturing ? "Capturando..." : "Salvar foto"}
+            </Button>
           </div>
+        }
+      />
 
-          {viewMode === "periodo" && ([3, 6, 12] as Period[]).map((p) => (
-            <Button key={p} variant={period === p ? "default" : "outline"} size="sm"
-              onClick={() => setPeriod(p)}>{p} meses</Button>
-          ))}
-
-          <div className="w-px bg-border mx-1 h-6" />
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Printer className="h-4 w-4" />
-            Exportar PDF
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleFoto} disabled={capturing}>
-            {capturing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-            {capturing ? "Capturando..." : "Salvar foto"}
-          </Button>
-        </div>
-      </div>
-
+      <PageBody>
       {/* Navegador de mês */}
       {viewMode === "mes" && (
         <div className="flex items-center gap-3" data-no-print>
@@ -477,6 +476,7 @@ export default function RelatoriosPage() {
           </>
         )}
       </div>
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

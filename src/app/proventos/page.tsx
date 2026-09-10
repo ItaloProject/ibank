@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2, CalendarCheck, Loader2 } from "lucide-react";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -147,25 +148,23 @@ export default function ProventosPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b gap-3">
-        <div>
-          <h1 className="text-xl font-bold">Calendário de Proventos</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Proventos recorrentes por dia do mês
-          </p>
-        </div>
-        <Button
-          size="sm"
-          className="min-h-11"
-          onClick={() => setFormOpen((v) => !v)}
-        >
-          <Plus className="h-4 w-4" />
-          Adicionar
-        </Button>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Calendário de Proventos"
+        description="Proventos recorrentes por dia do mês"
+        actions={
+          <Button
+            size="sm"
+            className="min-h-11"
+            onClick={() => setFormOpen((v) => !v)}
+          >
+            <Plus className="h-4 w-4" />
+            Adicionar
+          </Button>
+        }
+      />
 
+      <PageBody className="px-0 sm:px-0 lg:px-0 pt-0 space-y-0">
       {/* Add form */}
       {formOpen && (
         <div className="px-4 py-4 border-b bg-muted/20 space-y-3">
@@ -329,6 +328,7 @@ export default function ProventosPage() {
           })}
         </div>
       )}
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

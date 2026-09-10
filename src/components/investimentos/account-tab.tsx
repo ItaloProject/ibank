@@ -195,30 +195,55 @@ export function AccountTab({
               </div>
             ) : (
               /* ── Cards conta normal → flat divide-x ── */
-              <div className="flex overflow-x-auto border-y divide-x">
-                <div className="px-4 py-3 flex-1 min-w-[130px] shrink-0">
-                  <p className="text-xs text-muted-foreground">Saldo atual</p>
-                  <p className="text-xl font-bold text-green-600 tabular-nums">{formatCurrency(computedBalance)}</p>
-                  {account.valor_liquido != null && (
-                    <div className="mt-1 space-y-0.5">
-                      <p className="text-sm font-semibold text-blue-600 tabular-nums">{formatCurrency(account.valor_liquido)} líquido</p>
-                      {computedBalance > account.valor_liquido && (
-                        <p className="text-xs text-muted-foreground">IR/taxas est. {formatCurrency(computedBalance - account.valor_liquido)}</p>
-                      )}
-                    </div>
+              <div className="grid grid-cols-3 border-y divide-x">
+                <div className="px-2.5 sm:px-4 py-3 min-w-0 flex flex-col gap-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight min-h-[2.5rem] flex items-end">
+                    Saldo atual
+                  </p>
+                  <p className="text-sm sm:text-xl font-bold text-green-600 tabular-nums leading-tight truncate">
+                    {formatCurrency(computedBalance)}
+                  </p>
+                  {account.valor_liquido != null ? (
+                    <p className="text-[10px] sm:text-xs font-semibold text-blue-600 tabular-nums truncate">
+                      {formatCurrency(account.valor_liquido)}{" "}
+                      <span className="font-normal text-muted-foreground">líq.</span>
+                    </p>
+                  ) : (
+                    <p className="text-[10px] sm:text-xs invisible select-none" aria-hidden>
+                      —
+                    </p>
                   )}
-                  {account.institution && <p className="text-xs text-muted-foreground mt-1">{account.institution}</p>}
                 </div>
-                <div className="px-4 py-3 flex-1 min-w-[110px] shrink-0">
-                  <p className="text-xs text-muted-foreground">Total depositado</p>
-                  <p className="text-xl font-bold tabular-nums">
-                    {formatCurrency(accountInvestments.filter((i) => i.type === "deposito").reduce((s, i) => s + i.amount, 0))}
+                <div className="px-2.5 sm:px-4 py-3 min-w-0 flex flex-col gap-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight min-h-[2.5rem] flex items-end">
+                    <span className="sm:hidden">Depositado</span>
+                    <span className="hidden sm:inline">Total depositado</span>
+                  </p>
+                  <p className="text-sm sm:text-xl font-bold tabular-nums leading-tight truncate">
+                    {formatCurrency(
+                      accountInvestments
+                        .filter((i) => i.type === "deposito")
+                        .reduce((s, i) => s + i.amount, 0)
+                    )}
+                  </p>
+                  <p className="text-[10px] sm:text-xs invisible select-none" aria-hidden>
+                    —
                   </p>
                 </div>
-                <div className="px-4 py-3 flex-1 min-w-[110px] shrink-0">
-                  <p className="text-xs text-muted-foreground">Total de rendimentos</p>
-                  <p className="text-xl font-bold text-blue-600 tabular-nums">
-                    {formatCurrency(accountInvestments.filter((i) => i.type === "rendimento").reduce((s, i) => s + i.amount, 0))}
+                <div className="px-2.5 sm:px-4 py-3 min-w-0 flex flex-col gap-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight min-h-[2.5rem] flex items-end">
+                    <span className="sm:hidden">Rendimentos</span>
+                    <span className="hidden sm:inline">Total de rendimentos</span>
+                  </p>
+                  <p className="text-sm sm:text-xl font-bold text-blue-600 tabular-nums leading-tight truncate">
+                    {formatCurrency(
+                      accountInvestments
+                        .filter((i) => i.type === "rendimento")
+                        .reduce((s, i) => s + i.amount, 0)
+                    )}
+                  </p>
+                  <p className="text-[10px] sm:text-xs invisible select-none" aria-hidden>
+                    —
                   </p>
                 </div>
               </div>

@@ -17,7 +17,7 @@ import type { StockQuote } from "@/lib/api";
 import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTheme } from "@/components/theme-provider";
-import { PageHeader } from "@/components/mobile";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 import { ChartFrame } from "@/components/mobile/chart-frame";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -188,10 +188,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-4">
+    <PageShell>
       <PageHeader title="Dashboard" description="Visão geral das suas finanças" />
 
-      <div className="px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
+      <PageBody>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -516,7 +516,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
-      </div>
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

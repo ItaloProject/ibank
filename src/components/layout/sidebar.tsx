@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home, CreditCard, TrendingUp, BarChart2, CalendarDays,
-  CalendarCheck, Repeat2, Receipt, LogOut, ChevronLeft, X,
-  Sun, Moon, Users, Target, Settings, Landmark, LineChart, Scale,
-  PlayCircle,
+  LogOut, ChevronLeft, X, Sun, Moon, Users,
 } from "lucide-react";
 import Image from "next/image";
 import { useUser } from "@/context/user-context";
@@ -14,52 +11,13 @@ import { USERS } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import { useState, useEffect } from "react";
-
-const NAV_GROUPS = [
-  {
-    id: "investimentos",
-    label: "Investimentos",
-    accent: true,
-    items: [
-      { href: "/investimentos", label: "Investimentos", icon: TrendingUp },
-      { href: "/rentabilidade", label: "Rentabilidade", icon: LineChart },
-      { href: "/rebalancear",   label: "Rebalancear",   icon: Scale },
-      { href: "/proventos",     label: "Proventos",     icon: CalendarCheck },
-      { href: "/impostos",      label: "Imposto de Renda", icon: Landmark },
-      { href: "/metas",         label: "Metas",         icon: Target },
-    ],
-  },
-  {
-    id: "financas",
-    label: "Finanças",
-    accent: false,
-    items: [
-      { href: "/",               label: "Dashboard",      icon: Home },
-      { href: "/cartao",         label: "Cartão",         icon: CreditCard },
-      { href: "/planejamento",   label: "Planejamento",   icon: CalendarDays },
-      { href: "/entrada-saida",  label: "Entrada/Saída",  icon: Repeat2 },
-      { href: "/parcelamentos",  label: "Parcelamentos",  icon: Receipt },
-    ],
-  },
-  {
-    id: "relatorios",
-    label: "Relatórios",
-    accent: false,
-    items: [
-      { href: "/relatorios", label: "Relatórios", icon: BarChart2 },
-    ],
-  },
-  {
-    id: "aprenda",
-    label: "Aprenda",
-    accent: false,
-    items: [
-      { href: "/videos", label: "Vídeos", icon: PlayCircle },
-    ],
-  },
-];
-
-const ALWAYS_VISIBLE = new Set(["/", "/configuracoes", "/investimentos"]);
+import {
+  NAV_GROUPS,
+  SYSTEM_NAV_ITEMS,
+  isNavItemActive,
+  isPageVisible,
+  readHiddenPages,
+} from "@/lib/nav";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -75,27 +33,15 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   const currentUser = USERS.find((u) => u.id === userId);
   const isCollapsed = collapsed && !mobileOpen;
 
-  const [hiddenPages, setHiddenPages] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem("ibank_hidden_pages");
-      return new Set(saved ? JSON.parse(saved) : []);
-    } catch { return new Set(); }
-  });
+  const [hiddenPages, setHiddenPages] = useState<Set<string>>(() => readHiddenPages());
 
   useEffect(() => {
     function refresh() {
-      try {
-        const saved = localStorage.getItem("ibank_hidden_pages");
-        setHiddenPages(new Set(saved ? JSON.parse(saved) : []));
-      } catch {}
+      setHiddenPages(readHiddenPages());
     }
     window.addEventListener("ibank_hidden_pages_changed", refresh);
     return () => window.removeEventListener("ibank_hidden_pages_changed", refresh);
   }, []);
-
-  function isVisible(href: string) {
-    return ALWAYS_VISIBLE.has(href) || !hiddenPages.has(href);
-  }
 
   return (
     <aside
@@ -108,7 +54,6 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         isCollapsed && "md:w-[68px]",
       )}
     >
-      {/* Logo */}
       <div className="flex h-16 shrink-0 items-center px-3 border-b border-sidebar-border/60">
         <div className="h-10 w-10 shrink-0 rounded-xl overflow-hidden">
           <Image src="/logo.png" alt="IBANK" width={200} height={200}
@@ -131,14 +76,12 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         )}
       </div>
 
-      {/* Nav com grupos */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2 space-y-0 scrollbar-thin-dark">
         {NAV_GROUPS.map((group, gi) => {
-          const visibleItems = group.items.filter((item) => isVisible(item.href));
+          const visibleItems = group.items.filter((item) => isPageVisible(item.href, hiddenPages));
           if (visibleItems.length === 0) return null;
           return (
             <div key={group.id} className={gi > 0 ? "mt-1" : ""}>
-              {/* Label do grupo */}
               {!isCollapsed ? (
                 <div className={cn(
                   "px-2.5 pt-3 pb-1 flex items-center gap-1.5",
@@ -158,11 +101,10 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                 <div className="mx-3 my-2 h-px bg-sidebar-border/40" />
               ) : null}
 
-              {/* Items */}
               <div className="space-y-0.5">
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = pathname === item.href;
+                  const isActive = isNavItemActive(pathname, item.href);
                   return (
                     <Link key={item.href} href={item.href}
                       title={isCollapsed ? item.label : undefined}
@@ -198,76 +140,89 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
           );
         })}
 
-        {/* Sistema (Configurações + Admin) — sempre visível, sem label quando collapsed */}
+        {/* Sistema */}
         <div className="mt-1">
-          {!isCollapsed && (
+          {!isCollapsed ? (
             <div className="px-2.5 pt-3 pb-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Sistema</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                Sistema
+              </span>
             </div>
+          ) : (
+            <div className="mx-3 my-2 h-px bg-sidebar-border/40" />
           )}
-          {isCollapsed && <div className="mx-3 my-2 h-px bg-sidebar-border/40" />}
           <div className="space-y-0.5">
-            {[
-              { href: "/configuracoes", label: "Configurações", icon: Settings },
-              ...(isAdmin ? [{ href: "/admin/usuarios", label: "Usuários", icon: Users }] : []),
-            ].map((item) => {
+            {SYSTEM_NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = isNavItemActive(pathname, item.href);
               return (
                 <Link key={item.href} href={item.href}
                   title={isCollapsed ? item.label : undefined}
                   onClick={onMobileClose}
                   className={cn(
-                    "group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium",
-                    "transition-all duration-100 ease-out",
+                    "group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
                     isCollapsed ? "justify-center" : "",
                     isActive
                       ? "bg-primary text-white shadow-sm shadow-primary/30"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                   )}>
-                  <Icon className={cn(
-                    "shrink-0 transition-transform duration-100",
-                    isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
-                    isActive ? "text-white" : "text-sidebar-foreground/60 group-hover:text-sidebar-foreground",
-                  )} />
-                  <span className={cn("whitespace-nowrap overflow-hidden transition-all duration-150 leading-none", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
+                  <Icon className={cn("shrink-0", isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]")} />
+                  <span className={cn("whitespace-nowrap overflow-hidden transition-all duration-150", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
                     {item.label}
                   </span>
                 </Link>
               );
             })}
+            {isAdmin && (
+              <Link href="/admin/usuarios"
+                title={isCollapsed ? "Usuários" : undefined}
+                onClick={onMobileClose}
+                className={cn(
+                  "group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
+                  isCollapsed ? "justify-center" : "",
+                  isNavItemActive(pathname, "/admin/usuarios")
+                    ? "bg-primary text-white shadow-sm shadow-primary/30"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                )}>
+                <Users className={cn("shrink-0", isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]")} />
+                <span className={cn("whitespace-nowrap overflow-hidden transition-all duration-150", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
+                  Usuários
+                </span>
+              </Link>
+            )}
           </div>
         </div>
       </nav>
 
-      {/* Footer */}
-      <div className="shrink-0 border-t border-sidebar-border/60 px-2 py-3 space-y-1">
+      <div className="shrink-0 border-t border-sidebar-border/60 p-2 space-y-0.5">
         <button type="button" onClick={toggleTheme}
-          title={theme === "dark" ? "Modo claro" : "Modo escuro"}
-          className={cn("group flex items-center gap-3 w-full rounded-xl px-2.5 py-2.5 text-[13px] font-medium", "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all duration-100", isCollapsed && "justify-center")}>
-          {theme === "dark"
-            ? <Sun className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/50 group-hover:text-sidebar-foreground transition-colors" />
-            : <Moon className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/50 group-hover:text-sidebar-foreground transition-colors" />}
-          <span className={cn("whitespace-nowrap overflow-hidden transition-all duration-150", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
+          className={cn(
+            "flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors",
+            isCollapsed && "justify-center",
+          )}>
+          {theme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+          <span className={cn("whitespace-nowrap overflow-hidden transition-all", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
             {theme === "dark" ? "Modo claro" : "Modo escuro"}
           </span>
         </button>
-
-        {currentUser && (
-          <div className={cn("flex items-center gap-2 rounded-xl px-2.5 py-2 border border-sidebar-border/40", isCollapsed && "justify-center px-0 border-0")}>
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-              style={{ backgroundColor: currentUser.color }}>
-              {currentUser.name[0]}
-            </div>
-            <span className={cn("whitespace-nowrap overflow-hidden transition-all duration-150 flex-1 text-[13px] font-medium text-sidebar-foreground/80", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
-              {currentUser.name}
-            </span>
-            <button type="button" onClick={logout} title="Sair"
-              className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-all duration-100", isCollapsed && "hidden")}>
-              <LogOut className="h-3.5 w-3.5" />
-            </button>
+        <div className={cn("flex items-center gap-3 rounded-xl px-2.5 py-2", isCollapsed && "justify-center")}>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+            {(currentUser?.name ?? "?").slice(0, 1).toUpperCase()}
           </div>
-        )}
+          <div className={cn("min-w-0 overflow-hidden transition-all", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
+            <p className="truncate text-[13px] font-medium text-sidebar-foreground">{currentUser?.name}</p>
+          </div>
+        </div>
+        <button type="button" onClick={logout}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium text-red-400/80 hover:bg-red-500/10 hover:text-red-400 transition-colors",
+            isCollapsed && "justify-center",
+          )}>
+          <LogOut className="h-[18px] w-[18px]" />
+          <span className={cn("whitespace-nowrap overflow-hidden transition-all", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
+            Sair
+          </span>
+        </button>
       </div>
     </aside>
   );

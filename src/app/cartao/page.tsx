@@ -19,6 +19,7 @@ import { generateMonthReport } from "@/lib/generate-report";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { CreditCard, Transaction, TransactionCategory } from "@/types/database";
 import { NubankImport } from "@/components/nubank-import";
+import { PageHeader, PageShell } from "@/components/mobile";
 import { format, addMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -444,17 +445,17 @@ export default function CartaoPage() {
   }
 
   return (
-    <div className="flex flex-col pb-4 sm:pb-6">
-      {/* Header */}
-      <div className="px-4 sm:px-6 pt-4 pb-3 border-b">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold">Cartão de Crédito</h1>
-          <div className="flex items-center gap-1">
+    <PageShell>
+      <PageHeader
+        title="Cartão de Crédito"
+        description={`Fatura ${cycleLabelStr}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {activeCard && cardTransactions.length > 0 && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground"
+                className="h-10 w-10 text-muted-foreground shrink-0"
                 title="Relatório PDF"
                 onClick={() => generateMonthReport(cardTransactions.filter(t => t.amount > 0), activeCard, cycleLabelStr)}
               >
@@ -468,7 +469,7 @@ export default function CartaoPage() {
             {cardTransactions.length > 0 && (
               <Dialog open={clearOpen} onOpenChange={setClearOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Limpar transações">
+                  <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0" title="Limpar transações">
                     <Eraser className="h-4 w-4" />
                   </Button>
                 </DialogTrigger>
@@ -489,7 +490,7 @@ export default function CartaoPage() {
             )}
             <Dialog open={cardOpen} onOpenChange={setCardOpen}>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="Novo cartão">
+                <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground shrink-0" title="Novo cartão">
                   <CardIcon className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
@@ -524,8 +525,10 @@ export default function CartaoPage() {
             </Dialog>
             <Dialog open={txOpen} onOpenChange={setTxOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" disabled={cards.length === 0} className="h-8">
-                  <Plus className="h-4 w-4 mr-1" />Nova compra
+                <Button size="sm" disabled={cards.length === 0} className="min-h-10 shrink-0">
+                  <Plus className="h-4 w-4" />
+                  <span className="sm:hidden">Compra</span>
+                  <span className="hidden sm:inline">Nova compra</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -577,11 +580,13 @@ export default function CartaoPage() {
               </DialogContent>
             </Dialog>
           </div>
-        </div>
+        }
+      />
 
+      <div className="border-b px-4 sm:px-6 pb-3">
         {/* Cycle navigation */}
-        <div className="flex items-center gap-1 mt-2">
-          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => changeCycle(prevCycle(selectedCycle))}>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="shrink-0 h-11 w-11" onClick={() => changeCycle(prevCycle(selectedCycle))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="flex-1 text-center text-sm text-muted-foreground capitalize font-medium">
@@ -590,7 +595,7 @@ export default function CartaoPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0"
+            className="shrink-0 h-11 w-11"
             onClick={() => changeCycle(nextCycle(selectedCycle))}
             disabled={selectedCycle >= currentCycleId()}
           >
@@ -888,6 +893,6 @@ export default function CartaoPage() {
         onDelete={handleDeleteTransaction}
         onToggleAssinatura={toggleAssinatura}
       />
-    </div>
+    </PageShell>
   );
 }

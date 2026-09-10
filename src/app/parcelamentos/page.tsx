@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/context/user-context";
 import { UserSelect } from "@/components/user-select";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 interface Plan {
   id: string;
@@ -165,65 +166,64 @@ function ParcelamentosContent({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Parcelamentos</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Acompanhe suas compras parceladas</p>
-        </div>
+    <PageShell>
+      <PageHeader
+        title="Parcelamentos"
+        description="Acompanhe suas compras parceladas"
+        actions={
+          <Dialog open={open || !!editingPlan} onOpenChange={(v) => { if (!v) closeForm(); }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Novo parcelamento</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{editingPlan ? "Editar parcelamento" : "Adicionar parcelamento"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>Descrição</Label>
+                  <Input placeholder="Ex: iPhone 16 Pro" value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Valor total (R$)</Label>
+                    <Input type="number" placeholder="3.000,00" value={form.total_amount}
+                      onChange={(e) => setForm({ ...form, total_amount: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Número de parcelas</Label>
+                    <Input type="number" min={1} max={120} placeholder="12" value={form.installments}
+                      onChange={(e) => setForm({ ...form, installments: e.target.value })} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Parcelas já pagas</Label>
+                    <Input type="number" min={0} placeholder="0" value={form.paid_installments}
+                      onChange={(e) => setForm({ ...form, paid_installments: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Data da 1ª parcela</Label>
+                    <Input type="date" value={form.start_date}
+                      onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+                  </div>
+                </div>
+                {form.total_amount && form.installments && (
+                  <p className="text-sm text-muted-foreground text-center bg-muted/50 rounded-md py-2">
+                    {fmt(parseFloat(form.total_amount) / (parseInt(form.installments) || 1))} / mês
+                  </p>
+                )}
+                <Button className="w-full" onClick={handleCreate}>
+                  {editingPlan ? "Salvar alterações" : "Salvar"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
-        <Dialog open={open || !!editingPlan} onOpenChange={(v) => { if (!v) closeForm(); }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Novo parcelamento</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>{editingPlan ? "Editar parcelamento" : "Adicionar parcelamento"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label>Descrição</Label>
-                <Input placeholder="Ex: iPhone 16 Pro" value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Valor total (R$)</Label>
-                  <Input type="number" placeholder="3.000,00" value={form.total_amount}
-                    onChange={(e) => setForm({ ...form, total_amount: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Número de parcelas</Label>
-                  <Input type="number" min={1} max={120} placeholder="12" value={form.installments}
-                    onChange={(e) => setForm({ ...form, installments: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Parcelas já pagas</Label>
-                  <Input type="number" min={0} placeholder="0" value={form.paid_installments}
-                    onChange={(e) => setForm({ ...form, paid_installments: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Data da 1ª parcela</Label>
-                  <Input type="date" value={form.start_date}
-                    onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
-                </div>
-              </div>
-              {form.total_amount && form.installments && (
-                <p className="text-sm text-muted-foreground text-center bg-muted/50 rounded-md py-2">
-                  {fmt(parseFloat(form.total_amount) / (parseInt(form.installments) || 1))} / mês
-                </p>
-              )}
-              <Button className="w-full" onClick={handleCreate}>
-                {editingPlan ? "Salvar alterações" : "Salvar"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
+      <PageBody>
       {/* Summary cards */}
       {plans.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -288,7 +288,8 @@ function ParcelamentosContent({ userId }: { userId: string }) {
           ))}
         </div>
       )}
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }
 

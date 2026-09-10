@@ -9,8 +9,9 @@ import { formatCurrency, cn } from "@/lib/utils";
 import type { PortfolioSnapshot } from "@/types/database";
 import { computePerformance, filterByMonths, type CdiPoint } from "@/lib/performance";
 import { useTheme } from "@/components/theme-provider";
-import { LineChart as LineChartIcon, Loader2, TrendingUp, TrendingDown, Info, Camera } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Info, Camera } from "lucide-react";
 import { format } from "date-fns";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 const PERIODS: { label: string; months: number | null }[] = [
   { label: "3M", months: 3 },
@@ -70,21 +71,10 @@ export default function RentabilidadePage() {
   const bateuCdi = perf && perf.cdiReturn !== null && perf.twr > perf.cdiReturn;
 
   return (
-    <div className="min-h-full">
-      {/* Header */}
-      <div className="border-b px-4 sm:px-6 py-5">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-            <LineChartIcon className="h-5 w-5 text-emerald-500" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold leading-tight">Rentabilidade</h1>
-            <p className="text-xs text-muted-foreground">Sua carteira comparada ao CDI</p>
-          </div>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader title="Rentabilidade" description="Sua carteira comparada ao CDI" />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5 space-y-5">
+      <PageBody width="medium">
         {!perf ? (
           <div className="rounded-2xl border bg-card py-14 text-center px-6">
             <Camera className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
@@ -247,7 +237,7 @@ export default function RentabilidadePage() {
             </div>
           </>
         )}
-      </div>
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

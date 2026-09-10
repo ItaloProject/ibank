@@ -6,21 +6,24 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { BottomNav } from "./bottom-nav";
+import { MoreNavSheet } from "./more-nav-sheet";
 import { LoginScreen } from "@/components/login-screen";
 import { ProfileSelectScreen } from "@/components/profile-select-screen";
 import { CarteiraSugeridaScreen } from "@/components/carteira-sugerida-screen";
 import { SubscriptionGate } from "@/components/subscription-gate";
 import { SessionTimeout } from "@/components/session-timeout";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
 
-const PUBLIC_PATHS = new Set(["/vender", "/comecar", "/politica-privacidade"]);
+const PUBLIC_PATHS = new Set(["/vender", "/comecar", "/politica-privacidade", "/~offline"]);
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { userId, investmentProfile, subscriptionActive, isAdmin } = useUser();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [carteiraSugeridaVista, setCarteiraSugeridaVista] = useState(() => {
     try { return !!localStorage.getItem("ibank_carteira_vista"); } catch { return false; }
   });
@@ -34,16 +37,31 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
-    const handler = () => { if (mq.matches) setMobileOpen(false); };
+    const handler = () => {
+      if (mq.matches) {
+        setMobileOpen(false);
+        setMoreOpen(false);
+      }
+    };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMobileOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileOpen(false);
+        setMoreOpen(false);
+      }
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
+
+  useEffect(() => {
+    setMoreOpen(false);
+    setMobileOpen(false);
+  }, [pathname]);
 
   function toggle() {
     setCollapsed((prev) => {
@@ -130,7 +148,13 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-      <BottomNav onMore={() => setMobileOpen(true)} />
+      <BottomNav onMore={() => setMoreOpen(true)} />
+      <MoreNavSheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        onOpenFullMenu={() => setMobileOpen(true)}
+      />
+      <PwaInstallPrompt />
       <SessionTimeout />
     </div>
   );

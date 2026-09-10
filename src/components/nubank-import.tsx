@@ -238,9 +238,10 @@ export function NubankImport({ cards, onImported }: Props) {
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" size="sm" className="min-h-10">
           <Upload className="h-4 w-4" />
-          Importar CSV Nubank
+          <span className="sm:hidden">Importar</span>
+          <span className="hidden sm:inline">Importar CSV Nubank</span>
         </Button>
       </DialogTrigger>
 

@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, CreditCard, TrendingUp, CalendarDays, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getBottomTabs, isNavItemActive } from "@/lib/nav";
 
-const TABS = [
-  { href: "/", label: "Início", icon: Home, match: (p: string) => p === "/" },
-  { href: "/cartao", label: "Cartão", icon: CreditCard, match: (p: string) => p.startsWith("/cartao") },
-  { href: "/investimentos", label: "Investir", icon: TrendingUp, match: (p: string) => p.startsWith("/investimentos") },
-  { href: "/planejamento", label: "Plano", icon: CalendarDays, match: (p: string) => p.startsWith("/planejamento") },
-] as const;
+const TABS = getBottomTabs().map((item) => ({
+  href: item.href,
+  label: item.href === "/" ? "Início" : item.href === "/planejamento" ? "Plano" : item.href === "/investimentos" ? "Investir" : item.label,
+  icon: item.icon,
+}));
 
 export function BottomNav({ onMore }: { onMore: () => void }) {
   const pathname = usePathname();
@@ -26,7 +26,7 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
         style={{ paddingLeft: "var(--safe-left)", paddingRight: "var(--safe-right)" }}
       >
         {TABS.map((tab) => {
-          const active = tab.match(pathname);
+          const active = isNavItemActive(pathname, tab.href);
           const Icon = tab.icon;
           return (
             <Link

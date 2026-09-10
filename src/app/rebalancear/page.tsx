@@ -12,9 +12,10 @@ import {
 } from "@/lib/rebalance";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
-  Scale, Loader2, Info, AlertTriangle, CheckCircle2, ArrowRight, Wallet,
+  Loader2, Info, AlertTriangle, CheckCircle2, ArrowRight, Wallet,
   SlidersHorizontal, X, Check, RotateCcw,
 } from "lucide-react";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 const QUICK = [500, 1000, 2000, 5000];
 
@@ -105,24 +106,20 @@ export default function RebalancearPage() {
   const equilibrada = result.maxDrift < 2;
 
   return (
-    <div className="min-h-full">
-      {/* Header */}
-      <div className="border-b px-4 sm:px-6 py-5">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
-            <Scale className="h-5 w-5 text-blue-500" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold leading-tight">Rebalancear</h1>
-            <p className="text-xs text-muted-foreground truncate">
-              Onde aplicar o próximo aporte
-              {customTarget
-                ? " · alvo personalizado"
-                : investmentProfile
-                  ? ` · perfil ${investmentProfile === "aposentadoria" ? "Aposentadoria" : "Renda Mensal"}`
-                  : ""}
-            </p>
-          </div>
+    <PageShell>
+      <PageHeader
+        title="Rebalancear"
+        description={
+          <>
+            Onde aplicar o próximo aporte
+            {customTarget
+              ? " · alvo personalizado"
+              : investmentProfile
+                ? ` · perfil ${investmentProfile === "aposentadoria" ? "Aposentadoria" : "Renda Mensal"}`
+                : ""}
+          </>
+        }
+        actions={
           <button
             onClick={() => setEditOpen(true)}
             className="flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
@@ -130,10 +127,10 @@ export default function RebalancearPage() {
             <SlidersHorizontal className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Definir alvo</span>
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5 space-y-5">
+      <PageBody width="medium">
         {semCarteira ? (
           <div className="rounded-2xl border bg-card py-14 text-center px-6">
             <Wallet className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
@@ -322,7 +319,7 @@ export default function RebalancearPage() {
             </div>
           </>
         )}
-      </div>
+      </PageBody>
 
       {editOpen && (
         <TargetEditor
@@ -334,7 +331,7 @@ export default function RebalancearPage() {
           onReset={() => { setCustomTarget(null); setEditOpen(false); }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 

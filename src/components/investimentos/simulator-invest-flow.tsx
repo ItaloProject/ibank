@@ -131,10 +131,10 @@ function QuickAmount({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ${
+      className={`rounded-full border px-3.5 py-2 text-xs font-bold tabular-nums transition-colors ${
         active
-          ? "bg-violet-500 text-white"
-          : "bg-white/8 text-white/70 hover:bg-white/12"
+          ? "border-violet-400/60 bg-violet-500 text-white"
+          : "border-white/15 bg-white/[0.06] text-white/80 hover:bg-white/[0.12] hover:text-white"
       }`}
     >
       {label}
@@ -509,10 +509,10 @@ export function SimulatorInvestFlow({
           onClick={() => !justBought && setBuyTarget(null)}
         >
           <div
-            className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 p-5 pb-7"
+            className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 px-5 pt-3 pb-7"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-5">
               <div className="h-1 w-10 rounded-full bg-white/20" />
             </div>
 
@@ -528,18 +528,18 @@ export function SimulatorInvestFlow({
               </div>
             ) : (
               <>
-                <div className="mb-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-1">
+                <div className="mb-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-1.5">
                     Comprar
                   </p>
-                  <p className="text-lg font-bold text-white">
+                  <p className="text-xl font-bold text-white leading-tight">
                     {buyTarget.kind === "stock"
                       ? buyTarget.asset.ticker
                       : buyTarget.kind === "tesouro"
                         ? buyTarget.product.nome
                         : buyTarget.account.nome}
                   </p>
-                  <p className="text-xs text-white/40 mt-0.5">
+                  <p className="text-xs text-white/40 mt-1">
                     {buyTarget.kind === "stock"
                       ? `${buyTarget.asset.name} · ${formatCurrency(buyTarget.asset.price)}`
                       : buyTarget.kind === "tesouro"
@@ -550,18 +550,18 @@ export function SimulatorInvestFlow({
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 mb-3 flex items-center justify-between">
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 mb-4 flex items-center justify-between">
                   <span className="text-[11px] text-white/45">Saldo</span>
                   <span className="text-sm font-bold tabular-nums text-white">
                     {formatCurrency(cash)}
                   </span>
                 </div>
 
-                <label className="block mb-2">
+                <label className="block mb-3">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
                     Valor
                   </span>
-                  <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/[0.06] px-3 py-3">
+                  <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/[0.06] px-3.5 py-3.5">
                     <span className="text-sm font-bold text-white/50">R$</span>
                     <input
                       autoFocus
@@ -577,7 +577,7 @@ export function SimulatorInvestFlow({
                   </div>
                 </label>
 
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 mb-5">
                   {[100, 250, 500, 1000].map((v) => (
                     <QuickAmount
                       key={v}
@@ -614,7 +614,7 @@ export function SimulatorInvestFlow({
                   type="button"
                   disabled={!canConfirm}
                   onClick={confirm}
-                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3.5 text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3.5 text-sm font-bold text-white disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
                 >
                   Confirmar investimento
                 </button>

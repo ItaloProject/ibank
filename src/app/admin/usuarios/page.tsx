@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@/context/user-context";
 import { useRouter } from "next/navigation";
 import { Users, UserPlus, Trash2, Power, ShieldCheck, Eye, EyeOff, KeyRound, X, Check, Bot, CalendarPlus } from "lucide-react";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 interface AppUser {
   id: number;
@@ -137,19 +138,11 @@ export default function UsuariosPage() {
   if (!isAdmin) return null;
 
   return (
-    <div className="min-h-full bg-background">
-      {/* Header */}
-      <div className="border-b px-4 sm:px-6 py-5">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Users className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold leading-tight">Usuários</h1>
-              <p className="text-xs text-muted-foreground">Gerencie o acesso ao IBANK</p>
-            </div>
-          </div>
+    <PageShell>
+      <PageHeader
+        title="Usuários"
+        description="Gerencie o acesso ao IBANK"
+        actions={
           <button
             onClick={() => { setShowForm(true); setError(""); }}
             className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 active:scale-95 transition-all"
@@ -158,10 +151,10 @@ export default function UsuariosPage() {
             <span className="hidden sm:inline">Novo usuário</span>
             <span className="sm:hidden">Novo</span>
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-5 space-y-5">
+      <PageBody width="cozy">
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-2xl border bg-card px-4 py-3.5 flex items-center gap-3">
@@ -282,7 +275,7 @@ export default function UsuariosPage() {
             </div>
           )}
         </div>
-      </div>
+      </PageBody>
 
       {/* Modal: Novo usuário */}
       {showForm && (
@@ -455,6 +448,6 @@ export default function UsuariosPage() {
           </form>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

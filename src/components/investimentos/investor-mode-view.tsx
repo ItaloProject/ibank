@@ -162,34 +162,36 @@ export function InvestorModeView({
 
           <div className="relative mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12">
             {/* Top bar */}
-            <div className="flex items-center justify-between mb-10 sm:mb-16">
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-10 sm:mb-16">
+              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-xl w-fit">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                 </span>
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/70">Modo Investidor</span>
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-white/70">
+                  Modo Investidor
+                </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setLiveMode(true)}
-                  className="flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-1.5 text-sm font-medium text-red-300 backdrop-blur-xl transition-colors hover:bg-red-500/20 hover:text-red-200"
+                  className="flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-red-300 backdrop-blur-xl transition-colors hover:bg-red-500/20 hover:text-red-200"
                 >
                   <Radio className="h-3.5 w-3.5" />
                   Live
                 </button>
                 <button
                   onClick={onGenerateReport}
-                  className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 text-sm font-medium text-violet-300 backdrop-blur-xl transition-colors hover:bg-violet-500/20 hover:text-violet-200"
+                  className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-violet-300 backdrop-blur-xl transition-colors hover:bg-violet-500/20 hover:text-violet-200"
                 >
                   <FileText className="h-3.5 w-3.5" />
-                  Gerar PDF
+                  PDF
                 </button>
                 <button
                   onClick={() => setInvestorMode(false)}
-                  className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-white/70 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
+                  className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/70 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
                 >
-                  Sair<span className="text-white/40">·</span>voltar ao painel
+                  Sair
                 </button>
               </div>
             </div>
@@ -407,14 +409,16 @@ export function InvestorModeView({
               const circumS = 2 * Math.PI * 28;
               return (
                 <div className="mt-14 sm:mt-20">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-white/40">Diagnóstico da carteira</h3>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 min-w-0">
+                      Diagnóstico da carteira
+                    </h3>
                     <button
                       onClick={onGenerateReport}
-                      className="flex items-center gap-2 rounded-full bg-violet-600 hover:bg-violet-500 px-5 py-2 text-sm font-semibold text-white transition-colors"
+                      className="flex items-center justify-center gap-2 rounded-full bg-violet-600 hover:bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition-colors shrink-0 w-fit whitespace-nowrap"
                     >
                       <FileText className="h-4 w-4" />
-                      Gerar Relatório PDF
+                      Gerar PDF
                     </button>
                   </div>
 
@@ -479,27 +483,32 @@ export function InvestorModeView({
                   <div className="space-y-3 mb-10">
                     {insights.map((ins, i) => (
                       <div key={i} className={`rounded-xl border ${levelBgs[ins.level]} p-4 backdrop-blur-xl`}>
-                        <div className="flex items-start gap-3">
-                          <span className="flex-shrink-0 rounded text-[10px] font-black px-1.5 py-0.5 mt-0.5" style={{ background: levelColors[ins.level], color: "white" }}>
+                        <div className="flex items-start gap-2.5">
+                          <span
+                            className="flex-shrink-0 rounded text-[10px] font-black px-1.5 py-0.5 mt-0.5"
+                            style={{ background: levelColors[ins.level], color: "white" }}
+                          >
                             {levelLabels[ins.level]}
                           </span>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-3 flex-wrap">
-                              <div>
-                                <p className="text-sm font-semibold text-white/90">{ins.title}</p>
-                                <p className="text-xs text-white/50 mt-0.5">{ins.detail}</p>
-                                {ins.action && <p className="text-xs font-semibold mt-1.5" style={{ color: levelColors[ins.level] }}>→ {ins.action}</p>}
-                              </div>
-                              {ins.onAction && (
-                                <button
-                                  onClick={ins.onAction}
-                                  className="flex-shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-85"
-                                  style={{ background: levelColors[ins.level] }}
-                                >
-                                  {ins.actionLabel} →
-                                </button>
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <div>
+                              <p className="text-sm font-semibold text-white/90 leading-snug">{ins.title}</p>
+                              <p className="text-xs text-white/50 mt-1 leading-relaxed">{ins.detail}</p>
+                              {ins.action && (
+                                <p className="text-xs font-semibold mt-1.5 leading-snug" style={{ color: levelColors[ins.level] }}>
+                                  → {ins.action}
+                                </p>
                               )}
                             </div>
+                            {ins.onAction && (
+                              <button
+                                onClick={ins.onAction}
+                                className="w-full sm:w-auto rounded-full px-3.5 py-2 text-xs font-bold text-white transition-opacity hover:opacity-85"
+                                style={{ background: levelColors[ins.level] }}
+                              >
+                                {ins.actionLabel} →
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -510,13 +519,19 @@ export function InvestorModeView({
                   <h3 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-4">Próximos aportes recomendados</h3>
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
                     {nextMoves.map((m, i) => (
-                      <div key={i} className="flex items-center gap-4 p-4 border-b border-white/5 last:border-b-0">
-                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center text-xs font-black text-violet-300">{m.prioridade}</span>
+                      <div key={i} className="flex items-start gap-3 p-4 border-b border-white/5 last:border-b-0">
+                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center text-xs font-black text-violet-300 mt-0.5">
+                          {m.prioridade}
+                        </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white/90">{m.label}</p>
-                          <p className="text-xs text-white/40 truncate">{m.razao}</p>
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-sm font-semibold text-white/90 leading-snug">{m.label}</p>
+                            <span className="text-sm font-extrabold text-emerald-400 tabular-nums flex-shrink-0">
+                              {m.valor}
+                            </span>
+                          </div>
+                          <p className="text-xs text-white/40 mt-1 leading-relaxed break-words">{m.razao}</p>
                         </div>
-                        <span className="text-sm font-extrabold text-emerald-400 tabular-nums flex-shrink-0">{m.valor}</span>
                       </div>
                     ))}
                   </div>

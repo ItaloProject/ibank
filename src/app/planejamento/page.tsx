@@ -27,6 +27,7 @@ import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { generatePlanReport } from "@/lib/generate-plan-report";
 import { USERS } from "@/lib/user";
+import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -321,42 +322,41 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b gap-3">
-        <div>
-          <h1 className="text-xl font-bold">Planejamento</h1>
-          <p className="text-xs text-muted-foreground mt-0.5 capitalize">{monthLabel}</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          {items.length === 0 && (
-            <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => setCopyOpen(true)}>
-              <Copy className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Copiar mês anterior</span>
+    <PageShell>
+      <PageHeader
+        title="Planejamento"
+        description={<span className="capitalize">{monthLabel}</span>}
+        actions={
+          <>
+            {items.length === 0 && (
+              <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => setCopyOpen(true)}>
+                <Copy className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Copiar mês anterior</span>
+              </Button>
+            )}
+            {items.length > 0 && (
+              <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => {
+                const userName = USERS.find(u => u.id === userId)?.name ?? userId;
+                generatePlanReport(
+                  groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
+                  items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
+                  monthLabel, userName, salary,
+                );
+              }}>
+                <FileDown className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Gerar PDF</span>
+              </Button>
+            )}
+            <Button onClick={openNewGroup} size="sm" className="min-h-11 text-xs">
+              <FolderPlus className="h-3.5 w-3.5" />
+              Novo grupo
             </Button>
-          )}
-          {items.length > 0 && (
-            <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => {
-              const userName = USERS.find(u => u.id === userId)?.name ?? userId;
-              generatePlanReport(
-                groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
-                items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
-                monthLabel, userName, salary,
-              );
-            }}>
-              <FileDown className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Gerar PDF</span>
-            </Button>
-          )}
-          <Button onClick={openNewGroup} size="sm" className="min-h-11 text-xs">
-            <FolderPlus className="h-3.5 w-3.5" />
-            Novo grupo
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Month navigation */}
-      <div className="flex items-center justify-between px-4 py-2 border-b">
+      <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-2 border-b">
         <button onClick={goToPrev} className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted transition-colors">
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -366,6 +366,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         </button>
       </div>
 
+      <PageBody className="px-0 sm:px-0 lg:px-0 pt-0 space-y-0">
       {/* Salário */}
       <div
         className="flex items-center justify-between px-4 py-3 border-b cursor-pointer hover:bg-muted/30 transition-colors"
@@ -665,6 +666,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </PageBody>
+    </PageShell>
   );
 }

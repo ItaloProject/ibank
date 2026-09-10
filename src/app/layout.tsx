@@ -7,18 +7,38 @@ import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
+const APP_NAME = "IBANK";
+const APP_DEFAULT_TITLE = "IBANK — Gestão Financeira";
+const APP_DESCRIPTION = "Gerencie seu cartão de crédito e investimentos";
+
 export const metadata: Metadata = {
-  title: "IBANK — Gestão Financeira",
-  description: "Gerencie seu cartão de crédito e investimentos",
+  applicationName: APP_NAME,
+  title: {
+    default: APP_DEFAULT_TITLE,
+    template: "%s · IBANK",
+  },
+  description: APP_DESCRIPTION,
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "IBANK",
+    title: APP_NAME,
+  },
+  formatDetection: {
+    telephone: false,
   },
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  openGraph: {
+    type: "website",
+    siteName: APP_NAME,
+    title: APP_DEFAULT_TITLE,
+    description: APP_DESCRIPTION,
   },
 };
 
@@ -27,7 +47,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#09090b",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+    { media: "(prefers-color-scheme: light)", color: "#09090b" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
