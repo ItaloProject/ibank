@@ -250,13 +250,25 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                   <p className="text-[34px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
                     {formatCurrency(animatedPatrimonio)}
                   </p>
-                  {investedCost > 0 && (
-                    <p className={`text-xs font-semibold mt-2 inline-flex items-center gap-1 ${totalGain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                      {totalGain >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                      {formatCurrency(Math.abs(totalGain))} ({totalGainPct >= 0 ? "+" : ""}{totalGainPct.toFixed(1)}%) em ações/FIIs
-                    </p>
-                  )}
                 </div>
+
+                {investedCost > 0 && (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Investido</p>
+                      <p className="text-base font-extrabold tabular-nums text-white mt-1">{formatCurrency(investedCost)}</p>
+                      <p className="text-[10px] text-white/30 mt-0.5">líquido em ações/FIIs</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Rendimento</p>
+                      <p className={`text-base font-extrabold tabular-nums mt-1 inline-flex items-center gap-1 ${totalGain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {totalGain >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                        {formatCurrency(Math.abs(totalGain))}
+                      </p>
+                      <p className="text-[10px] text-white/30 mt-0.5">{totalGainPct >= 0 ? "+" : ""}{totalGainPct.toFixed(1)}% desde a compra</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
