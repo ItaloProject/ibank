@@ -34,6 +34,11 @@ const ASSETS: Asset[] = [
 
 const INITIAL_CASH = 10000;
 
+function formatQty(qty: number) {
+  if (Number.isInteger(qty)) return String(qty);
+  return qty.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+}
+
 function useCountUp(target: number, durationMs = 900) {
   const [value, setValue] = useState(target);
   const prevTarget = useRef(target);
@@ -380,7 +385,7 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                                 <span className="h-2 w-2 rounded-full shrink-0" style={{ background: asset.color }} />
                                 <div className="min-w-0">
                                   <p className="text-sm font-bold text-white truncate">{asset.ticker}</p>
-                                  <p className="text-[11px] text-white/40 truncate">{h.quantity.toFixed(2)} un · {asset.category}</p>
+                                  <p className="text-[11px] text-white/40 truncate">{formatQty(h.quantity)} un · {asset.category}</p>
                                 </div>
                               </div>
                               <div className="text-right shrink-0">
@@ -496,7 +501,7 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                   return (
                     <>
                       <div className="flex justify-between text-xs text-white/40 mb-4 px-1">
-                        <span>≈ {qty.toFixed(4)} unidades</span>
+                        <span>≈ {formatQty(qty)} unidades</span>
                         <span>Saldo: {formatCurrency(cash)}</span>
                       </div>
                       {insufficient && (
@@ -710,7 +715,7 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
                     <p className="text-[10px] text-white/40 uppercase tracking-wide">Quantidade</p>
-                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{selectedHolding.h.quantity.toFixed(4)}</p>
+                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{formatQty(selectedHolding.h.quantity)}</p>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
                     <p className="text-[10px] text-white/40 uppercase tracking-wide">Preço médio</p>
