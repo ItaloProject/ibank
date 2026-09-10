@@ -98,7 +98,16 @@ export function InvestorModeView({
   const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
   const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
   const circumference = 2 * Math.PI * 118;
-  const [liveMode, setLiveMode] = useState(false);
+  const [liveMode, setLiveModeState] = useState(() => {
+    try { return localStorage.getItem("ibank_live_mode") === "1"; } catch { return false; }
+  });
+  function setLiveMode(v: boolean) {
+    setLiveModeState(v);
+    try {
+      if (v) localStorage.setItem("ibank_live_mode", "1");
+      else localStorage.removeItem("ibank_live_mode");
+    } catch { /* ignore */ }
+  }
 
   if (liveMode) {
     const realFixedIncome = allSources

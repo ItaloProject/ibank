@@ -64,7 +64,16 @@ export default function InvestimentosPage() {
   });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [ratesOpen, setRatesOpen] = useState(false);
-  const [investorMode, setInvestorMode] = useState(false);
+  const [investorMode, setInvestorModeState] = useState(() => {
+    try { return localStorage.getItem("ibank_investor_mode") === "1"; } catch { return false; }
+  });
+  function setInvestorMode(v: boolean) {
+    setInvestorModeState(v);
+    try {
+      if (v) localStorage.setItem("ibank_investor_mode", "1");
+      else { localStorage.removeItem("ibank_investor_mode"); localStorage.removeItem("ibank_live_mode"); }
+    } catch { /* ignore */ }
+  }
   const [incomeGoal, setIncomeGoal] = useState<number>(() => {
     try { return Number(localStorage.getItem("ibank_income_goal") ?? 0) || 0; } catch { return 0; }
   });
