@@ -12,6 +12,15 @@ import {
   SimulatorFinancePanel,
   type FinancePanelId,
 } from "@/components/investimentos/simulator-finance-panels";
+import {
+  SimulatorInvestFlow,
+  DEFAULT_TESOURO_PRODUCTS,
+  readSimInvestState,
+  writeSimInvestState,
+  type MarketSection,
+  type SimInvestState,
+  type TesouroProduct,
+} from "@/components/investimentos/simulator-invest-flow";
 
 type Asset = {
   ticker: string;
@@ -42,13 +51,45 @@ type RealAccountItem = {
 type StockPosition = { ticker: string; quantity: number; totalInvested: number; avgPrice: number };
 
 const ASSETS: Asset[] = [
-  { ticker: "PETR4", name: "Petrobras PN",       category: "Ação",       price: 38.5,  variation: 0.021,  color: "#22c55e" },
-  { ticker: "VALE3", name: "Vale ON",             category: "Ação",       price: 61.2,  variation: -0.014, color: "#f97316" },
-  { ticker: "ITUB4", name: "Itaú Unibanco PN",    category: "Ação",       price: 34.1,  variation: 0.008,  color: "#f59e0b" },
-  { ticker: "MXRF11", name: "Maxi Renda",         category: "FII",       price: 10.15, variation: 0.012,  color: "#a855f7" },
-  { ticker: "HGLG11", name: "CSHG Logística",     category: "FII",       price: 165.4, variation: 0.019,  color: "#8b5cf6" },
-  { ticker: "SELIC29", name: "Tesouro Selic 2029", category: "Renda Fixa", price: 100.0, variation: 0.009,  color: "#3b82f6" },
+  { ticker: "PETR4", name: "Petrobras PN",       category: "Ação", price: 38.5,  variation: 0.021,  color: "#22c55e" },
+  { ticker: "VALE3", name: "Vale ON",             category: "Ação", price: 61.2,  variation: -0.014, color: "#f97316" },
+  { ticker: "ITUB4", name: "Itaú Unibanco PN",    category: "Ação", price: 34.1,  variation: 0.008,  color: "#f59e0b" },
+  { ticker: "BBAS3", name: "Banco do Brasil ON",  category: "Ação", price: 22.5,  variation: 0.04,   color: "#3b82f6" },
+  { ticker: "WEGE3", name: "WEG ON",              category: "Ação", price: 48.2,  variation: 0.015,  color: "#06b6d4" },
+  { ticker: "MXRF11", name: "Maxi Renda",         category: "FII",  price: 10.15, variation: 0.012,  color: "#a855f7" },
+  { ticker: "HGLG11", name: "CSHG Logística",     category: "FII",  price: 165.4, variation: 0.019,  color: "#8b5cf6" },
+  { ticker: "XPML11", name: "XP Malls",           category: "FII",  price: 98.5,  variation: 0.008,  color: "#ec4899" },
 ];
+
+function mergeHoldings(base: Holding[], sim: Holding[]): Holding[] {
+  const map = new Map<string, Holding>();
+  for (const h of base) map.set(h.ticker, { ...h });
+  for (const h of sim) {
+    const cur = map.get(h.ticker);
+    if (!cur) {
+      map.set(h.ticker, { ...h });
+      continue;
+    }
+    const quantity = cur.quantity + h.quantity;
+    const cost = cur.quantity * cur.avgPrice + h.quantity * h.avgPrice;
+    map.set(h.ticker, {
+      ticker: h.ticker,
+      quantity,
+      avgPrice: quantity > 0 ? cost / quantity : 0,
+    });
+  }
+  return [...map.values()].filter((h) => h.quantity > 0.0001);
+}
+
+function applyAportes(
+  accounts: RealAccountItem[],
+  aportes: Record<string, number>
+): RealAccountItem[] {
+  return accounts.map((a) => ({
+    ...a,
+    valor: a.valor + (aportes[a.id] ?? 0),
+  }));
+}
 
 const INITIAL_CASH = 10000;
 const CASH_STORAGE_KEY = "ibank_live_cash";
@@ -371,22 +412,64 @@ export function InvestorLiveView({
   const [tab, setTab] = useState<"inicio" | "investimentos" | "simular">("inicio");
   const [focusGroup, setFocusGroup] = useState<"all" | "turbo" | "emergencia" | "investimentos">("all");
   const [investSubPage, setInvestSubPage] = useState<"tesouro" | "acoes" | null>(null);
+  const [marketOpen, setMarketOpen] = useState(false);
+  const [marketSection, setMarketSection] = useState<MarketSection>("hub");
   const [cash, setCash] = useState(readStoredCash);
   const [editingCash, setEditingCash] = useState(false);
   const [cashInput, setCashInput] = useState("");
   const [financePanel, setFinancePanel] = useState<FinancePanelId | null>(null);
+  const [simInvest, setSimInvest] = useState<SimInvestState>(() => readSimInvestState());
   const [holdings, setHoldings] = useState<Holding[]>(() =>
-    stockPositions
-      .filter((p) => p.quantity > 0)
-      .map((p) => ({ ticker: p.ticker, quantity: p.quantity, avgPrice: p.avgPrice }))
+    mergeHoldings(
+      stockPositions
+        .filter((p) => p.quantity > 0)
+        .map((p) => ({ ticker: p.ticker, quantity: p.quantity, avgPrice: p.avgPrice })),
+      readSimInvestState().holdings
+    )
   );
-  const [buyAsset, setBuyAsset] = useState<Asset | null>(null);
-  const [buyAmount, setBuyAmount] = useState("");
   const [confirmedFlash, setConfirmedFlash] = useState(false);
   const [selectedFixedIncome, setSelectedFixedIncome] = useState<RealAccountItem | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
   const ownedTickers = useMemo(() => new Set(stockPositions.map((p) => p.ticker)), [stockPositions]);
+
+  const turboAccountsLive = useMemo(
+    () => applyAportes(turboAccountsReal, simInvest.aportes),
+    [turboAccountsReal, simInvest.aportes]
+  );
+  const emergenciaAccountsLive = useMemo(
+    () => applyAportes(emergenciaAccountsReal, simInvest.aportes),
+    [emergenciaAccountsReal, simInvest.aportes]
+  );
+  const investimentosAccountsLive = useMemo(() => {
+    const base = applyAportes(investimentosAccountsReal, simInvest.aportes);
+    const simTesouro: RealAccountItem[] = simInvest.tesouro.map((t) => ({
+      id: `sim-tesouro-${t.id}`,
+      nome: t.nome,
+      instituicao: t.taxa,
+      valor: t.valor,
+      isTurbo: false,
+      cdiPercent: null,
+      maxRendimento: null,
+    }));
+    return [...base, ...simTesouro];
+  }, [investimentosAccountsReal, simInvest.aportes, simInvest.tesouro]);
+
+  function persistSimInvest(next: SimInvestState) {
+    setSimInvest(next);
+    writeSimInvestState(next);
+  }
+
+  function openMarket(section: MarketSection = "hub") {
+    setFinancePanel(null);
+    setFocusGroup("all");
+    setInvestSubPage(null);
+    setSelectedFixedIncome(null);
+    setSelectedTicker(null);
+    setMarketSection(section);
+    setMarketOpen(true);
+    setTab("investimentos");
+  }
 
   const liveAssets = useMemo(() => {
     const knownTickers = new Set(ASSETS.map((a) => a.ticker));
@@ -439,11 +522,14 @@ export function InvestorLiveView({
     return { h, asset, value, cost, gain, gainPct };
   }, [selectedTicker, holdings, liveAssets]);
 
-  const turboTotal = useMemo(() => turboAccountsReal.reduce((s, x) => s + x.valor, 0), [turboAccountsReal]);
-  const emergenciaTotal = useMemo(() => emergenciaAccountsReal.reduce((s, x) => s + x.valor, 0), [emergenciaAccountsReal]);
+  const turboTotal = useMemo(() => turboAccountsLive.reduce((s, x) => s + x.valor, 0), [turboAccountsLive]);
+  const emergenciaTotal = useMemo(
+    () => emergenciaAccountsLive.reduce((s, x) => s + x.valor, 0),
+    [emergenciaAccountsLive]
+  );
   const investimentosFixedTotal = useMemo(
-    () => investimentosAccountsReal.reduce((s, x) => s + x.valor, 0),
-    [investimentosAccountsReal]
+    () => investimentosAccountsLive.reduce((s, x) => s + x.valor, 0),
+    [investimentosAccountsLive]
   );
   /** Valor da caixinha Investimentos (sem o caixa livre do simulador). */
   const caixinhaInvestimentos = investimentosFixedTotal + investedValue;
@@ -451,37 +537,36 @@ export function InvestorLiveView({
   const totalCaixinhas = turboTotal + emergenciaTotal + caixinhaInvestimentos;
 
   const tesouroAccounts = useMemo(
-    () => investimentosAccountsReal.filter((a) => isTesouroAccount(a.nome)),
-    [investimentosAccountsReal]
+    () => investimentosAccountsLive.filter((a) => isTesouroAccount(a.nome)),
+    [investimentosAccountsLive]
   );
   const outrasRendaFixa = useMemo(
-    () => investimentosAccountsReal.filter((a) => !isTesouroAccount(a.nome)),
-    [investimentosAccountsReal]
+    () => investimentosAccountsLive.filter((a) => !isTesouroAccount(a.nome)),
+    [investimentosAccountsLive]
   );
 
   const portfolioHoldings = useMemo((): HoldingRowItem[] => {
-    return holdings
-      .map((h) => {
-        const asset = liveAssets.find((a) => a.ticker === h.ticker);
-        if (!asset) return null;
-        const price = asset.price * (1 + asset.variation);
-        const value = h.quantity * price;
-        const cost = h.quantity * h.avgPrice;
-        const gain = value - cost;
-        const gainPct = cost > 0 ? (gain / cost) * 100 : 0;
-        return {
-          ticker: h.ticker,
-          name: asset.name,
-          typeLabel: detectAssetType(h.ticker),
-          quantity: h.quantity,
-          value,
-          gain,
-          gainPct,
-          color: asset.color,
-        };
-      })
-      .filter((x): x is HoldingRowItem => x != null)
-      .sort((a, b) => b.value - a.value);
+    const rows: HoldingRowItem[] = [];
+    for (const h of holdings) {
+      const asset = liveAssets.find((a) => a.ticker === h.ticker);
+      if (!asset) continue;
+      const price = asset.price * (1 + asset.variation);
+      const value = h.quantity * price;
+      const cost = h.quantity * h.avgPrice;
+      const gain = value - cost;
+      const gainPct = cost > 0 ? (gain / cost) * 100 : 0;
+      rows.push({
+        ticker: h.ticker,
+        name: asset.name,
+        typeLabel: detectAssetType(h.ticker),
+        quantity: h.quantity,
+        value,
+        gain,
+        gainPct,
+        color: asset.color,
+      });
+    }
+    return rows.sort((a, b) => b.value - a.value);
   }, [holdings, liveAssets]);
 
   const acoesHoldings = useMemo(
@@ -573,31 +658,81 @@ export function InvestorLiveView({
     setCashInput(formatBRLMask(digits));
   }
 
-  function openBuy(asset: Asset) {
-    setBuyAsset(asset);
-    setBuyAmount("");
+  const marketCatalog = useMemo(() => {
+    return liveAssets
+      .filter((a) => a.category === "Ação" || a.category === "FII")
+      .map((a) => ({
+        ticker: a.ticker,
+        name: a.name,
+        category: a.category === "FII" ? ("FII" as const) : ("Ação" as const),
+        price: a.price * (1 + a.variation),
+        variation: a.variation,
+        color: a.color,
+      }));
+  }, [liveAssets]);
+
+  function flashConfirm() {
+    setConfirmedFlash(true);
+    setTimeout(() => setConfirmedFlash(false), 1600);
   }
 
-  function confirmBuy() {
-    if (!buyAsset) return;
-    const amount = parseFloat(buyAmount.replace(",", "."));
-    if (!amount || amount <= 0 || amount > cash) return;
-    const qty = amount / buyAsset.price;
-    setHoldings((prev) => {
-      const existing = prev.find((h) => h.ticker === buyAsset.ticker);
+  function handleBuyStock(ticker: string, _name: string, price: number, amount: number) {
+    if (amount <= 0 || amount > cash + 0.001 || price <= 0) return;
+    const qty = amount / price;
+    const nextHoldingsSim = (() => {
+      const existing = simInvest.holdings.find((h) => h.ticker === ticker);
       if (existing) {
         const totalQty = existing.quantity + qty;
         const totalCost = existing.quantity * existing.avgPrice + amount;
-        return prev.map((h) =>
-          h.ticker === buyAsset.ticker ? { ...h, quantity: totalQty, avgPrice: totalCost / totalQty } : h
+        return simInvest.holdings.map((h) =>
+          h.ticker === ticker
+            ? { ...h, quantity: totalQty, avgPrice: totalCost / totalQty }
+            : h
         );
       }
-      return [...prev, { ticker: buyAsset.ticker, quantity: qty, avgPrice: buyAsset.price }];
+      return [...simInvest.holdings, { ticker, quantity: qty, avgPrice: price }];
+    })();
+    const next: SimInvestState = { ...simInvest, holdings: nextHoldingsSim };
+    persistSimInvest(next);
+    setHoldings(
+      mergeHoldings(
+        stockPositions
+          .filter((p) => p.quantity > 0)
+          .map((p) => ({ ticker: p.ticker, quantity: p.quantity, avgPrice: p.avgPrice })),
+        nextHoldingsSim
+      )
+    );
+    setCashAndPersist(cash - amount);
+    flashConfirm();
+  }
+
+  function handleBuyTesouro(product: TesouroProduct, amount: number) {
+    if (amount <= 0 || amount > cash + 0.001) return;
+    const existing = simInvest.tesouro.find((t) => t.id === product.id);
+    const nextTesouro = existing
+      ? simInvest.tesouro.map((t) =>
+          t.id === product.id ? { ...t, valor: t.valor + amount } : t
+        )
+      : [
+          ...simInvest.tesouro,
+          { id: product.id, nome: product.nome, valor: amount, taxa: product.taxa },
+        ];
+    persistSimInvest({ ...simInvest, tesouro: nextTesouro });
+    setCashAndPersist(cash - amount);
+    flashConfirm();
+  }
+
+  function handleAporte(accountId: string, amount: number) {
+    if (amount <= 0 || amount > cash + 0.001) return;
+    persistSimInvest({
+      ...simInvest,
+      aportes: {
+        ...simInvest.aportes,
+        [accountId]: (simInvest.aportes[accountId] ?? 0) + amount,
+      },
     });
     setCashAndPersist(cash - amount);
-    setBuyAsset(null);
-    setConfirmedFlash(true);
-    setTimeout(() => setConfirmedFlash(false), 1600);
+    flashConfirm();
   }
 
   const [simAporteInicial, setSimAporteInicial] = useState(() => Math.round(grandTotal) || 1000);
@@ -654,15 +789,47 @@ export function InvestorLiveView({
           </div>
 
           {/* Conteúdo scrollável */}
-          <div className="flex-1 overflow-y-auto scrollbar-thin-dark px-5 pb-4">
-            {tab === "investimentos" && focusGroup === "all" && (
+          <div className="flex-1 overflow-y-auto scrollbar-thin-dark px-5 pb-4 relative">
+            {marketOpen && (
+              <SimulatorInvestFlow
+                cash={cash}
+                catalog={marketCatalog}
+                tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
+                turboAccounts={turboAccountsLive}
+                emergenciaAccounts={emergenciaAccountsLive}
+                section={marketSection}
+                onSectionChange={setMarketSection}
+                onClose={() => setMarketOpen(false)}
+                onBuyStock={handleBuyStock}
+                onBuyTesouro={handleBuyTesouro}
+                onAporte={handleAporte}
+              />
+            )}
+
+            {!marketOpen && tab === "investimentos" && focusGroup === "all" && (
               <div className="space-y-4">
                 <CaixinhaHeader label="Total das caixinhas" total={totalCaixinhas} />
+
+                <button
+                  type="button"
+                  onClick={() => openMarket("hub")}
+                  className="w-full rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-600/30 via-fuchsia-500/20 to-emerald-500/25 p-4 text-left hover:from-violet-600/40 hover:to-emerald-500/35 transition-colors"
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-200/80 mb-1">
+                    Aplicar saldo
+                  </p>
+                  <p className="text-lg font-black text-white">
+                    Investir {formatCurrency(cash)}
+                  </p>
+                  <p className="text-[11px] text-white/50 mt-1">
+                    Compre ações, Tesouro Direto ou aporte nas caixinhas.
+                  </p>
+                </button>
 
                 <div className="space-y-2">
                   <CaixinhaRow
                     title="Turbo"
-                    subtitle={`${turboAccountsReal.length} conta${turboAccountsReal.length !== 1 ? "s" : ""}`}
+                    subtitle={`${turboAccountsLive.length} conta${turboAccountsLive.length !== 1 ? "s" : ""}`}
                     value={turboTotal}
                     icon={Zap}
                     tone="amber"
@@ -670,7 +837,7 @@ export function InvestorLiveView({
                   />
                   <CaixinhaRow
                     title="EME"
-                    subtitle={`${emergenciaAccountsReal.length} conta${emergenciaAccountsReal.length !== 1 ? "s" : ""}`}
+                    subtitle={`${emergenciaAccountsLive.length} conta${emergenciaAccountsLive.length !== 1 ? "s" : ""}`}
                     value={emergenciaTotal}
                     icon={Shield}
                     tone="blue"
@@ -678,8 +845,8 @@ export function InvestorLiveView({
                   />
                   <CaixinhaRow
                     title="Investimentos"
-                    subtitle={`${investimentosAccountsReal.length + holdings.length} ativo${
-                      investimentosAccountsReal.length + holdings.length !== 1 ? "s" : ""
+                    subtitle={`${investimentosAccountsLive.length + holdings.length} ativo${
+                      investimentosAccountsLive.length + holdings.length !== 1 ? "s" : ""
                     }`}
                     value={caixinhaInvestimentos}
                     icon={Landmark}
@@ -693,7 +860,7 @@ export function InvestorLiveView({
               </div>
             )}
 
-            {tab === "investimentos" && caixinhaPageMeta && !investSubPage && (
+            {!marketOpen && tab === "investimentos" && caixinhaPageMeta && !investSubPage && (
               <div className="space-y-5">
                 <button
                   type="button"
@@ -719,10 +886,10 @@ export function InvestorLiveView({
 
                 <div className="space-y-5">
                   {focusGroup === "turbo" && (
-                    turboAccountsReal.length > 0 ? (
+                    turboAccountsLive.length > 0 ? (
                       <PortfolioSection title="Contas">
                         <RealAccountList
-                          items={turboAccountsReal}
+                          items={turboAccountsLive}
                           onSelect={setSelectedFixedIncome}
                         />
                       </PortfolioSection>
@@ -732,10 +899,10 @@ export function InvestorLiveView({
                   )}
 
                   {focusGroup === "emergencia" && (
-                    emergenciaAccountsReal.length > 0 ? (
+                    emergenciaAccountsLive.length > 0 ? (
                       <PortfolioSection title="Contas">
                         <RealAccountList
-                          items={emergenciaAccountsReal}
+                          items={emergenciaAccountsLive}
                           onSelect={setSelectedFixedIncome}
                         />
                       </PortfolioSection>
@@ -768,13 +935,20 @@ export function InvestorLiveView({
                         tone="violet"
                         onClick={() => setInvestSubPage("acoes")}
                       />
+                      <button
+                        type="button"
+                        onClick={() => openMarket("hub")}
+                        className="w-full rounded-xl border border-dashed border-white/20 py-3 text-xs font-bold text-white/60 hover:text-white hover:border-white/35 transition-colors"
+                      >
+                        + Aplicar saldo disponível
+                      </button>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {tab === "investimentos" && focusGroup === "investimentos" && investSubPage === "tesouro" && (
+            {!marketOpen && tab === "investimentos" && focusGroup === "investimentos" && investSubPage === "tesouro" && (
               <div className="space-y-5">
                 <button
                   type="button"
@@ -812,10 +986,18 @@ export function InvestorLiveView({
                     </PortfolioSection>
                   </div>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => openMarket("tesouro")}
+                  className="w-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 py-3 text-sm font-bold text-white"
+                >
+                  Comprar Tesouro com saldo
+                </button>
               </div>
             )}
 
-            {tab === "investimentos" && focusGroup === "investimentos" && investSubPage === "acoes" && (
+            {!marketOpen && tab === "investimentos" && focusGroup === "investimentos" && investSubPage === "acoes" && (
               <div className="space-y-5">
                 <button
                   type="button"
@@ -850,6 +1032,14 @@ export function InvestorLiveView({
                     </PortfolioSection>
                   </div>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => openMarket("acoes")}
+                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3 text-sm font-bold text-white"
+                >
+                  Comprar ações com saldo
+                </button>
               </div>
             )}
 
@@ -860,6 +1050,20 @@ export function InvestorLiveView({
             {tab === "inicio" && !financePanel && (
               <div className="space-y-5 pt-2">
                 <CaixinhaHeader label="Saldo na conta" total={cash} />
+
+                <button
+                  type="button"
+                  onClick={() => openMarket("hub")}
+                  className="w-full rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/20 via-violet-500/15 to-blue-500/20 p-4 text-left"
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80 mb-1">
+                    Usar saldo
+                  </p>
+                  <p className="text-base font-black text-white">Investir agora</p>
+                  <p className="text-[11px] text-white/45 mt-1">
+                    Ações, Tesouro Direto ou caixinhas Turbo/EME.
+                  </p>
+                </button>
 
                 <div className="grid grid-cols-3 gap-2.5 px-1">
                   {[
@@ -1021,7 +1225,8 @@ export function InvestorLiveView({
                   setTab(t.id);
                   setFocusGroup("all");
                   setInvestSubPage(null);
-                  setBuyAsset(null);
+                  setMarketOpen(false);
+                  setMarketSection("hub");
                   setFinancePanel(null);
                 }}
                 className={`flex flex-col items-center gap-1 px-2.5 py-1.5 rounded-xl transition-colors ${
@@ -1111,6 +1316,26 @@ export function InvestorLiveView({
                 )}
 
                 <button
+                  onClick={() => {
+                    const isEme = emergenciaAccountsLive.some(
+                      (a) => a.id === selectedFixedIncome.id
+                    );
+                    setSelectedFixedIncome(null);
+                    openMarket(
+                      selectedFixedIncome.isTurbo
+                        ? "turbo"
+                        : isTesouroAccount(selectedFixedIncome.nome)
+                          ? "tesouro"
+                          : isEme
+                            ? "eme"
+                            : "hub"
+                    );
+                  }}
+                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3 text-sm font-bold text-white mb-2"
+                >
+                  Aportar com saldo
+                </button>
+                <button
                   onClick={() => setSelectedFixedIncome(null)}
                   className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors"
                 >
@@ -1174,6 +1399,15 @@ export function InvestorLiveView({
                   </p>
                 </div>
 
+                <button
+                  onClick={() => {
+                    setSelectedTicker(null);
+                    openMarket("acoes");
+                  }}
+                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3 text-sm font-bold text-white mb-2"
+                >
+                  Comprar mais com saldo
+                </button>
                 <button
                   onClick={() => setSelectedTicker(null)}
                   className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors"
