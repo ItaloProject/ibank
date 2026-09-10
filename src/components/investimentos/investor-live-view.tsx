@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode 
 import {
   X, Signal, Wifi, BatteryFull, Landmark, Calculator, Zap, Shield,
   ArrowUpRight, ArrowDownRight, Check, ChevronLeft, Pencil, Home, ChevronRight,
-  CreditCard, CalendarRange, Layers, TrendingUp,
+  CreditCard, CalendarRange, Layers, TrendingUp, Wallet, Receipt,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
@@ -471,6 +471,17 @@ export function InvestorLiveView({
     setTab("investimentos");
   }
 
+  function goToInvestGroup(group: "turbo" | "emergencia" | "investimentos") {
+    setFinancePanel(null);
+    setMarketOpen(false);
+    setMarketSection("hub");
+    setInvestSubPage(null);
+    setSelectedFixedIncome(null);
+    setSelectedTicker(null);
+    setFocusGroup(group);
+    setTab("investimentos");
+  }
+
   const liveAssets = useMemo(() => {
     const knownTickers = new Set(ASSETS.map((a) => a.ticker));
     const extraColors = ["#22c55e", "#3b82f6", "#a855f7", "#f59e0b", "#ef4444", "#06b6d4"];
@@ -478,22 +489,36 @@ export function InvestorLiveView({
       const realPrice = quoteMap.get(a.ticker);
       return realPrice !== undefined ? { ...a, price: realPrice, variation: 0, isReal: true } : { ...a, isReal: false };
     });
-    const extra: Asset[] = stockPositions
-      .filter((p) => !knownTickers.has(p.ticker))
-      .map((p, i) => {
-        const kind = detectAssetType(p.ticker);
-        return {
-          ticker: p.ticker,
-          name: p.ticker,
-          category: kind === "FII" ? ("FII" as const) : ("Ação" as const),
-          price: quoteMap.get(p.ticker) ?? p.avgPrice,
-          variation: 0,
-          color: extraColors[i % extraColors.length],
-          isReal: quoteMap.has(p.ticker),
-        };
-      });
+
+    // Tickers fora do catálogo: posições reais + compras do simulador (ex.: personalizadas)
+    const extraByTicker = new Map<string, number>();
+    for (const p of stockPositions) {
+      if (!knownTickers.has(p.ticker)) extraByTicker.set(p.ticker, p.avgPrice);
+    }
+    for (const h of simInvest.holdings) {
+      if (!knownTickers.has(h.ticker) && !extraByTicker.has(h.ticker)) {
+        extraByTicker.set(h.ticker, h.avgPrice);
+      } else if (!knownTickers.has(h.ticker)) {
+        // Preferir cotação de compra do sim se ainda não houver quote real
+        const cur = extraByTicker.get(h.ticker) ?? h.avgPrice;
+        if (!quoteMap.has(h.ticker)) extraByTicker.set(h.ticker, cur);
+      }
+    }
+
+    const extra: Asset[] = [...extraByTicker.entries()].map(([ticker, avgPrice], i) => {
+      const kind = detectAssetType(ticker);
+      return {
+        ticker,
+        name: ticker,
+        category: kind === "FII" ? ("FII" as const) : ("Ação" as const),
+        price: quoteMap.get(ticker) ?? avgPrice,
+        variation: 0,
+        color: extraColors[i % extraColors.length],
+        isReal: quoteMap.has(ticker),
+      };
+    });
     return [...base, ...extra];
-  }, [quoteMap, stockPositions]);
+  }, [quoteMap, stockPositions, simInvest.holdings]);
 
   const investedValue = useMemo(() => {
     return holdings.reduce((sum, h) => {
@@ -535,6 +560,75 @@ export function InvestorLiveView({
   const caixinhaInvestimentos = investimentosFixedTotal + investedValue;
   /** Soma das três caixinhas exibidas no Início. */
   const totalCaixinhas = turboTotal + emergenciaTotal + caixinhaInvestimentos;
+  /** Conta + investimentos (visão de patrimônio do Início). */
+  const patrimonioTotal = cash + totalCaixinhas;
+
+  /** Movimentações derivadas do estado do simulador (compras / aportes). */
+  const homeMovements = useMemo(() => {
+    type Mov = {
+      id: string;
+      title: string;
+      subtitle: string;
+      amount: number;
+    };
+    const items: Mov[] = [];
+
+    for (const h of simInvest.holdings) {
+      const cost = h.quantity * h.avgPrice;
+      if (cost <= 0.009) continue;
+      const asset = liveAssets.find((a) => a.ticker === h.ticker);
+      items.push({
+        id: `stock-${h.ticker}`,
+        title: `Compra ${h.ticker}`,
+        subtitle: `${formatQty(h.quantity)} un. · ${asset?.category ?? "Ações"}`,
+        amount: cost,
+      });
+    }
+
+    for (const t of simInvest.tesouro) {
+      if (t.valor <= 0.009) continue;
+      items.push({
+        id: `tesouro-${t.id}`,
+        title: t.nome,
+        subtitle: `Tesouro Direto · ${t.taxa}`,
+        amount: t.valor,
+      });
+    }
+
+    const aporteLookup = new Map(
+      [...turboAccountsReal, ...emergenciaAccountsReal, ...investimentosAccountsReal].map((a) => [
+        a.id,
+        a,
+      ])
+    );
+    for (const [accountId, amount] of Object.entries(simInvest.aportes)) {
+      if (amount <= 0.009) continue;
+      const acc = aporteLookup.get(accountId);
+      const group = acc
+        ? acc.isTurbo
+          ? "Turbo"
+          : emergenciaAccountsReal.some((e) => e.id === accountId)
+            ? "EME"
+            : "Investimentos"
+        : "Caixinha";
+      items.push({
+        id: `aporte-${accountId}`,
+        title: `Aporte · ${acc?.nome ?? "Caixinha"}`,
+        subtitle: group,
+        amount,
+      });
+    }
+
+    return items.sort((a, b) => b.amount - a.amount).slice(0, 6);
+  }, [
+    simInvest.holdings,
+    simInvest.tesouro,
+    simInvest.aportes,
+    liveAssets,
+    turboAccountsReal,
+    emergenciaAccountsReal,
+    investimentosAccountsReal,
+  ]);
 
   const tesouroAccounts = useMemo(
     () => investimentosAccountsLive.filter((a) => isTesouroAccount(a.nome)),
@@ -568,6 +662,8 @@ export function InvestorLiveView({
     }
     return rows.sort((a, b) => b.value - a.value);
   }, [holdings, liveAssets]);
+
+  const homeTopHoldings = useMemo(() => portfolioHoldings.slice(0, 3), [portfolioHoldings]);
 
   const acoesHoldings = useMemo(
     () =>
@@ -1048,46 +1144,79 @@ export function InvestorLiveView({
             )}
 
             {tab === "inicio" && !financePanel && (
-              <div className="space-y-5 pt-2">
-                <CaixinhaHeader label="Saldo na conta" total={cash} />
+              <div className="space-y-4 pt-1 pb-2">
+                {/* Hero do saldo — alinhado estilo banco */}
+                <div className="pt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/40 mb-1.5">
+                    Saldo na conta
+                  </p>
+                  <p className="text-[32px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none tracking-tight">
+                    {formatCurrency(animatedCash)}
+                  </p>
+                  <p className="text-[11px] text-white/40 mt-2">
+                    Patrimônio{" "}
+                    <span className="font-semibold text-white/70 tabular-nums">
+                      {formatCurrency(patrimonioTotal)}
+                    </span>
+                  </p>
+                </div>
 
+                {/* CTA primário */}
                 <button
                   type="button"
                   onClick={() => openMarket("hub")}
-                  className="w-full rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/20 via-violet-500/15 to-blue-500/20 p-4 text-left"
+                  className="w-full rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/20 via-violet-500/15 to-blue-500/20 p-3.5 text-left hover:from-emerald-500/28 hover:to-blue-500/28 transition-colors"
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80 mb-1">
-                    Usar saldo
-                  </p>
-                  <p className="text-base font-black text-white">Investir agora</p>
-                  <p className="text-[11px] text-white/45 mt-1">
-                    Ações, Tesouro Direto ou caixinhas Turbo/EME.
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80 mb-0.5">
+                        Usar saldo
+                      </p>
+                      <p className="text-[15px] font-black text-white">Investir agora</p>
+                      <p className="text-[11px] text-white/45 mt-0.5 truncate">
+                        Ações, Tesouro Direto ou caixinhas Turbo/EME.
+                      </p>
+                    </div>
+                    <span className="h-9 w-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                      <TrendingUp className="h-4 w-4 text-emerald-300" />
+                    </span>
+                  </div>
                 </button>
 
-                <div className="grid grid-cols-3 gap-2.5 px-1">
-                  {[
-                    { label: "Cartão", icon: CreditCard, id: "cartao" as const, tone: "rose" as const },
-                    { label: "Planejamento", icon: CalendarRange, id: "planejamento" as const, tone: "violet" as const },
-                    { label: "Parcelamentos", icon: Layers, id: "parcelamentos" as const, tone: "cyan" as const },
-                  ].map((item) => {
+                {/* Atalhos compactos */}
+                <div className="grid grid-cols-4 gap-2">
+                  {(
+                    [
+                      { label: "Cartão", icon: CreditCard, id: "cartao" as const, tone: "rose" as const },
+                      { label: "Plano", icon: CalendarRange, id: "planejamento" as const, tone: "violet" as const },
+                      { label: "Parcelas", icon: Layers, id: "parcelamentos" as const, tone: "cyan" as const },
+                      { label: "Investir", icon: Landmark, id: "investir" as const, tone: "emerald" as const },
+                    ] as const
+                  ).map((item) => {
                     const tones = {
                       rose: { bg: "bg-rose-500/15", icon: "text-rose-400", border: "border-rose-500/25" },
                       violet: { bg: "bg-violet-500/15", icon: "text-violet-400", border: "border-violet-500/25" },
                       cyan: { bg: "bg-cyan-500/15", icon: "text-cyan-400", border: "border-cyan-500/25" },
+                      emerald: { bg: "bg-emerald-500/15", icon: "text-emerald-400", border: "border-emerald-500/25" },
                     }[item.tone];
                     const Icon = item.icon;
                     return (
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setFinancePanel(item.id)}
-                        className={`flex flex-col items-center gap-2 rounded-2xl border ${tones.border} bg-white/[0.03] px-2 py-3.5 hover:bg-white/[0.06] transition-colors`}
+                        onClick={() => {
+                          if (item.id === "investir") {
+                            openMarket("hub");
+                            return;
+                          }
+                          setFinancePanel(item.id);
+                        }}
+                        className={`flex flex-col items-center gap-1.5 rounded-xl border ${tones.border} bg-white/[0.03] px-1 py-2.5 hover:bg-white/[0.06] transition-colors`}
                       >
-                        <span className={`h-11 w-11 rounded-full ${tones.bg} flex items-center justify-center`}>
-                          <Icon className={`h-5 w-5 ${tones.icon}`} />
+                        <span className={`h-9 w-9 rounded-full ${tones.bg} flex items-center justify-center`}>
+                          <Icon className={`h-4 w-4 ${tones.icon}`} />
                         </span>
-                        <span className="text-[10px] font-semibold text-white/75 text-center leading-tight">
+                        <span className="text-[9.5px] font-semibold text-white/75 text-center leading-tight">
                           {item.label}
                         </span>
                       </button>
@@ -1095,7 +1224,185 @@ export function InvestorLiveView({
                   })}
                 </div>
 
-                <p className="text-center text-xs text-white/40 px-4">
+                {/* Resumo do patrimônio */}
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Wallet className="h-3.5 w-3.5 text-white/45" />
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">
+                      Resumo do patrimônio
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-xl bg-white/[0.04] border border-white/10 px-2.5 py-2.5">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35 mb-1">
+                        Conta
+                      </p>
+                      <p className="text-[12px] font-extrabold tabular-nums text-white leading-tight">
+                        {formatCurrency(cash)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white/[0.04] border border-white/10 px-2.5 py-2.5">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35 mb-1">
+                        Investido
+                      </p>
+                      <p className="text-[12px] font-extrabold tabular-nums text-emerald-300 leading-tight">
+                        {formatCurrency(totalCaixinhas)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 px-2.5 py-2.5">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-violet-200/60 mb-1">
+                        Total
+                      </p>
+                      <p className="text-[12px] font-extrabold tabular-nums text-white leading-tight">
+                        {formatCurrency(patrimonioTotal)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Meus investimentos */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between px-0.5">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">
+                      Meus investimentos
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFinancePanel(null);
+                        setMarketOpen(false);
+                        setFocusGroup("all");
+                        setInvestSubPage(null);
+                        setTab("investimentos");
+                      }}
+                      className="text-[10px] font-semibold text-violet-300/80 hover:text-violet-200"
+                    >
+                      Ver tudo
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <CaixinhaRow
+                      title="Turbo"
+                      subtitle={`${turboAccountsLive.length} conta${turboAccountsLive.length !== 1 ? "s" : ""}`}
+                      value={turboTotal}
+                      icon={Zap}
+                      tone="amber"
+                      onClick={() => goToInvestGroup("turbo")}
+                    />
+                    <CaixinhaRow
+                      title="EME"
+                      subtitle={`${emergenciaAccountsLive.length} conta${emergenciaAccountsLive.length !== 1 ? "s" : ""}`}
+                      value={emergenciaTotal}
+                      icon={Shield}
+                      tone="blue"
+                      onClick={() => goToInvestGroup("emergencia")}
+                    />
+                    <CaixinhaRow
+                      title="Investimentos"
+                      subtitle={`${investimentosAccountsLive.length + holdings.length} ativo${
+                        investimentosAccountsLive.length + holdings.length !== 1 ? "s" : ""
+                      }`}
+                      value={caixinhaInvestimentos}
+                      icon={Landmark}
+                      tone="emerald"
+                      onClick={() => goToInvestGroup("investimentos")}
+                    />
+                  </div>
+
+                  {homeTopHoldings.length > 0 && (
+                    <div className="space-y-2 pt-1">
+                      <p className="text-[10px] font-semibold text-white/35 px-0.5">Principais posições</p>
+                      {homeTopHoldings.map((item) => (
+                        <button
+                          key={item.ticker}
+                          type="button"
+                          onClick={() => {
+                            goToInvestGroup("investimentos");
+                            setInvestSubPage("acoes");
+                            setSelectedTicker(item.ticker);
+                          }}
+                          className="w-full text-left rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 flex items-center justify-between gap-2 hover:bg-white/[0.06] transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="h-2 w-2 rounded-full shrink-0"
+                              style={{ background: item.color }}
+                            />
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-semibold text-white truncate">{item.ticker}</p>
+                              <p className="text-[10px] text-white/40 truncate">{item.typeLabel}</p>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-[12px] font-extrabold tabular-nums text-white">
+                              {formatCurrency(item.value)}
+                            </p>
+                            <p
+                              className={`text-[10px] font-semibold tabular-nums ${
+                                item.gain >= 0 ? "text-emerald-400" : "text-rose-400"
+                              }`}
+                            >
+                              {item.gain >= 0 ? "+" : ""}
+                              {item.gainPct.toFixed(1)}%
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Extrato / últimas movimentações */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2 px-0.5">
+                    <Receipt className="h-3.5 w-3.5 text-white/40" />
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">
+                      Últimas movimentações
+                    </p>
+                  </div>
+
+                  {homeMovements.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.02] px-4 py-6 text-center">
+                      <p className="text-sm font-semibold text-white/55">Nenhuma movimentação ainda</p>
+                      <p className="text-[11px] text-white/35 mt-1.5 leading-relaxed">
+                        Compras e aportes do simulador aparecem aqui.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => openMarket("hub")}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-3.5 py-1.5 text-[11px] font-semibold text-white/70 hover:bg-white/[0.09]"
+                      >
+                        Começar a investir
+                        <ArrowUpRight className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden divide-y divide-white/[0.06]">
+                      {homeMovements.map((mov) => (
+                        <div
+                          key={mov.id}
+                          className="flex items-center justify-between gap-3 px-3.5 py-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="h-8 w-8 rounded-full bg-rose-500/12 flex items-center justify-center shrink-0">
+                              <ArrowDownRight className="h-3.5 w-3.5 text-rose-300" />
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-semibold text-white truncate">{mov.title}</p>
+                              <p className="text-[10px] text-white/40 truncate">{mov.subtitle}</p>
+                            </div>
+                          </div>
+                          <p className="text-[12px] font-extrabold tabular-nums text-rose-300 shrink-0">
+                            −{formatCurrency(mov.amount)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-center text-[11px] text-white/30 px-2 pt-1">
                   Para alterar o saldo disponível, use a aba Simular.
                 </p>
               </div>

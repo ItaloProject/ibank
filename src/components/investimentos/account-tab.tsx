@@ -148,47 +148,53 @@ export function AccountTab({
               </div>
             )}
             {account.is_turbo ? (
-              /* ── Cards TURBO modernos ── */
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {/* Total bruto */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-4 text-white shadow-md">
-                  <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
-                  <div className="absolute -right-1 -bottom-4 h-20 w-20 rounded-full bg-white/10" />
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100 mb-2">Total bruto</p>
-                  <p className="text-2xl font-extrabold tabular-nums leading-none">{formatCurrency(account.current_balance)}</p>
-                  <p className="text-xs text-emerald-200 mt-1.5">{account.institution}</p>
+              /* ── Cards TURBO → flat 2×2 divide ── */
+              <div className="grid grid-cols-2 border-y divide-x divide-y">
+                <div className="px-2.5 sm:px-4 py-3 min-w-0 flex flex-col gap-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                    Total bruto
+                  </p>
+                  <p className="text-sm sm:text-xl font-bold text-green-600 tabular-nums leading-tight truncate">
+                    {formatCurrency(account.current_balance)}
+                  </p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                    {account.institution || "—"}
+                  </p>
                 </div>
-                {/* Valor líquido */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 p-4 text-white shadow-md">
-                  <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
-                  <div className="absolute -right-1 -bottom-4 h-20 w-20 rounded-full bg-white/10" />
-                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-100 mb-2">Valor líquido</p>
-                  <p className="text-2xl font-extrabold tabular-nums leading-none">
+                <div className="px-2.5 sm:px-4 py-3 min-w-0 flex flex-col gap-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                    Valor líquido
+                  </p>
+                  <p className="text-sm sm:text-xl font-bold text-blue-600 tabular-nums leading-tight truncate">
                     {account.valor_liquido != null ? formatCurrency(account.valor_liquido) : "—"}
                   </p>
-                  {account.valor_liquido != null && account.current_balance > 0 && (
-                    <p className="text-xs text-blue-200 mt-1.5">IOF/IR est. {formatCurrency(account.current_balance - account.valor_liquido)}</p>
+                  {account.valor_liquido != null && account.current_balance > 0 ? (
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                      IOF/IR est. {formatCurrency(account.current_balance - account.valor_liquido)}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] sm:text-xs invisible select-none" aria-hidden>—</p>
                   )}
                 </div>
-                {/* Líquido real */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-violet-600 p-4 text-white shadow-md">
-                  <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
-                  <div className="absolute -right-1 -bottom-4 h-20 w-20 rounded-full bg-white/10" />
-                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-100 mb-2">Líquido real</p>
-                  <p className="text-2xl font-extrabold tabular-nums leading-none">
+                <div className="px-2.5 sm:px-4 py-3 min-w-0 flex flex-col gap-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                    Líquido real
+                  </p>
+                  <p className="text-sm sm:text-xl font-bold tabular-nums leading-tight truncate">
                     {account.valor_liquido != null ? formatCurrency(account.valor_liquido - 5000) : "—"}
                   </p>
-                  <p className="text-xs text-violet-200 mt-1.5">Líquido − R$ 5.000,00</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                    Líquido − R$ 5.000,00
+                  </p>
                 </div>
-                {/* Total de rendimentos */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-4 text-white shadow-md">
-                  <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full bg-white/10" />
-                  <div className="absolute -right-1 -bottom-4 h-20 w-20 rounded-full bg-white/10" />
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-100 mb-2">Rendimentos</p>
-                  <p className="text-2xl font-extrabold tabular-nums leading-none">
+                <div className="px-2.5 sm:px-4 py-3 min-w-0 flex flex-col gap-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                    Rendimentos
+                  </p>
+                  <p className="text-sm sm:text-xl font-bold text-green-600 tabular-nums leading-tight truncate">
                     +{formatCurrency(turboHistory.reduce((s, r) => s + r.rendimento, 0))}
                   </p>
-                  <p className="text-xs text-amber-100 mt-1.5">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                     {turboHistory.length} {turboHistory.length === 1 ? "mês registrado" : "meses registrados"}
                   </p>
                 </div>

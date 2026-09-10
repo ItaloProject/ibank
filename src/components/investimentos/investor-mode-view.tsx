@@ -162,7 +162,7 @@ export function InvestorModeView({
 
           <div className="relative mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12">
             {/* Top bar */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-10 sm:mb-16">
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between mb-10 sm:mb-16">
               <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-xl w-fit">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -172,7 +172,7 @@ export function InvestorModeView({
                   Modo Investidor
                 </span>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center justify-center gap-2 flex-wrap">
                 <button
                   onClick={() => setLiveMode(true)}
                   className="flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-red-300 backdrop-blur-xl transition-colors hover:bg-red-500/20 hover:text-red-200"

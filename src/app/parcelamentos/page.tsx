@@ -340,7 +340,7 @@ function PlanCard({
 
   return (
     <Card className={isDone ? "opacity-60" : ""}>
-      <CardHeader className="pb-2 pt-4">
+      <CardHeader className="pb-1.5 pt-3">
         {/* Linha 1: ícone + nome + badge status */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -355,32 +355,32 @@ function PlanCard({
               ? <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Quitado</Badge>
               : <Badge variant="outline" className="text-xs">{remaining}x rest.</Badge>
             }
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
               onClick={() => onEdit(plan)} title="Editar">
               <Pencil className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
               onClick={() => onDelete(plan.id)} title="Excluir">
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
         {/* Linha 2: total + data de início */}
-        <CardDescription className="text-xs mt-1 pl-6">
+        <CardDescription className="text-xs mt-0.5 pl-6">
           {fmt(plan.total_amount)}{formatStartDate(plan.start_date)}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pb-4 space-y-3">
+      <CardContent className="pb-3 pt-0 space-y-1.5">
         {/* Progress */}
         <div>
-          <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
             <span>{plan.paid_installments} de {plan.installments} parcelas pagas</span>
             <span>{progress.toFixed(0)}%</span>
           </div>
           <Progress value={progress}
             className={`h-2 ${isDone ? "[&>div]:bg-green-500" : ""}`} />
           {!isDone && (
-            <p className="text-xs text-muted-foreground mt-1.5">
+            <p className="text-xs text-muted-foreground mt-1">
               Previsão de término: <span className="font-medium capitalize">{calcEndDate(plan)}</span>
             </p>
           )}
@@ -390,33 +390,33 @@ function PlanCard({
         <div className="flex items-center justify-between">
           <div className="flex gap-4">
             <div>
-              <p className="text-xs text-muted-foreground">Por parcela</p>
-              <p className="text-base font-bold tabular-nums">{fmt(perParcela)}</p>
+              <p className="text-xs text-muted-foreground leading-tight">Por parcela</p>
+              <p className="text-base font-bold tabular-nums leading-snug">{fmt(perParcela)}</p>
             </div>
             {!isDone && (
               <div>
-                <p className="text-xs text-muted-foreground">Restante</p>
-                <p className="text-base font-semibold text-destructive tabular-nums">{fmt(valorRestante)}</p>
+                <p className="text-xs text-muted-foreground leading-tight">Restante</p>
+                <p className="text-base font-semibold text-destructive tabular-nums leading-snug">{fmt(valorRestante)}</p>
               </div>
             )}
           </div>
 
           {/* Pay/unpay controls */}
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon"
+          <div className="flex items-center gap-0.5">
+            <Button variant="outline" size="icon" className="h-6 w-6"
               disabled={plan.paid_installments <= 0}
               onClick={() => onPay(plan, -1)}
               title="Desfazer última parcela">
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-3 w-3" />
             </Button>
-            <span className="text-sm font-semibold tabular-nums w-10 text-center">
+            <span className="text-xs font-semibold tabular-nums w-9 text-center">
               {plan.paid_installments}/{plan.installments}
             </span>
-            <Button variant="outline" size="icon"
+            <Button variant="outline" size="icon" className="h-6 w-6"
               disabled={isDone}
               onClick={() => onPay(plan, +1)}
               title="Marcar próxima parcela como paga">
-              <ChevronUp className="h-4 w-4" />
+              <ChevronUp className="h-3 w-3" />
             </Button>
           </div>
         </div>

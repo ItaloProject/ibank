@@ -469,37 +469,39 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     ) : (
                       <div className="divide-y divide-border/50">
                         {groupItems.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between px-4 py-2.5 gap-3">
+                          <div key={item.id} className="flex items-center justify-between px-4 py-2 gap-2">
                             <div className="flex items-center gap-2 min-w-0 flex-1">
                               {item.type === "fixo"
                                 ? <TrendingDown className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                                 : <TrendingUp className="h-3.5 w-3.5 text-orange-400 shrink-0" />}
-                              <span className="text-sm font-medium truncate">{item.name}</span>
+                              <div className="min-w-0">
+                                <span className="text-sm font-medium truncate block">{item.name}</span>
+                                {item.planned > 0 && (
+                                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                                    plan. {fmt(item.planned)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex flex-col items-end gap-1 shrink-0 sm:flex-row sm:items-center sm:gap-2">
-                              {item.planned > 0 && (
-                                <span className="text-[10px] sm:text-xs text-muted-foreground tabular-nums">
-                                  plan. {fmt(item.planned)}
-                                </span>
-                              )}
+                            <div className="flex items-center gap-0.5 shrink-0">
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                className="h-11 sm:h-9 text-sm text-right w-[5.5rem] sm:w-24 border-0 bg-muted/50 focus:bg-background"
+                                className="h-9 text-sm text-right w-[4.75rem] sm:w-24 border-0 bg-muted/50 focus:bg-background"
                                 defaultValue={item.actual || ""}
                                 placeholder="0,00"
                                 onBlur={(e) => updateActual(item, e.target.value)}
                               />
-                              <div className="flex gap-0.5">
-                                <button type="button" className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
-                                  onClick={() => openEditItem(item)}>
-                                  <Pencil className="h-4 w-4" />
-                                </button>
-                                <button type="button" className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors touch-manipulation"
-                                  onClick={() => deleteItem(item.id)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
+                              <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+                                onClick={() => openEditItem(item)}
+                                aria-label="Editar item">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors touch-manipulation"
+                                onClick={() => deleteItem(item.id)}
+                                aria-label="Excluir item">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </div>
                           </div>
                         ))}

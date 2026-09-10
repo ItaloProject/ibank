@@ -9,6 +9,7 @@ import {
   Shield,
   Check,
   Wallet,
+  Plus,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -87,6 +88,7 @@ export type MarketSection = "hub" | "acoes" | "tesouro" | "turbo" | "eme";
 
 type BuyTarget =
   | { kind: "stock"; asset: MarketCatalogAsset }
+  | { kind: "custom" }
   | { kind: "tesouro"; product: TesouroProduct }
   | { kind: "aporte"; account: AporteAccount; group: "turbo" | "eme" };
 
@@ -241,9 +243,32 @@ export function SimulatorInvestFlow({
   const [buyTarget, setBuyTarget] = useState<BuyTarget | null>(null);
   const [amountMask, setAmountMask] = useState("");
   const [justBought, setJustBought] = useState(false);
+  const [customTicker, setCustomTicker] = useState("");
+  const [customPriceMask, setCustomPriceMask] = useState("");
+  const [customQtyMask, setCustomQtyMask] = useState("");
 
   const amount = parseBRLMask(amountMask);
-  const canConfirm = amount > 0 && amount <= cash + 0.001 && !justBought;
+  const isCustom = buyTarget?.kind === "custom";
+  const customPrice = parseBRLMask(customPriceMask);
+  const customQty = (() => {
+    const n = parseInt(customQtyMask.replace(/\D/g, "") || "0", 10);
+    return Number.isFinite(n) ? n : 0;
+  })();
+  const customTotal = customPrice > 0 && customQty > 0 ? customPrice * customQty : 0;
+  const customTickerClean = customTicker.trim().toUpperCase();
+
+  const canConfirmCustom =
+    isCustom &&
+    customTickerClean.length >= 2 &&
+    customPrice > 0 &&
+    customQty > 0 &&
+    customTotal <= cash + 0.001 &&
+    !justBought;
+
+  const canConfirmPreset =
+    !isCustom && amount > 0 && amount <= cash + 0.001 && !justBought;
+
+  const canConfirm = isCustom ? canConfirmCustom : canConfirmPreset;
 
   const stockPreviewQty = useMemo(() => {
     if (!buyTarget || buyTarget.kind !== "stock") return 0;
@@ -251,10 +276,17 @@ export function SimulatorInvestFlow({
     return amount / buyTarget.asset.price;
   }, [buyTarget, amount]);
 
+  function resetCustomFields() {
+    setCustomTicker("");
+    setCustomPriceMask("");
+    setCustomQtyMask("");
+  }
+
   function openBuy(target: BuyTarget) {
     setBuyTarget(target);
     setAmountMask("");
     setJustBought(false);
+    resetCustomFields();
   }
 
   function setQuick(value: number) {
@@ -266,7 +298,14 @@ export function SimulatorInvestFlow({
 
   function confirm() {
     if (!buyTarget || !canConfirm) return;
-    if (buyTarget.kind === "stock") {
+    if (buyTarget.kind === "custom") {
+      onBuyStock(
+        customTickerClean,
+        customTickerClean,
+        customPrice,
+        customTotal
+      );
+    } else if (buyTarget.kind === "stock") {
       onBuyStock(
         buyTarget.asset.ticker,
         buyTarget.asset.name,
@@ -283,6 +322,7 @@ export function SimulatorInvestFlow({
       setBuyTarget(null);
       setJustBought(false);
       setAmountMask("");
+      resetCustomFields();
     }, 1100);
   }
 
@@ -368,51 +408,74 @@ export function SimulatorInvestFlow({
             {sectionTitle}
           </p>
 
-          {section === "acoes" &&
-            (catalog.length === 0 ? (
-              <p className="text-sm text-white/40 text-center py-8">
-                Nenhum ativo disponível.
-              </p>
-            ) : (
-              catalog.map((asset) => (
-                <button
-                  key={asset.ticker}
-                  type="button"
-                  onClick={() => openBuy({ kind: "stock", asset })}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-left hover:bg-white/[0.07] transition-colors"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ background: asset.color }}
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-white truncate">
-                          {asset.ticker}
+          {section === "acoes" && (
+            <>
+              {catalog.length === 0 ? (
+                <p className="text-sm text-white/40 text-center py-8">
+                  Nenhum ativo disponível.
+                </p>
+              ) : (
+                catalog.map((asset) => (
+                  <button
+                    key={asset.ticker}
+                    type="button"
+                    onClick={() => openBuy({ kind: "stock", asset })}
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-left hover:bg-white/[0.07] transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ background: asset.color }}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-white truncate">
+                            {asset.ticker}
+                          </p>
+                          <p className="text-[10px] text-white/40 truncate">
+                            {asset.name} · {asset.category}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-extrabold tabular-nums text-white">
+                          {formatCurrency(asset.price)}
                         </p>
-                        <p className="text-[10px] text-white/40 truncate">
-                          {asset.name} · {asset.category}
+                        <p
+                          className={`text-[10px] font-semibold ${
+                            asset.variation >= 0 ? "text-emerald-400" : "text-red-400"
+                          }`}
+                        >
+                          {asset.variation >= 0 ? "+" : ""}
+                          {(asset.variation * 100).toFixed(1)}%
                         </p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-extrabold tabular-nums text-white">
-                        {formatCurrency(asset.price)}
-                      </p>
-                      <p
-                        className={`text-[10px] font-semibold ${
-                          asset.variation >= 0 ? "text-emerald-400" : "text-red-400"
-                        }`}
-                      >
-                        {asset.variation >= 0 ? "+" : ""}
-                        {(asset.variation * 100).toFixed(1)}%
-                      </p>
-                    </div>
+                  </button>
+                ))
+              )}
+
+              <button
+                type="button"
+                onClick={() => openBuy({ kind: "custom" })}
+                className="w-full rounded-2xl border border-dashed border-emerald-500/35 bg-emerald-500/[0.06] p-3.5 text-left hover:bg-emerald-500/[0.12] transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="h-9 w-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                    <Plus className="h-4 w-4 text-emerald-300" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-white">
+                      Comprar personalizada
+                    </p>
+                    <p className="text-[10px] text-white/45 mt-0.5 leading-snug">
+                      Digite ticker, cotação e quantidade de qualquer ação ou FII
+                    </p>
                   </div>
-                </button>
-              ))
-            ))}
+                </div>
+              </button>
+            </>
+          )}
 
           {section === "tesouro" &&
             tesouroProducts.map((product) => (
@@ -523,9 +586,117 @@ export function SimulatorInvestFlow({
                 </span>
                 <p className="text-lg font-bold text-white">Investimento feito!</p>
                 <p className="text-sm text-white/50">
-                  {formatCurrency(amount)} aplicados com sucesso.
+                  {formatCurrency(
+                    buyTarget.kind === "custom" ? customTotal : amount
+                  )}{" "}
+                  aplicados com sucesso.
                 </p>
               </div>
+            ) : buyTarget.kind === "custom" ? (
+              <>
+                <div className="mb-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-1.5">
+                    Comprar personalizada
+                  </p>
+                  <p className="text-xl font-bold text-white leading-tight">
+                    {customTickerClean || "Outra ação / FII"}
+                  </p>
+                  <p className="text-xs text-white/40 mt-1">
+                    Informe ticker, cotação atual e quantidade
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 mb-4 flex items-center justify-between">
+                  <span className="text-[11px] text-white/45">Saldo</span>
+                  <span className="text-sm font-bold tabular-nums text-white">
+                    {formatCurrency(cash)}
+                  </span>
+                </div>
+
+                <label className="block mb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                    Ticker / nome
+                  </span>
+                  <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] px-3.5 py-3.5">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={customTicker}
+                      onChange={(e) =>
+                        setCustomTicker(
+                          e.target.value.toUpperCase().replace(/[^A-Z0-9.-]/g, "").slice(0, 12)
+                        )
+                      }
+                      placeholder="Ex: PETR4"
+                      className="flex-1 bg-transparent text-xl font-black tracking-wide text-white placeholder:text-white/25 focus:outline-none uppercase"
+                    />
+                  </div>
+                </label>
+
+                <label className="block mb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                    Cotação atual
+                  </span>
+                  <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/[0.06] px-3.5 py-3.5">
+                    <span className="text-sm font-bold text-white/50">R$</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={customPriceMask}
+                      onChange={(e) =>
+                        setCustomPriceMask(
+                          formatBRLMask(e.target.value.replace(/\D/g, ""))
+                        )
+                      }
+                      placeholder="0,00"
+                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-white focus:outline-none"
+                    />
+                  </div>
+                </label>
+
+                <label className="block mb-4">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                    Quantidade
+                  </span>
+                  <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-3.5 py-3.5">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={customQtyMask}
+                      onChange={(e) =>
+                        setCustomQtyMask(e.target.value.replace(/\D/g, "").slice(0, 8))
+                      }
+                      placeholder="0"
+                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-white focus:outline-none"
+                    />
+                    <span className="text-xs font-semibold text-white/40">un.</span>
+                  </div>
+                </label>
+
+                {customTotal > 0 && (
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] px-3.5 py-3 mb-4 flex items-center justify-between">
+                    <span className="text-[11px] text-emerald-300/80">Total</span>
+                    <span className="text-base font-black tabular-nums text-white">
+                      {formatCurrency(customTotal)}
+                    </span>
+                  </div>
+                )}
+
+                {customTotal > cash + 0.001 && (
+                  <p className="text-xs text-red-400 mb-3">
+                    Saldo insuficiente para esse total.
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  disabled={!canConfirm}
+                  onClick={confirm}
+                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3.5 text-sm font-bold text-white disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
+                >
+                  Confirmar investimento
+                </button>
+              </>
             ) : (
               <>
                 <div className="mb-5">
