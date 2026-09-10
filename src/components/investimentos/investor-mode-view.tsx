@@ -101,17 +101,7 @@ export function InvestorModeView({
   const [liveMode, setLiveMode] = useState(false);
 
   if (liveMode) {
-    return (
-      <InvestorLiveView
-        totalRendaMensal={totalRendaMensal}
-        incomeGoal={incomeGoal}
-        allSources={allSources}
-        chartMonths={chartMonths}
-        score={portfolioAnalysis.score}
-        grandTotal={grandTotal}
-        onClose={() => setLiveMode(false)}
-      />
-    );
+    return <InvestorLiveView onClose={() => setLiveMode(false)} />;
   }
 
   return (

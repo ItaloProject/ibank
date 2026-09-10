@@ -1,43 +1,56 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { X, Signal, Wifi, BatteryFull } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  X, Signal, Wifi, BatteryFull, Home, TrendingUp, Calculator,
+  ArrowUpRight, ArrowDownRight, Check, ChevronLeft,
+} from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
-type IncomeSource = {
-  nome: string;
-  tipo: string;
-  rendaMensal: number;
-  cor: string;
+type Asset = {
+  ticker: string;
+  name: string;
+  category: "Ação" | "FII" | "Renda Fixa";
+  price: number;
+  variation: number; // variação simulada desde a compra, ex 0.023 = +2,3%
+  color: string;
 };
 
-export type InvestorLiveViewProps = {
-  totalRendaMensal: number;
-  incomeGoal: number;
-  allSources: IncomeSource[];
-  chartMonths: { label: string; "Renda recebida": number }[];
-  score: number;
-  grandTotal: number;
-  onClose: () => void;
+type Holding = {
+  ticker: string;
+  quantity: number;
+  avgPrice: number;
 };
 
-const SLIDE_DURATION_MS = 6000;
+const ASSETS: Asset[] = [
+  { ticker: "PETR4", name: "Petrobras PN",       category: "Ação",       price: 38.5,  variation: 0.021,  color: "#22c55e" },
+  { ticker: "VALE3", name: "Vale ON",             category: "Ação",       price: 61.2,  variation: -0.014, color: "#f97316" },
+  { ticker: "ITUB4", name: "Itaú Unibanco PN",    category: "Ação",       price: 34.1,  variation: 0.008,  color: "#f59e0b" },
+  { ticker: "MXRF11", name: "Maxi Renda",         category: "FII",       price: 10.15, variation: 0.012,  color: "#a855f7" },
+  { ticker: "HGLG11", name: "CSHG Logística",     category: "FII",       price: 165.4, variation: 0.019,  color: "#8b5cf6" },
+  { ticker: "SELIC29", name: "Tesouro Selic 2029", category: "Renda Fixa", price: 100.0, variation: 0.009,  color: "#3b82f6" },
+];
 
-function useCountUp(target: number, durationMs = 1400, active = true) {
-  const [value, setValue] = useState(0);
+const INITIAL_CASH = 10000;
+
+function useCountUp(target: number, durationMs = 900) {
+  const [value, setValue] = useState(target);
+  const prevTarget = useRef(target);
   useEffect(() => {
-    if (!active) { setValue(0); return; }
+    const start = prevTarget.current;
+    prevTarget.current = target;
     let raf: number;
-    const start = performance.now();
+    const t0 = performance.now();
     function tick(now: number) {
-      const progress = Math.min(1, (now - start) / durationMs);
+      const progress = Math.min(1, (now - t0) / durationMs);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(target * eased);
+      setValue(start + (target - start) * eased);
       if (progress < 1) raf = requestAnimationFrame(tick);
     }
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, durationMs, active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, durationMs]);
   return value;
 }
 
@@ -63,204 +76,85 @@ function PhoneStatusBar() {
   );
 }
 
-function HeroSlide({ totalRendaMensal, incomeGoal, active }: { totalRendaMensal: number; incomeGoal: number; active: boolean }) {
-  const animated = useCountUp(totalRendaMensal, 1400, active);
-  const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
-  const circumference = 2 * Math.PI * 88;
+export type InvestorLiveViewProps = {
+  onClose: () => void;
+};
 
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center px-8">
-      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-6">
-        Sua renda passiva mensal
-      </p>
-      <div className="relative flex items-center justify-center" style={{ width: 210, height: 210 }}>
-        <svg width="210" height="210" className="absolute inset-0 -rotate-90">
-          <circle cx="105" cy="105" r="88" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
-          {incomeGoal > 0 && (
-            <>
-              <circle
-                cx="105" cy="105" r="88" fill="none"
-                stroke="url(#liveGoalGradient)" strokeWidth="7" strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={active ? circumference - (goalProgress / 100) * circumference : circumference}
-                style={{ transition: "stroke-dashoffset 1.4s cubic-bezier(0.33,1,0.68,1)" }}
-              />
-              <defs>
-                <linearGradient id="liveGoalGradient" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#a855f7" />
-                  <stop offset="100%" stopColor="#3b82f6" />
-                </linearGradient>
-              </defs>
-            </>
-          )}
-        </svg>
-        <div className="flex flex-col items-center px-4">
-          <p className="text-[28px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none text-center">
-            {formatCurrency(animated)}
-          </p>
-          <p className="text-[11px] text-white/40 mt-2">por mês</p>
-        </div>
-      </div>
-      {incomeGoal > 0 && (
-        <p className="text-[13px] text-white/50 mt-6 text-center">
-          <span className="font-bold text-white">{goalProgress.toFixed(0)}%</span> da meta de{" "}
-          <span className="font-bold text-white">{formatCurrency(incomeGoal)}</span>
-        </p>
-      )}
-    </div>
+export function InvestorLiveView({ onClose }: InvestorLiveViewProps) {
+  const [tab, setTab] = useState<"home" | "investir" | "simular">("home");
+  const [cash, setCash] = useState(INITIAL_CASH);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [buyAsset, setBuyAsset] = useState<Asset | null>(null);
+  const [buyAmount, setBuyAmount] = useState("");
+  const [confirmedFlash, setConfirmedFlash] = useState(false);
+
+  const [simAporteInicial, setSimAporteInicial] = useState(1000);
+  const [simAporteMensal, setSimAporteMensal] = useState(300);
+  const [simMeses, setSimMeses] = useState(24);
+  const [simTaxa, setSimTaxa] = useState(0.9); // % ao mês
+
+  const investedValue = useMemo(() => {
+    return holdings.reduce((sum, h) => {
+      const asset = ASSETS.find((a) => a.ticker === h.ticker);
+      if (!asset) return sum;
+      return sum + h.quantity * asset.price * (1 + asset.variation);
+    }, 0);
+  }, [holdings]);
+
+  const patrimonioTotal = cash + investedValue;
+  const animatedPatrimonio = useCountUp(patrimonioTotal);
+  const animatedCash = useCountUp(cash);
+
+  const investedCost = useMemo(
+    () => holdings.reduce((sum, h) => sum + h.quantity * h.avgPrice, 0),
+    [holdings]
   );
-}
+  const totalGain = investedValue - investedCost;
+  const totalGainPct = investedCost > 0 ? (totalGain / investedCost) * 100 : 0;
 
-function SourcesSlide({ allSources, active }: { allSources: IncomeSource[]; active: boolean }) {
-  return (
-    <div className="flex-1 flex flex-col justify-center px-6">
-      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-5 text-center">
-        Fontes de renda
-      </p>
-      <div className="space-y-3">
-        {allSources.slice(0, 4).map((src, i) => (
-          <div
-            key={i}
-            className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 transition-all"
-            style={{
-              opacity: active ? 1 : 0,
-              transform: active ? "translateY(0)" : "translateY(8px)",
-              transitionDelay: `${i * 120}ms`,
-              transitionDuration: "500ms",
-            }}
-          >
-            <div className="absolute -right-3 -top-3 h-16 w-16 rounded-full blur-2xl opacity-30" style={{ background: src.cor }} />
-            <div className="relative flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: src.cor }} />
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 truncate">{src.tipo}</p>
-                </div>
-                <p className="text-sm font-semibold text-white/90 truncate">{src.nome}</p>
-              </div>
-              <p className="text-base font-extrabold tabular-nums text-white shrink-0">+{formatCurrency(src.rendaMensal)}</p>
-            </div>
-          </div>
-        ))}
-        {allSources.length === 0 && (
-          <p className="text-white/40 text-center text-sm py-8">Nenhuma fonte de renda identificada ainda.</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function EvolutionSlide({ chartMonths, active }: { chartMonths: { label: string; "Renda recebida": number }[]; active: boolean }) {
-  const max = Math.max(1, ...chartMonths.map((m) => m["Renda recebida"]));
-  return (
-    <div className="flex-1 flex flex-col justify-center px-6">
-      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-5 text-center">
-        Evolução da renda
-      </p>
-      {chartMonths.length === 0 ? (
-        <p className="text-white/40 text-center text-sm py-8">Ainda sem histórico suficiente.</p>
-      ) : (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-5">
-          <div className="flex items-end gap-2.5 h-40">
-            {chartMonths.slice(-6).map((m, i) => {
-              const pct = (m["Renda recebida"] / max) * 100;
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center justify-end gap-2 h-full">
-                  <div
-                    className="w-full rounded-t-md bg-gradient-to-t from-violet-600 to-blue-400"
-                    style={{
-                      height: active ? `${pct}%` : "0%",
-                      transition: "height 900ms cubic-bezier(0.33,1,0.68,1)",
-                      transitionDelay: `${i * 80}ms`,
-                    }}
-                  />
-                  <span className="text-[9px] text-white/40">{m.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ScoreSlide({ score, grandTotal, active }: { score: number; grandTotal: number; active: boolean }) {
-  const animatedScore = useCountUp(score, 1200, active);
-  const scoreColor = score >= 70 ? "#10b981" : score >= 40 ? "#f59e0b" : "#ef4444";
-  const circumference = 2 * Math.PI * 78;
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center px-8">
-      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-6">
-        Score da carteira
-      </p>
-      <div className="relative flex items-center justify-center" style={{ width: 190, height: 190 }}>
-        <svg width="190" height="190" className="absolute inset-0 -rotate-90">
-          <circle cx="95" cy="95" r="78" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
-          <circle
-            cx="95" cy="95" r="78" fill="none" stroke={scoreColor} strokeWidth="7" strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={active ? circumference * (1 - score / 100) : circumference}
-            style={{ transition: "stroke-dashoffset 1.2s cubic-bezier(0.33,1,0.68,1)" }}
-          />
-        </svg>
-        <span className="text-4xl font-black tabular-nums" style={{ color: scoreColor }}>
-          {Math.round(animatedScore)}
-        </span>
-      </div>
-      <p className="text-sm font-bold text-white mt-6">
-        {score >= 70 ? "Carteira saudável" : score >= 40 ? "Precisa de ajustes" : "Atenção necessária"}
-      </p>
-      <p className="text-[13px] text-white/40 mt-2 text-center">
-        Patrimônio total: <span className="font-bold text-white/70">{formatCurrency(grandTotal)}</span>
-      </p>
-    </div>
-  );
-}
-
-export function InvestorLiveView({
-  totalRendaMensal,
-  incomeGoal,
-  allSources,
-  chartMonths,
-  score,
-  grandTotal,
-  onClose,
-}: InvestorLiveViewProps) {
-  const slides = ["hero", "sources", "evolution", "score"] as const;
-  const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const rafRef = useRef<number>();
-  const startRef = useRef<number>(performance.now());
-
-  useEffect(() => {
-    setProgress(0);
-    startRef.current = performance.now();
-  }, [index]);
-
-  useEffect(() => {
-    function tick(now: number) {
-      if (!paused) {
-        const elapsed = now - startRef.current;
-        const pct = Math.min(1, elapsed / SLIDE_DURATION_MS);
-        setProgress(pct);
-        if (pct >= 1) {
-          setIndex((prev) => (prev + 1) % slides.length);
-        }
-      } else {
-        startRef.current = now - progress * SLIDE_DURATION_MS;
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    }
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paused, slides.length]);
-
-  function goTo(i: number) {
-    setIndex((i + slides.length) % slides.length);
+  function openBuy(asset: Asset) {
+    setBuyAsset(asset);
+    setBuyAmount("");
   }
+
+  function confirmBuy() {
+    if (!buyAsset) return;
+    const amount = parseFloat(buyAmount.replace(",", "."));
+    if (!amount || amount <= 0 || amount > cash) return;
+    const qty = amount / buyAsset.price;
+    setHoldings((prev) => {
+      const existing = prev.find((h) => h.ticker === buyAsset.ticker);
+      if (existing) {
+        const totalQty = existing.quantity + qty;
+        const totalCost = existing.quantity * existing.avgPrice + amount;
+        return prev.map((h) =>
+          h.ticker === buyAsset.ticker ? { ...h, quantity: totalQty, avgPrice: totalCost / totalQty } : h
+        );
+      }
+      return [...prev, { ticker: buyAsset.ticker, quantity: qty, avgPrice: buyAsset.price }];
+    });
+    setCash((prev) => prev - amount);
+    setBuyAsset(null);
+    setConfirmedFlash(true);
+    setTimeout(() => setConfirmedFlash(false), 1600);
+  }
+
+  const simProjection = useMemo(() => {
+    const rate = simTaxa / 100;
+    const points: { month: number; value: number }[] = [];
+    let value = simAporteInicial;
+    points.push({ month: 0, value });
+    for (let m = 1; m <= simMeses; m++) {
+      value = value * (1 + rate) + simAporteMensal;
+      points.push({ month: m, value });
+    }
+    return points;
+  }, [simAporteInicial, simAporteMensal, simMeses, simTaxa]);
+
+  const simFinalValue = simProjection[simProjection.length - 1]?.value ?? 0;
+  const simTotalAportado = simAporteInicial + simAporteMensal * simMeses;
+  const simTotalRendimento = simFinalValue - simTotalAportado;
+  const maxSimValue = Math.max(1, ...simProjection.map((p) => p.value));
 
   return (
     <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center select-none">
@@ -275,28 +169,14 @@ export function InvestorLiveView({
         <div className="relative h-full flex flex-col">
           <PhoneStatusBar />
 
-          {/* Progress bar estilo stories */}
-          <div className="flex gap-1.5 px-4 pt-2 shrink-0">
-            {slides.map((s, i) => (
-              <div key={s} className="flex-1 h-[3px] rounded-full bg-white/15 overflow-hidden">
-                <div
-                  className="h-full bg-white rounded-full"
-                  style={{
-                    width: i < index ? "100%" : i === index ? `${progress * 100}%` : "0%",
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-
           {/* Header */}
-          <div className="flex items-center justify-between px-5 pt-3 shrink-0">
+          <div className="flex items-center justify-between px-5 pt-2 pb-3 shrink-0">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               </span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">IBANK · Live</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">IBANK · Simulador</span>
             </div>
             <button
               onClick={onClose}
@@ -306,37 +186,296 @@ export function InvestorLiveView({
             </button>
           </div>
 
-          {/* Tap zones para navegar */}
-          <div className="absolute inset-0 top-16 flex z-10">
-            <div
-              className="w-1/3 h-full"
-              onClick={() => goTo(index - 1)}
-              onPointerDown={() => setPaused(true)}
-              onPointerUp={() => setPaused(false)}
-              onPointerLeave={() => setPaused(false)}
-            />
-            <div className="w-1/3 h-full" />
-            <div
-              className="w-1/3 h-full"
-              onClick={() => goTo(index + 1)}
-              onPointerDown={() => setPaused(true)}
-              onPointerUp={() => setPaused(false)}
-              onPointerLeave={() => setPaused(false)}
-            />
+          {/* Conteúdo scrollável */}
+          <div className="flex-1 overflow-y-auto scrollbar-thin-dark px-5 pb-4">
+            {tab === "home" && (
+              <div className="space-y-5">
+                <div className="text-center pt-2 pb-1">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">Patrimônio total</p>
+                  <p className="text-[34px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
+                    {formatCurrency(animatedPatrimonio)}
+                  </p>
+                  {investedCost > 0 && (
+                    <p className={`text-xs font-semibold mt-2 inline-flex items-center gap-1 ${totalGain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {totalGain >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                      {formatCurrency(Math.abs(totalGain))} ({totalGainPct >= 0 ? "+" : ""}{totalGainPct.toFixed(1)}%)
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Saldo disponível</p>
+                    <p className="text-lg font-extrabold tabular-nums text-white mt-0.5">{formatCurrency(animatedCash)}</p>
+                  </div>
+                  <button
+                    onClick={() => setTab("investir")}
+                    className="rounded-full bg-violet-600 hover:bg-violet-500 px-4 py-2 text-xs font-bold text-white transition-colors"
+                  >
+                    Investir
+                  </button>
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">Sua carteira</p>
+                  {holdings.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-white/15 py-8 text-center">
+                      <p className="text-sm text-white/40">Você ainda não tem investimentos.</p>
+                      <button
+                        onClick={() => setTab("investir")}
+                        className="mt-3 text-xs font-bold text-violet-300 hover:text-violet-200"
+                      >
+                        Explorar ativos →
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {holdings.map((h) => {
+                        const asset = ASSETS.find((a) => a.ticker === h.ticker)!;
+                        const value = h.quantity * asset.price * (1 + asset.variation);
+                        const gain = value - h.quantity * h.avgPrice;
+                        return (
+                          <div key={h.ticker} className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: asset.color }} />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold text-white truncate">{asset.ticker}</p>
+                                  <p className="text-[11px] text-white/40 truncate">{h.quantity.toFixed(2)} un · {asset.category}</p>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(value)}</p>
+                                <p className={`text-[11px] font-semibold ${gain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                  {gain >= 0 ? "+" : ""}{formatCurrency(gain)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {tab === "investir" && !buyAsset && (
+              <div className="space-y-3 pt-2">
+                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-1">Explorar ativos</p>
+                <p className="text-xs text-white/40 mb-3">Cotações simuladas para fins de demonstração.</p>
+                {ASSETS.map((asset) => (
+                  <button
+                    key={asset.ticker}
+                    onClick={() => openBuy(asset)}
+                    className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 flex items-center justify-between gap-3 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: asset.color }} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-white">{asset.ticker}</p>
+                        <p className="text-[11px] text-white/40 truncate">{asset.name} · {asset.category}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-extrabold tabular-nums text-white">{formatCurrency(asset.price)}</p>
+                      <p className={`text-[11px] font-semibold ${asset.variation >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {asset.variation >= 0 ? "+" : ""}{(asset.variation * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {tab === "investir" && buyAsset && (
+              <div className="pt-2">
+                <button
+                  onClick={() => setBuyAsset(null)}
+                  className="flex items-center gap-1 text-xs text-white/50 hover:text-white/80 mb-4"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Voltar
+                </button>
+
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="h-3 w-3 rounded-full shrink-0" style={{ background: buyAsset.color }} />
+                  <div>
+                    <p className="text-lg font-bold text-white">{buyAsset.ticker}</p>
+                    <p className="text-xs text-white/40">{buyAsset.name} · cota {formatCurrency(buyAsset.price)}</p>
+                  </div>
+                </div>
+
+                <p className="text-[11px] font-bold uppercase tracking-wider text-white/40 mb-2">Quanto deseja investir?</p>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-black text-white/50">R$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={buyAmount}
+                      onChange={(e) => setBuyAmount(e.target.value.replace(/[^0-9,]/g, ""))}
+                      className="flex-1 bg-transparent text-2xl font-black text-white placeholder:text-white/20 focus:outline-none tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mb-6">
+                  {[100, 500, 1000].map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setBuyAmount(String(v))}
+                      className="flex-1 rounded-full border border-white/10 bg-white/[0.04] py-1.5 text-xs font-semibold text-white/70 hover:bg-white/[0.08]"
+                    >
+                      +{v}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setBuyAmount(String(Math.floor(cash)))}
+                    className="flex-1 rounded-full border border-white/10 bg-white/[0.04] py-1.5 text-xs font-semibold text-white/70 hover:bg-white/[0.08]"
+                  >
+                    Máx.
+                  </button>
+                </div>
+
+                {(() => {
+                  const amount = parseFloat(buyAmount.replace(",", ".")) || 0;
+                  const qty = amount > 0 ? amount / buyAsset.price : 0;
+                  const insufficient = amount > cash;
+                  return (
+                    <>
+                      <div className="flex justify-between text-xs text-white/40 mb-4 px-1">
+                        <span>≈ {qty.toFixed(4)} unidades</span>
+                        <span>Saldo: {formatCurrency(cash)}</span>
+                      </div>
+                      {insufficient && (
+                        <p className="text-xs text-red-400 mb-3 text-center">Saldo insuficiente para esse valor.</p>
+                      )}
+                      <button
+                        onClick={confirmBuy}
+                        disabled={!amount || amount <= 0 || insufficient}
+                        className="w-full rounded-full bg-violet-600 hover:bg-violet-500 disabled:bg-white/10 disabled:text-white/30 py-3 text-sm font-bold text-white transition-colors"
+                      >
+                        Confirmar compra
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            {tab === "simular" && (
+              <div className="space-y-5 pt-2">
+                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">Simulador de rendimentos</p>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 space-y-4">
+                  <div>
+                    <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                      <span>Valor inicial</span>
+                      <span className="font-bold text-white">{formatCurrency(simAporteInicial)}</span>
+                    </div>
+                    <input
+                      type="range" min={0} max={20000} step={100}
+                      value={simAporteInicial}
+                      onChange={(e) => setSimAporteInicial(Number(e.target.value))}
+                      className="w-full accent-violet-500"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                      <span>Aporte mensal</span>
+                      <span className="font-bold text-white">{formatCurrency(simAporteMensal)}</span>
+                    </div>
+                    <input
+                      type="range" min={0} max={3000} step={50}
+                      value={simAporteMensal}
+                      onChange={(e) => setSimAporteMensal(Number(e.target.value))}
+                      className="w-full accent-violet-500"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                      <span>Prazo</span>
+                      <span className="font-bold text-white">{simMeses} meses</span>
+                    </div>
+                    <input
+                      type="range" min={1} max={120} step={1}
+                      value={simMeses}
+                      onChange={(e) => setSimMeses(Number(e.target.value))}
+                      className="w-full accent-violet-500"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                      <span>Rendimento ao mês</span>
+                      <span className="font-bold text-white">{simTaxa.toFixed(1)}%</span>
+                    </div>
+                    <input
+                      type="range" min={0.1} max={2} step={0.1}
+                      value={simTaxa}
+                      onChange={(e) => setSimTaxa(Number(e.target.value))}
+                      className="w-full accent-violet-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-5 text-center">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300/70 mb-1.5">Patrimônio projetado</p>
+                  <p className="text-3xl font-black tabular-nums text-white">{formatCurrency(simFinalValue)}</p>
+                  <p className="text-xs text-white/40 mt-2">
+                    Aportado: <span className="font-semibold text-white/70">{formatCurrency(simTotalAportado)}</span>
+                    {" · "}Rendimento: <span className="font-semibold text-emerald-400">+{formatCurrency(simTotalRendimento)}</span>
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4">
+                  <div className="flex items-end gap-[3px] h-28">
+                    {simProjection.filter((_, i) => i % Math.ceil(simProjection.length / 24 || 1) === 0).map((p, i) => (
+                      <div
+                        key={i}
+                        className="flex-1 rounded-t-sm bg-gradient-to-t from-violet-600 to-blue-400"
+                        style={{ height: `${Math.max(3, (p.value / maxSimValue) * 100)}%` }}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-white/30 text-center mt-2">Evolução simulada ao longo de {simMeses} meses</p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Conteúdo do slide */}
-          <div className="flex-1 flex flex-col relative z-0">
-            {index === 0 && <HeroSlide totalRendaMensal={totalRendaMensal} incomeGoal={incomeGoal} active />}
-            {index === 1 && <SourcesSlide allSources={allSources} active />}
-            {index === 2 && <EvolutionSlide chartMonths={chartMonths} active />}
-            {index === 3 && <ScoreSlide score={score} grandTotal={grandTotal} active />}
+          {/* Bottom tab bar */}
+          <div className="flex items-center justify-around border-t border-white/10 bg-black/40 backdrop-blur-xl px-2 pt-2 pb-1 shrink-0">
+            {[
+              { id: "home" as const, label: "Início", icon: Home },
+              { id: "investir" as const, label: "Investir", icon: TrendingUp },
+              { id: "simular" as const, label: "Simular", icon: Calculator },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => { setTab(t.id); if (t.id !== "investir") setBuyAsset(null); }}
+                className={`flex flex-col items-center gap-1 px-4 py-1.5 rounded-xl transition-colors ${
+                  tab === t.id ? "text-white" : "text-white/35"
+                }`}
+              >
+                <t.icon className="h-5 w-5" />
+                <span className="text-[10px] font-semibold">{t.label}</span>
+              </button>
+            ))}
           </div>
 
           {/* Home indicator */}
-          <div className="flex justify-center pb-2 pt-1 shrink-0">
+          <div className="flex justify-center pb-2 pt-1 shrink-0 bg-black/40">
             <div className="h-1 w-32 rounded-full bg-white/30" />
           </div>
+
+          {/* Flash de confirmação */}
+          {confirmedFlash && (
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-xl">
+              <Check className="h-3.5 w-3.5" />
+              Compra confirmada
+            </div>
+          )}
         </div>
       </div>
     </div>
