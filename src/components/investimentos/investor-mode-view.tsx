@@ -101,19 +101,14 @@ export function InvestorModeView({
   const [liveMode, setLiveMode] = useState(false);
 
   if (liveMode) {
-    const realHoldings = [
-      ...allSources.map((s) => ({ nome: s.nome, tipo: s.tipo, valor: s.capital, cor: s.cor })),
-      ...stockPositions.map((p) => {
-        const price = quoteMap.get(p.ticker);
-        const valor = price !== undefined ? price * p.quantity : p.totalInvested;
-        return { nome: p.ticker, tipo: detectAssetType(p.ticker), valor, cor: "#3b82f6" };
-      }),
-    ].sort((a, b) => b.valor - a.valor);
+    const realFixedIncome = allSources
+      .map((s) => ({ nome: s.nome, tipo: s.tipo, valor: s.capital, cor: s.cor }))
+      .sort((a, b) => b.valor - a.valor);
 
     return (
       <InvestorLiveView
         grandTotal={grandTotal}
-        realHoldings={realHoldings}
+        realFixedIncome={realFixedIncome}
         stockPositions={stockPositions}
         quoteMap={quoteMap}
         onClose={() => setLiveMode(false)}
