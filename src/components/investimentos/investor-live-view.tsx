@@ -103,6 +103,7 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
   const [editingCash, setEditingCash] = useState(false);
   const [cashInput, setCashInput] = useState("");
   const [selectedFixedIncome, setSelectedFixedIncome] = useState<RealFixedIncome | null>(null);
+  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>(() =>
     stockPositions
       .filter((p) => p.quantity > 0)
@@ -175,6 +176,18 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
   );
   const totalGain = investedValue - investedCost;
   const totalGainPct = investedCost > 0 ? (totalGain / investedCost) * 100 : 0;
+
+  const selectedHolding = useMemo(() => {
+    if (!selectedTicker) return null;
+    const h = holdings.find((x) => x.ticker === selectedTicker);
+    const asset = liveAssets.find((a) => a.ticker === selectedTicker);
+    if (!h || !asset) return null;
+    const value = h.quantity * asset.price * (1 + asset.variation);
+    const cost = h.quantity * h.avgPrice;
+    const gain = value - cost;
+    const gainPct = cost > 0 ? (gain / cost) * 100 : 0;
+    return { h, asset, value, cost, gain, gainPct };
+  }, [selectedTicker, holdings, liveAssets]);
 
   function openBuy(asset: Asset) {
     setBuyAsset(asset);
@@ -357,7 +370,11 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                         const value = h.quantity * asset.price * (1 + asset.variation);
                         const gain = value - h.quantity * h.avgPrice;
                         return (
-                          <div key={h.ticker} className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4">
+                          <button
+                            key={h.ticker}
+                            onClick={() => setSelectedTicker(h.ticker)}
+                            className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
+                          >
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-2.5 min-w-0">
                                 <span className="h-2 w-2 rounded-full shrink-0" style={{ background: asset.color }} />
@@ -373,7 +390,7 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
                                 </p>
                               </div>
                             </div>
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
@@ -660,6 +677,68 @@ export function InvestorLiveView({ grandTotal, realFixedIncome, stockPositions, 
 
                 <button
                   onClick={() => setSelectedFixedIncome(null)}
+                  className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Detalhe de posição em ação/FII */}
+          {selectedHolding && (
+            <div
+              className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-end"
+              onClick={() => setSelectedTicker(null)}
+            >
+              <div
+                className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 p-5 pb-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-center mb-4">
+                  <div className="h-1 w-10 rounded-full bg-white/20" />
+                </div>
+
+                <div className="flex items-start gap-3 mb-5">
+                  <span className="h-3 w-3 rounded-full shrink-0 mt-1.5" style={{ background: selectedHolding.asset.color }} />
+                  <div className="min-w-0">
+                    <p className="text-lg font-bold text-white leading-snug">{selectedHolding.asset.ticker}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{selectedHolding.asset.name} · {selectedHolding.asset.category}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Quantidade</p>
+                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{selectedHolding.h.quantity.toFixed(4)}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Preço médio</p>
+                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{formatCurrency(selectedHolding.h.avgPrice)}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Cotação atual</p>
+                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">
+                      {formatCurrency(selectedHolding.asset.price * (1 + selectedHolding.asset.variation))}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Valor investido</p>
+                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{formatCurrency(selectedHolding.cost)}</p>
+                  </div>
+                </div>
+
+                <div className={`rounded-xl border p-3 mb-5 ${selectedHolding.gain >= 0 ? "border-emerald-500/20 bg-emerald-500/[0.06]" : "border-red-500/20 bg-red-500/[0.06]"}`}>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wide">Valor atual · rendimento</p>
+                  <p className="text-lg font-black tabular-nums text-white mt-0.5">{formatCurrency(selectedHolding.value)}</p>
+                  <p className={`text-xs font-semibold mt-1 inline-flex items-center gap-1 ${selectedHolding.gain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {selectedHolding.gain >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                    {formatCurrency(Math.abs(selectedHolding.gain))} ({selectedHolding.gainPct >= 0 ? "+" : ""}{selectedHolding.gainPct.toFixed(1)}%)
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setSelectedTicker(null)}
                   className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors"
                 >
                   Fechar
