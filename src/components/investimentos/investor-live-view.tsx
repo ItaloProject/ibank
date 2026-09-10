@@ -1232,28 +1232,28 @@ export function InvestorLiveView({
                       Resumo do patrimônio
                     </p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-white/[0.04] border border-white/10 px-2.5 py-2.5">
-                      <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35 mb-1">
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div className="rounded-xl bg-white/[0.04] border border-white/10 px-2 py-2 overflow-hidden">
+                      <p className="text-[8px] font-semibold uppercase tracking-wider text-white/35 mb-0.5">
                         Conta
                       </p>
-                      <p className="text-[12px] font-extrabold tabular-nums text-white leading-tight">
+                      <p className="text-[10px] font-extrabold tabular-nums text-white leading-tight truncate">
                         {formatCurrency(cash)}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-white/[0.04] border border-white/10 px-2.5 py-2.5">
-                      <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35 mb-1">
+                    <div className="rounded-xl bg-white/[0.04] border border-white/10 px-2 py-2 overflow-hidden">
+                      <p className="text-[8px] font-semibold uppercase tracking-wider text-white/35 mb-0.5">
                         Investido
                       </p>
-                      <p className="text-[12px] font-extrabold tabular-nums text-emerald-300 leading-tight">
+                      <p className="text-[10px] font-extrabold tabular-nums text-emerald-300 leading-tight truncate">
                         {formatCurrency(totalCaixinhas)}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 px-2.5 py-2.5">
-                      <p className="text-[9px] font-semibold uppercase tracking-wider text-violet-200/60 mb-1">
+                    <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 px-2 py-2 overflow-hidden">
+                      <p className="text-[8px] font-semibold uppercase tracking-wider text-violet-200/60 mb-0.5">
                         Total
                       </p>
-                      <p className="text-[12px] font-extrabold tabular-nums text-white leading-tight">
+                      <p className="text-[10px] font-extrabold tabular-nums text-white leading-tight truncate">
                         {formatCurrency(patrimonioTotal)}
                       </p>
                     </div>
