@@ -225,6 +225,10 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   }
 
   async function deleteGroup(id: string) {
+    const group = groups.find((g) => g.id === id);
+    const count = items.filter((i) => i.group_id === id).length;
+    const itemsWarning = count > 0 ? ` e ${count} ${count === 1 ? "item" : "itens"} dentro dele` : "";
+    if (!confirm(`Excluir o grupo "${group?.name ?? ""}"${itemsWarning}? Esta ação não pode ser desfeita.`)) return;
     await fetch(`/api/plan-groups/${id}`, { method: "DELETE" });
     await loadGroups();
     setItems((prev) => prev.filter((i) => i.group_id !== id));
@@ -279,6 +283,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   }
 
   async function deleteItem(id: string) {
+    const item = items.find((i) => i.id === id);
+    if (!confirm(`Excluir "${item?.name ?? "este item"}"? Esta ação não pode ser desfeita.`)) return;
     await fetch(`/api/plan-items/${id}`, { method: "DELETE" });
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
@@ -296,8 +302,12 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     });
   }
 
+  function isGroupCollapsed(id: string) {
+    return collapsed[id] !== false;
+  }
+
   function toggleCollapse(id: string) {
-    setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
+    setCollapsed((prev) => ({ ...prev, [id]: !isGroupCollapsed(id) }));
   }
 
   // ── Totals ─────────────────────────────────────────────────────────────────
@@ -428,7 +438,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             const gPlanned = groupItems.reduce((s, i) => s + i.planned, 0);
             const gActual  = groupItems.reduce((s, i) => s + i.actual, 0);
             const over = gPlanned > 0 && gActual > gPlanned;
-            const isCollapsed = collapsed[group.id];
+            const isCollapsed = isGroupCollapsed(group.id);
 
             return (
               <div key={group.id}>
