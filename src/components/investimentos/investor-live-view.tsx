@@ -4,17 +4,18 @@ import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode 
 import {
   X, Signal, Wifi, BatteryFull, Landmark, Calculator, Zap, Shield,
   ArrowUpRight, ArrowDownRight, Check, ChevronLeft, Pencil, Home, ChevronRight,
-  CreditCard, CalendarRange, Layers, TrendingUp, Wallet, Receipt, Scale,
+  CreditCard, CalendarRange, Layers, TrendingUp, Wallet, Receipt, Scale, Plus,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
-import { CASH_ACCOUNT_NAME } from "@/lib/account-groups";
+import { CASH_ACCOUNT_NAME, isEmergencyAccountName } from "@/lib/account-groups";
 import type { StockTrade, Investment } from "@/types/database";
 import {
   createStockTrade,
   createInvestment,
   updateAccountBalance,
   createInvestmentAccount,
+  createInvestmentAccountWithTurbo,
 } from "@/lib/api";
 import {
   SimulatorFinancePanel,
@@ -392,6 +393,15 @@ export function InvestorLiveView({
   const [sellSubmitting, setSellSubmitting] = useState(false);
   const [sellError, setSellError] = useState<string | null>(null);
 
+  const [newCaixinhaOpen, setNewCaixinhaOpen] = useState(false);
+  const [newCaixinhaName, setNewCaixinhaName] = useState("");
+  const [newCaixinhaInstituicao, setNewCaixinhaInstituicao] = useState("");
+  const [newCaixinhaTipo, setNewCaixinhaTipo] = useState<"turbo" | "emergencia" | "investimentos">("investimentos");
+  const [newCaixinhaCdiMask, setNewCaixinhaCdiMask] = useState("");
+  const [newCaixinhaTetoMask, setNewCaixinhaTetoMask] = useState("");
+  const [newCaixinhaSubmitting, setNewCaixinhaSubmitting] = useState(false);
+  const [newCaixinhaError, setNewCaixinhaError] = useState<string | null>(null);
+
   const holdings: Holding[] = useMemo(
     () =>
       stockPositions
@@ -556,6 +566,46 @@ export function InvestorLiveView({
       setSellError("Não foi possível concluir a venda. Tente novamente.");
     } finally {
       setSellSubmitting(false);
+    }
+  }
+
+  function openNewCaixinha() {
+    setNewCaixinhaName("");
+    setNewCaixinhaInstituicao("");
+    setNewCaixinhaTipo("investimentos");
+    setNewCaixinhaCdiMask("");
+    setNewCaixinhaTetoMask("");
+    setNewCaixinhaError(null);
+    setNewCaixinhaOpen(true);
+  }
+
+  async function confirmNewCaixinha() {
+    const name = newCaixinhaName.trim();
+    if (!name || newCaixinhaSubmitting) return;
+    setNewCaixinhaSubmitting(true);
+    setNewCaixinhaError(null);
+    try {
+      const finalName =
+        newCaixinhaTipo === "emergencia" && !isEmergencyAccountName(name)
+          ? `${name} (Emergência)`
+          : name;
+      const cdi = parseBRLMask(newCaixinhaCdiMask);
+      const teto = parseBRLMask(newCaixinhaTetoMask);
+      await createInvestmentAccountWithTurbo({
+        name: finalName,
+        institution: newCaixinhaInstituicao.trim() || "—",
+        is_turbo: newCaixinhaTipo === "turbo",
+        cdi_percent: newCaixinhaTipo === "turbo" && cdi > 0 ? cdi : null,
+        max_rendimento: newCaixinhaTipo === "turbo" && teto > 0 ? teto : null,
+      });
+      await onRefresh();
+      flashConfirm();
+      setNewCaixinhaOpen(false);
+    } catch (err) {
+      console.error("Erro ao criar caixinha:", err);
+      setNewCaixinhaError("Não foi possível criar a caixinha. Tente novamente.");
+    } finally {
+      setNewCaixinhaSubmitting(false);
     }
   }
 
@@ -1027,6 +1077,14 @@ export function InvestorLiveView({
                       setFocusGroup("investimentos");
                     }}
                   />
+                  <button
+                    type="button"
+                    onClick={openNewCaixinha}
+                    className="w-full rounded-xl border border-dashed border-white/20 py-3 flex items-center justify-center gap-1.5 text-xs font-bold text-white/60 hover:text-white hover:border-white/35 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Nova Caixinha
+                  </button>
                 </div>
               </div>
             )}
@@ -1935,6 +1993,148 @@ export function InvestorLiveView({
                   type="button"
                   disabled={sellSubmitting}
                   onClick={() => setSellTicker(null)}
+                  className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Nova caixinha */}
+          {newCaixinhaOpen && (
+            <div
+              className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-end"
+              onClick={() => !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
+            >
+              <div
+                className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 p-5 pb-6 max-h-[85%] overflow-y-auto scrollbar-thin-dark"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-center mb-4">
+                  <div className="h-1 w-10 rounded-full bg-white/20" />
+                </div>
+
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/70 mb-1">
+                  Nova caixinha
+                </p>
+                <p className="text-lg font-bold text-white leading-snug mb-4">
+                  Criar conta de investimento
+                </p>
+
+                <label className="block mb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Nome</span>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newCaixinhaName}
+                    onChange={(e) => setNewCaixinhaName(e.target.value)}
+                    placeholder="Ex: CDB Banco Inter"
+                    className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/[0.04] px-3.5 py-3.5 text-base font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-500/40"
+                  />
+                </label>
+
+                <label className="block mb-4">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Instituição (opcional)</span>
+                  <input
+                    type="text"
+                    value={newCaixinhaInstituicao}
+                    onChange={(e) => setNewCaixinhaInstituicao(e.target.value)}
+                    placeholder="Ex: Banco Inter"
+                    className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/[0.04] px-3.5 py-3.5 text-sm font-semibold text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-500/40"
+                  />
+                </label>
+
+                <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Tipo de caixinha</p>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {(
+                    [
+                      { id: "turbo" as const, label: "Turbo", icon: Zap, tone: "amber" as const },
+                      { id: "emergencia" as const, label: "Emergência", icon: Shield, tone: "blue" as const },
+                      { id: "investimentos" as const, label: "Investimentos", icon: Landmark, tone: "emerald" as const },
+                    ]
+                  ).map((opt) => {
+                    const active = newCaixinhaTipo === opt.id;
+                    const toneClasses = {
+                      amber: active ? "border-amber-500/50 bg-amber-500/15 text-amber-300" : "border-white/10 bg-white/[0.03] text-white/50",
+                      blue: active ? "border-blue-500/50 bg-blue-500/15 text-blue-300" : "border-white/10 bg-white/[0.03] text-white/50",
+                      emerald: active ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300" : "border-white/10 bg-white/[0.03] text-white/50",
+                    }[opt.tone];
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setNewCaixinhaTipo(opt.id)}
+                        className={`rounded-xl border py-3 flex flex-col items-center gap-1 transition-colors ${toneClasses}`}
+                      >
+                        <opt.icon className="h-4 w-4" />
+                        <span className="text-[10px] font-bold">{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {newCaixinhaTipo === "emergencia" &&
+                  newCaixinhaName.trim() &&
+                  !isEmergencyAccountName(newCaixinhaName.trim()) && (
+                    <p className="text-[11px] text-white/40 mb-4">
+                      Vai ser salva como{" "}
+                      <span className="font-semibold text-white/70">
+                        &quot;{newCaixinhaName.trim()} (Emergência)&quot;
+                      </span>{" "}
+                      para entrar certinho na caixinha EME.
+                    </p>
+                  )}
+
+                {newCaixinhaTipo === "turbo" && (
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <label className="block">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">% do CDI</span>
+                      <div className="mt-1.5 flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-3.5 py-3.5">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={newCaixinhaCdiMask}
+                          onChange={(e) => setNewCaixinhaCdiMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
+                          placeholder="0,00"
+                          className="flex-1 min-w-0 bg-transparent text-base font-black tabular-nums text-white placeholder:text-white/25 focus:outline-none"
+                        />
+                        <span className="text-xs font-semibold text-white/40 shrink-0">%</span>
+                      </div>
+                    </label>
+                    <label className="block">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Teto rendimento</span>
+                      <div className="mt-1.5 flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-3.5 py-3.5">
+                        <span className="text-xs font-semibold text-white/40 shrink-0">R$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={newCaixinhaTetoMask}
+                          onChange={(e) => setNewCaixinhaTetoMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
+                          placeholder="0,00"
+                          className="flex-1 min-w-0 bg-transparent text-base font-black tabular-nums text-white placeholder:text-white/25 focus:outline-none"
+                        />
+                      </div>
+                    </label>
+                  </div>
+                )}
+
+                {newCaixinhaError && (
+                  <p className="text-xs text-red-400 mb-3">{newCaixinhaError}</p>
+                )}
+
+                <button
+                  type="button"
+                  disabled={!newCaixinhaName.trim() || newCaixinhaSubmitting}
+                  onClick={confirmNewCaixinha}
+                  className="w-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 py-3.5 text-sm font-bold text-white disabled:opacity-35 disabled:cursor-not-allowed transition-opacity mb-2"
+                >
+                  {newCaixinhaSubmitting ? "Criando…" : "Criar caixinha"}
+                </button>
+                <button
+                  type="button"
+                  disabled={newCaixinhaSubmitting}
+                  onClick={() => setNewCaixinhaOpen(false)}
                   className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors disabled:opacity-50"
                 >
                   Cancelar
