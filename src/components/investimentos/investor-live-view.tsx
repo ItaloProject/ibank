@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode 
 import {
   X, Signal, Wifi, BatteryFull, Landmark, Calculator, Zap, Shield,
   ArrowUpRight, ArrowDownRight, Check, ChevronLeft, Pencil, Home, ChevronRight,
-  CreditCard, CalendarRange, Layers, TrendingUp, Wallet, Receipt,
+  CreditCard, CalendarRange, Layers, TrendingUp, Wallet, Receipt, Scale,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
@@ -375,7 +375,7 @@ export function InvestorLiveView({
   onRefresh,
   onClose,
 }: InvestorLiveViewProps) {
-  const [tab, setTab] = useState<"inicio" | "investimentos" | "simular">("inicio");
+  const [tab, setTab] = useState<"inicio" | "investimentos" | "rebalancear" | "simular">("inicio");
   const [focusGroup, setFocusGroup] = useState<"all" | "turbo" | "emergencia" | "investimentos">("all");
   const [investSubPage, setInvestSubPage] = useState<"tesouro" | "acoes" | null>(null);
   const [marketOpen, setMarketOpen] = useState(false);
@@ -574,6 +574,52 @@ export function InvestorLiveView({
   const totalCaixinhas = turboTotal + emergenciaTotal + caixinhaInvestimentos;
   /** Conta + investimentos (visão de patrimônio do Início). */
   const patrimonioTotal = cash + totalCaixinhas;
+
+  /** Valor em FIIs dentro da carteira de ações/FIIs (para separar de ações). */
+  const fiiValue = useMemo(() => {
+    return holdings.reduce((sum, h) => {
+      if (detectAssetType(h.ticker) !== "FII") return sum;
+      const asset = liveAssets.find((a) => a.ticker === h.ticker);
+      if (!asset) return sum;
+      return sum + h.quantity * asset.price * (1 + asset.variation);
+    }, 0);
+  }, [holdings, liveAssets]);
+  const acoesValue = investedValue - fiiValue;
+
+  /** Alocação atual vs. ideal (mesma referência de 40/30/30 usada no Modo Investidor). */
+  const allocationRecommendations = useMemo(() => {
+    const total = patrimonioTotal;
+    const pct = (v: number) => (total > 0 ? (v / total) * 100 : 0);
+    return [
+      {
+        id: "fii",
+        label: "FIIs",
+        atual: pct(fiiValue),
+        ideal: 40,
+        cor: "#a855f7",
+        desc: "Renda mensal isenta de IR",
+        action: "acoes" as MarketSection,
+      },
+      {
+        id: "turbo",
+        label: "Turbo/CDB",
+        atual: pct(turboTotal + investimentosFixedTotal),
+        ideal: 30,
+        cor: "#10b981",
+        desc: "Segurança + rendimento do CDI",
+        action: "turbo" as MarketSection,
+      },
+      {
+        id: "acoes",
+        label: "Ações",
+        atual: pct(acoesValue),
+        ideal: 30,
+        cor: "#3b82f6",
+        desc: "Crescimento + dividendos",
+        action: "acoes" as MarketSection,
+      },
+    ];
+  }, [patrimonioTotal, fiiValue, turboTotal, investimentosFixedTotal, acoesValue]);
 
   /** Movimentações reais recentes (compras de ações + aportes em caixinhas). */
   const homeMovements = useMemo(() => {
@@ -1401,6 +1447,73 @@ export function InvestorLiveView({
               </div>
             )}
 
+            {tab === "rebalancear" && !marketOpen && (
+              <div className="space-y-4 pt-1">
+                <div className="text-center pt-1">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">
+                    Alocação atual vs. ideal
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 space-y-5">
+                  {allocationRecommendations.map((r) => {
+                    const gap = r.ideal - r.atual;
+                    const isBelow = gap > 0.5;
+                    return (
+                      <div key={r.id} className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: r.cor }} />
+                            <span className="text-sm font-bold text-white truncate">{r.label}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs shrink-0">
+                            <span className="font-extrabold tabular-nums" style={{ color: r.cor }}>
+                              {r.atual.toFixed(0)}%
+                            </span>
+                            <span className="text-white/35">alvo {r.ideal}%</span>
+                            {isBelow ? (
+                              <span className="font-bold text-amber-400">+{gap.toFixed(0)}%</span>
+                            ) : (
+                              <Check className="h-3.5 w-3.5 text-emerald-400" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="relative h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-full opacity-25"
+                            style={{ width: `${Math.min(r.ideal, 100)}%`, background: r.cor }}
+                          />
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
+                            style={{ width: `${Math.min(r.atual, 100)}%`, background: r.cor }}
+                          />
+                          <div
+                            className="absolute inset-y-0 w-0.5 bg-white/50"
+                            style={{ left: `${Math.min(r.ideal, 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-[11px] text-white/40">{r.desc}</p>
+                        {isBelow && (
+                          <button
+                            type="button"
+                            onClick={() => openMarket(r.action)}
+                            className="w-full rounded-full py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
+                            style={{ background: `linear-gradient(90deg, ${r.cor}66, ${r.cor}aa)` }}
+                          >
+                            Aplicar saldo em {r.label}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="text-center text-[11px] text-white/30 px-2">
+                  Referência de alocação (FIIs 40% · Turbo/CDB 30% · Ações 30%) sobre o seu patrimônio total. Os botões usam o saldo disponível na conta.
+                </p>
+              </div>
+            )}
+
             {tab === "simular" && (
               <div className="space-y-5 pt-2">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 space-y-3">
@@ -1518,10 +1631,11 @@ export function InvestorLiveView({
           </div>
 
           {/* Bottom tab bar */}
-          <div className="flex items-center justify-center gap-6 border-t border-white/10 bg-black/40 backdrop-blur-xl px-1 pt-2 pb-1 shrink-0">
+          <div className="flex items-center justify-center gap-3 border-t border-white/10 bg-black/40 backdrop-blur-xl px-1 pt-2 pb-1 shrink-0">
             {[
               { id: "inicio" as const, label: "Início", icon: Home },
               { id: "investimentos" as const, label: "Investir", icon: Landmark },
+              { id: "rebalancear" as const, label: "Rebalancear", icon: Scale },
               { id: "simular" as const, label: "Simular", icon: Calculator },
             ].map((t) => (
               <button
@@ -1534,7 +1648,7 @@ export function InvestorLiveView({
                   setMarketSection("hub");
                   setFinancePanel(null);
                 }}
-                className={`flex flex-col items-center gap-1 min-w-[64px] px-3 py-1.5 rounded-xl transition-colors ${
+                className={`flex flex-col items-center gap-1 min-w-[58px] px-2 py-1.5 rounded-xl transition-colors ${
                   tab === t.id ? "text-white bg-white/10" : "text-white/35"
                 }`}
               >
