@@ -90,8 +90,7 @@ function cashToMaskDigits(value: number): string {
 }
 
 function formatQty(qty: number) {
-  if (Number.isInteger(qty)) return String(qty);
-  return qty.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+  return qty.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
 }
 
 function useCountUp(target: number, durationMs = 900) {
@@ -388,6 +387,10 @@ export function InvestorLiveView({
   const [confirmedFlash, setConfirmedFlash] = useState(false);
   const [selectedFixedIncome, setSelectedFixedIncome] = useState<RealAccountItem | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [sellTicker, setSellTicker] = useState<string | null>(null);
+  const [sellQtyMask, setSellQtyMask] = useState("");
+  const [sellSubmitting, setSellSubmitting] = useState(false);
+  const [sellError, setSellError] = useState<string | null>(null);
 
   const holdings: Holding[] = useMemo(
     () =>
@@ -480,6 +483,81 @@ export function InvestorLiveView({
     const gainPct = cost > 0 ? (gain / cost) * 100 : 0;
     return { h, asset, value, cost, gain, gainPct };
   }, [selectedTicker, holdings, liveAssets]);
+
+  const sellHolding = useMemo(() => {
+    if (!sellTicker) return null;
+    const h = holdings.find((x) => x.ticker === sellTicker);
+    const asset = liveAssets.find((a) => a.ticker === sellTicker);
+    if (!h || !asset) return null;
+    const price = asset.price * (1 + asset.variation);
+    return { h, asset, price };
+  }, [sellTicker, holdings, liveAssets]);
+
+  const sellQty = (() => {
+    const n = parseFloat(sellQtyMask.replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  })();
+  const sellProceeds = sellHolding ? sellQty * sellHolding.price : 0;
+  const canConfirmSell =
+    !!sellHolding && sellQty > 0 && sellQty <= sellHolding.h.quantity + 0.0001 && !sellSubmitting;
+
+  function openSell(ticker: string) {
+    setSelectedTicker(null);
+    setSellTicker(ticker);
+    setSellQtyMask("");
+    setSellError(null);
+  }
+
+  function onSellQtyChange(raw: string) {
+    let v = raw.replace(/[^\d,]/g, "");
+    const parts = v.split(",");
+    if (parts.length > 2) v = parts[0] + "," + parts.slice(1).join("");
+    setSellQtyMask(v);
+  }
+
+  function setSellAll() {
+    if (!sellHolding) return;
+    setSellQtyMask(formatQty(sellHolding.h.quantity));
+  }
+
+  async function confirmSell() {
+    if (!sellHolding || !canConfirmSell) return;
+    setSellSubmitting(true);
+    setSellError(null);
+    try {
+      const { ticker } = sellHolding.asset;
+      const price = sellHolding.price;
+      const amount = sellQty * price;
+      let cid = cashAccountId;
+      if (!cid) {
+        const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
+        cid = acc.id;
+      }
+      await createStockTrade({
+        ticker,
+        type: "venda",
+        quantity: sellQty,
+        price_per_share: price,
+        total_amount: amount,
+        date: today(),
+      });
+      await createInvestment({
+        account_id: cid,
+        type: "deposito",
+        amount,
+        description: `Venda ${ticker}`,
+        date: today(),
+      });
+      await onRefresh();
+      flashConfirm();
+      setSellTicker(null);
+    } catch (err) {
+      console.error("Erro ao vender:", err);
+      setSellError("Não foi possível concluir a venda. Tente novamente.");
+    } finally {
+      setSellSubmitting(false);
+    }
+  }
 
   const turboTotal = useMemo(() => turboAccountsLive.reduce((s, x) => s + x.valor, 0), [turboAccountsLive]);
   const emergenciaTotal = useMemo(
@@ -709,19 +787,23 @@ export function InvestorLiveView({
 
   async function handleBuyStock(ticker: string, _name: string, price: number, amount: number) {
     if (!cashAccountId || amount <= 0 || amount > cash + 0.001 || price <= 0) return;
-    const qty = amount / price;
+    const qty = Math.floor(amount / price);
+    if (qty < 1) {
+      throw new Error(`Valor insuficiente para 1 ação de ${ticker} (${formatCurrency(price)}).`);
+    }
+    const spent = qty * price;
     await createStockTrade({
       ticker,
       type: "compra",
       quantity: qty,
       price_per_share: price,
-      total_amount: amount,
+      total_amount: spent,
       date: today(),
     });
     await createInvestment({
       account_id: cashAccountId,
       type: "retirada",
-      amount,
+      amount: spent,
       description: `Compra ${ticker}`,
       date: today(),
     });
@@ -1650,10 +1732,95 @@ export function InvestorLiveView({
                   Comprar mais com saldo
                 </button>
                 <button
+                  onClick={() => openSell(selectedHolding.asset.ticker)}
+                  className="w-full rounded-full border border-red-500/30 bg-red-500/10 py-3 text-sm font-bold text-red-300 hover:bg-red-500/20 transition-colors mb-2"
+                >
+                  Vender
+                </button>
+                <button
                   onClick={() => setSelectedTicker(null)}
                   className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors"
                 >
                   Fechar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Venda de posição */}
+          {sellHolding && (
+            <div
+              className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-end"
+              onClick={() => !sellSubmitting && setSellTicker(null)}
+            >
+              <div
+                className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 p-5 pb-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-center mb-4">
+                  <div className="h-1 w-10 rounded-full bg-white/20" />
+                </div>
+
+                <div className="flex items-start gap-3 mb-5">
+                  <span className="h-3 w-3 rounded-full shrink-0 mt-1.5" style={{ background: sellHolding.asset.color }} />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-300/70">Vender</p>
+                    <p className="text-lg font-bold text-white leading-snug">{sellHolding.asset.ticker}</p>
+                    <p className="text-xs text-white/40 mt-0.5">
+                      Você tem {formatQty(sellHolding.h.quantity)} un. · cotação atual {formatCurrency(sellHolding.price)}
+                    </p>
+                  </div>
+                </div>
+
+                <label className="block mb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Quantidade a vender</span>
+                  <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/[0.06] px-3.5 py-3.5">
+                    <input
+                      autoFocus
+                      type="text"
+                      inputMode="decimal"
+                      value={sellQtyMask}
+                      onChange={(e) => onSellQtyChange(e.target.value)}
+                      placeholder="0"
+                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-white placeholder:text-white/25 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={setSellAll}
+                      className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
+                    >
+                      Tudo
+                    </button>
+                  </div>
+                </label>
+
+                {sellQty > 0 && (
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] px-3.5 py-3 mb-4 flex items-center justify-between">
+                    <span className="text-[11px] text-emerald-300/80">Você recebe no saldo</span>
+                    <span className="text-base font-black tabular-nums text-white">{formatCurrency(sellProceeds)}</span>
+                  </div>
+                )}
+
+                {sellQty > sellHolding.h.quantity + 0.0001 && (
+                  <p className="text-xs text-red-400 mb-3">Quantidade maior que a posição atual.</p>
+                )}
+                {sellError && <p className="text-xs text-red-400 mb-3">{sellError}</p>}
+
+                <button
+                  type="button"
+                  disabled={!canConfirmSell}
+                  onClick={confirmSell}
+                  className="w-full rounded-full bg-gradient-to-r from-red-600 to-orange-500 py-3.5 text-sm font-bold text-white disabled:opacity-35 disabled:cursor-not-allowed transition-opacity mb-2"
+                >
+                  {sellSubmitting ? "Processando…" : "Confirmar venda"}
+                </button>
+                <button
+                  type="button"
+                  disabled={sellSubmitting}
+                  onClick={() => setSellTicker(null)}
+                  className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors disabled:opacity-50"
+                >
+                  Cancelar
                 </button>
               </div>
             </div>

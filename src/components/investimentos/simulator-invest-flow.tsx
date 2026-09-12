@@ -225,14 +225,15 @@ export function SimulatorInvestFlow({
     !submitting;
 
   const canConfirmPreset =
-    !isCustom && amount > 0 && amount <= cash + 0.001 && !justBought && !submitting;
+    !isCustom && amount > 0 && amount <= cash + 0.001 && !justBought && !submitting &&
+    (buyTarget?.kind !== "stock" || amount >= buyTarget.asset.price);
 
   const canConfirm = isCustom ? canConfirmCustom : canConfirmPreset;
 
   const stockPreviewQty = useMemo(() => {
     if (!buyTarget || buyTarget.kind !== "stock") return 0;
     if (buyTarget.asset.price <= 0) return 0;
-    return amount / buyTarget.asset.price;
+    return Math.floor(amount / buyTarget.asset.price);
   }, [buyTarget, amount]);
 
   function resetCustomFields() {
@@ -279,7 +280,7 @@ export function SimulatorInvestFlow({
       }, 1100);
     } catch (err) {
       console.error("Erro ao confirmar investimento:", err);
-      setSubmitError("Não foi possível concluir. Tente novamente.");
+      setSubmitError(err instanceof Error ? err.message : "Não foi possível concluir. Tente novamente.");
     } finally {
       setSubmitting(false);
     }
@@ -728,12 +729,16 @@ export function SimulatorInvestFlow({
 
                 {buyTarget.kind === "stock" && amount > 0 && (
                   <p className="text-xs text-white/45 mb-4">
-                    Você leva ≈{" "}
-                    <span className="font-bold text-white">
-                      {stockPreviewQty.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")}{" "}
-                      un.
-                    </span>{" "}
-                    de {buyTarget.asset.ticker}
+                    {stockPreviewQty > 0 ? (
+                      <>
+                        Você leva <span className="font-bold text-white">{stockPreviewQty} un.</span> de{" "}
+                        {buyTarget.asset.ticker} · gasta {formatCurrency(stockPreviewQty * buyTarget.asset.price)}
+                      </>
+                    ) : (
+                      <span className="text-amber-400">
+                        Valor insuficiente para 1 ação ({formatCurrency(buyTarget.asset.price)})
+                      </span>
+                    )}
                   </p>
                 )}
 
