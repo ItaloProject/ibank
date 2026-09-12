@@ -154,37 +154,37 @@ function CaixinhaRow({
   const tones = {
     amber: {
       border: "border-amber-500/25",
-      bg: "bg-amber-500/[0.07] hover:bg-amber-500/[0.12]",
+      bg: "bg-amber-500/[0.11] hover:bg-amber-500/[0.17]",
       iconBg: "bg-amber-500/15",
       icon: "text-amber-400",
     },
     blue: {
       border: "border-blue-500/25",
-      bg: "bg-blue-500/[0.07] hover:bg-blue-500/[0.12]",
+      bg: "bg-blue-500/[0.11] hover:bg-blue-500/[0.17]",
       iconBg: "bg-blue-500/15",
       icon: "text-blue-400",
     },
     emerald: {
       border: "border-emerald-500/25",
-      bg: "bg-emerald-500/[0.07] hover:bg-emerald-500/[0.12]",
+      bg: "bg-emerald-500/[0.11] hover:bg-emerald-500/[0.17]",
       iconBg: "bg-emerald-500/15",
       icon: "text-emerald-400",
     },
     rose: {
       border: "border-rose-500/25",
-      bg: "bg-rose-500/[0.07] hover:bg-rose-500/[0.12]",
+      bg: "bg-rose-500/[0.11] hover:bg-rose-500/[0.17]",
       iconBg: "bg-rose-500/15",
       icon: "text-rose-400",
     },
     violet: {
       border: "border-violet-500/25",
-      bg: "bg-violet-500/[0.07] hover:bg-violet-500/[0.12]",
+      bg: "bg-violet-500/[0.11] hover:bg-violet-500/[0.17]",
       iconBg: "bg-violet-500/15",
       icon: "text-violet-400",
     },
     cyan: {
       border: "border-cyan-500/25",
-      bg: "bg-cyan-500/[0.07] hover:bg-cyan-500/[0.12]",
+      bg: "bg-cyan-500/[0.11] hover:bg-cyan-500/[0.17]",
       iconBg: "bg-cyan-500/15",
       icon: "text-cyan-400",
     },
@@ -194,16 +194,16 @@ function CaixinhaRow({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left rounded-xl border ${tones.border} ${tones.bg} p-3 grid grid-cols-[2rem_minmax(0,1fr)_auto_1rem] items-center gap-x-2.5 transition-colors`}
+      className={`w-full text-left rounded-xl border ${tones.border} ${tones.bg} p-3 grid grid-cols-[2rem_minmax(0,1fr)_auto_1rem] items-center gap-x-2 transition-colors`}
     >
       <span className={`h-8 w-8 rounded-full ${tones.iconBg} flex items-center justify-center`}>
         <Icon className={`h-3.5 w-3.5 ${tones.icon}`} />
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-bold text-white leading-tight truncate">{title}</p>
-        <p className="text-[10px] text-white/40 leading-tight mt-0.5 truncate">{subtitle}</p>
+        <p className="text-[13px] font-bold text-white leading-tight truncate">{title}</p>
+        <p className="text-[10px] text-white/60 leading-tight mt-0.5 truncate">{subtitle}</p>
       </div>
-      <p className="text-[13px] font-extrabold tabular-nums text-white text-right whitespace-nowrap">
+      <p className="text-[12px] font-extrabold tabular-nums text-white text-right whitespace-nowrap">
         {formatCurrency(value)}
       </p>
       <ChevronRight className="h-4 w-4 text-white/25 justify-self-end" />
@@ -935,16 +935,16 @@ export function InvestorLiveView({
                 <button
                   type="button"
                   onClick={() => openMarket("hub")}
-                  className="w-full rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-600/30 via-fuchsia-500/20 to-emerald-500/25 p-4 text-left hover:from-violet-600/40 hover:to-emerald-500/35 transition-colors"
+                  className="w-full rounded-2xl border border-violet-400/40 bg-gradient-to-r from-violet-600/40 via-fuchsia-500/30 to-emerald-500/35 p-5 text-left shadow-lg shadow-violet-950/30 hover:from-violet-600/50 hover:to-emerald-500/45 transition-colors"
                 >
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-200/80 mb-1">
                     Aplicar saldo
                   </p>
-                  <p className="text-lg font-black text-white">
-                    Investir {formatCurrency(cash)}
+                  <p className="text-xl font-black text-white">
+                    Investir agora
                   </p>
-                  <p className="text-[11px] text-white/50 mt-1">
-                    Compre ações, Tesouro Direto ou aporte nas caixinhas.
+                  <p className="text-[11px] text-white/60 mt-1">
+                    Saldo disponível: <span className="font-bold text-white/85">{formatCurrency(cash)}</span> — ações, Tesouro Direto ou caixinhas.
                   </p>
                 </button>
 
@@ -1515,7 +1515,7 @@ export function InvestorLiveView({
           </div>
 
           {/* Bottom tab bar */}
-          <div className="flex items-center justify-around border-t border-white/10 bg-black/40 backdrop-blur-xl px-1 pt-2 pb-1 shrink-0">
+          <div className="flex items-center justify-center gap-6 border-t border-white/10 bg-black/40 backdrop-blur-xl px-1 pt-2 pb-1 shrink-0">
             {[
               { id: "inicio" as const, label: "Início", icon: Home },
               { id: "investimentos" as const, label: "Investir", icon: Landmark },
@@ -1531,8 +1531,8 @@ export function InvestorLiveView({
                   setMarketSection("hub");
                   setFinancePanel(null);
                 }}
-                className={`flex flex-col items-center gap-1 px-2.5 py-1.5 rounded-xl transition-colors ${
-                  tab === t.id ? "text-white" : "text-white/35"
+                className={`flex flex-col items-center gap-1 min-w-[64px] px-3 py-1.5 rounded-xl transition-colors ${
+                  tab === t.id ? "text-white bg-white/10" : "text-white/35"
                 }`}
               >
                 <t.icon className="h-5 w-5" />
