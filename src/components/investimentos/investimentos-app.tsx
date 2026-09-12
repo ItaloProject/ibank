@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Plus, TrendingUp, LineChart, Info, Zap, Landmark, PlusCircle, ChevronRight,
+  Plus, TrendingUp, LineChart, Info, Zap, Landmark, PlusCircle, ChevronRight, Radio,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -128,6 +128,10 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       if (v) localStorage.setItem("ibank_investor_mode", "1");
       else { localStorage.removeItem("ibank_investor_mode"); localStorage.removeItem("ibank_live_mode"); }
     } catch { /* ignore */ }
+  }
+  function goToLiveMode() {
+    try { localStorage.setItem("ibank_live_mode", "1"); } catch { /* ignore */ }
+    setInvestorMode(true);
   }
   const [incomeGoal, setIncomeGoal] = useState<number>(() => {
     try { return Number(localStorage.getItem("ibank_income_goal") ?? 0) || 0; } catch { return 0; }
@@ -830,15 +834,26 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         actions={
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {botEnabled ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setInvestorMode(true)}
-              className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950/40 min-h-10 w-full sm:w-auto"
-            >
-              <Zap className="h-4 w-4" />
-              Modo Investidor
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToLiveMode}
+                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-950/40 min-h-10 w-full sm:w-auto"
+              >
+                <Radio className="h-4 w-4" />
+                Live
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setInvestorMode(true)}
+                className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950/40 min-h-10 w-full sm:w-auto"
+              >
+                <Zap className="h-4 w-4" />
+                Modo Investidor
+              </Button>
+            </>
           ) : (
             <a
               href="/vender"
