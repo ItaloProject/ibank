@@ -125,7 +125,7 @@ function PhoneStatusBar() {
     return () => clearInterval(id);
   }, []);
   return (
-    <div className="flex items-center justify-between px-6 pt-3 pb-1 text-white text-[13px] font-semibold shrink-0">
+    <div className="hidden sm:flex items-center justify-between px-6 pt-3 pb-1 text-white text-[13px] font-semibold shrink-0">
       <span>{time}</span>
       <div className="flex items-center gap-1.5">
         <Signal className="h-3.5 w-3.5" />
@@ -910,7 +910,10 @@ export function InvestorLiveView({
           <PhoneStatusBar />
 
           {/* Header */}
-          <div className="flex items-center justify-between px-5 pt-2 pb-3 shrink-0">
+          <div
+            className="flex items-center justify-between px-5 pb-3 shrink-0"
+            style={{ paddingTop: "calc(0.5rem + var(--safe-top))" }}
+          >
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
