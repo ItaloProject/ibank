@@ -751,7 +751,7 @@ export function InvestorLiveView({
         account_id: id,
         type: delta > 0 ? "deposito" : "retirada",
         amount: Math.abs(delta),
-        description: "Ajuste de saldo via Simulador",
+        description: "Ajuste de saldo via Live",
         date: today(),
       });
       await onRefresh();
@@ -858,7 +858,7 @@ export function InvestorLiveView({
       account_id: accountId,
       type: "deposito",
       amount,
-      description: "Aporte via Simulador",
+      description: "Aporte via Live",
       date: today(),
     });
     await updateAccountBalance(accountId, acc.valor + amount);
@@ -916,7 +916,7 @@ export function InvestorLiveView({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               </span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">MUVO · Simulador</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">MUVO · Live</span>
             </div>
             <button
               onClick={onClose}
@@ -1546,7 +1546,7 @@ export function InvestorLiveView({
             <div className="h-1 w-32 rounded-full bg-white/30" />
           </div>
 
-          {/* Simulador de investimentos (overlay sobre o frame inteiro) */}
+          {/* Compra/aporte via Live (overlay sobre o frame inteiro) */}
           {marketOpen && (
             <div className="absolute inset-0 z-10 bg-[#05050a] flex flex-col">
               <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pt-4 pb-4">
