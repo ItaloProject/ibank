@@ -502,18 +502,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       insights.push({ level: "ok", title: `Reserva de emergência adequada — ${formatCurrency(emerTotal)}`, detail: "Proteção básica garantida. Continue investindo normalmente." });
     }
 
-    // 2. TURBO no teto
     const turboAccounts = accounts.filter((a) => a.is_turbo);
-    for (const t of turboAccounts) {
-      if (t.max_rendimento && t.current_balance >= t.max_rendimento * 0.95) {
-        insights.push({
-          level: "warning", title: `${t.name} no teto — ${formatCurrency(t.current_balance)} / ${formatCurrency(t.max_rendimento)}`,
-          detail: "O rendimento extra do TURBO para quando atinge o teto máximo.",
-          action: "Redirecione novos aportes para FIIs ou ações",
-          onAction: () => goToStockDialog("", "compra"), actionLabel: "Ir para Ações/FIIs",
-        });
-      }
-    }
 
     // 3. Duplicidade de empresa (PTR3 + PTR4, BBDC3 + BBDC4, etc.)
     const companyMap = new Map<string, string[]>();
