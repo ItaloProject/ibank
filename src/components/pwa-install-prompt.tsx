@@ -88,14 +88,14 @@ export function PwaInstallPrompt({ className }: { className?: string }) {
         className,
       )}
       role="dialog"
-      aria-label="Instalar IBANK"
+      aria-label="Instalar MUVO"
     >
       <div className="flex items-start gap-3">
         <span className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
           <Download className="h-4 w-4 text-primary" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-foreground">Instalar o IBANK</p>
+          <p className="text-sm font-bold text-foreground">Instalar o MUVO</p>
           {iosHint ? (
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
               No Safari: toque em <strong className="text-foreground">Compartilhar</strong> e depois em{" "}

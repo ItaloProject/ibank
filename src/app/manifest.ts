@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "IBANK — Gestão Financeira",
-    short_name: "IBANK",
+    name: "MUVO — Gestão Financeira",
+    short_name: "MUVO",
     description: "Gerencie seu cartão de crédito e investimentos",
     start_url: "/",
     scope: "/",

@@ -11,7 +11,7 @@ function whatsappUrl(plan: "assinante" | "completo") {
     ? "Completo R$ 45 (app + bot)"
     : "Assinante R$ 30";
   const text = encodeURIComponent(
-    `Olá! Quero assinar o IBANK — plano ${label}. Pode me passar o Pix e liberar o acesso?`,
+    `Olá! Quero assinar o MUVO — plano ${label}. Pode me passar o Pix e liberar o acesso?`,
   );
   return `https://wa.me/${phone}?text=${text}`;
 }
@@ -24,7 +24,7 @@ export default function VenderPage() {
           <div className="h-16 w-16 rounded-2xl overflow-hidden">
             <Image
               src="/logo.png"
-              alt="IBANK"
+              alt="MUVO"
               width={200}
               height={200}
               className="h-full w-full object-cover"
@@ -33,7 +33,7 @@ export default function VenderPage() {
             />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">IBANK</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">MUVO</p>
             <h1 className="text-2xl sm:text-3xl font-bold mt-1 leading-tight">
               Ferramenta para quem investe
             </h1>
@@ -89,7 +89,7 @@ export default function VenderPage() {
             <div className="flex items-baseline justify-between gap-3">
               <div>
                 <p className="font-bold text-lg">Completo</p>
-                <p className="text-xs text-muted-foreground">App + IBANK Bot</p>
+                <p className="text-xs text-muted-foreground">App + MUVO Bot</p>
               </div>
               <p className="text-2xl font-bold tabular-nums">R$ 45<span className="text-sm font-medium text-muted-foreground">/mês</span></p>
             </div>

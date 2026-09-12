@@ -14,7 +14,7 @@ export function UserSelect() {
           <Wallet className="h-6 w-6 text-primary-foreground" />
         </div>
         <div>
-          <p className="text-2xl font-bold text-white leading-none">IBANK</p>
+          <p className="text-2xl font-bold text-white leading-none">MUVO</p>
           <p className="text-sm text-white/50 mt-0.5">Gestão Financeira</p>
         </div>
       </div>

@@ -8,7 +8,7 @@ export default function OfflinePage() {
       </div>
       <h1 className="text-xl font-bold tracking-tight">Você está offline</h1>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground leading-relaxed">
-        O IBANK precisa de conexão para carregar seus dados financeiros.
+        O MUVO precisa de conexão para carregar seus dados financeiros.
         Reconecte e tente novamente.
       </p>
       <button

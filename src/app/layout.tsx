@@ -7,15 +7,15 @@ import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
-const APP_NAME = "IBANK";
-const APP_DEFAULT_TITLE = "IBANK — Gestão Financeira";
+const APP_NAME = "MUVO";
+const APP_DEFAULT_TITLE = "MUVO — Gestão Financeira";
 const APP_DESCRIPTION = "Gerencie seu cartão de crédito e investimentos";
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
   title: {
     default: APP_DEFAULT_TITLE,
-    template: "%s · IBANK",
+    template: "%s · MUVO",
   },
   description: APP_DESCRIPTION,
   manifest: "/manifest.webmanifest",

@@ -18,7 +18,7 @@ export default function PoliticaPrivacidadePage() {
           <section>
             <h2 className="text-base font-semibold text-white mb-2">1. Quais dados coletamos</h2>
             <p>
-              Quando você preenche o formulário de contato no IBANK, coletamos: nome, número de WhatsApp,
+              Quando você preenche o formulário de contato no MUVO, coletamos: nome, número de WhatsApp,
               objetivo financeiro informado e faixa de aporte mensal informada. Ao usar o app após a
               contratação, também armazenamos os dados financeiros que você mesmo cadastra (transações,
               investimentos, metas), sempre vinculados à sua conta individual.
@@ -28,7 +28,7 @@ export default function PoliticaPrivacidadePage() {
           <section>
             <h2 className="text-base font-semibold text-white mb-2">2. Para que usamos esses dados</h2>
             <p>
-              Usamos nome e WhatsApp exclusivamente para entrar em contato com você sobre o IBANK — liberar
+              Usamos nome e WhatsApp exclusivamente para entrar em contato com você sobre o MUVO — liberar
               seu período de teste, tirar dúvidas e dar suporte. Objetivo e aporte nos ajudam a personalizar
               a proposta que te enviamos. Não usamos esses dados para nenhuma outra finalidade.
             </p>
@@ -66,7 +66,7 @@ export default function PoliticaPrivacidadePage() {
             <h2 className="text-base font-semibold text-white mb-2">6. Contato</h2>
             <p>
               Dúvidas sobre esta política ou sobre o tratamento dos seus dados podem ser enviadas pelo
-              WhatsApp de suporte do IBANK.
+              WhatsApp de suporte do MUVO.
             </p>
           </section>
         </div>

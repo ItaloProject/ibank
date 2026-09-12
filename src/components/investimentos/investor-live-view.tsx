@@ -834,7 +834,7 @@ export function InvestorLiveView({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               </span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">IBANK · Simulador</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">MUVO · Simulador</span>
             </div>
             <button
               onClick={onClose}

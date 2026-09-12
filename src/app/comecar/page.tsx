@@ -100,7 +100,7 @@ const APORTE_OPTIONS: { id: Aporte; label: string }[] = [
 const FAQ_ITEMS = [
   {
     q: "Precisa instalar alguma coisa?",
-    a: "Não. O IBANK é um PWA — abre direto no navegador do celular ou computador. Você pode salvar na tela inicial como um app normal, sem precisar da App Store ou Play Store.",
+    a: "Não. O MUVO é um PWA — abre direto no navegador do celular ou computador. Você pode salvar na tela inicial como um app normal, sem precisar da App Store ou Play Store.",
   },
   {
     q: "Como funciona o período grátis de 15 dias?",
@@ -123,7 +123,7 @@ function whatsappUrl(lead: LeadData, plan: "assinante" | "completo") {
   const aporteLabel = APORTE_OPTIONS.find((a) => a.id === lead.aporte)?.label ?? lead.aporte;
   const planLabel = plan === "completo" ? "Completo R$ 45 (app + bot)" : "Assinante R$ 30";
   const text = encodeURIComponent(
-    `Olá! Me chamo ${lead.nome} e tenho interesse no IBANK — plano ${planLabel}.\n\nMeu objetivo: ${goalLabel}\nInvisto: ${aporteLabel}\nWhatsApp: ${lead.whatsapp}\n\nPode me passar os detalhes para começar os 15 dias grátis?`,
+    `Olá! Me chamo ${lead.nome} e tenho interesse no MUVO — plano ${planLabel}.\n\nMeu objetivo: ${goalLabel}\nInvisto: ${aporteLabel}\nWhatsApp: ${lead.whatsapp}\n\nPode me passar os detalhes para começar os 15 dias grátis?`,
   );
   return `https://wa.me/${phone}?text=${text}`;
 }
@@ -177,10 +177,10 @@ export default function ComecarPage() {
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10">
             <div className="h-10 w-10 rounded-xl overflow-hidden">
-              <Image src="/logo.png" alt="IBANK" width={200} height={200}
+              <Image src="/logo.png" alt="MUVO" width={200} height={200}
                 className="h-full w-full object-cover" style={{ objectPosition: "50% 48%" }} priority />
             </div>
-            <span className="font-bold text-lg tracking-tight">IBANK</span>
+            <span className="font-bold text-lg tracking-tight">MUVO</span>
           </div>
 
           {/* Headline + features */}
@@ -246,10 +246,10 @@ export default function ComecarPage() {
         {/* Mobile: logo */}
         <div className="flex items-center gap-2 mb-8 md:hidden">
           <div className="h-8 w-8 rounded-lg overflow-hidden">
-            <Image src="/logo.png" alt="IBANK" width={200} height={200}
+            <Image src="/logo.png" alt="MUVO" width={200} height={200}
               className="h-full w-full object-cover" style={{ objectPosition: "50% 48%" }} />
           </div>
-          <span className="font-bold text-base tracking-tight">IBANK</span>
+          <span className="font-bold text-base tracking-tight">MUVO</span>
         </div>
 
         {/* Barra de progresso */}
@@ -277,7 +277,7 @@ export default function ComecarPage() {
           {step === 0 && (
             <FormStep
               title="Olá! Como podemos te chamar?"
-              subtitle="Vamos personalizar sua experiência com o IBANK."
+              subtitle="Vamos personalizar sua experiência com o MUVO."
             >
               <input
                 ref={nomeRef}
@@ -522,7 +522,7 @@ export default function ComecarPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-bold text-lg">Completo</p>
-                      <p className="text-xs text-zinc-500">App + IBANK Bot com IA</p>
+                      <p className="text-xs text-zinc-500">App + MUVO Bot com IA</p>
                       <span className="inline-block mt-1.5 text-[11px] font-semibold text-violet-400 bg-violet-500/10 border border-violet-500/30 rounded-full px-2.5 py-0.5">
                         15 dias grátis, após R$ 45/mês
                       </span>
@@ -626,7 +626,7 @@ function WhatsappMockup() {
               IB
             </div>
             <div>
-              <p className="text-[9px] font-semibold text-zinc-100">IBANK Suporte</p>
+              <p className="text-[9px] font-semibold text-zinc-100">MUVO Suporte</p>
               <p className="text-[7px] text-emerald-400">online</p>
             </div>
           </div>
@@ -686,10 +686,10 @@ function AppMockup() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <div className="h-5 w-5 rounded-lg overflow-hidden">
-                <Image src="/logo.png" alt="IBANK" width={40} height={40}
+                <Image src="/logo.png" alt="MUVO" width={40} height={40}
                   className="h-full w-full object-cover" style={{ objectPosition: "50% 48%" }} />
               </div>
-              <span className="text-[10px] font-bold text-zinc-100">IBANK</span>
+              <span className="text-[10px] font-bold text-zinc-100">MUVO</span>
             </div>
             <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center">
               <span className="text-[7px] font-bold text-white">I</span>

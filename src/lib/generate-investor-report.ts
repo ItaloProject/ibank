@@ -87,7 +87,7 @@ export function printInvestorReport(args: PrintInvestorReportArgs) {
         <td style="padding:8px 12px;font-size:12px;color:#666;">${m.razao}</td>
       </tr>`).join("");
 
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>IBANK — Análise de Carteira</title>
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>MUVO — Análise de Carteira</title>
   <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:white;color:#111;padding:32px;max-width:900px;margin:0 auto}
   .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #6366f1;padding-bottom:20px;margin-bottom:28px}
   .header h1{font-size:28px;font-weight:900;color:#6366f1}.header p{color:#888;font-size:13px;margin-top:4px}
@@ -100,7 +100,7 @@ export function printInvestorReport(args: PrintInvestorReportArgs) {
   table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padding:8px 12px;background:#f3f4f6;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#666}
   .footer{margin-top:40px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#aaa}
   @media print{body{padding:16px}}</style></head><body>
-  <div class="header"><div><h1>IBANK</h1><p>Relatório de Análise de Carteira</p><p style="margin-top:4px;">${dateStr}</p></div>
+  <div class="header"><div><h1>MUVO</h1><p>Relatório de Análise de Carteira</p><p style="margin-top:4px;">${dateStr}</p></div>
   <div class="score">${score}<small>SCORE</small></div></div>
   <section><h2>Resumo do Patrimônio</h2>
   <div class="grid">
@@ -113,7 +113,7 @@ export function printInvestorReport(args: PrintInvestorReportArgs) {
   <section><h2>Fontes de Renda Mensal</h2><table><thead><tr><th>Fonte</th><th>Tipo</th><th style="text-align:right;">Capital</th><th style="text-align:right;">Renda/mês</th></tr></thead><tbody>${sourcesHtml || "<tr><td colspan='4' style='padding:12px;color:#888;text-align:center;'>Nenhuma fonte identificada ainda</td></tr>"}</tbody></table></section>
   <section><h2>Alocação Atual vs. Ideal</h2><table><thead><tr><th>Categoria</th><th style="text-align:right;">Atual</th><th style="text-align:right;">Ideal</th><th style="text-align:right;">Status</th></tr></thead><tbody>${allocationHtml}</tbody></table></section>
   <section><h2>Próximos Aportes Recomendados</h2><table><thead><tr><th style="text-align:center;">#</th><th>Destino</th><th style="text-align:right;">Valor</th><th>Motivo</th></tr></thead><tbody>${nextMovesHtml}</tbody></table></section>
-  <div class="footer">Gerado pelo IBANK em ${dateStr} · Estimativas baseadas em taxas de mercado · Não constitui assessoria regulada pela CVM/ANCORD</div>
+  <div class="footer">Gerado pelo MUVO em ${dateStr} · Estimativas baseadas em taxas de mercado · Não constitui assessoria regulada pela CVM/ANCORD</div>
   </body></html>`;
 
     // Usa um iframe oculto em vez de window.open: bloqueadores de pop-up não afetam iframes,

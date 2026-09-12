@@ -8,7 +8,7 @@ function whatsappUrl() {
   const raw = process.env.NEXT_PUBLIC_WHATSAPP ?? "5500000000000";
   const phone = raw.replace(/\D/g, "");
   const text = encodeURIComponent(
-    "Olá! Quero renovar / assinar o IBANK (R$ 30/mês ou R$ 45 com Bot).",
+    "Olá! Quero renovar / assinar o MUVO (R$ 30/mês ou R$ 45 com Bot).",
   );
   return `https://wa.me/${phone}?text=${text}`;
 }
@@ -21,7 +21,7 @@ export function SubscriptionGate() {
       <div className="h-16 w-16 rounded-2xl overflow-hidden mb-5">
         <Image
           src="/logo.png"
-          alt="IBANK"
+          alt="MUVO"
           width={200}
           height={200}
           className="h-full w-full object-cover"

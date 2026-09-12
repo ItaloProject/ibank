@@ -43,7 +43,7 @@ export function LoginScreen() {
         <div className="h-20 w-20 rounded-2xl overflow-hidden">
           <Image
             src="/logo.png"
-            alt="IBANK"
+            alt="MUVO"
             width={400}
             height={400}
             className="h-full w-full object-cover"
@@ -52,7 +52,7 @@ export function LoginScreen() {
           />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">IBANK</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">MUVO</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Gestão Financeira Inteligente</p>
         </div>
       </div>

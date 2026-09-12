@@ -13,7 +13,7 @@ type Video = {
 };
 
 // Curadoria pública do YouTube (educação financeira).
-// Substitua por tutoriais oficiais do IBANK quando forem publicados.
+// Substitua por tutoriais oficiais do MUVO quando forem publicados.
 // youtubeId = código depois de "v=" no link do vídeo.
 const INICIANTES: Video[] = [
   {
@@ -39,7 +39,7 @@ const INICIANTES: Video[] = [
 const DICAS: Video[] = [
   {
     title: "Guia da renda fixa: CDB, CDI, Selic, LCI e LCA",
-    description: "Entenda as siglas que aparecem nos seus investimentos e no IBANK.",
+    description: "Entenda as siglas que aparecem nos seus investimentos e no MUVO.",
     youtubeId: "LLG2RrpMwkA",
     duration: "18:00",
   },
@@ -137,7 +137,7 @@ export default function VideosPage() {
     <PageShell>
       <PageHeader
         title="Vídeos"
-        description="Educação financeira gratuita para usar melhor o IBANK"
+        description="Educação financeira gratuita para usar melhor o MUVO"
       />
       <PageBody width="wide" className="space-y-8">
       <VideoSection icon={GraduationCap} title="Iniciantes" videos={INICIANTES} onPlay={setPlaying} />

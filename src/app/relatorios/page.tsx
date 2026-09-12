@@ -236,7 +236,7 @@ export default function RelatoriosPage() {
       <div ref={reportRef} className="space-y-4 sm:space-y-6">
         {/* Título impressão */}
         <div className="hidden print:block mb-4">
-          <h1 className="text-2xl font-bold">Relatório IBANK</h1>
+          <h1 className="text-2xl font-bold">Relatório MUVO</h1>
           <p className="text-sm text-muted-foreground">
             {viewMode === "mes" ? monthLabel : `Últimos ${period} meses`} — gerado em {format(new Date(), "dd/MM/yyyy", { locale: ptBR })}
           </p>

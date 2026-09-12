@@ -160,7 +160,7 @@ export function generatePlanReport(
     <div class="brand">
       <div class="brand-icon">₿</div>
       <div>
-        <div class="brand-name">IBANK</div>
+        <div class="brand-name">MUVO</div>
         <div class="brand-sub">Gestão Financeira</div>
       </div>
     </div>
@@ -216,7 +216,7 @@ export function generatePlanReport(
   </div>
 
   <div class="footer">
-    <span>IBANK — Relatório gerado em ${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</span>
+    <span>MUVO — Relatório gerado em ${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</span>
     <span>${userName}</span>
   </div>
 

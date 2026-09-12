@@ -294,7 +294,7 @@ export function InvestorBot({
       id: "welcome",
       role: "bot",
       text: [
-        `Olá! Sou o **IBANK Bot** 🤖`,
+        `Olá! Sou o **MUVO Bot** 🤖`,
         ``,
         `Faço pesquisa de mercado de FIIs, ajudo a equilibrar ações e monto a visão completa da carteira.`,
         `Posso conversar aqui ou gerar um **PDF** com o plano.`,
@@ -368,7 +368,7 @@ export function InvestorBot({
             ? "bg-white/10 text-white border border-white/20 hover:bg-white/15"
             : "bg-gradient-to-br from-violet-500 to-blue-500 text-white hover:scale-105",
         )}
-        aria-label={open ? "Fechar bot" : "Abrir IBANK Bot"}
+        aria-label={open ? "Fechar bot" : "Abrir MUVO Bot"}
       >
         {open ? <X className="h-6 w-6" /> : <Bot className="h-7 w-7" />}
         {!open && (
@@ -397,7 +397,7 @@ export function InvestorBot({
               <Sparkles className="h-4 w-4 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-white">IBANK Bot</p>
+              <p className="text-sm font-bold text-white">MUVO Bot</p>
               <p className="text-[11px] text-white/45">Pesquisa · carteira · PDF</p>
             </div>
           </div>

@@ -58,7 +58,7 @@ export function ProfileSelectScreen() {
           <div className="h-16 w-16 rounded-2xl overflow-hidden mb-4 shadow-md">
             <Image
               src="/logo.png"
-              alt="IBANK"
+              alt="MUVO"
               width={200}
               height={200}
               className="h-full w-full object-cover"

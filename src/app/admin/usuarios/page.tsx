@@ -141,7 +141,7 @@ export default function UsuariosPage() {
     <PageShell>
       <PageHeader
         title="Usuários"
-        description="Gerencie o acesso ao IBANK"
+        description="Gerencie o acesso ao MUVO"
         actions={
           <button
             onClick={() => { setShowForm(true); setError(""); }}

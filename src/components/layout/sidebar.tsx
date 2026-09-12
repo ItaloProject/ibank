@@ -56,11 +56,11 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
     >
       <div className="flex h-16 shrink-0 items-center px-3 border-b border-sidebar-border/60">
         <div className="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center">
-          <Image src="/logo.png" alt="IBANK" width={200} height={200}
+          <Image src="/logo.png" alt="MUVO" width={200} height={200}
             className="h-full w-full object-contain" priority />
         </div>
         <div className={cn("ml-3 overflow-hidden transition-all duration-150 ease-out", isCollapsed ? "w-0 opacity-0" : "w-36 opacity-100")}>
-          <p className="text-[15px] font-bold leading-none text-sidebar-foreground tracking-tight whitespace-nowrap">IBANK</p>
+          <p className="text-[15px] font-bold leading-none text-sidebar-foreground tracking-tight whitespace-nowrap">MUVO</p>
           <p className="mt-0.5 text-[11px] text-muted-foreground whitespace-nowrap">Gestão Financeira</p>
         </div>
         <button type="button" onClick={onMobileClose}

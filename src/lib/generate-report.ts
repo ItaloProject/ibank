@@ -144,7 +144,7 @@ export function generateMonthReport(
       <p>${monthLabel} &nbsp;·&nbsp; ${card.name}</p>
     </div>
     <div class="header-meta">
-      <strong>IBANK</strong>
+      <strong>MUVO</strong>
       Gerado em ${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
     </div>
   </div>
@@ -205,7 +205,7 @@ export function generateMonthReport(
   </table>
 
   <div class="footer">
-    IBANK · Relatório gerado automaticamente · ${monthLabel} · ${card.name}
+    MUVO · Relatório gerado automaticamente · ${monthLabel} · ${card.name}
   </div>
 </div>
 <script>window.onload = function() { window.print(); }</script>

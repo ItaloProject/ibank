@@ -130,14 +130,14 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
             <div className="h-9 w-9 rounded-lg shrink-0 flex items-center justify-center">
               <Image
                 src="/logo.png"
-                alt="IBANK"
+                alt="MUVO"
                 width={200}
                 height={200}
                 className="h-full w-full object-contain"
                 priority
               />
             </div>
-            <span className="font-bold text-base truncate">IBANK</span>
+            <span className="font-bold text-base truncate">MUVO</span>
           </div>
         </header>
         <main

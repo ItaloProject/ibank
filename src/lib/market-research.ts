@@ -89,7 +89,7 @@ async function fetchYahooPrice(ticker: string): Promise<number | null> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}.SA?interval=1d&range=1d`;
     const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; IBANK/1.0)" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; MUVO/1.0)" },
       next: { revalidate: 1800 },
     });
     if (!res.ok) return null;

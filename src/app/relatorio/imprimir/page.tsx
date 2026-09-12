@@ -99,7 +99,7 @@ export default function ImprimirRelatorioPage() {
         {/* Cabeçalho */}
         <div className="flex items-center justify-between border-b pb-4">
           <div>
-            <h2 className="text-2xl font-bold">IBANK</h2>
+            <h2 className="text-2xl font-bold">MUVO</h2>
             <p className="text-sm text-muted-foreground">Relatório Financeiro — {mesLabel}</p>
           </div>
           <p className="text-xs text-muted-foreground">{format(new Date(), "dd/MM/yyyy", { locale: ptBR })}</p>
@@ -173,7 +173,7 @@ export default function ImprimirRelatorioPage() {
         </section>
 
         <p className="text-[10px] text-center text-muted-foreground print:block">
-          Gerado em {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} · IBANK Gestão Financeira
+          Gerado em {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} · MUVO Gestão Financeira
         </p>
       </div>
 
