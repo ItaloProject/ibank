@@ -62,6 +62,7 @@ export default function UsuariosPage() {
   }
 
   async function toggleActive(user: AppUser) {
+    if (user.is_active && !confirm(`Desativar ${user.name}? A sessão dela será encerrada imediatamente.`)) return;
     await fetch(`/api/admin/users/${user.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
