@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { spawnSync } from "node:child_process";
 import withSerwistInit from "@serwist/next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const revision =
   spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" }).stdout?.trim() ||
@@ -21,4 +22,10 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["100.77.211.95"],
 };
 
-export default withSerwist(nextConfig);
+export default withSentryConfig(withSerwist(nextConfig), {
+  org: "italo-f",
+  project: "javascript-nextjs",
+  silent: true,
+  // Sem source maps upload -- evita depender de SENTRY_AUTH_TOKEN no build da Vercel.
+  sourcemaps: { disable: true },
+});
