@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import sql from "@/lib/db";
 
 function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
@@ -54,15 +55,29 @@ export async function getSessionUserId(): Promise<string | null> {
  *  if (auth instanceof NextResponse) return auth;
  *  const { userId } = auth;
  */
+/** Erro padrão para sessão JWT ainda válida, mas cuja conta foi desativada/alterada no banco. */
+const SESSION_STALE = NextResponse.json(
+  { error: "Sessão inválida. Faça login novamente." },
+  { status: 401 },
+);
+
 export async function requireUserId(): Promise<{ userId: string } | NextResponse> {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  // Reconsulta is_active no banco a cada requisição -- o JWT sozinho fica
+  // valido por 7 dias e nao saberia que a conta foi desativada nesse meio-tempo.
+  const rows = await sql`SELECT is_active FROM app_users WHERE user_id = ${userId}`;
+  if (rows.length === 0 || rows[0].is_active === false) return SESSION_STALE;
   return { userId };
 }
 
 export async function requireAdmin(): Promise<SessionUser | NextResponse> {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (!session.isAdmin) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+  // Reconsulta is_active/is_admin no banco -- um admin rebaixado ou desativado
+  // nao deve continuar com acesso so porque o token ainda nao expirou.
+  const rows = await sql`SELECT is_active, is_admin FROM app_users WHERE user_id = ${session.userId}`;
+  if (rows.length === 0 || rows[0].is_active === false) return SESSION_STALE;
+  if (!rows[0].is_admin) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   return session;
 }
