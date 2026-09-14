@@ -179,7 +179,7 @@ export function CarteiraSugeridaScreen({ profile, onContinuar }: Props) {
           onClick={handleContinuar}
           className="w-full flex items-center justify-center gap-2 py-3.5 min-h-12 rounded-xl bg-foreground text-background font-semibold text-sm hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-50 touch-manipulation"
         >
-          {loading ? "Salvando..." : "Montar minha carteira"}
+          {loading ? "Salvando..." : "Continuar"}
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
