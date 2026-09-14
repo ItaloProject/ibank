@@ -10,6 +10,7 @@ import {
 import { Printer, Camera, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { getTransactions, getInvestments, getInvestmentAccounts, getStockTrades } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { accountBalance } from "@/lib/stock-utils";
 import type { Transaction, Investment, InvestmentAccount, StockTrade } from "@/types/database";
 import { format, subMonths, addMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -41,6 +42,7 @@ export default function RelatoriosPage() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [allInvestments, setAllInvestments] = useState<Investment[]>([]);
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [stockTrades, setStockTrades] = useState<StockTrade[]>([]);
   const [period, setPeriod] = useState<Period>(3);
@@ -65,12 +67,14 @@ export default function RelatoriosPage() {
     Promise.all([
       getTransactions({ start: fetchStart, end: fetchEnd }),
       getInvestments({ start: fetchStart, end: fetchEnd }),
+      getInvestments(), // histórico completo — necessário pro saldo real das contas, não só do período
       getInvestmentAccounts(),
       getStockTrades(),
     ])
-      .then(([t, i, a, st]) => {
+      .then(([t, i, allInv, a, st]) => {
         setTransactions(Array.isArray(t) ? t : []);
         setInvestments(Array.isArray(i) ? i : []);
+        setAllInvestments(Array.isArray(allInv) ? allInv : []);
         setAccounts(Array.isArray(a) ? a : []);
         setStockTrades(Array.isArray(st) ? st : []);
       })
@@ -265,7 +269,16 @@ export default function RelatoriosPage() {
           <Card>
             <CardHeader className="pb-2"><CardDescription>Saldo total investido</CardDescription></CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{formatCurrency(totalSaved > 0 ? totalSaved : accounts.reduce((s, a) => s + a.current_balance, 0))}</p>
+              <p className="text-2xl font-bold">
+                {formatCurrency(
+                  totalSaved > 0
+                    ? totalSaved
+                    : accounts.reduce(
+                        (s, a) => s + (a.is_turbo ? a.current_balance : accountBalance(allInvestments, a.id)),
+                        0,
+                      ),
+                )}
+              </p>
               <p className="text-xs text-muted-foreground mt-1">{accounts.length} conta{accounts.length !== 1 ? "s" : ""}</p>
             </CardContent>
           </Card>

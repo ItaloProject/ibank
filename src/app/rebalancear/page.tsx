@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useUser } from "@/context/user-context";
-import { getInvestmentAccounts, getStockTrades, getStockQuotes } from "@/lib/api";
-import type { InvestmentAccount, StockTrade } from "@/types/database";
+import { getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes } from "@/lib/api";
+import type { InvestmentAccount, Investment, StockTrade } from "@/types/database";
 import type { StockQuote } from "@/lib/api";
-import { computeStockPositions, detectAssetType } from "@/lib/stock-utils";
+import { computeStockPositions, detectAssetType, accountBalance } from "@/lib/stock-utils";
 import {
   computeRebalance, PROFILE_TARGETS, DEFAULT_TARGET, CLASS_META,
   type AssetClass, type RebalanceResult,
@@ -25,9 +25,11 @@ interface HeldAsset { ticker: string; price: number; cls: AssetClass }
 export default function RebalancearPage() {
   const { investmentProfile } = useUser();
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const [trades, setTrades] = useState<StockTrade[]>([]);
   const [quotes, setQuotes] = useState<StockQuote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [aporte, setAporte] = useState(1000);
 
   // Alocação-alvo personalizada (null = usa o preset do perfil)
@@ -35,11 +37,16 @@ export default function RebalancearPage() {
   const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
-    Promise.all([getInvestmentAccounts(), getStockTrades(), getStockQuotes()])
-      .then(([a, t, q]) => {
+    Promise.all([getInvestmentAccounts(), getInvestments(), getStockTrades(), getStockQuotes()])
+      .then(([a, inv, t, q]) => {
         setAccounts(Array.isArray(a) ? (a as InvestmentAccount[]) : []);
+        setInvestments(Array.isArray(inv) ? (inv as Investment[]) : []);
         setTrades(Array.isArray(t) ? (t as StockTrade[]) : []);
         setQuotes(Array.isArray(q) ? (q as StockQuote[]) : []);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar dados de rebalanceamento:", err);
+        setLoadError(true);
       })
       .finally(() => setLoading(false));
 
@@ -68,9 +75,12 @@ export default function RebalancearPage() {
       else acoes += value;
     }
 
-    const renda_fixa = accounts.reduce((s, a) => s + Number(a.current_balance || 0), 0);
+    const renda_fixa = accounts.reduce(
+      (s, a) => s + (a.is_turbo ? Number(a.current_balance || 0) : accountBalance(investments, a.id)),
+      0,
+    );
     return { renda_fixa, acoes, fii };
-  }, [accounts, trades, quotes]);
+  }, [accounts, investments, trades, quotes]);
 
   // Ativos com cotação conhecida, para converter reais em quantidade aproximada
   const held = useMemo<HeldAsset[]>(() => {
@@ -98,6 +108,22 @@ export default function RebalancearPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+        <AlertTriangle className="h-8 w-8 text-destructive" />
+        <p className="font-medium">Não foi possível carregar seus dados</p>
+        <p className="text-sm text-muted-foreground">Verifique sua conexão e tente novamente.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-1 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+        >
+          Recarregar
+        </button>
       </div>
     );
   }

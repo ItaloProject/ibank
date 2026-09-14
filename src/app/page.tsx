@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { getCards, getTransactions, getAvailableCycles, getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { accountBalance } from "@/lib/stock-utils";
 import { computeMonthlyPassiveIncome } from "@/lib/passive-income";
 import type { CreditCard as CreditCardType, Transaction, InvestmentAccount, Investment, StockTrade } from "@/types/database";
 import type { StockQuote } from "@/lib/api";
@@ -108,8 +109,13 @@ export default function DashboardPage() {
     .reduce((s, t) => s + t.amount * (t.installments - t.installment_current), 0);
   const totalComprometido = totalSpent + futureFromInstallments;
   const limitPercent = totalLimit > 0 ? (totalComprometido / totalLimit) * 100 : 0;
-  // Renda fixa: soma dos saldos das contas
-  const rendaFixa = accounts.reduce((s, a) => s + a.current_balance, 0);
+  // Renda fixa: soma dos saldos das contas. Turbo lê current_balance direto;
+  // as demais (inclusive "Saldo em Conta" do Live) derivam do somatório de
+  // investments, que é a fonte real do saldo nessas contas.
+  const rendaFixa = accounts.reduce(
+    (s, a) => s + (a.is_turbo ? a.current_balance : accountBalance(investments, a.id)),
+    0,
+  );
   // Ações: quantidade líquida × cotação atual por ticker
   const quoteMap = Object.fromEntries(stockQuotes.map((q) => [q.ticker, q.current_price]));
   const netQty = stockTrades.reduce<Record<string, number>>((acc, t) => {

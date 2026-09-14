@@ -3,10 +3,11 @@
 import { useEffect, useState, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { getCards, getTransactions, getAvailableCycles, getInvestmentAccounts, getStockTrades, getStockQuotes } from "@/lib/api";
+import { getCards, getTransactions, getAvailableCycles, getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
+import { accountBalance } from "@/lib/stock-utils";
 import { addMonths } from "date-fns";
-import type { CreditCard, Transaction, InvestmentAccount, StockTrade } from "@/types/database";
+import type { CreditCard, Transaction, InvestmentAccount, Investment, StockTrade } from "@/types/database";
 import type { StockQuote } from "@/lib/api";
 import { Printer, X } from "lucide-react";
 
@@ -20,6 +21,7 @@ export default function ImprimirRelatorioPage() {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const [stockTrades, setStockTrades] = useState<StockTrade[]>([]);
   const [stockQuotes, setStockQuotes] = useState<StockQuote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,14 +39,16 @@ export default function ImprimirRelatorioPage() {
         if (cycles.length > 0) cycle = cycles[0];
       }
       setMesLabel(format(new Date(cycle + "-01"), "MMMM 'de' yyyy", { locale: ptBR }));
-      const [t, a, st, sq] = await Promise.all([
+      const [t, a, inv, st, sq] = await Promise.all([
         getTransactions({ billingCycle: cycle }),
         getInvestmentAccounts(),
+        getInvestments(),
         getStockTrades(),
         getStockQuotes(),
       ]);
       setTransactions(Array.isArray(t) ? t as Transaction[] : []);
       setAccounts(Array.isArray(a) ? a as InvestmentAccount[] : []);
+      setInvestments(Array.isArray(inv) ? inv as Investment[] : []);
       setStockTrades(Array.isArray(st) ? st as StockTrade[] : []);
       setStockQuotes(Array.isArray(sq) ? sq as StockQuote[] : []);
     }).finally(() => setLoading(false));
@@ -52,7 +56,10 @@ export default function ImprimirRelatorioPage() {
 
   const totalGasto = transactions.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
   const totalLimit = cards.reduce((s, c) => s + c.limit, 0);
-  const rendaFixa = accounts.reduce((s, a) => s + a.current_balance, 0);
+  const rendaFixa = accounts.reduce(
+    (s, a) => s + (a.is_turbo ? a.current_balance : accountBalance(investments, a.id)),
+    0,
+  );
   const quoteMap = Object.fromEntries(stockQuotes.map((q) => [q.ticker, q.current_price]));
   const netQty = stockTrades.reduce<Record<string, number>>((acc, t) => {
     acc[t.ticker] = (acc[t.ticker] ?? 0) + (t.type === "venda" ? -t.quantity : t.quantity);
