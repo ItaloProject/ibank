@@ -72,6 +72,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   const [groups, setGroups] = useState<ExpenseGroup[]>([]);
   const [items, setItems] = useState<ExpenseItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   // Group form
@@ -98,39 +99,51 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   // ── Data loading ───────────────────────────────────────────────────────────
 
   const loadGroups = useCallback(async () => {
-    const res = await fetch(`/api/plan-groups?user=${userId}`);
-    const data = await res.json();
-    if (!Array.isArray(data)) {
-      setGroups([]);
-      return;
-    }
-    if (data.length === 0) {
-      // Cria grupos padrão na primeira vez
-      const created = await Promise.all(
-        DEFAULT_GROUPS.map((g) =>
-          fetch("/api/plan-groups", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: userId, name: g.name, color: g.color }),
-          }).then((r) => r.json())
-        )
-      );
-      setGroups(created.filter((g): g is ExpenseGroup => Boolean(g?.id)));
-    } else {
-      setGroups(data);
+    try {
+      const res = await fetch(`/api/plan-groups?user=${userId}`);
+      const data = await res.json();
+      if (!Array.isArray(data)) {
+        setGroups([]);
+        return;
+      }
+      if (data.length === 0) {
+        // Cria grupos padrão na primeira vez
+        const created = await Promise.all(
+          DEFAULT_GROUPS.map((g) =>
+            fetch("/api/plan-groups", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ user_id: userId, name: g.name, color: g.color }),
+            }).then((r) => r.json())
+          )
+        );
+        setGroups(created.filter((g): g is ExpenseGroup => Boolean(g?.id)));
+      } else {
+        setGroups(data);
+      }
+      setLoadError(null);
+    } catch (err) {
+      console.error("Erro ao carregar grupos de planejamento:", err);
+      setLoadError("Não foi possível carregar seu planejamento. Verifique sua conexão.");
     }
   }, [userId]);
 
   const loadItems = useCallback(async (month: string) => {
-    const [itemsRes, salaryRes] = await Promise.all([
-      fetch(`/api/plan-items?user=${userId}&month=${month}`),
-      fetch(`/api/plan-salary?user=${userId}&month=${month}`),
-    ]);
-    const data: Record<string, unknown>[] = await itemsRes.json();
-    const salaryData = await salaryRes.json();
-    setItems(Array.isArray(data) ? data.map(toItem) : []);
-    setSalary(Number(salaryData.salary) || 0);
-    setSalaryInput(salaryData.salary > 0 ? String(salaryData.salary) : "");
+    try {
+      const [itemsRes, salaryRes] = await Promise.all([
+        fetch(`/api/plan-items?user=${userId}&month=${month}`),
+        fetch(`/api/plan-salary?user=${userId}&month=${month}`),
+      ]);
+      const data: Record<string, unknown>[] = await itemsRes.json();
+      const salaryData = await salaryRes.json();
+      setItems(Array.isArray(data) ? data.map(toItem) : []);
+      setSalary(Number(salaryData.salary) || 0);
+      setSalaryInput(salaryData.salary > 0 ? String(salaryData.salary) : "");
+      setLoadError(null);
+    } catch (err) {
+      console.error("Erro ao carregar itens de planejamento:", err);
+      setLoadError("Não foi possível carregar seu planejamento. Verifique sua conexão.");
+    }
   }, [userId]);
 
   useEffect(() => {
@@ -327,6 +340,20 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+        <p className="text-destructive font-medium">{loadError}</p>
+        <button
+          onClick={() => { loadGroups(); loadItems(currentMonth); }}
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+        >
+          Tentar de novo
+        </button>
       </div>
     );
   }

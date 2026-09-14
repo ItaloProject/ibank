@@ -28,6 +28,7 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const [faturaCartao, setFaturaCartao] = useState(0);
   const [investidoMes, setInvestidoMes] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Dialogs
   const [receitaOpen, setReceitaOpen] = useState(false);
@@ -40,55 +41,61 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   const isCurrentMonth = monthKey >= format(new Date(), "yyyy-MM");
 
   const loadData = useCallback(async () => {
-    const uid = getCurrentUser();
-    const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
-    const monthStart = `${monthKey}-01`;
-    const monthEnd = `${monthKey}-${String(lastDay).padStart(2, "0")}`;
+    try {
+      const uid = getCurrentUser();
+      const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+      const monthStart = `${monthKey}-01`;
+      const monthEnd = `${monthKey}-${String(lastDay).padStart(2, "0")}`;
 
-    const [flowsRes, goalRes, planRes, txRes, invRes, stRes] = await Promise.all([
-      fetch(`/api/cash-flows?user=${userId}&month=${monthKey}`),
-      fetch(`/api/savings-goals?user=${userId}`),
-      fetch(`/api/plan-items?user=${uid}&month=${monthKey}`),
-      fetch(`/api/transactions?user=${uid}&billing_cycle=${monthKey}`),
-      fetch(`/api/investments?user=${uid}&start=${monthStart}&end=${monthEnd}`),
-      fetch(`/api/stock-trades?user=${uid}`),
-    ]);
-    const [flowsData, goalData, planData, txData, invData, stData] = await Promise.all([
-      flowsRes.json(), goalRes.json(), planRes.json(), txRes.json(), invRes.json(), stRes.json(),
-    ]);
+      const [flowsRes, goalRes, planRes, txRes, invRes, stRes] = await Promise.all([
+        fetch(`/api/cash-flows?user=${userId}&month=${monthKey}`),
+        fetch(`/api/savings-goals?user=${userId}`),
+        fetch(`/api/plan-items?user=${uid}&month=${monthKey}`),
+        fetch(`/api/transactions?user=${uid}&billing_cycle=${monthKey}`),
+        fetch(`/api/investments?user=${uid}&start=${monthStart}&end=${monthEnd}`),
+        fetch(`/api/stock-trades?user=${uid}`),
+      ]);
+      const [flowsData, goalData, planData, txData, invData, stData] = await Promise.all([
+        flowsRes.json(), goalRes.json(), planRes.json(), txRes.json(), invRes.json(), stRes.json(),
+      ]);
 
-    // Receita: soma de todos os cash-flows de entrada do mês
-    const entradas = Array.isArray(flowsData)
-      ? (flowsData as Record<string, unknown>[]).filter((f) => f.type === "entrada")
-      : [];
-    const totalReceita = entradas.reduce((s, f) => s + (Number(f.amount) || 0), 0);
-    setReceita(totalReceita);
-    // Guarda o id da entrada principal para editar depois (pega a primeira)
-    const firstEntrada = entradas[0];
-    setReceitaFlowId(firstEntrada ? String(firstEntrada.id) : null);
+      // Receita: soma de todos os cash-flows de entrada do mês
+      const entradas = Array.isArray(flowsData)
+        ? (flowsData as Record<string, unknown>[]).filter((f) => f.type === "entrada")
+        : [];
+      const totalReceita = entradas.reduce((s, f) => s + (Number(f.amount) || 0), 0);
+      setReceita(totalReceita);
+      // Guarda o id da entrada principal para editar depois (pega a primeira)
+      const firstEntrada = entradas[0];
+      setReceitaFlowId(firstEntrada ? String(firstEntrada.id) : null);
 
-    setSavedAmount(Number(goalData.saved_amount) || 0);
-    setSavedInput(goalData.saved_amount > 0 ? String(goalData.saved_amount) : "");
+      setSavedAmount(Number(goalData.saved_amount) || 0);
+      setSavedInput(goalData.saved_amount > 0 ? String(goalData.saved_amount) : "");
 
-    const planItems = Array.isArray(planData) ? planData : [];
-    setPlanejado(planItems.reduce((s: number, i: Record<string, unknown>) => s + (Number(i.planned) || 0), 0));
+      const planItems = Array.isArray(planData) ? planData : [];
+      setPlanejado(planItems.reduce((s: number, i: Record<string, unknown>) => s + (Number(i.planned) || 0), 0));
 
-    const txList = Array.isArray(txData) ? txData : [];
-    setFaturaCartao(txList.reduce((s: number, t: Record<string, unknown>) => {
-      const amt = Number(t.amount) || 0;
-      return s + (amt > 0 ? amt : 0);
-    }, 0));
+      const txList = Array.isArray(txData) ? txData : [];
+      setFaturaCartao(txList.reduce((s: number, t: Record<string, unknown>) => {
+        const amt = Number(t.amount) || 0;
+        return s + (amt > 0 ? amt : 0);
+      }, 0));
 
-    const invList = Array.isArray(invData) ? invData : [];
-    const invTotal = invList.reduce((s: number, i: Record<string, unknown>) => {
-      const type = String(i.type);
-      return (type === "deposito" || type === "rendimento") ? s + (Number(i.amount) || 0) : s;
-    }, 0);
-    const stList = Array.isArray(stData) ? stData : [];
-    const acoesMes = stList
-      .filter((t: Record<string, unknown>) => t.type === "compra" && String(t.date).slice(0, 7) === monthKey)
-      .reduce((s: number, t: Record<string, unknown>) => s + (Number(t.total_amount) || 0), 0);
-    setInvestidoMes(invTotal + acoesMes);
+      const invList = Array.isArray(invData) ? invData : [];
+      const invTotal = invList.reduce((s: number, i: Record<string, unknown>) => {
+        const type = String(i.type);
+        return (type === "deposito" || type === "rendimento") ? s + (Number(i.amount) || 0) : s;
+      }, 0);
+      const stList = Array.isArray(stData) ? stData : [];
+      const acoesMes = stList
+        .filter((t: Record<string, unknown>) => t.type === "compra" && String(t.date).slice(0, 7) === monthKey)
+        .reduce((s: number, t: Record<string, unknown>) => s + (Number(t.total_amount) || 0), 0);
+      setInvestidoMes(invTotal + acoesMes);
+      setLoadError(null);
+    } catch (err) {
+      console.error("Erro ao carregar entrada/saída:", err);
+      setLoadError("Não foi possível carregar seus dados. Verifique sua conexão.");
+    }
   }, [userId, monthKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -146,6 +153,18 @@ function EntradaSaidaContent({ userId }: { userId: string }) {
   if (loading) return (
     <div className="flex items-center justify-center h-full">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+
+  if (loadError) return (
+    <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+      <p className="text-destructive font-medium">{loadError}</p>
+      <button
+        onClick={loadData}
+        className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+      >
+        Tentar de novo
+      </button>
     </div>
   );
 

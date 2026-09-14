@@ -233,6 +233,7 @@ export default function CartaoPage() {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [txOpen, setTxOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
@@ -333,11 +334,13 @@ export default function CartaoPage() {
       setAvailableCycles(cycles);
     } catch (err) {
       console.error(err);
+      setLoadError("Não foi possível carregar as transações. Verifique sua conexão.");
     }
   }, []);
 
   const load = useCallback(async () => {
     try {
+      setLoadError(null);
       const loadedCards = await getCards();
       const cardList = Array.isArray(loadedCards) ? loadedCards : [];
       setCards(cardList);
@@ -346,6 +349,7 @@ export default function CartaoPage() {
       await loadData(activeId, selectedCycle);
     } catch (err) {
       console.error(err);
+      setLoadError("Não foi possível carregar seus cartões. Verifique sua conexão.");
     } finally {
       setLoading(false);
     }
@@ -582,6 +586,15 @@ export default function CartaoPage() {
           </div>
         }
       />
+
+      {loadError && (
+        <div className="mx-4 sm:mx-6 mt-3 flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <span>{loadError}</span>
+          <button onClick={load} className="shrink-0 font-semibold underline underline-offset-2">
+            Tentar de novo
+          </button>
+        </div>
+      )}
 
       <div className="border-b px-4 sm:px-6 pb-3">
         {/* Cycle navigation */}

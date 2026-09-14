@@ -100,6 +100,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteForm, setQuoteForm] = useState({ ticker: "", price: "" });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("ibank_inv_tab") ?? "total";
@@ -182,6 +183,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
 
   const load = useCallback(async () => {
     try {
+      setLoadError(null);
       const [loadedAccounts, loadedInvestments, loadedStocks, loadedQuotes, loadedSnapshots, loadedScores] = await Promise.all([
         getInvestmentAccounts(),
         getInvestments(),
@@ -211,6 +213,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       }
     } catch (err) {
       console.error("Erro ao carregar investimentos:", err);
+      setLoadError("Não foi possível carregar seus investimentos. Verifique sua conexão.");
     } finally {
       setLoading(false);
     }
@@ -769,6 +772,20 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+        <p className="text-destructive font-medium">{loadError}</p>
+        <button
+          onClick={load}
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+        >
+          Tentar de novo
+        </button>
       </div>
     );
   }
