@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode 
 import {
   X, Signal, Wifi, BatteryFull, Landmark, Calculator, Zap, Shield,
   ArrowUpRight, ArrowDownRight, Check, ChevronLeft, Pencil, Home, ChevronRight,
-  CreditCard, CalendarRange, Layers, TrendingUp, Wallet, Receipt, Scale, Plus,
+  CreditCard, CalendarRange, Layers, TrendingUp, Wallet, Receipt, Scale, Plus, Trash2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
@@ -413,6 +413,7 @@ export function InvestorLiveView({
   const [newCaixinhaTetoMask, setNewCaixinhaTetoMask] = useState("");
   const [newCaixinhaSubmitting, setNewCaixinhaSubmitting] = useState(false);
   const [newCaixinhaError, setNewCaixinhaError] = useState<string | null>(null);
+  const [undoingId, setUndoingId] = useState<string | null>(null);
 
   const holdings: Holding[] = useMemo(
     () =>
@@ -1013,6 +1014,60 @@ export function InvestorLiveView({
     flashConfirm();
   }
 
+  /**
+   * Desfaz uma movimentação da lista "Últimas movimentações": reverte o
+   * lançamento em si e o débito correspondente no saldo em conta,
+   * restaurando o saldo da conta-alvo quando necessário.
+   */
+  async function undoMovement(mov: { id: string; title: string }) {
+    if (!cashAccountId) return;
+    if (!confirm(`Desfazer "${mov.title}"? O valor volta para o saldo disponível.`)) return;
+    setUndoingId(mov.id);
+    try {
+      if (mov.id.startsWith("stock-")) {
+        const tradeId = mov.id.slice("stock-".length);
+        const trade = stockTrades.find((t) => t.id === tradeId);
+        if (!trade) return;
+        await deleteStockTrade(tradeId);
+        const cashRetirada = investments.find(
+          (i) =>
+            i.account_id === cashAccountId &&
+            i.type === "retirada" &&
+            i.description === `Compra ${trade.ticker}` &&
+            Math.abs(i.amount - trade.total_amount) < 0.01
+        );
+        if (cashRetirada) await safeDelete(() => deleteInvestment(cashRetirada.id), "débito da compra");
+      } else if (mov.id.startsWith("inv-")) {
+        const invId = mov.id.slice("inv-".length);
+        const inv = investments.find((i) => i.id === invId);
+        if (!inv) return;
+        const targetAcc = [...turboAccountsReal, ...emergenciaAccountsReal, ...investimentosAccountsReal].find(
+          (a) => a.id === inv.account_id
+        );
+        await deleteInvestment(invId);
+        if (targetAcc) {
+          await safeDelete(() => updateAccountBalance(targetAcc.id, targetAcc.valor - inv.amount), "saldo da caixinha");
+        }
+        const cashRetirada = investments.find(
+          (i) =>
+            i.account_id === cashAccountId &&
+            i.type === "retirada" &&
+            Math.abs(i.amount - inv.amount) < 0.01 &&
+            targetAcc &&
+            i.description.includes(targetAcc.nome)
+        );
+        if (cashRetirada) await safeDelete(() => deleteInvestment(cashRetirada.id), "débito do aporte");
+      }
+      await onRefresh();
+      flashConfirm();
+    } catch (err) {
+      console.error("Erro ao desfazer movimentação:", err);
+      alert("Não foi possível desfazer essa movimentação. Tente novamente.");
+    } finally {
+      setUndoingId(null);
+    }
+  }
+
   const [simAporteInicial, setSimAporteInicial] = useState(() => Math.round(grandTotal) || 1000);
   const [simAporteMensal, setSimAporteMensal] = useState(300);
   const [simMeses, setSimMeses] = useState(24);
@@ -1534,9 +1589,20 @@ export function InvestorLiveView({
                               <p className="text-[10px] text-white/40 truncate">{mov.subtitle}</p>
                             </div>
                           </div>
-                          <p className="text-[12px] font-extrabold tabular-nums text-rose-300 shrink-0">
-                            −{formatCurrency(mov.amount)}
-                          </p>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <p className="text-[12px] font-extrabold tabular-nums text-rose-300">
+                              −{formatCurrency(mov.amount)}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => undoMovement(mov)}
+                              disabled={undoingId === mov.id}
+                              aria-label={`Desfazer ${mov.title}`}
+                              className="h-7 w-7 flex items-center justify-center rounded-full text-white/25 hover:text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
