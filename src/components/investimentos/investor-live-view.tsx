@@ -16,6 +16,9 @@ import {
   updateAccountBalance,
   createInvestmentAccount,
   createInvestmentAccountWithTurbo,
+  deleteInvestment,
+  deleteStockTrade,
+  deleteInvestmentAccount,
 } from "@/lib/api";
 import {
   SimulatorFinancePanel,
@@ -30,6 +33,15 @@ import {
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Tenta desfazer uma etapa já gravada quando uma etapa seguinte falha (best-effort). */
+async function safeDelete(action: () => Promise<unknown>, label: string) {
+  try {
+    await action();
+  } catch (err) {
+    console.error(`Falha ao reverter ${label}:`, err);
+  }
 }
 
 type Asset = {
@@ -534,15 +546,27 @@ export function InvestorLiveView({
     if (!sellHolding || !canConfirmSell) return;
     setSellSubmitting(true);
     setSellError(null);
+    const { ticker } = sellHolding.asset;
+    const price = sellHolding.price;
+    const amount = sellQty * price;
+    let cid = cashAccountId;
+    let cashRecordId: string | null = null;
     try {
-      const { ticker } = sellHolding.asset;
-      const price = sellHolding.price;
-      const amount = sellQty * price;
-      let cid = cashAccountId;
       if (!cid) {
         const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
         cid = acc.id;
       }
+      // Credita o saldo ANTES de gravar a venda: se a etapa seguinte falhar,
+      // o usuário fica com um crédito a mais (corrigível) em vez de perder a
+      // ação sem receber nada por ela.
+      const cashRecord = await createInvestment({
+        account_id: cid,
+        type: "deposito",
+        amount,
+        description: `Venda ${ticker}`,
+        date: today(),
+      });
+      cashRecordId = cashRecord.id;
       await createStockTrade({
         ticker,
         type: "venda",
@@ -551,19 +575,15 @@ export function InvestorLiveView({
         total_amount: amount,
         date: today(),
       });
-      await createInvestment({
-        account_id: cid,
-        type: "deposito",
-        amount,
-        description: `Venda ${ticker}`,
-        date: today(),
-      });
       await onRefresh();
       flashConfirm();
       setSellTicker(null);
     } catch (err) {
       console.error("Erro ao vender:", err);
-      setSellError("Não foi possível concluir a venda. Tente novamente.");
+      if (cashRecordId) {
+        await safeDelete(() => deleteInvestment(cashRecordId!), "crédito da venda");
+      }
+      setSellError(err instanceof Error ? err.message : "Não foi possível concluir a venda. Tente novamente.");
     } finally {
       setSellSubmitting(false);
     }
@@ -888,7 +908,7 @@ export function InvestorLiveView({
       throw new Error(`Valor insuficiente para 1 ação de ${ticker} (${formatCurrency(price)}).`);
     }
     const spent = qty * price;
-    await createStockTrade({
+    const trade = await createStockTrade({
       ticker,
       type: "compra",
       quantity: qty,
@@ -896,13 +916,18 @@ export function InvestorLiveView({
       total_amount: spent,
       date: today(),
     });
-    await createInvestment({
-      account_id: cashAccountId,
-      type: "retirada",
-      amount: spent,
-      description: `Compra ${ticker}`,
-      date: today(),
-    });
+    try {
+      await createInvestment({
+        account_id: cashAccountId,
+        type: "retirada",
+        amount: spent,
+        description: `Compra ${ticker}`,
+        date: today(),
+      });
+    } catch (err) {
+      await safeDelete(() => deleteStockTrade(trade.id), "compra de ação");
+      throw err;
+    }
     await onRefresh();
     flashConfirm();
   }
@@ -910,36 +935,48 @@ export function InvestorLiveView({
   async function handleBuyTesouro(product: TesouroProduct, amount: number) {
     if (!cashAccountId || amount <= 0 || amount > cash + 0.001) return;
     const existing = investimentosAccountsReal.find((a) => a.nome === product.nome);
+    const previousBalance = existing?.valor ?? 0;
     let accountId: string;
+    let createdAccount = false;
+
     if (existing) {
       accountId = existing.id;
-      await createInvestment({
-        account_id: accountId,
-        type: "deposito",
-        amount,
-        description: "Compra Tesouro Direto",
-        date: today(),
-      });
-      await updateAccountBalance(accountId, existing.valor + amount);
     } else {
       const acc = await createInvestmentAccount({ name: product.nome, institution: product.taxa });
       accountId = acc.id;
-      await createInvestment({
+      createdAccount = true;
+    }
+
+    let depositRecordId: string | null = null;
+    try {
+      const depositRecord = await createInvestment({
         account_id: accountId,
         type: "deposito",
         amount,
         description: "Compra Tesouro Direto",
         date: today(),
       });
-      await updateAccountBalance(accountId, amount);
+      depositRecordId = depositRecord.id;
+      await updateAccountBalance(accountId, previousBalance + amount);
+      await createInvestment({
+        account_id: cashAccountId,
+        type: "retirada",
+        amount,
+        description: `Compra ${product.nome}`,
+        date: today(),
+      });
+    } catch (err) {
+      if (createdAccount) {
+        // Conta nova: apagar ela já remove o depósito em cascata.
+        await safeDelete(() => deleteInvestmentAccount(accountId), "conta de Tesouro criada");
+      } else {
+        await safeDelete(() => updateAccountBalance(accountId, previousBalance), "saldo do Tesouro");
+        if (depositRecordId) {
+          await safeDelete(() => deleteInvestment(depositRecordId!), "depósito do Tesouro");
+        }
+      }
+      throw err;
     }
-    await createInvestment({
-      account_id: cashAccountId,
-      type: "retirada",
-      amount,
-      description: `Compra ${product.nome}`,
-      date: today(),
-    });
     await onRefresh();
     flashConfirm();
   }
@@ -950,21 +987,28 @@ export function InvestorLiveView({
       (a) => a.id === accountId
     );
     if (!acc) return;
-    await createInvestment({
+
+    const depositRecord = await createInvestment({
       account_id: accountId,
       type: "deposito",
       amount,
       description: "Aporte via Live",
       date: today(),
     });
-    await updateAccountBalance(accountId, acc.valor + amount);
-    await createInvestment({
-      account_id: cashAccountId,
-      type: "retirada",
-      amount,
-      description: `Aporte · ${acc.nome}`,
-      date: today(),
-    });
+    try {
+      await updateAccountBalance(accountId, acc.valor + amount);
+      await createInvestment({
+        account_id: cashAccountId,
+        type: "retirada",
+        amount,
+        description: `Aporte · ${acc.nome}`,
+        date: today(),
+      });
+    } catch (err) {
+      await safeDelete(() => updateAccountBalance(accountId, acc.valor), "saldo do aporte");
+      await safeDelete(() => deleteInvestment(depositRecord.id), "depósito do aporte");
+      throw err;
+    }
     await onRefresh();
     flashConfirm();
   }

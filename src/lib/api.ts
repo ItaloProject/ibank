@@ -14,6 +14,23 @@ import { getCurrentUser } from "@/lib/user";
 
 function uid() { return getCurrentUser(); }
 
+// POST/PATCH que lança erro de verdade quando o servidor rejeita (400/404/etc),
+// em vez de tentar normalizar um corpo de erro como se fosse o registro criado.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function sendJson<T>(url: string, method: "POST" | "PATCH", body: unknown, transform: (r: any) => T): Promise<T> {
+  const res = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: any = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error((data && typeof data.error === "string" && data.error) || `Erro ${res.status} ao processar a requisição.`);
+  }
+  return transform(data);
+}
+
 // Neon retorna numeric como strings e date como ISO datetime — normalizamos na borda.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -165,21 +182,11 @@ export async function getInvestmentAccounts(): Promise<InvestmentAccount[]> {
 export async function createInvestmentAccount(data: {
   name: string; institution: string;
 }): Promise<InvestmentAccount> {
-  const res = await fetch("/api/investment-accounts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...data, user_id: uid() }),
-  });
-  return toAccount(await res.json());
+  return sendJson("/api/investment-accounts", "POST", { ...data, user_id: uid() }, toAccount);
 }
 
 export async function updateAccountBalance(id: string, current_balance: number): Promise<InvestmentAccount> {
-  const res = await fetch(`/api/investment-accounts/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ current_balance }),
-  });
-  return toAccount(await res.json());
+  return sendJson(`/api/investment-accounts/${id}`, "PATCH", { current_balance }, toAccount);
 }
 
 export async function deleteInvestmentAccount(id: string): Promise<void> {
@@ -211,12 +218,7 @@ export async function createInvestmentAccountWithTurbo(data: {
   name: string; institution: string;
   is_turbo?: boolean; cdi_percent?: number | null; max_rendimento?: number | null; valor_liquido?: number | null;
 }): Promise<InvestmentAccount> {
-  const res = await fetch("/api/investment-accounts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...data, user_id: uid() }),
-  });
-  return toAccount(await res.json());
+  return sendJson("/api/investment-accounts", "POST", { ...data, user_id: uid() }, toAccount);
 }
 
 // ─── Investments ──────────────────────────────────────────────────────────────
@@ -236,12 +238,7 @@ export async function getInvestments(params?: {
 export async function createInvestment(data: {
   account_id: string; type: InvestmentType; amount: number; description: string; date: string;
 }): Promise<Investment> {
-  const res = await fetch("/api/investments", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...data, user_id: uid() }),
-  });
-  return toInvestment(await res.json());
+  return sendJson("/api/investments", "POST", { ...data, user_id: uid() }, toInvestment);
 }
 
 export async function deleteInvestment(id: string): Promise<void> {
@@ -265,12 +262,7 @@ export async function createStockTrade(data: {
   notes?: string;
   date: string;
 }): Promise<StockTrade> {
-  const res = await fetch("/api/stock-trades", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...data, user_id: uid() }),
-  });
-  return toStockTrade(await res.json());
+  return sendJson("/api/stock-trades", "POST", { ...data, user_id: uid() }, toStockTrade);
 }
 
 export async function deleteStockTrade(id: string): Promise<void> {
