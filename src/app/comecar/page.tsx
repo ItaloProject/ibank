@@ -316,10 +316,14 @@ export default function ComecarPage() {
                   maxLength={11}
                 />
               </div>
-              <p className="text-xs text-zinc-600 flex items-center gap-1.5">
+              <p className="text-xs text-zinc-600 flex items-center gap-1.5 flex-wrap">
                 <Shield className="h-3 w-3" /> Seus dados ficam apenas conosco ·{" "}
                 <Link href="/politica-privacidade" className="underline hover:text-zinc-400" target="_blank">
                   Política de privacidade
+                </Link>{" "}
+                ·{" "}
+                <Link href="/termos-de-uso" className="underline hover:text-zinc-400" target="_blank">
+                  Termos de uso
                 </Link>
               </p>
               <div className="flex gap-3 mt-2">

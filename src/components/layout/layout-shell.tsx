@@ -16,7 +16,7 @@ import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
 
-const PUBLIC_PATHS = new Set(["/vender", "/comecar", "/politica-privacidade", "/~offline"]);
+const PUBLIC_PATHS = new Set(["/vender", "/comecar", "/politica-privacidade", "/termos-de-uso", "/~offline"]);
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
