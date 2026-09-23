@@ -8,7 +8,6 @@ import {
   Receipt,
   Target,
   Landmark,
-  LineChart,
   PlayCircle,
   Settings,
 } from "lucide-react";
@@ -54,7 +53,6 @@ export const NAV_GROUPS: NavGroup[] = [
     accent: true,
     items: [
       { href: "/investimentos", label: "Investimentos", icon: TrendingUp, bottomTab: true },
-      { href: "/rentabilidade", label: "Rentabilidade", icon: LineChart },
       { href: "/proventos", label: "Proventos", icon: CalendarCheck },
       { href: "/impostos", label: "Imposto de Renda", icon: Landmark },
       { href: "/metas", label: "Metas", icon: Target },
