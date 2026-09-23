@@ -167,7 +167,7 @@ export default function ComecarPage() {
   const side = SIDE_CONTENT[Math.min(step, SIDE_CONTENT.length - 1)];
 
   return (
-    <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col md:flex-row">
+    <div className="min-h-[100dvh] bg-background text-foreground flex flex-col md:flex-row">
 
       {/* ── painel esquerdo (desktop) ─────────────────────────────────────── */}
       <div className="hidden md:flex md:w-1/2 lg:w-[55%] md:sticky md:top-0 md:h-[100dvh] md:overflow-y-auto flex-col px-12 py-12 border-r border-zinc-800 relative">
@@ -185,7 +185,7 @@ export default function ComecarPage() {
 
           {/* Headline + features */}
           <div key={step} className="transition-all duration-300">
-            <h2 className="text-3xl lg:text-4xl font-bold leading-tight mb-3 text-white">
+            <h2 className="text-3xl lg:text-4xl font-bold leading-tight mb-3 text-white font-display italic">
               {side.headline}
             </h2>
             <p className="text-zinc-400 text-base leading-relaxed mb-6">{side.sub}</p>
@@ -411,7 +411,7 @@ export default function ComecarPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-500 mb-2">
                   Perfeito, {lead.nome.split(" ")[0]}!
                 </p>
-                <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
+                <h2 className="text-2xl sm:text-3xl font-bold leading-tight font-display">
                   Escolha seu plano e comece hoje.
                 </h2>
               </div>
