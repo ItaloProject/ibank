@@ -393,70 +393,83 @@ function PlanejamentoContent({ userId }: { userId: string }) {
       />
 
       {/* Month navigation */}
-      <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-2 border-b">
-        <button onClick={goToPrev} className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted transition-colors">
+      <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-2.5 border-b">
+        <button onClick={goToPrev} className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="text-sm font-semibold capitalize">{monthLabel}</span>
-        <button onClick={goToNext} className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted transition-colors">
+        <span className="text-sm font-bold capitalize tracking-tight">{monthLabel}</span>
+        <button onClick={goToNext} className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
 
       <PageBody className="px-0 sm:px-0 lg:px-0 pt-0 space-y-0">
-      {/* Salário */}
-      <div
-        className="flex items-center justify-between px-4 py-3 border-b cursor-pointer hover:bg-muted/30 transition-colors"
-        onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
-      >
-        <div className="flex items-center gap-2">
-          <DollarSign className="h-4 w-4 text-green-500" />
-          <span className="text-sm font-medium">Salário</span>
+
+      {/* ── Budget overview ─────────────────────────────────────────────────── */}
+      <div className="px-4 sm:px-6 pt-4 pb-3 space-y-3 border-b bg-muted/10">
+        {/* Renda do mês */}
+        <div
+          className="flex items-end justify-between cursor-pointer group"
+          onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
+        >
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/50 mb-0.5">Renda do mês</p>
+            <p className={`text-2xl font-bold tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
+              {salary > 0 ? fmt(salary) : "— informar"}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 text-muted-foreground/30 group-hover:text-primary transition-colors pb-0.5">
+            <Pencil className="h-3 w-3" />
+            <span className="text-[11px] font-medium">editar</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-sm font-bold tabular-nums ${salary > 0 ? "text-green-500" : "text-muted-foreground"}`}>
-            {salary > 0 ? fmt(salary) : "Informar"}
-          </span>
-          <Pencil className="h-3 w-3 text-muted-foreground/50" />
+
+        {/* Barra de orçamento */}
+        {salary > 0 && (
+          <div className="space-y-1">
+            <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${totalActual > salary ? "bg-destructive" : "bg-primary"}`}
+                style={{ width: `${Math.min(100, (totalActual / salary) * 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] text-muted-foreground/50">
+              <span>Gasto {fmt(totalActual)}</span>
+              <span className={sobra >= 0 ? "text-green-500/70" : "text-destructive/70"}>
+                {sobra >= 0 ? `Sobra ${fmt(sobra)}` : `Excedeu ${fmt(Math.abs(sobra))}`}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Chips de resumo */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-background border border-border/50 px-3 py-2.5 space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-blue-500/80">Fixos</p>
+            <p className="text-sm font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
+            <p className="text-[9px] text-muted-foreground/40 tabular-nums">/{fmt(totalFixoPlanned)}</p>
+          </div>
+          <div className="rounded-xl bg-background border border-border/50 px-3 py-2.5 space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-orange-400/80">Variáveis</p>
+            <p className="text-sm font-bold tabular-nums leading-none">{fmt(totalVarActual)}</p>
+            <p className="text-[9px] text-muted-foreground/40 tabular-nums">/{fmt(totalVarPlanned)}</p>
+          </div>
+          <div className="rounded-xl bg-background border border-border/50 px-3 py-2.5 space-y-1">
+            <p className={`text-[9px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500/80" : "text-destructive/80"}`}>Sobra</p>
+            <p className={`text-sm font-bold tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
+              {salary > 0 ? fmt(sobra) : "—"}
+            </p>
+            {salary > 0 && <p className="text-[9px] text-muted-foreground/40 tabular-nums">/{fmt(sobraPlanned)}</p>}
+          </div>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 divide-x border-b">
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-1.5 mb-1">
-            <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Fixos</p>
-          </div>
-          <p className="text-base font-bold tabular-nums">{fmt(totalFixoActual)}</p>
-          <p className="text-[10px] text-muted-foreground">plan. {fmt(totalFixoPlanned)}</p>
-        </div>
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-1.5 mb-1">
-            <div className="h-2 w-2 rounded-full bg-orange-400 shrink-0" />
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Variáveis</p>
-          </div>
-          <p className="text-base font-bold tabular-nums">{fmt(totalVarActual)}</p>
-          <p className="text-[10px] text-muted-foreground">plan. {fmt(totalVarPlanned)}</p>
-        </div>
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-1.5 mb-1">
-            <Wallet className={`h-3 w-3 shrink-0 ${sobra >= 0 ? "text-green-500" : "text-destructive"}`} />
-            <p className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: sobra >= 0 ? "#16a34a" : "hsl(var(--destructive))" }}>Sobra</p>
-          </div>
-          <p className={`text-base font-bold tabular-nums ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
-            {salary > 0 ? fmt(sobra) : "—"}
-          </p>
-          {salary > 0 && <p className="text-[10px] text-muted-foreground">plan. {fmt(sobraPlanned)}</p>}
-        </div>
-      </div>
-
-      {/* Groups */}
+      {/* ── Groups ──────────────────────────────────────────────────────────── */}
       {groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-          <FolderPlus className="h-10 w-10 mb-3 opacity-30" />
-          <p className="font-medium">Nenhum grupo criado</p>
-          <p className="text-sm mt-1">Clique em &quot;Novo grupo&quot; para começar</p>
+        <div className="flex flex-col items-center justify-center py-20 gap-2">
+          <FolderPlus className="h-9 w-9 text-muted-foreground/20" />
+          <p className="font-semibold text-foreground/70">Nenhum grupo criado</p>
+          <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
         </div>
       ) : (
         <div className="divide-y">
@@ -465,56 +478,70 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             const gPlanned = groupItems.reduce((s, i) => s + i.planned, 0);
             const gActual  = groupItems.reduce((s, i) => s + i.actual, 0);
             const over = gPlanned > 0 && gActual > gPlanned;
-            const isCollapsed = isGroupCollapsed(group.id);
+            const pct = gPlanned > 0 ? Math.min(100, (gActual / gPlanned) * 100) : 0;
+            const groupCollapsed = isGroupCollapsed(group.id);
 
             return (
               <div key={group.id}>
                 {/* Group header */}
                 <div
                   className="flex items-center justify-between px-4 py-3 cursor-pointer select-none hover:bg-muted/20 transition-colors"
+                  style={{ borderLeft: `3px solid ${group.color}` }}
                   onClick={() => toggleCollapse(group.id)}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
-                    <span className="font-bold text-sm tracking-wide uppercase">{group.name}</span>
-                    <span className="text-xs text-muted-foreground">{groupItems.length} {groupItems.length === 1 ? "item" : "itens"}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-bold text-sm tracking-wide uppercase truncate">{group.name}</span>
+                    <span className="text-[10px] text-muted-foreground/40 shrink-0">{groupItems.length}x</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-right" onClick={e => e.stopPropagation()}>
-                      <p className={`text-sm font-semibold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</p>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <div className="text-right mr-1" onClick={e => e.stopPropagation()}>
+                      <p className={`text-sm font-bold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</p>
+                      {gPlanned > 0 && <p className="text-[10px] text-muted-foreground/40 tabular-nums">/{fmt(gPlanned)}</p>}
                     </div>
-                    <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
-                      <button type="button" className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+                    <div className="flex" onClick={e => e.stopPropagation()}>
+                      <button type="button"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/30 hover:text-foreground transition-colors touch-manipulation"
                         onClick={() => openEditGroup(group)}>
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors touch-manipulation"
+                      <button type="button"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors touch-manipulation"
                         onClick={() => deleteGroup(group.id)}>
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                    {isCollapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
+                    {groupCollapsed
+                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/30" />
+                      : <ChevronUp className="h-3.5 w-3.5 text-muted-foreground/30" />}
                   </div>
                 </div>
 
-                {!isCollapsed && (
-                  <div className="bg-muted/10">
+                {/* Barra de progresso do grupo */}
+                {gPlanned > 0 && (
+                  <div className="h-0.5 overflow-hidden" style={{ backgroundColor: `${group.color}18` }}>
+                    <div
+                      className="h-full transition-all duration-300"
+                      style={{ width: `${pct}%`, backgroundColor: over ? "hsl(var(--destructive))" : group.color }}
+                    />
+                  </div>
+                )}
+
+                {!groupCollapsed && (
+                  <div style={{ borderLeft: `3px solid ${group.color}30` }}>
                     {groupItems.length === 0 ? (
-                      <p className="px-4 py-3 text-sm text-muted-foreground">
-                        Nenhum item em {monthLabel}. Clique em &quot;Adicionar&quot; para começar.
+                      <p className="px-5 py-3 text-sm text-muted-foreground/40 italic">
+                        Sem itens em {monthLabel}.
                       </p>
                     ) : (
-                      <div className="divide-y divide-border/50">
+                      <div className="divide-y divide-border/40">
                         {groupItems.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between px-4 py-2 gap-2">
+                          <div key={item.id} className="flex items-center justify-between px-5 py-2.5 gap-2 hover:bg-muted/10 transition-colors">
                             <div className="flex items-center gap-2 min-w-0 flex-1">
-                              {item.type === "fixo"
-                                ? <TrendingDown className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                                : <TrendingUp className="h-3.5 w-3.5 text-orange-400 shrink-0" />}
+                              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${item.type === "fixo" ? "bg-blue-500" : "bg-orange-400"}`} />
                               <div className="min-w-0">
-                                <span className="text-sm font-medium truncate block">{item.name}</span>
+                                <span className="text-sm font-medium truncate block leading-snug">{item.name}</span>
                                 {item.planned > 0 && (
-                                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                                  <span className="text-[10px] text-muted-foreground/40 tabular-nums">
                                     plan. {fmt(item.planned)}
                                   </span>
                                 )}
@@ -524,36 +551,38 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                className="h-9 text-sm text-right w-[4.75rem] sm:w-24 border-0 bg-muted/50 focus:bg-background"
+                                className="h-8 text-sm text-right w-[4.5rem] sm:w-24 border-border/40 bg-muted/30 focus:bg-background tabular-nums"
                                 defaultValue={item.actual || ""}
                                 placeholder="0,00"
                                 onBlur={(e) => updateActual(item, e.target.value)}
                               />
-                              <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+                              <button type="button"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/30 hover:text-foreground transition-colors touch-manipulation"
                                 onClick={() => openEditItem(item)}
                                 aria-label="Editar item">
-                                <Pencil className="h-3.5 w-3.5" />
+                                <Pencil className="h-3 w-3" />
                               </button>
-                              <button type="button" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors touch-manipulation"
+                              <button type="button"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors touch-manipulation"
                                 onClick={() => deleteItem(item.id)}
                                 aria-label="Excluir item">
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Trash2 className="h-3 w-3" />
                               </button>
                             </div>
                           </div>
                         ))}
                         {/* Subtotal */}
-                        <div className="flex items-center justify-between px-4 py-2 bg-muted/20">
-                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subtotal</span>
+                        <div className="flex items-center justify-between px-5 py-2 bg-muted/20">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">Subtotal</span>
                           <div className="flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground tabular-nums">plan. {fmt(gPlanned)}</span>
+                            <span className="text-[10px] text-muted-foreground/40 tabular-nums">plan. {fmt(gPlanned)}</span>
                             <span className={`text-sm font-bold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</span>
                           </div>
                         </div>
                       </div>
                     )}
                     <button
-                      className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+                      className="flex items-center gap-2 w-full px-5 py-3 text-xs font-medium text-muted-foreground/40 hover:text-primary border-t border-dashed border-border/30 hover:bg-primary/5 transition-colors"
                       onClick={() => openNewItem(group.id)}
                     >
                       <Plus className="h-3.5 w-3.5" />

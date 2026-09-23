@@ -110,9 +110,9 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                       title={isCollapsed ? item.label : undefined}
                       onClick={onMobileClose}
                       className={cn(
-                        "group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium",
+                        "group flex items-center rounded-xl px-2.5 py-2.5 text-[13px] font-medium",
                         "transition-all duration-100 ease-out",
-                        isCollapsed ? "justify-center" : "",
+                        isCollapsed ? "justify-center gap-0" : "gap-3",
                         isActive
                           ? "bg-sidebar-primary/15 text-sidebar-primary"
                           : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -158,8 +158,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                   title={isCollapsed ? item.label : undefined}
                   onClick={onMobileClose}
                   className={cn(
-                    "group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
-                    isCollapsed ? "justify-center" : "",
+                    "group flex items-center rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
+                    isCollapsed ? "justify-center gap-0" : "gap-3",
                     isActive
                       ? "bg-sidebar-primary/15 text-sidebar-primary"
                       : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -177,8 +177,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                 title={isCollapsed ? "Usuários" : undefined}
                 onClick={onMobileClose}
                 className={cn(
-                  "group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
-                  isCollapsed ? "justify-center" : "",
+                  "group flex items-center rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
+                  isCollapsed ? "justify-center gap-0" : "gap-3",
                   isNavItemActive(pathname, "/admin/usuarios")
                     ? "bg-sidebar-primary/15 text-sidebar-primary"
                     : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -197,8 +197,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
       <div className="shrink-0 border-t border-sidebar-border/50 p-2 space-y-0.5">
         <button type="button" onClick={toggleTheme}
           className={cn(
-            "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-[13px] font-medium text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors",
-            isCollapsed && "justify-center",
+            "flex w-full items-center rounded-xl px-2.5 py-2 text-[13px] font-medium text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors",
+            isCollapsed ? "justify-center gap-0" : "gap-3",
           )}>
           {theme === "dark" ? <Sun className="h-[17px] w-[17px]" /> : <Moon className="h-[17px] w-[17px]" />}
           <span className={cn("whitespace-nowrap overflow-hidden transition-all", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
