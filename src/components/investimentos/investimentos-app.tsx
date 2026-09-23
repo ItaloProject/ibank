@@ -134,6 +134,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     try { localStorage.setItem("ibank_live_mode", "1"); } catch { /* ignore */ }
     setInvestorMode(true);
   }
+  const [selectedView, setSelectedView] = useState<null | "live" | "bot">(null);
   const [incomeGoal, setIncomeGoal] = useState<number>(() => {
     try { return Number(localStorage.getItem("ibank_income_goal") ?? 0) || 0; } catch { return 0; }
   });
@@ -790,6 +791,116 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     );
   }
 
+  if (selectedView === null) {
+    return (
+      <div className="flex flex-col h-full select-none overflow-y-auto">
+        {/* Header */}
+        <div className="px-5 pt-7 pb-5 md:px-8 md:pt-8">
+          <h1 className="text-2xl font-bold tracking-tight">Investimentos</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">Escolha sua experiência</p>
+        </div>
+        {/* Selector cards */}
+        <div className="flex flex-col md:flex-row gap-4 px-5 pb-8 md:px-8">
+          {/* MUVO LIVE */}
+          <button
+            onClick={() => setSelectedView("live")}
+            className="flex-1 flex flex-col gap-4 rounded-2xl border bg-card p-6 text-left shadow-sm ring-1 ring-inset ring-border/40 transition-all hover:ring-emerald-400/50 hover:shadow-md hover:shadow-emerald-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
+          >
+            <div className="flex items-center justify-between">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400">
+                <Radio className="h-5 w-5" />
+              </span>
+              <span className="text-[10px] font-bold tracking-widest text-emerald-600/60 dark:text-emerald-400/50 uppercase">LIVE</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">MUVO LIVE</h2>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+                Gerencie sua carteira em tempo real. Contas, ações, FIIs e histórico de movimentações.
+              </p>
+            </div>
+            <ul className="mt-1 space-y-1.5 text-sm text-muted-foreground/80">
+              <li className="flex items-center gap-2.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/60 shrink-0" />
+                Contas de investimento
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/60 shrink-0" />
+                Ações, FIIs & ETFs
+              </li>
+              <li className="flex items-center gap-2.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/60 shrink-0" />
+                Distribuição da carteira
+              </li>
+            </ul>
+            <div className="mt-auto pt-2 flex items-center gap-1.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+              Entrar
+              <ChevronRight className="h-4 w-4" />
+            </div>
+          </button>
+
+          {/* MUVO BOT */}
+          {botEnabled ? (
+            <button
+              onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
+              className="flex-1 flex flex-col gap-4 rounded-2xl border bg-card p-6 text-left shadow-sm ring-1 ring-inset ring-border/40 transition-all hover:ring-violet-400/50 hover:shadow-md hover:shadow-violet-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
+            >
+              <div className="flex items-center justify-between">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:bg-violet-400/10 dark:text-violet-400">
+                  <Zap className="h-5 w-5" />
+                </span>
+                <span className="text-[10px] font-bold tracking-widest text-violet-600/60 dark:text-violet-400/50 uppercase">BOT</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">MUVO BOT</h2>
+                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+                  Análise inteligente da sua carteira com insights, simulações e recomendações personalizadas.
+                </p>
+              </div>
+              <ul className="mt-1 space-y-1.5 text-sm text-muted-foreground/80">
+                <li className="flex items-center gap-2.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500/60 shrink-0" />
+                  Score da carteira
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500/60 shrink-0" />
+                  Insights & alertas
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500/60 shrink-0" />
+                  Simulador de aportes
+                </li>
+              </ul>
+              <div className="mt-auto pt-2 flex items-center gap-1.5 text-sm font-semibold text-violet-600 dark:text-violet-400">
+                Entrar
+                <ChevronRight className="h-4 w-4" />
+              </div>
+            </button>
+          ) : (
+            <div className="flex-1 flex flex-col gap-4 rounded-2xl border border-dashed border-border/50 bg-muted/20 p-6 text-left">
+              <div className="flex items-center justify-between">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/5 text-violet-400/40">
+                  <Zap className="h-5 w-5" />
+                </span>
+                <span className="rounded-full border border-border/50 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-muted-foreground/50 uppercase">Premium</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-muted-foreground/60">MUVO BOT</h2>
+                <p className="mt-1.5 text-sm text-muted-foreground/60 leading-relaxed">
+                  Análise inteligente da sua carteira com insights, simulações e recomendações personalizadas.
+                </p>
+              </div>
+              <div className="mt-auto pt-2">
+                <a href="/vender" className="text-sm font-semibold text-violet-500/60 hover:text-violet-500 transition-colors">
+                  Ativar acesso →
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function generateReport() {
     printInvestorReport({
       portfolioAnalysis,
@@ -798,7 +909,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     });
   }
 
-  if (investorMode && botEnabled) {
+  if (selectedView === "bot" && botEnabled) {
     return (
       <InvestorModeView
         investorData={investorData}
@@ -807,7 +918,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         incomeGoalInput={incomeGoalInput}
         setIncomeGoal={setIncomeGoal}
         setIncomeGoalInput={setIncomeGoalInput}
-        setInvestorMode={setInvestorMode}
+        setInvestorMode={(v) => { setInvestorMode(v); if (!v) setSelectedView(null); }}
         scoreHistory={scoreHistory}
         grandTotal={grandTotal}
         stockPositions={stockPositions}
@@ -831,6 +942,29 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
 
   return (
     <PageShell>
+      {/* Mobile header */}
+      <div className="md:hidden flex items-center px-2 h-14 border-b shrink-0 gap-1">
+        <button
+          onClick={() => setSelectedView(null)}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors shrink-0"
+          aria-label="Voltar"
+        >
+          ←
+        </button>
+        <span className="flex-1 text-center text-[15px] font-bold tracking-tight">MUVO LIVE</span>
+        {botEnabled ? (
+          <button
+            onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
+            className="flex h-9 items-center gap-1.5 px-3 rounded-full border border-violet-300/60 text-violet-600 dark:border-violet-700/50 dark:text-violet-400 text-xs font-semibold shrink-0"
+          >
+            <Zap className="h-3.5 w-3.5" />BOT
+          </button>
+        ) : (
+          <div className="w-10" />
+        )}
+      </div>
+      {/* Desktop header */}
+      <div className="hidden md:block">
       <PageHeader
         title={pageTitle}
         description={
@@ -850,25 +984,24 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         bordered={false}
         actions={
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedView(null)}
+            className="min-h-10 w-full sm:w-auto text-muted-foreground"
+          >
+            ← Início
+          </Button>
           {botEnabled ? (
             <>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={goToLiveMode}
-                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-950/40 min-h-10 w-full sm:w-auto"
-              >
-                <Radio className="h-4 w-4" />
-                Live
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setInvestorMode(true)}
+                onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
                 className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950/40 min-h-10 w-full sm:w-auto"
               >
                 <Zap className="h-4 w-4" />
-                Modo Investidor
+                MUVO BOT
               </Button>
             </>
           ) : (
@@ -1110,6 +1243,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         </div>
         }
       />
+      </div>
       <InvestimentosSubNav />
 
       <PageBody>
