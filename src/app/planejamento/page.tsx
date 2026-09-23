@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { useUser } from "@/context/user-context";
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import {
   Plus, Pencil, Trash2, FolderPlus, TrendingUp, TrendingDown,
-  Wallet, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
+  Wallet, ChevronDown, ChevronLeft, ChevronRight,
   Copy, FileDown, Loader2, DollarSign,
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
@@ -69,6 +70,7 @@ export default function PlanejamentoPage() {
 }
 
 function PlanejamentoContent({ userId }: { userId: string }) {
+  const prefersReduced = useReducedMotion();
   const currentUser = USERS.find(u => u.id === userId);
   const [currentMonth, setCurrentMonth] = useState(() => format(startOfMonth(new Date()), "yyyy-MM"));
   const [groups, setGroups] = useState<ExpenseGroup[]>([]);
@@ -524,14 +526,19 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
       {/* ── Groups ──────────────────────────────────────────────────────────── */}
       {groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-2">
+        <motion.div
+          className="flex flex-col items-center justify-center py-20 gap-2"
+          initial={{ opacity: 0, scale: prefersReduced ? 1 : 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        >
           <Image src="/logo.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30" />
           <p className="font-semibold text-foreground/70">Nenhum grupo criado</p>
           <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
-        </div>
+        </motion.div>
       ) : (
         <div className="divide-y">
-          {groups.map((group) => {
+          {groups.map((group, index) => {
             const groupItems = items.filter(i => i.group_id === group.id);
             const gPlanned = groupItems.reduce((s, i) => s + i.planned, 0);
             const gActual  = groupItems.reduce((s, i) => s + i.actual, 0);
@@ -540,7 +547,13 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             const groupCollapsed = isGroupCollapsed(group.id);
 
             return (
-              <div key={group.id} className={groupItems.length === 0 ? "opacity-60" : ""}>
+              <motion.div
+                key={group.id}
+                initial={{ y: prefersReduced ? 0 : 6 }}
+                animate={{ y: 0 }}
+                transition={{ delay: prefersReduced ? 0 : index * 0.05, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className={groupItems.length === 0 ? "opacity-60" : ""}
+              >
                 {/* Group header */}
                 <div
                   role="button"
@@ -595,14 +608,25 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                    {groupCollapsed
-                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/40" />
-                      : <ChevronUp className="h-3.5 w-3.5 text-muted-foreground/40" />}
+                    <motion.div
+                      animate={{ rotate: groupCollapsed ? 0 : 180 }}
+                      transition={{ duration: prefersReduced ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/40" />
+                    </motion.div>
                   </div>
                 </div>
 
+                <AnimatePresence initial={false}>
                 {!groupCollapsed && (
-                  <div className="border-l border-border/20 ml-3">
+                  <motion.div
+                    key="items"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: prefersReduced ? 0.01 : 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden border-l border-border/20 ml-3"
+                  >
                     {groupItems.length === 0 ? (
                       <p className="px-5 py-3 text-sm text-muted-foreground/40 italic">
                         Sem itens em {monthLabel}.
@@ -663,9 +687,10 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                       <Plus className="h-3.5 w-3.5" />
                       Adicionar item
                     </button>
-                  </div>
+                  </motion.div>
                 )}
-              </div>
+                </AnimatePresence>
+              </motion.div>
             );
           })}
         </div>
