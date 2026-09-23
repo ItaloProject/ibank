@@ -38,102 +38,102 @@ export function LoginScreen() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-6 safe-pt safe-pb">
-      {/* Logo */}
-      <div className="flex flex-col items-center gap-3 mb-10">
-        <div className="h-20 w-20 rounded-2xl overflow-hidden">
-          <Image
-            src="/logo.png"
-            alt="MUVO"
-            width={400}
-            height={400}
-            className="h-full w-full object-cover"
-            style={{ objectPosition: "50% 48%" }}
-            priority
-          />
-        </div>
-        <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">MUVO</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Gestão Financeira Inteligente</p>
-        </div>
+
+      {/* Logo + marca */}
+      <div className="flex flex-col items-center mb-8">
+        <Image
+          src="/logo.png"
+          alt="MUVO"
+          width={120}
+          height={120}
+          className="h-[120px] w-[120px] object-contain"
+          priority
+        />
+        <h1 className="text-3xl font-bold tracking-tight text-foreground font-display italic -mt-1">
+          MUVO
+        </h1>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/70 mt-1">
+          Gestão Financeira Inteligente
+        </p>
       </div>
 
-      {/* Formulário */}
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <div>
-          <p className="text-center text-base font-semibold text-foreground mb-6">
-            Entrar na sua conta
-          </p>
-        </div>
+      {/* Card do formulário */}
+      <div className="w-full max-w-sm rounded-2xl border border-primary/15 bg-card/60 p-6 shadow-xl shadow-black/30 backdrop-blur-sm">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/50 mb-5 text-center">
+          Acesse sua conta
+        </p>
 
-        {/* Usuário */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground/80" htmlFor="username">
-            Usuário
-          </label>
-          <input
-            id="username"
-            type="text"
-            autoComplete="username"
-            autoCapitalize="none"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="seu usuário"
-            required
-            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-          />
-        </div>
-
-        {/* Senha */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground/80" htmlFor="password">
-            Senha
-          </label>
-          <div className="relative">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Usuário */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/70" htmlFor="username">
+              Usuário
+            </label>
             <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              id="username"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="seu usuário"
               required
-              className="w-full rounded-xl border border-border bg-card px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full rounded-xl border border-border bg-muted/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 flex items-center justify-center text-muted-foreground/60 hover:text-foreground transition-colors touch-manipulation"
-              tabIndex={-1}
-              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
           </div>
-        </div>
 
-        {/* Erro */}
-        {error && (
-          <p className="text-sm text-destructive text-center bg-destructive/10 rounded-lg py-2 px-3">
-            {error}
-          </p>
-        )}
+          {/* Senha */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/70" htmlFor="password">
+              Senha
+            </label>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="w-full rounded-xl border border-border bg-muted/60 px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 flex items-center justify-center text-muted-foreground/50 hover:text-foreground transition-colors touch-manipulation"
+                tabIndex={-1}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
 
-        {/* Botão */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 min-h-12 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2 touch-manipulation"
-        >
-          {loading ? (
-            <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-          ) : (
-            <LogIn className="h-4 w-4" />
+          {/* Erro */}
+          {error && (
+            <p className="text-sm text-destructive text-center bg-destructive/10 rounded-lg py-2 px-3">
+              {error}
+            </p>
           )}
-          {loading ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
 
-      <p className="mt-10 text-xs text-muted-foreground/40 text-center">
+          {/* Botão */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 min-h-12 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-1 touch-manipulation"
+          >
+            {loading ? (
+              <span className="h-4 w-4 rounded-full border-2 border-current/30 border-t-current animate-spin" />
+            ) : (
+              <LogIn className="h-4 w-4" />
+            )}
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
+      </div>
+
+      <p className="mt-8 text-xs text-muted-foreground/30 text-center">
         Seus dados são privados e armazenados com segurança.
       </p>
     </div>
