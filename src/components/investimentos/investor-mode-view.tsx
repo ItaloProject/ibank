@@ -165,7 +165,7 @@ export function InvestorModeView({
         <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#05050a] text-white">
           {/* Mesh de fundo */}
           <div className="pointer-events-none fixed inset-0 overflow-hidden">
-            <div className="absolute -top-32 -left-32 h-[28rem] w-[28rem] rounded-full bg-violet-600/25 blur-[100px]" />
+            <div className="absolute -top-32 -left-32 h-[28rem] w-[28rem] rounded-full bg-amber-500/15 blur-[100px]" />
             <div className="absolute top-1/4 -right-32 h-[26rem] w-[26rem] rounded-full bg-blue-500/20 blur-[100px]" />
             <div className="absolute bottom-0 left-1/3 h-[24rem] w-[24rem] rounded-full bg-emerald-500/15 blur-[110px]" />
             <div className="absolute inset-0 opacity-[0.03]" style={{
@@ -196,7 +196,7 @@ export function InvestorModeView({
                 </button>
                 <button
                   onClick={onGenerateReport}
-                  className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-violet-300 backdrop-blur-xl transition-colors hover:bg-violet-500/20 hover:text-violet-200"
+                  className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-amber-300 backdrop-blur-xl transition-colors hover:bg-amber-500/20 hover:text-amber-200"
                 >
                   <FileText className="h-3.5 w-3.5" />
                   PDF
@@ -327,7 +327,7 @@ export function InvestorModeView({
                               <p className="text-xs font-bold border-b border-white/10 pb-1.5 mb-2 text-white/70">{label}</p>
                               <div className="flex justify-between text-sm gap-4">
                                 <span className="text-white/50">Rendimento</span>
-                                <span className="font-bold text-violet-400 tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
+                                <span className="font-bold text-amber-400 tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
                               </div>
                             </div>
                           );
@@ -417,7 +417,7 @@ export function InvestorModeView({
             {(() => {
               const { insights, nextMoves, score } = portfolioAnalysis;
               const levelColors: Record<string, string> = { critical: "#ef4444", warning: "#f59e0b", ok: "#10b981", suggestion: "#6366f1" };
-              const levelBgs: Record<string, string> = { critical: "border-red-500/20 bg-red-500/[0.06]", warning: "border-amber-500/20 bg-amber-500/[0.06]", ok: "border-emerald-500/20 bg-emerald-500/[0.06]", suggestion: "border-violet-500/20 bg-violet-500/[0.06]" };
+              const levelBgs: Record<string, string> = { critical: "border-red-500/20 bg-red-500/[0.06]", warning: "border-amber-500/20 bg-amber-500/[0.06]", ok: "border-emerald-500/20 bg-emerald-500/[0.06]", suggestion: "border-amber-500/20 bg-amber-500/[0.06]" };
               const levelLabels: Record<string, string> = { critical: "CRÍTICO", warning: "ATENÇÃO", ok: "OK", suggestion: "SUGESTÃO" };
               const scoreColor = score >= 70 ? "#10b981" : score >= 40 ? "#f59e0b" : "#ef4444";
               const circumS = 2 * Math.PI * 28;
@@ -429,7 +429,7 @@ export function InvestorModeView({
                     </h3>
                     <button
                       onClick={onGenerateReport}
-                      className="flex items-center justify-center gap-2 rounded-full bg-violet-600 hover:bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition-colors shrink-0 w-fit whitespace-nowrap"
+                      className="flex items-center justify-center gap-2 rounded-full bg-amber-500 hover:bg-amber-400 px-4 py-2 text-sm font-semibold text-amber-950 transition-colors shrink-0 w-fit whitespace-nowrap"
                     >
                       <FileText className="h-4 w-4" />
                       Gerar PDF
@@ -534,7 +534,7 @@ export function InvestorModeView({
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
                     {nextMoves.map((m, i) => (
                       <div key={i} className="flex items-start gap-3 p-4 border-b border-white/5 last:border-b-0">
-                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center text-xs font-black text-violet-300 mt-0.5">
+                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-xs font-black text-amber-400 mt-0.5">
                           {m.prioridade}
                         </span>
                         <div className="flex-1 min-w-0">

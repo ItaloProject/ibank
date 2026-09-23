@@ -655,7 +655,7 @@ export function SimulatorInvestFlow({
                   type="button"
                   disabled={!canConfirm}
                   onClick={confirm}
-                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3.5 text-sm font-bold text-white disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
+                  className="w-full rounded-full bg-amber-500 hover:bg-amber-400 py-3.5 text-sm font-bold text-amber-950 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
                 >
                   {submitting ? "Processando…" : "Confirmar investimento"}
                 </button>
@@ -755,7 +755,7 @@ export function SimulatorInvestFlow({
                   type="button"
                   disabled={!canConfirm}
                   onClick={confirm}
-                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3.5 text-sm font-bold text-white disabled:opacity-35 disabled:cursor-not-allowed transition-opacity"
+                  className="w-full rounded-full bg-amber-500 hover:bg-amber-400 py-3.5 text-sm font-bold text-amber-950 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
                 >
                   {submitting ? "Processando…" : "Confirmar investimento"}
                 </button>

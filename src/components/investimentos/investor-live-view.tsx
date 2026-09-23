@@ -1133,9 +1133,9 @@ export function InvestorLiveView({
                 <button
                   type="button"
                   onClick={() => openMarket("hub")}
-                  className="w-full rounded-2xl border border-violet-400/40 bg-gradient-to-r from-violet-600/40 via-fuchsia-500/30 to-emerald-500/35 p-5 text-left shadow-lg shadow-violet-950/30 hover:from-violet-600/50 hover:to-emerald-500/45 transition-colors"
+                  className="w-full rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] p-5 text-left hover:bg-amber-500/[0.13] transition-colors"
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-200/80 mb-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300/80 mb-1">
                     Aplicar saldo
                   </p>
                   <p className="text-xl font-black text-white">
@@ -1397,7 +1397,7 @@ export function InvestorLiveView({
                 <button
                   type="button"
                   onClick={() => openMarket("hub")}
-                  className="w-full rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/20 via-violet-500/15 to-blue-500/20 p-3.5 text-left hover:from-emerald-500/28 hover:to-blue-500/28 transition-colors"
+                  className="w-full rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.10] p-3.5 text-left hover:bg-emerald-500/[0.16] transition-colors"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -1939,7 +1939,7 @@ export function InvestorLiveView({
                             : "hub"
                     );
                   }}
-                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3 text-sm font-bold text-white mb-2"
+                  className="w-full rounded-full bg-amber-500 hover:bg-amber-400 py-3 text-sm font-bold text-amber-950 mb-2 transition-colors"
                 >
                   Aportar com saldo
                 </button>
@@ -2012,7 +2012,7 @@ export function InvestorLiveView({
                     setSelectedTicker(null);
                     openMarket("acoes");
                   }}
-                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 py-3 text-sm font-bold text-white mb-2"
+                  className="w-full rounded-full bg-amber-500 hover:bg-amber-400 py-3 text-sm font-bold text-amber-950 mb-2 transition-colors"
                 >
                   Comprar mais com saldo
                 </button>

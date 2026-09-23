@@ -452,11 +452,11 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
       {/* Month navigation */}
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-2.5 border-b">
-        <button onClick={goToPrev} className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={goToPrev} aria-label="Mês anterior" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="h-4 w-4" />
         </button>
         <span className="text-sm font-bold capitalize tracking-tight">{monthLabel}</span>
-        <button onClick={goToNext} className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={goToNext} aria-label="Próximo mês" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
@@ -543,8 +543,13 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <div key={group.id} className={groupItems.length === 0 ? "opacity-60" : ""}>
                 {/* Group header */}
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={!groupCollapsed}
+                  aria-label={`${group.name} — ${groupItems.length} ${groupItems.length === 1 ? "item" : "itens"}`}
                   className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-muted/20 transition-colors"
                   onClick={() => toggleCollapse(group.id)}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggleCollapse(group.id)}
                 >
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: group.color }} />
                   {/* Esquerda: nome + contagem + barra de progresso */}
@@ -578,12 +583,14 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     </div>
                     <div className="flex" onClick={e => e.stopPropagation()}>
                       <button type="button"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors touch-manipulation"
+                        aria-label={`Editar grupo ${group.name}`}
+                        className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors touch-manipulation"
                         onClick={() => openEditGroup(group)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button type="button"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors touch-manipulation"
+                        aria-label={`Excluir grupo ${group.name}`}
+                        className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors touch-manipulation"
                         onClick={() => openDeleteGroup(group)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -625,15 +632,15 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                                 onBlur={(e) => updateActual(item, e.target.value)}
                               />
                               <button type="button"
-                                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/30 hover:text-foreground transition-colors touch-manipulation"
+                                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/30 hover:text-foreground transition-colors touch-manipulation"
                                 onClick={() => openEditItem(item)}
-                                aria-label="Editar item">
+                                aria-label={`Editar ${item.name}`}>
                                 <Pencil className="h-3 w-3" />
                               </button>
                               <button type="button"
-                                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors touch-manipulation"
+                                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors touch-manipulation"
                                 onClick={() => openDeleteItem(item)}
-                                aria-label="Excluir item">
+                                aria-label={`Excluir ${item.name}`}>
                                 <Trash2 className="h-3 w-3" />
                               </button>
                             </div>
@@ -723,7 +730,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <div className="flex gap-2 flex-wrap">
                 {GROUP_COLORS.map((c) => (
                   <button key={c} onClick={() => setGroupColor(c)}
-                    className={`h-7 w-7 rounded-full transition-all ${groupColor === c ? "ring-2 ring-offset-2 ring-foreground scale-110" : "hover:scale-105"}`}
+                    aria-label={`Selecionar cor ${c}`}
+                    aria-pressed={groupColor === c}
+                    className={`h-9 w-9 rounded-full transition-all ${groupColor === c ? "ring-2 ring-offset-2 ring-foreground scale-110" : "hover:scale-105"}`}
                     style={{ backgroundColor: c }} />
                 ))}
               </div>
