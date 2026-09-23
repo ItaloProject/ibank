@@ -444,22 +444,22 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
         {/* Chips de resumo */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl bg-background border border-border/50 px-3 py-2.5 space-y-1">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-blue-500/80">Fixos</p>
-            <p className="text-sm font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
-            <p className="text-[9px] text-muted-foreground/40 tabular-nums">/{fmt(totalFixoPlanned)}</p>
+          <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">Fixos</p>
+            <p className="text-base font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
+            <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalFixoPlanned)}</p>
           </div>
-          <div className="rounded-xl bg-background border border-border/50 px-3 py-2.5 space-y-1">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-orange-400/80">Variáveis</p>
-            <p className="text-sm font-bold tabular-nums leading-none">{fmt(totalVarActual)}</p>
-            <p className="text-[9px] text-muted-foreground/40 tabular-nums">/{fmt(totalVarPlanned)}</p>
+          <div className="rounded-xl bg-background border border-orange-400/20 px-3 py-3 space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Variáveis</p>
+            <p className="text-base font-bold tabular-nums leading-none">{fmt(totalVarActual)}</p>
+            <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalVarPlanned)}</p>
           </div>
-          <div className="rounded-xl bg-background border border-border/50 px-3 py-2.5 space-y-1">
-            <p className={`text-[9px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500/80" : "text-destructive/80"}`}>Sobra</p>
-            <p className={`text-sm font-bold tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
+          <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
+            <p className={`text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>Sobra</p>
+            <p className={`text-base font-bold tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
               {salary > 0 ? fmt(sobra) : "—"}
             </p>
-            {salary > 0 && <p className="text-[9px] text-muted-foreground/40 tabular-nums">/{fmt(sobraPlanned)}</p>}
+            {salary > 0 && <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(sobraPlanned)}</p>}
           </div>
         </div>
       </div>
@@ -482,49 +482,59 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             const groupCollapsed = isGroupCollapsed(group.id);
 
             return (
-              <div key={group.id}>
+              <div key={group.id} className={groupItems.length === 0 ? "opacity-60" : ""}>
                 {/* Group header */}
                 <div
-                  className="flex items-center justify-between px-4 py-3 cursor-pointer select-none hover:bg-muted/20 transition-colors"
-                  style={{ borderLeft: `3px solid ${group.color}` }}
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-muted/20 transition-colors"
+                  style={{ borderLeft: `4px solid ${group.color}` }}
                   onClick={() => toggleCollapse(group.id)}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-bold text-sm tracking-wide uppercase truncate">{group.name}</span>
-                    <span className="text-[10px] text-muted-foreground/40 shrink-0">{groupItems.length}x</span>
+                  {/* Esquerda: nome + contagem + barra de progresso */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold text-sm tracking-wide uppercase truncate ${groupItems.length === 0 ? "text-muted-foreground" : ""}`}>
+                        {group.name}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/40 shrink-0 font-medium">
+                        {groupItems.length} {groupItems.length === 1 ? "item" : "itens"}
+                      </span>
+                    </div>
+                    {gPlanned > 0 && (
+                      <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ backgroundColor: `${group.color}20` }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{ width: `${pct}%`, backgroundColor: over ? "hsl(var(--destructive))" : group.color }}
+                        />
+                      </div>
+                    )}
+                    {groupItems.length === 0 && (
+                      <p className="text-[10px] text-muted-foreground/40 mt-0.5">Sem itens neste mês</p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-0.5 shrink-0">
+
+                  {/* Direita: valor + actions */}
+                  <div className="flex items-center gap-1 shrink-0">
                     <div className="text-right mr-1" onClick={e => e.stopPropagation()}>
                       <p className={`text-sm font-bold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</p>
-                      {gPlanned > 0 && <p className="text-[10px] text-muted-foreground/40 tabular-nums">/{fmt(gPlanned)}</p>}
+                      {gPlanned > 0 && <p className="text-[10px] text-muted-foreground/40 tabular-nums">de {fmt(gPlanned)}</p>}
                     </div>
                     <div className="flex" onClick={e => e.stopPropagation()}>
                       <button type="button"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/30 hover:text-foreground transition-colors touch-manipulation"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors touch-manipulation"
                         onClick={() => openEditGroup(group)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button type="button"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors touch-manipulation"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors touch-manipulation"
                         onClick={() => deleteGroup(group.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                     {groupCollapsed
-                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/30" />
-                      : <ChevronUp className="h-3.5 w-3.5 text-muted-foreground/30" />}
+                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/40" />
+                      : <ChevronUp className="h-3.5 w-3.5 text-muted-foreground/40" />}
                   </div>
                 </div>
-
-                {/* Barra de progresso do grupo */}
-                {gPlanned > 0 && (
-                  <div className="h-0.5 overflow-hidden" style={{ backgroundColor: `${group.color}18` }}>
-                    <div
-                      className="h-full transition-all duration-300"
-                      style={{ width: `${pct}%`, backgroundColor: over ? "hsl(var(--destructive))" : group.color }}
-                    />
-                  </div>
-                )}
 
                 {!groupCollapsed && (
                   <div style={{ borderLeft: `3px solid ${group.color}30` }}>
