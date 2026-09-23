@@ -427,64 +427,93 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
   return (
     <PageShell>
-      <PageHeader
-        title="Planejamento"
-        description={undefined}
-        actions={
-          <>
-            {/* Desktop: month nav inline */}
-            <div className="hidden md:flex items-center gap-0.5 mr-1">
-              <button onClick={goToPrev} aria-label="Mês anterior" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="text-sm font-semibold capitalize tracking-tight min-w-[148px] text-center">{monthLabel}</span>
-              <button onClick={goToNext} aria-label="Próximo mês" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-
-            {items.length === 0 && (
-              <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => setCopyOpen(true)}>
-                <Copy className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Copiar mês anterior</span>
+      {/* Desktop: full page header */}
+      <div className="hidden md:block">
+        <PageHeader
+          title="Planejamento"
+          description={undefined}
+          actions={
+            <>
+              <div className="flex items-center gap-0.5 mr-1">
+                <button onClick={goToPrev} aria-label="Mês anterior" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="text-sm font-semibold capitalize tracking-tight min-w-[148px] text-center">{monthLabel}</span>
+                <button onClick={goToNext} aria-label="Próximo mês" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              {items.length === 0 && (
+                <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => setCopyOpen(true)}>
+                  <Copy className="h-3.5 w-3.5" />
+                  Copiar mês anterior
+                </Button>
+              )}
+              {items.length > 0 && (
+                <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => {
+                  const userName = USERS.find(u => u.id === userId)?.name ?? userId;
+                  generatePlanReport(
+                    groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
+                    items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
+                    monthLabel, userName, salary,
+                  );
+                }}>
+                  <FileDown className="h-3.5 w-3.5" />
+                  Gerar PDF
+                </Button>
+              )}
+              <Button onClick={openNewGroup} size="sm" className="min-h-11 text-xs">
+                <FolderPlus className="h-3.5 w-3.5" />
+                Novo grupo
               </Button>
-            )}
-            {items.length > 0 && (
-              <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => {
-                const userName = USERS.find(u => u.id === userId)?.name ?? userId;
-                generatePlanReport(
-                  groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
-                  items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
-                  monthLabel, userName, salary,
-                );
-              }}>
-                <FileDown className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Gerar PDF</span>
-              </Button>
-            )}
-            <Button onClick={openNewGroup} size="sm" className="min-h-11 text-xs">
-              <FolderPlus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Novo grupo</span>
-            </Button>
-          </>
-        }
-      />
+            </>
+          }
+        />
+      </div>
 
-      {/* Mobile: month navigation row */}
-      <div className="md:hidden flex items-center justify-between px-4 py-2 border-b">
-        <button onClick={goToPrev} aria-label="Mês anterior" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft className="h-4 w-4" />
+      {/* Mobile: compact single header row — month nav + actions */}
+      <div className="md:hidden flex items-center gap-0.5 px-2 h-14 border-b shrink-0">
+        <button onClick={goToPrev} aria-label="Mês anterior"
+          className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronLeft className="h-5 w-5" />
         </button>
-        <span className="text-sm font-bold capitalize tracking-tight">{monthLabel}</span>
-        <button onClick={goToNext} aria-label="Próximo mês" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronRight className="h-4 w-4" />
+        <span className="flex-1 text-center text-[15px] font-bold capitalize tracking-tight">{monthLabel}</span>
+        <button onClick={goToNext} aria-label="Próximo mês"
+          className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronRight className="h-5 w-5" />
+        </button>
+        <div className="w-px h-5 bg-border/40 mx-0.5 shrink-0" />
+        {items.length === 0 && (
+          <button onClick={() => setCopyOpen(true)} aria-label="Copiar mês anterior"
+            className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors">
+            <Copy className="h-4 w-4" />
+          </button>
+        )}
+        {items.length > 0 && (
+          <button
+            onClick={() => {
+              const userName = USERS.find(u => u.id === userId)?.name ?? userId;
+              generatePlanReport(
+                groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
+                items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
+                monthLabel, userName, salary,
+              );
+            }}
+            aria-label="Gerar PDF"
+            className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors">
+            <FileDown className="h-4 w-4" />
+          </button>
+        )}
+        <button onClick={openNewGroup} aria-label="Novo grupo"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0">
+          <FolderPlus className="h-4 w-4" />
         </button>
       </div>
 
       <PageBody className="px-0 pt-0 space-y-0 md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
 
         {/* ── BUDGET OVERVIEW — full width, mobile + desktop ──────────────────── */}
-        <div className="px-4 sm:px-6 pt-4 pb-3 space-y-3 border-b bg-muted/10 shrink-0">
+        <div className="px-4 sm:px-6 pt-3 pb-3 space-y-2.5 border-b bg-muted/10 shrink-0">
           <div
             className="flex items-end justify-between cursor-pointer group"
             onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
@@ -516,7 +545,34 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-3 gap-2">
+          {/* Mobile: compact inline summary */}
+          <div className="md:hidden flex items-center gap-x-3 flex-wrap gap-y-0.5">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />
+              <span className="text-[11px] text-muted-foreground">Fixos</span>
+              <span className="text-[11px] font-bold tabular-nums">{fmt(totalFixoActual)}</span>
+            </span>
+            <span className="text-border/60 text-xs select-none">·</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-orange-400 shrink-0" />
+              <span className="text-[11px] text-muted-foreground">Variáveis</span>
+              <span className="text-[11px] font-bold tabular-nums">{fmt(totalVarActual)}</span>
+            </span>
+            {salary > 0 && (
+              <>
+                <span className="text-border/60 text-xs select-none">·</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${sobra >= 0 ? "bg-green-500" : "bg-destructive"}`} />
+                  <span className="text-[11px] text-muted-foreground">Sobra</span>
+                  <span className={`text-[11px] font-bold tabular-nums ${sobra >= 0 ? "text-green-600 dark:text-green-400" : "text-destructive"}`}>
+                    {fmt(Math.abs(sobra))}
+                  </span>
+                </span>
+              </>
+            )}
+          </div>
+          {/* Desktop: 3-card grid */}
+          <div className="hidden md:grid grid-cols-3 gap-2">
             <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">Fixos</p>
               <p className="text-base font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
@@ -637,8 +693,39 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             </motion.div>
           ) : selectedGroup ? (
             <div>
-              {/* Group header bar */}
-              <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b">
+              {/* Group header — mobile: progress + add button in one compact row */}
+              <div className="md:hidden flex items-center gap-3 px-4 py-2.5 border-b">
+                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedGroup.color }} />
+                {sgPlanned > 0 ? (
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: `${selectedGroup.color}20` }}>
+                      <div className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.min(100, (sgActual / sgPlanned) * 100)}%`,
+                          backgroundColor: sgOver ? "hsl(var(--destructive))" : selectedGroup.color,
+                        }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground/50 tabular-nums">
+                      <span>{fmt(sgActual)}</span>
+                      <span className={sgOver ? "text-destructive/70" : ""}>de {fmt(sgPlanned)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="flex-1 text-[11px] text-muted-foreground/40 font-medium">
+                    {selectedGroupItems.length} {selectedGroupItems.length === 1 ? "item" : "itens"}
+                  </span>
+                )}
+                <button
+                  className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
+                  onClick={() => openNewItem(selectedGroup.id)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Novo
+                </button>
+              </div>
+
+              {/* Group header — desktop: full name + edit/delete + add */}
+              <div className="hidden md:flex items-center justify-between px-6 py-3 border-b">
                 <div className="flex items-center gap-2.5">
                   <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: selectedGroup.color }} />
                   <h2 className="font-bold text-sm uppercase tracking-wide">{selectedGroup.name}</h2>
@@ -647,36 +734,33 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="hidden md:flex items-center">
-                    <button
-                      className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors"
-                      onClick={() => openEditGroup(selectedGroup)}
-                      aria-label={`Editar grupo ${selectedGroup.name}`}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors"
-                      onClick={() => openDeleteGroup(selectedGroup)}
-                      aria-label={`Excluir grupo ${selectedGroup.name}`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
                   <button
-                    className="flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] md:min-h-9 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors"
+                    onClick={() => openEditGroup(selectedGroup)}
+                    aria-label={`Editar grupo ${selectedGroup.name}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors"
+                    onClick={() => openDeleteGroup(selectedGroup)}
+                    aria-label={`Excluir grupo ${selectedGroup.name}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    className="flex items-center gap-1.5 px-3 py-1.5 min-h-9 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                     onClick={() => openNewItem(selectedGroup.id)}
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Adicionar item</span>
-                    <span className="sm:hidden">Novo</span>
+                    Adicionar item
                   </button>
                 </div>
               </div>
 
-              {/* Group progress bar */}
+              {/* Group progress bar — desktop only */}
               {sgPlanned > 0 && (
-                <div className="px-4 sm:px-6 py-2.5 border-b bg-muted/5 space-y-1">
+                <div className="hidden md:block px-6 py-2.5 border-b bg-muted/5 space-y-1">
                   <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: `${selectedGroup.color}20` }}>
                     <div
                       className="h-full rounded-full transition-all duration-500"
