@@ -166,16 +166,30 @@ function ParcelamentosContent({ userId }: { userId: string }) {
 
   return (
     <PageShell>
-      <PageHeader
-        title="Parcelamentos"
-        description="Compras parceladas em andamento"
-        actions={
-          <Button size="sm" className="min-h-11" onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Novo parcelamento</span>
-          </Button>
-        }
-      />
+      {/* Desktop: full page header */}
+      <div className="hidden md:block">
+        <PageHeader
+          title="Parcelamentos"
+          description="Compras parceladas em andamento"
+          actions={
+            <Button size="sm" className="min-h-11" onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Novo parcelamento
+            </Button>
+          }
+        />
+      </div>
+
+      {/* Mobile: title + add button in one row */}
+      <div className="md:hidden flex items-center justify-between px-4 h-14 border-b shrink-0">
+        <h1 className="text-lg font-bold">Parcelamentos</h1>
+        <button
+          onClick={() => setOpen(true)}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+      </div>
 
       <PageBody>
 
