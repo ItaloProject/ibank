@@ -429,7 +429,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     <PageShell>
       <PageHeader
         title="Planejamento"
-        description={<span className="capitalize md:hidden">{monthLabel}</span>}
+        description={undefined}
         actions={
           <>
             {/* Desktop: month nav inline */}
