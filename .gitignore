@@ -36,3 +36,6 @@ next-env.d.ts
 # Serwist
 public/sw*
 public/swe-worker*
+
+# Impeccable binaries
+.claude/skills/impeccable/scripts/bin/
