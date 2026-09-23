@@ -366,7 +366,7 @@ export function InvestorBot({
           "bottom-[calc(var(--bottom-nav-offset)+0.75rem)] md:bottom-5",
           open
             ? "bg-white/10 text-white border border-white/20 hover:bg-white/15"
-            : "bg-gradient-to-br from-violet-500 to-blue-500 text-white hover:scale-105",
+            : "bg-amber-500 text-amber-950 hover:scale-105 hover:bg-amber-400",
         )}
         aria-label={open ? "Fechar bot" : "Abrir MUVO Bot"}
       >
@@ -393,8 +393,8 @@ export function InvestorBot({
           }}
         >
           <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500">
-              <Sparkles className="h-4 w-4 text-white" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20 ring-1 ring-amber-500/40">
+              <Sparkles className="h-4 w-4 text-amber-400" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-white">MUVO Bot</p>

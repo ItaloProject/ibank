@@ -236,7 +236,7 @@ export function InvestorModeView({
                   )}
                 </svg>
                 <div className="flex flex-col items-center px-6">
-                  <p className="text-3xl sm:text-4xl font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none text-center">
+                  <p className="text-3xl sm:text-4xl font-black tabular-nums text-white leading-none text-center">
                     {formatCurrency(totalRendaMensal)}
                   </p>
                   <p className="text-xs text-white/40 mt-2">por mês</p>

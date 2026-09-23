@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
+import { toast } from "sonner";
 import { useUser } from "@/context/user-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,6 +93,14 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   // Copy dialog
   const [copyOpen, setCopyOpen] = useState(false);
 
+  // Confirm delete dialog
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: "group" | "item";
+    id: string;
+    name: string;
+    warning?: string;
+  } | null>(null);
+
   // Salary
   const [salary, setSalary] = useState(0);
   const [salaryInput, setSalaryInput] = useState("");
@@ -167,38 +177,52 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   // ── Copy from previous month ───────────────────────────────────────────────
 
   async function copyFromPrevious() {
-    const res = await fetch(`/api/plan-items?user=${userId}&month=${prevMonth}`);
-    const prev: Record<string, unknown>[] = await res.json();
-    if (!Array.isArray(prev) || prev.length === 0) return;
-    await Promise.all(
-      prev.map((item) =>
-        fetch("/api/plan-items", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: userId,
-            group_id: item.group_id,
-            month: currentMonth,
-            name: item.name,
-            type: item.type,
-            planned: item.planned,
-            actual: 0,
-          }),
-        })
-      )
-    );
-    await loadItems(currentMonth);
+    try {
+      const res = await fetch(`/api/plan-items?user=${userId}&month=${prevMonth}`);
+      const prev: Record<string, unknown>[] = await res.json();
+      if (!Array.isArray(prev) || prev.length === 0) {
+        toast.error("Nenhum item encontrado no mês anterior.");
+        setCopyOpen(false);
+        return;
+      }
+      await Promise.all(
+        prev.map((item) =>
+          fetch("/api/plan-items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: userId,
+              group_id: item.group_id,
+              month: currentMonth,
+              name: item.name,
+              type: item.type,
+              planned: item.planned,
+              actual: 0,
+            }),
+          })
+        )
+      );
+      await loadItems(currentMonth);
+      toast.success(`${prev.length} itens copiados do mês anterior`);
+    } catch {
+      toast.error("Erro ao copiar. Tente novamente.");
+    }
     setCopyOpen(false);
   }
 
   async function saveSalary() {
     const value = parseFloat(salaryInput) || 0;
-    await fetch("/api/plan-salary", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, month: currentMonth, salary: value }),
-    });
-    setSalary(value);
+    try {
+      await fetch("/api/plan-salary", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, month: currentMonth, salary: value }),
+      });
+      setSalary(value);
+      toast.success("Renda atualizada");
+    } catch {
+      toast.error("Erro ao salvar. Tente novamente.");
+    }
     setSalaryOpen(false);
   }
 
@@ -220,31 +244,48 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
   async function submitGroup() {
     if (!groupName.trim()) return;
-    if (editingGroup) {
-      await fetch(`/api/plan-groups/${editingGroup.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: groupName.trim(), color: groupColor }),
-      });
-    } else {
-      await fetch("/api/plan-groups", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, name: groupName.trim(), color: groupColor }),
-      });
+    try {
+      if (editingGroup) {
+        await fetch(`/api/plan-groups/${editingGroup.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: groupName.trim(), color: groupColor }),
+        });
+      } else {
+        await fetch("/api/plan-groups", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: userId, name: groupName.trim(), color: groupColor }),
+        });
+      }
+      await loadGroups();
+      toast.success(editingGroup ? "Grupo atualizado" : "Grupo criado");
+    } catch {
+      toast.error("Erro ao salvar grupo. Tente novamente.");
     }
-    await loadGroups();
     setGroupOpen(false);
   }
 
-  async function deleteGroup(id: string) {
-    const group = groups.find((g) => g.id === id);
-    const count = items.filter((i) => i.group_id === id).length;
-    const itemsWarning = count > 0 ? ` e ${count} ${count === 1 ? "item" : "itens"} dentro dele` : "";
-    if (!confirm(`Excluir o grupo "${group?.name ?? ""}"${itemsWarning}? Esta ação não pode ser desfeita.`)) return;
-    await fetch(`/api/plan-groups/${id}`, { method: "DELETE" });
-    await loadGroups();
-    setItems((prev) => prev.filter((i) => i.group_id !== id));
+  function openDeleteGroup(g: ExpenseGroup) {
+    const count = items.filter((i) => i.group_id === g.id).length;
+    setConfirmDialog({
+      type: "group",
+      id: g.id,
+      name: g.name,
+      warning: count > 0 ? `Isso também excluirá ${count} ${count === 1 ? "item" : "itens"}.` : undefined,
+    });
+  }
+
+  async function confirmDeleteGroup(id: string) {
+    try {
+      await fetch(`/api/plan-groups/${id}`, { method: "DELETE" });
+      await loadGroups();
+      setItems((prev) => prev.filter((i) => i.group_id !== id));
+      toast.success("Grupo excluído");
+    } catch {
+      toast.error("Erro ao excluir. Tente novamente.");
+    }
+    setConfirmDialog(null);
   }
 
   // ── Item actions ───────────────────────────────────────────────────────────
@@ -278,45 +319,62 @@ function PlanejamentoContent({ userId }: { userId: string }) {
       planned: parseFloat(itemForm.planned) || 0,
       actual: parseFloat(itemForm.actual) || 0,
     };
-    if (editingItem) {
-      await fetch(`/api/plan-items/${editingItem.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-    } else {
-      await fetch("/api/plan-items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+    try {
+      if (editingItem) {
+        await fetch(`/api/plan-items/${editingItem.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } else {
+        await fetch("/api/plan-items", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      }
+      await loadItems(currentMonth);
+      toast.success(editingItem ? "Item atualizado" : "Item adicionado");
+    } catch {
+      toast.error("Erro ao salvar item. Tente novamente.");
     }
-    await loadItems(currentMonth);
     setItemOpen(false);
   }
 
-  async function deleteItem(id: string) {
-    const item = items.find((i) => i.id === id);
-    if (!confirm(`Excluir "${item?.name ?? "este item"}"? Esta ação não pode ser desfeita.`)) return;
-    await fetch(`/api/plan-items/${id}`, { method: "DELETE" });
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  function openDeleteItem(item: ExpenseItem) {
+    setConfirmDialog({ type: "item", id: item.id, name: item.name });
+  }
+
+  async function confirmDeleteItem(id: string) {
+    try {
+      await fetch(`/api/plan-items/${id}`, { method: "DELETE" });
+      setItems((prev) => prev.filter((i) => i.id !== id));
+      toast.success("Item excluído");
+    } catch {
+      toast.error("Erro ao excluir. Tente novamente.");
+    }
+    setConfirmDialog(null);
   }
 
   async function updateActual(item: ExpenseItem, val: string) {
     const actual = parseFloat(val) || 0;
     setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, actual } : i));
-    await fetch(`/api/plan-items/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        group_id: item.group_id, name: item.name,
-        type: item.type, planned: item.planned, actual,
-      }),
-    });
+    try {
+      await fetch(`/api/plan-items/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          group_id: item.group_id, name: item.name,
+          type: item.type, planned: item.planned, actual,
+        }),
+      });
+    } catch {
+      toast.error("Erro ao salvar. Tente novamente.");
+    }
   }
 
   function isGroupCollapsed(id: string) {
-    return collapsed[id] !== false;
+    return collapsed[id] === true;
   }
 
   function toggleCollapse(id: string) {
@@ -467,7 +525,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
       {/* ── Groups ──────────────────────────────────────────────────────────── */}
       {groups.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2">
-          <FolderPlus className="h-9 w-9 text-muted-foreground/20" />
+          <Image src="/logo.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30" />
           <p className="font-semibold text-foreground/70">Nenhum grupo criado</p>
           <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
         </div>
@@ -486,9 +544,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 {/* Group header */}
                 <div
                   className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-muted/20 transition-colors"
-                  style={{ borderLeft: `4px solid ${group.color}` }}
                   onClick={() => toggleCollapse(group.id)}
                 >
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: group.color }} />
                   {/* Esquerda: nome + contagem + barra de progresso */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -526,7 +584,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                       </button>
                       <button type="button"
                         className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors touch-manipulation"
-                        onClick={() => deleteGroup(group.id)}>
+                        onClick={() => openDeleteGroup(group)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -537,7 +595,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 </div>
 
                 {!groupCollapsed && (
-                  <div style={{ borderLeft: `3px solid ${group.color}30` }}>
+                  <div className="border-l border-border/20 ml-3">
                     {groupItems.length === 0 ? (
                       <p className="px-5 py-3 text-sm text-muted-foreground/40 italic">
                         Sem itens em {monthLabel}.
@@ -574,7 +632,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                               </button>
                               <button type="button"
                                 className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors touch-manipulation"
-                                onClick={() => deleteItem(item.id)}
+                                onClick={() => openDeleteItem(item)}
                                 aria-label="Excluir item">
                                 <Trash2 className="h-3 w-3" />
                               </button>
@@ -741,6 +799,27 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <Button variant="outline" className="flex-1" onClick={() => setItemOpen(false)}>Cancelar</Button>
               <Button className="flex-1" onClick={submitItem}>{editingItem ? "Salvar" : "Adicionar"}</Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* ── Dialog: Confirmar exclusão ─────────────────────────────────────── */}
+      <Dialog open={!!confirmDialog} onOpenChange={(open) => !open && setConfirmDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{confirmDialog?.type === "group" ? "Excluir grupo" : "Excluir item"}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {confirmDialog?.type === "group"
+              ? <>Excluir <strong>&quot;{confirmDialog.name}&quot;</strong>?{confirmDialog.warning && <> <span className="text-destructive/80">{confirmDialog.warning}</span></>}</>
+              : <>Excluir <strong>&quot;{confirmDialog?.name}&quot;</strong>? Esta ação não pode ser desfeita.</>
+            }
+          </p>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setConfirmDialog(null)}>Cancelar</Button>
+            <Button variant="destructive" className="flex-1" onClick={() => {
+              if (!confirmDialog) return;
+              confirmDialog.type === "group" ? confirmDeleteGroup(confirmDialog.id) : confirmDeleteItem(confirmDialog.id);
+            }}>Excluir</Button>
           </div>
         </DialogContent>
       </Dialog>

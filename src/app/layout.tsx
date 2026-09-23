@@ -4,6 +4,7 @@ import "./globals.css";
 import { LayoutShell } from "@/components/layout/layout-shell";
 import { UserProvider } from "@/context/user-context";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "sonner";
 
 const sora = Sora({
   subsets: ["latin"],
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <UserProvider>
             <LayoutShell>{children}</LayoutShell>
           </UserProvider>
+          <Toaster richColors position="bottom-center" />
         </ThemeProvider>
       </body>
     </html>

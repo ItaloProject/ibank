@@ -229,7 +229,7 @@ function CaixinhaHeader({ label, total }: { label: string; total: number }) {
   return (
     <div className="text-center pt-2 pb-1">
       <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">{label}</p>
-      <p className="text-[30px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
+      <p className="text-[30px] font-black tabular-nums text-white leading-none">
         {formatCurrency(animated)}
       </p>
     </div>
@@ -1207,7 +1207,7 @@ export function InvestorLiveView({
                     {caixinhaPageMeta.title}
                   </p>
                   <p className="text-[11px] text-white/35 mb-2">{caixinhaPageMeta.subtitle}</p>
-                  <p className="text-[28px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
+                  <p className="text-[28px] font-black tabular-nums text-white leading-none">
                     {formatCurrency(caixinhaPageMeta.total)}
                   </p>
                 </div>
@@ -1291,7 +1291,7 @@ export function InvestorLiveView({
                   <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">
                     Tesouro Direto
                   </p>
-                  <p className="text-[28px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
+                  <p className="text-[28px] font-black tabular-nums text-white leading-none">
                     {formatCurrency(tesouroTotal)}
                   </p>
                 </div>
@@ -1340,7 +1340,7 @@ export function InvestorLiveView({
                   <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">
                     Ações
                   </p>
-                  <p className="text-[28px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none">
+                  <p className="text-[28px] font-black tabular-nums text-white leading-none">
                     {formatCurrency(acoesPageTotal)}
                   </p>
                 </div>
@@ -1364,7 +1364,7 @@ export function InvestorLiveView({
                 <button
                   type="button"
                   onClick={() => openMarket("acoes")}
-                  className="w-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 py-3 text-sm font-bold text-white"
+                  className="w-full rounded-full bg-amber-500/15 border border-amber-500/30 py-3 text-sm font-bold text-amber-400 hover:bg-amber-500/25 transition-colors"
                 >
                   Comprar ações com saldo
                 </button>
@@ -1382,7 +1382,7 @@ export function InvestorLiveView({
                   <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/40 mb-1.5">
                     Saldo na conta
                   </p>
-                  <p className="text-[32px] font-black tabular-nums bg-gradient-to-br from-white via-violet-200 to-blue-300 bg-clip-text text-transparent leading-none tracking-tight">
+                  <p className="text-[32px] font-black tabular-nums text-white leading-none tracking-tight">
                     {formatCurrency(animatedCash)}
                   </p>
                   <p className="text-[11px] text-white/40 mt-2">
@@ -1787,7 +1787,7 @@ export function InvestorLiveView({
                     {simProjection.filter((_, i) => i % Math.ceil(simProjection.length / 24 || 1) === 0).map((p, i) => (
                       <div
                         key={i}
-                        className="flex-1 rounded-t-sm bg-gradient-to-t from-violet-600 to-blue-400"
+                        className="flex-1 rounded-t-sm bg-amber-500/70"
                         style={{ height: `${Math.max(3, (p.value / maxSimValue) * 100)}%` }}
                       />
                     ))}
