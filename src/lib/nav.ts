@@ -1,17 +1,14 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Home,
-  CreditCard,
   TrendingUp,
   BarChart2,
   CalendarDays,
   CalendarCheck,
-  Repeat2,
   Receipt,
   Target,
   Landmark,
   LineChart,
-  Scale,
   PlayCircle,
   Settings,
 } from "lucide-react";
@@ -46,9 +43,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: "financas",
     label: "Finanças",
     items: [
-      { href: "/cartao", label: "Cartão", icon: CreditCard, bottomTab: true },
       { href: "/planejamento", label: "Planejamento", icon: CalendarDays, bottomTab: true },
-      { href: "/entrada-saida", label: "Entrada/Saída", icon: Repeat2 },
       { href: "/parcelamentos", label: "Parcelamentos", icon: Receipt },
       { href: "/relatorios", label: "Relatórios", icon: BarChart2 },
     ],
@@ -60,7 +55,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/investimentos", label: "Investimentos", icon: TrendingUp, bottomTab: true },
       { href: "/rentabilidade", label: "Rentabilidade", icon: LineChart },
-      { href: "/rebalancear", label: "Rebalancear", icon: Scale },
       { href: "/proventos", label: "Proventos", icon: CalendarCheck },
       { href: "/impostos", label: "Imposto de Renda", icon: Landmark },
       { href: "/metas", label: "Metas", icon: Target },
