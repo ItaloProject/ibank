@@ -672,7 +672,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                         ))}
                         {/* Subtotal */}
                         <div className="flex items-center justify-between px-5 py-2 bg-muted/20">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">Subtotal</span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Subtotal</span>
                           <div className="flex items-center gap-3">
                             <span className="text-[10px] text-muted-foreground/40 tabular-nums">plan. {fmt(gPlanned)}</span>
                             <span className={`text-sm font-bold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</span>

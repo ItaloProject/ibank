@@ -308,7 +308,7 @@ export default function RelatoriosPage() {
                           <Tooltip formatter={(v) => typeof v === "number" ? formatCurrency(v) : String(v)} contentStyle={tooltipStyle} />
                         </PieChart>
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                          <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Total</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
                           <p className="text-sm font-bold tabular-nums">{formatCurrency(totalSpent)}</p>
                         </div>
                       </div>
