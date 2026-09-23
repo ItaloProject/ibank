@@ -54,23 +54,23 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         isCollapsed && "md:w-[68px]",
       )}
     >
-      <div className="flex h-16 shrink-0 items-center px-3 border-b border-sidebar-border/60">
-        <div className="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center">
+      <div className="flex h-16 shrink-0 items-center px-3 border-b border-sidebar-border/50">
+        <div className="h-10 w-10 shrink-0 flex items-center justify-center">
           <Image src="/logo.png" alt="MUVO" width={200} height={200}
             className="h-full w-full object-contain" priority />
         </div>
-        <div className={cn("ml-3 overflow-hidden transition-all duration-150 ease-out", isCollapsed ? "w-0 opacity-0" : "w-36 opacity-100")}>
-          <p className="text-[15px] font-bold leading-none text-sidebar-foreground tracking-tight whitespace-nowrap">MUVO</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground whitespace-nowrap">Gestão Financeira</p>
+        <div className={cn("ml-2 overflow-hidden transition-all duration-150 ease-out", isCollapsed ? "w-0 opacity-0" : "w-36 opacity-100")}>
+          <p className="text-[17px] font-bold leading-none text-sidebar-foreground font-display italic whitespace-nowrap">MUVO</p>
+          <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-primary/60 whitespace-nowrap">Financeiro</p>
         </div>
         <button type="button" onClick={onMobileClose}
-          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors duration-100 md:hidden"
+          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/50 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors duration-100 md:hidden"
           aria-label="Fechar menu">
           <X className="h-4 w-4" />
         </button>
         {!mobileOpen && (
           <button type="button" onClick={onToggle} title={isCollapsed ? "Expandir" : "Recolher"}
-            className={cn("ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/40 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-all duration-150 hidden md:flex", isCollapsed && "rotate-180")}>
+            className={cn("ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/30 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-all duration-150 hidden md:flex", isCollapsed && "rotate-180")}>
             <ChevronLeft className="h-4 w-4" />
           </button>
         )}
@@ -88,17 +88,17 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                   gi === 0 ? "pt-2" : "",
                 )}>
                   {group.accent && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="h-1 w-1 rounded-full bg-sidebar-primary/70 shrink-0" />
                   )}
                   <span className={cn(
                     "text-[10px] font-bold uppercase tracking-widest",
-                    group.accent ? "text-emerald-500" : "text-muted-foreground/50",
+                    group.accent ? "text-sidebar-primary/70" : "text-sidebar-foreground/30",
                   )}>
                     {group.label}
                   </span>
                 </div>
               ) : gi > 0 ? (
-                <div className="mx-3 my-2 h-px bg-sidebar-border/40" />
+                <div className="mx-3 my-2 h-px bg-sidebar-border/30" />
               ) : null}
 
               <div className="space-y-0.5">
@@ -114,17 +114,15 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                         "transition-all duration-100 ease-out",
                         isCollapsed ? "justify-center" : "",
                         isActive
-                          ? group.accent
-                            ? "bg-emerald-500/15 text-emerald-500 shadow-sm"
-                            : "bg-primary text-white shadow-sm shadow-primary/30"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                          ? "bg-sidebar-primary/15 text-sidebar-primary"
+                          : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                       )}>
                       <Icon className={cn(
-                        "shrink-0 transition-transform duration-100",
+                        "shrink-0 transition-colors duration-100",
                         isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
                         isActive
-                          ? group.accent ? "text-emerald-500" : "text-white"
-                          : "text-sidebar-foreground/60 group-hover:text-sidebar-foreground",
+                          ? "text-sidebar-primary"
+                          : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
                       )} />
                       <span className={cn(
                         "whitespace-nowrap overflow-hidden transition-all duration-150 leading-none",
@@ -163,10 +161,11 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                     "group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
                     isCollapsed ? "justify-center" : "",
                     isActive
-                      ? "bg-primary text-white shadow-sm shadow-primary/30"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                      ? "bg-sidebar-primary/15 text-sidebar-primary"
+                      : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                   )}>
-                  <Icon className={cn("shrink-0", isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]")} />
+                  <Icon className={cn("shrink-0", isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
+                    isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground")} />
                   <span className={cn("whitespace-nowrap overflow-hidden transition-all duration-150", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
                     {item.label}
                   </span>
@@ -181,10 +180,11 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                   "group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
                   isCollapsed ? "justify-center" : "",
                   isNavItemActive(pathname, "/admin/usuarios")
-                    ? "bg-primary text-white shadow-sm shadow-primary/30"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                    ? "bg-sidebar-primary/15 text-sidebar-primary"
+                    : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                 )}>
-                <Users className={cn("shrink-0", isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]")} />
+                <Users className={cn("shrink-0", isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
+                  isNavItemActive(pathname, "/admin/usuarios") ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground")} />
                 <span className={cn("whitespace-nowrap overflow-hidden transition-all duration-150", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
                   Usuários
                 </span>
@@ -194,35 +194,45 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         </div>
       </nav>
 
-      <div className="shrink-0 border-t border-sidebar-border/60 p-2 space-y-0.5">
+      <div className="shrink-0 border-t border-sidebar-border/50 p-2 space-y-0.5">
         <button type="button" onClick={toggleTheme}
           className={cn(
-            "flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors",
+            "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-[13px] font-medium text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors",
             isCollapsed && "justify-center",
           )}>
-          {theme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+          {theme === "dark" ? <Sun className="h-[17px] w-[17px]" /> : <Moon className="h-[17px] w-[17px]" />}
           <span className={cn("whitespace-nowrap overflow-hidden transition-all", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
             {theme === "dark" ? "Modo claro" : "Modo escuro"}
           </span>
         </button>
-        <div className={cn("flex items-center gap-3 rounded-xl px-2.5 py-2", isCollapsed && "justify-center")}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+
+        <div className={cn(
+          "flex items-center gap-2.5 rounded-xl px-2.5 py-2 border border-sidebar-border/40 bg-sidebar-accent/30 mt-1",
+          isCollapsed ? "justify-center border-transparent bg-transparent px-0" : "",
+        )}>
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/25 ring-1 ring-sidebar-primary/30 text-[11px] font-bold text-sidebar-primary">
             {(currentUser?.name ?? "?").slice(0, 1).toUpperCase()}
           </div>
-          <div className={cn("min-w-0 overflow-hidden transition-all", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
-            <p className="truncate text-[13px] font-medium text-sidebar-foreground">{currentUser?.name}</p>
+          <div className={cn("min-w-0 flex-1 overflow-hidden transition-all", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
+            <p className="truncate text-[12px] font-semibold text-sidebar-foreground/90 leading-none">{currentUser?.name}</p>
+            <p className="text-[10px] text-sidebar-foreground/40 mt-0.5 leading-none">Assinante</p>
           </div>
+          {!isCollapsed && (
+            <button type="button" onClick={logout}
+              title="Sair"
+              className="shrink-0 flex h-7 w-7 items-center justify-center rounded-lg text-sidebar-foreground/30 hover:bg-red-500/15 hover:text-red-400 transition-colors"
+              aria-label="Sair">
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
-        <button type="button" onClick={logout}
-          className={cn(
-            "flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-medium text-red-400/80 hover:bg-red-500/10 hover:text-red-400 transition-colors",
-            isCollapsed && "justify-center",
-          )}>
-          <LogOut className="h-[18px] w-[18px]" />
-          <span className={cn("whitespace-nowrap overflow-hidden transition-all", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
-            Sair
-          </span>
-        </button>
+
+        {isCollapsed && (
+          <button type="button" onClick={logout}
+            className="flex w-full items-center justify-center rounded-xl px-2.5 py-2 text-sidebar-foreground/30 hover:bg-red-500/10 hover:text-red-400 transition-colors">
+            <LogOut className="h-[17px] w-[17px]" />
+          </button>
+        )}
       </div>
     </aside>
   );
