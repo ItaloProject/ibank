@@ -429,9 +429,20 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     <PageShell>
       <PageHeader
         title="Planejamento"
-        description={<span className="capitalize">{monthLabel}</span>}
+        description={<span className="capitalize md:hidden">{monthLabel}</span>}
         actions={
           <>
+            {/* Desktop: month nav inline */}
+            <div className="hidden md:flex items-center gap-0.5 mr-1">
+              <button onClick={goToPrev} aria-label="Mês anterior" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-sm font-semibold capitalize tracking-tight min-w-[148px] text-center">{monthLabel}</span>
+              <button onClick={goToNext} aria-label="Próximo mês" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
             {items.length === 0 && (
               <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => setCopyOpen(true)}>
                 <Copy className="h-3.5 w-3.5" />
@@ -459,8 +470,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         }
       />
 
-      {/* Month navigation */}
-      <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 border-b">
+      {/* Mobile: month navigation row */}
+      <div className="md:hidden flex items-center justify-between px-4 py-2 border-b">
         <button onClick={goToPrev} aria-label="Mês anterior" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="h-4 w-4" />
         </button>
