@@ -471,8 +471,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         />
       </div>
 
-      {/* Mobile: compact single header row — month nav + actions */}
-      <div className="md:hidden flex items-center gap-0.5 px-2 h-14 border-b shrink-0">
+      {/* Mobile: month navigation only — clean, no action clutter */}
+      <div className="md:hidden flex items-center px-2 h-14 border-b shrink-0">
         <button onClick={goToPrev} aria-label="Mês anterior"
           className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="h-5 w-5" />
@@ -481,32 +481,6 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         <button onClick={goToNext} aria-label="Próximo mês"
           className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <ChevronRight className="h-5 w-5" />
-        </button>
-        <div className="w-px h-5 bg-border/40 mx-0.5 shrink-0" />
-        {items.length === 0 && (
-          <button onClick={() => setCopyOpen(true)} aria-label="Copiar mês anterior"
-            className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors">
-            <Copy className="h-4 w-4" />
-          </button>
-        )}
-        {items.length > 0 && (
-          <button
-            onClick={() => {
-              const userName = USERS.find(u => u.id === userId)?.name ?? userId;
-              generatePlanReport(
-                groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
-                items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
-                monthLabel, userName, salary,
-              );
-            }}
-            aria-label="Gerar PDF"
-            className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors">
-            <FileDown className="h-4 w-4" />
-          </button>
-        )}
-        <button onClick={openNewGroup} aria-label="Novo grupo"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0">
-          <FolderPlus className="h-4 w-4" />
         </button>
       </div>
 
@@ -651,32 +625,64 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           </div>
         )}
 
-        {/* ── MOBILE: horizontal chip row ──────────────────────────────────────── */}
-        {groups.length > 0 && (
-          <div className="md:hidden border-b px-4 py-2.5 shrink-0">
-            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
-              {groups.map(group => {
-                const isSelected = selectedGroup?.id === group.id;
-                return (
-                  <button
-                    key={group.id}
-                    onClick={() => setSelectedGroupId(group.id)}
-                    className={`shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wide transition-all ${
-                      isSelected ? "text-white shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted"
-                    }`}
-                    style={isSelected ? { backgroundColor: group.color } : {}}
-                  >
-                    <span
-                      className="h-1.5 w-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.6)" : group.color }}
-                    />
-                    {group.name}
-                  </button>
-                );
-              })}
-            </div>
+        {/* ── MOBILE: horizontal chip row + actions at end ──────────────────────── */}
+        <div className="md:hidden border-b shrink-0">
+          <div className="flex gap-2 overflow-x-auto px-4 py-2.5" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
+            {groups.map(group => {
+              const isSelected = selectedGroup?.id === group.id;
+              return (
+                <button
+                  key={group.id}
+                  onClick={() => setSelectedGroupId(group.id)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wide transition-all ${
+                    isSelected ? "text-white shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                  }`}
+                  style={isSelected ? { backgroundColor: group.color } : {}}
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.6)" : group.color }}
+                  />
+                  {group.name}
+                </button>
+              );
+            })}
+            {/* Separator + New Group at end of chip row */}
+            {groups.length > 0 && <div className="w-px bg-border/40 shrink-0 self-stretch my-2" />}
+            <button
+              onClick={openNewGroup}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-all"
+            >
+              <FolderPlus className="h-3.5 w-3.5" />
+              Novo grupo
+            </button>
+            {items.length === 0 && (
+              <button
+                onClick={() => setCopyOpen(true)}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-all"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copiar mês
+              </button>
+            )}
+            {items.length > 0 && (
+              <button
+                onClick={() => {
+                  const userName = USERS.find(u => u.id === userId)?.name ?? userId;
+                  generatePlanReport(
+                    groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
+                    items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
+                    monthLabel, userName, salary,
+                  );
+                }}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-all"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                PDF
+              </button>
+            )}
           </div>
-        )}
+        </div>
 
         {/* ── CONTENT AREA: full width ─────────────────────────────────────────── */}
         <div className="flex-1 min-h-0 overflow-y-auto">
