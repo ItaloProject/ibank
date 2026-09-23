@@ -526,12 +526,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           </div>
         </div>
 
-        {/* ── SPLIT: sidebar + main ────────────────────────────────────────────── */}
-        <div className="flex-1 min-h-0 md:flex md:overflow-hidden">
-
-        {/* ── LEFT SIDEBAR: groups only (desktop ≥768px) ─────────────────────── */}
-        <div className="hidden md:flex md:flex-col md:w-56 md:border-r md:shrink-0 md:overflow-y-auto">
-          <div className="flex-1 overflow-y-auto divide-y">
+        {/* ── DESKTOP: horizontal tab bar ─────────────────────────────────────── */}
+        {groups.length > 0 && (
+          <div className="hidden md:flex items-end border-b shrink-0 px-6 overflow-x-auto">
             {groups.map((group, index) => {
               const gItems   = items.filter(i => i.group_id === group.id);
               const gPlanned = gItems.reduce((s, i) => s + i.planned, 0);
@@ -542,74 +539,80 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               return (
                 <motion.button
                   key={group.id}
-                  initial={{ x: prefersReduced ? 0 : -8, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: prefersReduced ? 0 : index * 0.04, duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  initial={{ opacity: 0, y: prefersReduced ? 0 : 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: prefersReduced ? 0 : index * 0.04, duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                   onClick={() => setSelectedGroupId(group.id)}
-                  className={`w-full text-left px-4 py-3 transition-colors ${isSelected ? "bg-muted/50" : "hover:bg-muted/20"}`}
+                  className={`relative flex flex-col items-start px-5 pt-3 pb-2.5 min-w-[160px] shrink-0 transition-colors ${
+                    isSelected ? "bg-muted/20" : "hover:bg-muted/10"
+                  }`}
                 >
-                  <div className="flex items-center gap-2.5 mb-1">
+                  <div className="flex items-center gap-2 w-full mb-1">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
-                    <span className={`text-xs font-bold uppercase tracking-wide truncate flex-1 ${isSelected ? "text-foreground" : "text-muted-foreground/70"}`}>
-                      {group.name}
-                    </span>
-                    <span className={`text-xs font-bold tabular-nums shrink-0 ${gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-muted-foreground/50"}`}>
-                      {fmt(gActual)}
-                    </span>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest truncate ${
+                      isSelected ? "text-foreground" : "text-muted-foreground/50"
+                    }`}>{group.name}</span>
                   </div>
+                  <span className={`text-lg font-bold tabular-nums leading-none ${
+                    gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-muted-foreground/35"
+                  }`}>{fmt(gActual)}</span>
                   {gPlanned > 0 && (
                     <>
-                      <div className="ml-[18px] h-1 rounded-full overflow-hidden" style={{ backgroundColor: `${group.color}25` }}>
+                      <div className="w-full mt-2 h-0.5 rounded-full" style={{ backgroundColor: `${group.color}30` }}>
                         <div className="h-full rounded-full transition-all duration-300"
                           style={{ width: `${gPct}%`, backgroundColor: gOver ? "hsl(var(--destructive))" : group.color }} />
                       </div>
-                      <p className="text-[10px] text-muted-foreground/40 tabular-nums mt-0.5 ml-[18px]">de {fmt(gPlanned)}</p>
+                      <p className="text-[10px] text-muted-foreground/30 tabular-nums mt-0.5">de {fmt(gPlanned)}</p>
                     </>
                   )}
+                  {/* Active indicator */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-200"
+                    style={{ backgroundColor: isSelected ? group.color : "transparent" }}
+                  />
                 </motion.button>
               );
             })}
+            <div className="flex-1 min-w-4" />
+            <button
+              onClick={openNewGroup}
+              className="flex items-center gap-1.5 px-3 py-2 self-center shrink-0 text-xs font-medium text-muted-foreground/40 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
+            >
+              <FolderPlus className="h-3.5 w-3.5" />
+              Novo grupo
+            </button>
           </div>
-          <button
-            onClick={openNewGroup}
-            className="flex items-center gap-2 px-4 py-3 text-xs font-medium text-muted-foreground/50 hover:text-primary border-t hover:bg-primary/5 transition-colors shrink-0"
-          >
-            <FolderPlus className="h-3.5 w-3.5" />
-            Novo grupo
-          </button>
-        </div>
+        )}
 
-        {/* ── MAIN CONTENT AREA ───────────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 md:overflow-y-auto">
-
-          {/* Mobile: group chip row */}
-          {groups.length > 0 && (
-            <div className="md:hidden border-b px-4 py-2.5">
-              <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
-                {groups.map(group => {
-                  const isSelected = selectedGroup?.id === group.id;
-                  return (
-                    <button
-                      key={group.id}
-                      onClick={() => setSelectedGroupId(group.id)}
-                      className={`shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wide transition-all ${
-                        isSelected ? "text-white shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted"
-                      }`}
-                      style={isSelected ? { backgroundColor: group.color } : {}}
-                    >
-                      <span
-                        className="h-1.5 w-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.6)" : group.color }}
-                      />
-                      {group.name}
-                    </button>
-                  );
-                })}
-              </div>
+        {/* ── MOBILE: horizontal chip row ──────────────────────────────────────── */}
+        {groups.length > 0 && (
+          <div className="md:hidden border-b px-4 py-2.5 shrink-0">
+            <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
+              {groups.map(group => {
+                const isSelected = selectedGroup?.id === group.id;
+                return (
+                  <button
+                    key={group.id}
+                    onClick={() => setSelectedGroupId(group.id)}
+                    className={`shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wide transition-all ${
+                      isSelected ? "text-white shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                    }`}
+                    style={isSelected ? { backgroundColor: group.color } : {}}
+                  >
+                    <span
+                      className="h-1.5 w-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.6)" : group.color }}
+                    />
+                    {group.name}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Empty state */}
+        {/* ── CONTENT AREA: full width ─────────────────────────────────────────── */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {groups.length === 0 ? (
             <motion.div
               className="flex flex-col items-center justify-center py-20 gap-2"
@@ -622,7 +625,6 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
             </motion.div>
           ) : selectedGroup ? (
-            /* ── Selected group panel ──────────────────────────────────────── */
             <div>
               {/* Group header bar */}
               <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b">
@@ -764,8 +766,6 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             </div>
           ) : null}
         </div>
-
-        </div>{/* end split */}
       </PageBody>
 
       {/* ── Dialog: Salário ──────────────────────────────────────────────────── */}
