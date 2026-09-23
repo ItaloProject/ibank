@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -78,6 +78,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [selectedGroupId, setSelectedGroupId] = useState("");
 
   // Group form
   const [groupOpen, setGroupOpen] = useState(false);
@@ -418,6 +419,12 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     );
   }
 
+  const selectedGroup = groups.find(g => g.id === selectedGroupId) ?? groups[0] ?? null;
+  const selectedGroupItems = selectedGroup ? items.filter(i => i.group_id === selectedGroup.id) : [];
+  const sgPlanned = selectedGroupItems.reduce((s, i) => s + i.planned, 0);
+  const sgActual  = selectedGroupItems.reduce((s, i) => s + i.actual,  0);
+  const sgOver    = sgPlanned > 0 && sgActual > sgPlanned;
+
   return (
     <PageShell>
       <PageHeader
@@ -446,14 +453,14 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             )}
             <Button onClick={openNewGroup} size="sm" className="min-h-11 text-xs">
               <FolderPlus className="h-3.5 w-3.5" />
-              Novo grupo
+              <span className="hidden sm:inline">Novo grupo</span>
             </Button>
           </>
         }
       />
 
       {/* Month navigation */}
-      <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-2.5 border-b">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 border-b">
         <button onClick={goToPrev} aria-label="Mês anterior" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -463,240 +470,355 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         </button>
       </div>
 
-      <PageBody className="px-0 sm:px-0 lg:px-0 pt-0 space-y-0">
+      <PageBody className="px-0 pt-0 space-y-0 md:flex md:flex-row md:overflow-hidden">
 
-      {/* ── Budget overview ─────────────────────────────────────────────────── */}
-      <div className="px-4 sm:px-6 pt-4 pb-3 space-y-3 border-b bg-muted/10">
-        {/* Renda do mês */}
-        <div
-          className="flex items-end justify-between cursor-pointer group"
-          onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
-        >
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/50 mb-0.5">Renda do mês</p>
-            <p className={`text-2xl font-bold tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
-              {salary > 0 ? fmt(salary) : "— informar"}
-            </p>
-          </div>
-          <div className="flex items-center gap-1 text-muted-foreground/30 group-hover:text-primary transition-colors pb-0.5">
-            <Pencil className="h-3 w-3" />
-            <span className="text-[11px] font-medium">editar</span>
-          </div>
-        </div>
+        {/* ── LEFT SIDEBAR (desktop ≥768px) ──────────────────────────────────── */}
+        <div className="hidden md:flex md:flex-col md:w-64 md:border-r md:shrink-0 md:overflow-y-auto">
 
-        {/* Barra de orçamento */}
-        {salary > 0 && (
-          <div className="space-y-1">
-            <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${totalActual > salary ? "bg-destructive" : "bg-primary"}`}
-                style={{ width: `${Math.min(100, (totalActual / salary) * 100)}%` }}
-              />
+          {/* Budget overview */}
+          <div className="px-4 pt-4 pb-3 space-y-3 border-b bg-muted/10 shrink-0">
+            <div
+              className="flex items-end justify-between cursor-pointer group"
+              onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
+            >
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/50 mb-0.5">Renda</p>
+                <p className={`text-xl font-bold tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
+                  {salary > 0 ? fmt(salary) : "— informar"}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground/30 group-hover:text-primary transition-colors pb-0.5">
+                <Pencil className="h-3 w-3" />
+              </div>
             </div>
-            <div className="flex justify-between text-[10px] text-muted-foreground/50">
-              <span>Gasto {fmt(totalActual)}</span>
-              <span className={sobra >= 0 ? "text-green-500/70" : "text-destructive/70"}>
-                {sobra >= 0 ? `Sobra ${fmt(sobra)}` : `Excedeu ${fmt(Math.abs(sobra))}`}
-              </span>
+            {salary > 0 && (
+              <div className="space-y-1">
+                <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${totalActual > salary ? "bg-destructive" : "bg-primary"}`}
+                    style={{ width: `${Math.min(100, (totalActual / salary) * 100)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-muted-foreground/50">
+                  <span>{fmt(totalActual)}</span>
+                  <span className={sobra >= 0 ? "text-green-500/70" : "text-destructive/70"}>
+                    {sobra >= 0 ? `${fmt(sobra)} sobra` : `${fmt(Math.abs(sobra))} acima`}
+                  </span>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="rounded-lg bg-background border border-blue-500/20 px-2 py-2 space-y-1">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-blue-500 leading-none">Fixos</p>
+                <p className="text-xs font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
+              </div>
+              <div className="rounded-lg bg-background border border-orange-400/20 px-2 py-2 space-y-1">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-orange-400 leading-none">Var.</p>
+                <p className="text-xs font-bold tabular-nums leading-none">{fmt(totalVarActual)}</p>
+              </div>
+              <div className={`rounded-lg bg-background border px-2 py-2 space-y-1 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
+                <p className={`text-[9px] font-bold uppercase tracking-widest leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>Sobra</p>
+                <p className={`text-xs font-bold tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
+                  {salary > 0 ? fmt(sobra) : "—"}
+                </p>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Chips de resumo */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">Fixos</p>
-            <p className="text-base font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
-            <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalFixoPlanned)}</p>
-          </div>
-          <div className="rounded-xl bg-background border border-orange-400/20 px-3 py-3 space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Variáveis</p>
-            <p className="text-base font-bold tabular-nums leading-none">{fmt(totalVarActual)}</p>
-            <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalVarPlanned)}</p>
-          </div>
-          <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
-            <p className={`text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>Sobra</p>
-            <p className={`text-base font-bold tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
-              {salary > 0 ? fmt(sobra) : "—"}
-            </p>
-            {salary > 0 && <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(sobraPlanned)}</p>}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Groups ──────────────────────────────────────────────────────────── */}
-      {groups.length === 0 ? (
-        <motion.div
-          className="flex flex-col items-center justify-center py-20 gap-2"
-          initial={{ opacity: 0, scale: prefersReduced ? 1 : 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <Image src="/logo.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30" />
-          <p className="font-semibold text-foreground/70">Nenhum grupo criado</p>
-          <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
-        </motion.div>
-      ) : (
-        <div className="divide-y">
-          {groups.map((group, index) => {
-            const groupItems = items.filter(i => i.group_id === group.id);
-            const gPlanned = groupItems.reduce((s, i) => s + i.planned, 0);
-            const gActual  = groupItems.reduce((s, i) => s + i.actual, 0);
-            const over = gPlanned > 0 && gActual > gPlanned;
-            const pct = gPlanned > 0 ? Math.min(100, (gActual / gPlanned) * 100) : 0;
-            const groupCollapsed = isGroupCollapsed(group.id);
-
-            return (
-              <motion.div
-                key={group.id}
-                initial={{ y: prefersReduced ? 0 : 6 }}
-                animate={{ y: 0 }}
-                transition={{ delay: prefersReduced ? 0 : index * 0.05, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                className={groupItems.length === 0 ? "opacity-60" : ""}
-              >
-                {/* Group header */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={!groupCollapsed}
-                  aria-label={`${group.name} — ${groupItems.length} ${groupItems.length === 1 ? "item" : "itens"}`}
-                  className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-muted/20 transition-colors"
-                  onClick={() => toggleCollapse(group.id)}
-                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggleCollapse(group.id)}
+          {/* Groups list */}
+          <div className="flex-1 overflow-y-auto divide-y">
+            {groups.map((group, index) => {
+              const gItems   = items.filter(i => i.group_id === group.id);
+              const gPlanned = gItems.reduce((s, i) => s + i.planned, 0);
+              const gActual  = gItems.reduce((s, i) => s + i.actual,  0);
+              const gOver    = gPlanned > 0 && gActual > gPlanned;
+              const gPct     = gPlanned > 0 ? Math.min(100, (gActual / gPlanned) * 100) : 0;
+              const isSelected = selectedGroup?.id === group.id;
+              return (
+                <motion.button
+                  key={group.id}
+                  initial={{ x: prefersReduced ? 0 : -8, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: prefersReduced ? 0 : index * 0.04, duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  onClick={() => setSelectedGroupId(group.id)}
+                  className={`w-full text-left px-4 py-3 transition-colors ${isSelected ? "bg-muted/50" : "hover:bg-muted/20"}`}
                 >
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: group.color }} />
-                  {/* Esquerda: nome + contagem + barra de progresso */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold text-sm tracking-wide uppercase truncate ${groupItems.length === 0 ? "text-muted-foreground" : ""}`}>
-                        {group.name}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground/40 shrink-0 font-medium">
-                        {groupItems.length} {groupItems.length === 1 ? "item" : "itens"}
-                      </span>
-                    </div>
-                    {gPlanned > 0 && (
-                      <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ backgroundColor: `${group.color}20` }}>
-                        <div
-                          className="h-full rounded-full transition-all duration-300"
-                          style={{ width: `${pct}%`, backgroundColor: over ? "hsl(var(--destructive))" : group.color }}
-                        />
-                      </div>
-                    )}
-                    {groupItems.length === 0 && (
-                      <p className="text-[10px] text-muted-foreground/40 mt-0.5">Sem itens neste mês</p>
-                    )}
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
+                    <span className={`text-xs font-bold uppercase tracking-wide truncate flex-1 ${isSelected ? "text-foreground" : "text-muted-foreground/70"}`}>
+                      {group.name}
+                    </span>
+                    <span className={`text-xs font-bold tabular-nums shrink-0 ${gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-muted-foreground/50"}`}>
+                      {fmt(gActual)}
+                    </span>
                   </div>
+                  {gPlanned > 0 && (
+                    <>
+                      <div className="ml-[18px] h-1 rounded-full overflow-hidden" style={{ backgroundColor: `${group.color}25` }}>
+                        <div className="h-full rounded-full transition-all duration-300"
+                          style={{ width: `${gPct}%`, backgroundColor: gOver ? "hsl(var(--destructive))" : group.color }} />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground/40 tabular-nums mt-0.5 ml-[18px]">de {fmt(gPlanned)}</p>
+                    </>
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
 
-                  {/* Direita: valor + actions */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <div className="text-right mr-1" onClick={e => e.stopPropagation()}>
-                      <p className={`text-sm font-bold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</p>
-                      {gPlanned > 0 && <p className="text-[10px] text-muted-foreground/40 tabular-nums">de {fmt(gPlanned)}</p>}
-                    </div>
-                    <div className="flex" onClick={e => e.stopPropagation()}>
-                      <button type="button"
-                        aria-label={`Editar grupo ${group.name}`}
-                        className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors touch-manipulation"
-                        onClick={() => openEditGroup(group)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button type="button"
-                        aria-label={`Excluir grupo ${group.name}`}
-                        className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors touch-manipulation"
-                        onClick={() => openDeleteGroup(group)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <motion.div
-                      animate={{ rotate: groupCollapsed ? 0 : 180 }}
-                      transition={{ duration: prefersReduced ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
+          {/* New group */}
+          <button
+            onClick={openNewGroup}
+            className="flex items-center gap-2 px-4 py-3 text-xs font-medium text-muted-foreground/50 hover:text-primary border-t hover:bg-primary/5 transition-colors shrink-0"
+          >
+            <FolderPlus className="h-3.5 w-3.5" />
+            Novo grupo
+          </button>
+        </div>
+
+        {/* ── MAIN CONTENT AREA ───────────────────────────────────────────────── */}
+        <div className="flex-1 min-w-0 md:overflow-y-auto">
+
+          {/* Mobile: budget overview */}
+          <div className="md:hidden px-4 pt-4 pb-3 space-y-3 border-b bg-muted/10">
+            <div
+              className="flex items-end justify-between cursor-pointer group"
+              onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
+            >
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/50 mb-0.5">Renda do mês</p>
+                <p className={`text-2xl font-bold tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
+                  {salary > 0 ? fmt(salary) : "— informar"}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground/30 group-hover:text-primary transition-colors pb-0.5">
+                <Pencil className="h-3 w-3" />
+                <span className="text-[11px] font-medium">editar</span>
+              </div>
+            </div>
+            {salary > 0 && (
+              <div className="space-y-1">
+                <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${totalActual > salary ? "bg-destructive" : "bg-primary"}`}
+                    style={{ width: `${Math.min(100, (totalActual / salary) * 100)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-muted-foreground/50">
+                  <span>Gasto {fmt(totalActual)}</span>
+                  <span className={sobra >= 0 ? "text-green-500/70" : "text-destructive/70"}>
+                    {sobra >= 0 ? `Sobra ${fmt(sobra)}` : `Excedeu ${fmt(Math.abs(sobra))}`}
+                  </span>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">Fixos</p>
+                <p className="text-base font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
+                <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalFixoPlanned)}</p>
+              </div>
+              <div className="rounded-xl bg-background border border-orange-400/20 px-3 py-3 space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Variáveis</p>
+                <p className="text-base font-bold tabular-nums leading-none">{fmt(totalVarActual)}</p>
+                <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalVarPlanned)}</p>
+              </div>
+              <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
+                <p className={`text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>Sobra</p>
+                <p className={`text-base font-bold tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
+                  {salary > 0 ? fmt(sobra) : "—"}
+                </p>
+                {salary > 0 && <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(sobraPlanned)}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile: group chip row */}
+          {groups.length > 0 && (
+            <div className="md:hidden border-b px-4 py-2.5">
+              <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
+                {groups.map(group => {
+                  const isSelected = selectedGroup?.id === group.id;
+                  return (
+                    <button
+                      key={group.id}
+                      onClick={() => setSelectedGroupId(group.id)}
+                      className={`shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wide transition-all ${
+                        isSelected ? "text-white shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                      }`}
+                      style={isSelected ? { backgroundColor: group.color } : {}}
                     >
-                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/40" />
-                    </motion.div>
+                      <span
+                        className="h-1.5 w-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.6)" : group.color }}
+                      />
+                      {group.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {groups.length === 0 ? (
+            <motion.div
+              className="flex flex-col items-center justify-center py-20 gap-2"
+              initial={{ opacity: 0, scale: prefersReduced ? 1 : 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <Image src="/logo.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30" />
+              <p className="font-semibold text-foreground/70">Nenhum grupo criado</p>
+              <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
+            </motion.div>
+          ) : selectedGroup ? (
+            /* ── Selected group panel ──────────────────────────────────────── */
+            <div>
+              {/* Group header bar */}
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b">
+                <div className="flex items-center gap-2.5">
+                  <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: selectedGroup.color }} />
+                  <h2 className="font-bold text-sm uppercase tracking-wide">{selectedGroup.name}</h2>
+                  <span className="text-[10px] text-muted-foreground/40 font-medium">
+                    {selectedGroupItems.length} {selectedGroupItems.length === 1 ? "item" : "itens"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="hidden md:flex items-center">
+                    <button
+                      className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors"
+                      onClick={() => openEditGroup(selectedGroup)}
+                      aria-label={`Editar grupo ${selectedGroup.name}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors"
+                      onClick={() => openDeleteGroup(selectedGroup)}
+                      aria-label={`Excluir grupo ${selectedGroup.name}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <button
+                    className="flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] md:min-h-9 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                    onClick={() => openNewItem(selectedGroup.id)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Adicionar item</span>
+                    <span className="sm:hidden">Novo</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Group progress bar */}
+              {sgPlanned > 0 && (
+                <div className="px-4 sm:px-6 py-2.5 border-b bg-muted/5 space-y-1">
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: `${selectedGroup.color}20` }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(100, (sgActual / sgPlanned) * 100)}%`,
+                        backgroundColor: sgOver ? "hsl(var(--destructive))" : selectedGroup.color,
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground/50">
+                    <span>Gasto {fmt(sgActual)}</span>
+                    <span className={sgOver ? "text-destructive/70" : ""}>de {fmt(sgPlanned)}</span>
                   </div>
                 </div>
+              )}
 
-                <AnimatePresence initial={false}>
-                {!groupCollapsed && (
-                  <motion.div
-                    key="items"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: prefersReduced ? 0.01 : 0.22, ease: [0.16, 1, 0.3, 1] }}
-                    className="overflow-hidden border-l border-border/20 ml-3"
-                  >
-                    {groupItems.length === 0 ? (
-                      <p className="px-5 py-3 text-sm text-muted-foreground/40 italic">
-                        Sem itens em {monthLabel}.
-                      </p>
-                    ) : (
-                      <div className="divide-y divide-border/40">
-                        {groupItems.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between px-5 py-2.5 gap-2 hover:bg-muted/10 transition-colors">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${item.type === "fixo" ? "bg-blue-500" : "bg-orange-400"}`} />
-                              <div className="min-w-0">
-                                <span className="text-sm font-medium truncate block leading-snug">{item.name}</span>
-                                {item.planned > 0 && (
-                                  <span className="text-[10px] text-muted-foreground/40 tabular-nums">
-                                    plan. {fmt(item.planned)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-0.5 shrink-0">
-                              <Input
-                                type="number"
-                                inputMode="decimal"
-                                className="h-8 text-sm text-right w-[4.5rem] sm:w-24 border-border/40 bg-muted/30 focus:bg-background tabular-nums"
-                                defaultValue={item.actual || ""}
-                                placeholder="0,00"
-                                onBlur={(e) => updateActual(item, e.target.value)}
-                              />
-                              <button type="button"
-                                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/30 hover:text-foreground transition-colors touch-manipulation"
-                                onClick={() => openEditItem(item)}
-                                aria-label={`Editar ${item.name}`}>
-                                <Pencil className="h-3 w-3" />
-                              </button>
-                              <button type="button"
-                                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors touch-manipulation"
-                                onClick={() => openDeleteItem(item)}
-                                aria-label={`Excluir ${item.name}`}>
-                                <Trash2 className="h-3 w-3" />
-                              </button>
+              {/* Items */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={selectedGroup.id}
+                  initial={{ opacity: 0, y: prefersReduced ? 0 : 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  {selectedGroupItems.length === 0 ? (
+                    <p className="px-6 py-10 text-sm text-muted-foreground/40 italic text-center">
+                      Sem itens em {monthLabel}.
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-border/40">
+                      {selectedGroupItems.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between px-4 sm:px-6 py-2.5 gap-2 hover:bg-muted/10 transition-colors">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${item.type === "fixo" ? "bg-blue-500" : "bg-orange-400"}`} />
+                            <div className="min-w-0">
+                              <span className="text-sm font-medium truncate block leading-snug">{item.name}</span>
+                              {item.planned > 0 && (
+                                <span className="text-[10px] text-muted-foreground/40 tabular-nums">
+                                  plan. {fmt(item.planned)}
+                                </span>
+                              )}
                             </div>
                           </div>
-                        ))}
-                        {/* Subtotal */}
-                        <div className="flex items-center justify-between px-5 py-2 bg-muted/20">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Subtotal</span>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] text-muted-foreground/40 tabular-nums">plan. {fmt(gPlanned)}</span>
-                            <span className={`text-sm font-bold tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(gActual)}</span>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              className="h-8 text-sm text-right w-[4.5rem] sm:w-24 border-border/40 bg-muted/30 focus:bg-background tabular-nums"
+                              defaultValue={item.actual || ""}
+                              placeholder="0,00"
+                              onBlur={(e) => updateActual(item, e.target.value)}
+                            />
+                            <button type="button"
+                              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/30 hover:text-foreground transition-colors touch-manipulation"
+                              onClick={() => openEditItem(item)}
+                              aria-label={`Editar ${item.name}`}>
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                            <button type="button"
+                              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors touch-manipulation"
+                              onClick={() => openDeleteItem(item)}
+                              aria-label={`Excluir ${item.name}`}>
+                              <Trash2 className="h-3 w-3" />
+                            </button>
                           </div>
                         </div>
+                      ))}
+                      <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 bg-muted/20">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Subtotal</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] text-muted-foreground/40 tabular-nums">plan. {fmt(sgPlanned)}</span>
+                          <span className={`text-sm font-bold tabular-nums ${sgOver ? "text-destructive" : ""}`}>{fmt(sgActual)}</span>
+                        </div>
                       </div>
-                    )}
-                    <button
-                      className="flex items-center gap-2 w-full px-5 py-3 text-xs font-medium text-muted-foreground/40 hover:text-primary border-t border-dashed border-border/30 hover:bg-primary/5 transition-colors"
-                      onClick={() => openNewItem(group.id)}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Adicionar item
-                    </button>
-                  </motion.div>
-                )}
-                </AnimatePresence>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
 
-      {/* ── Dialog: Salário ────────────────────────────────────────────────── */}
+              {/* Mobile: group edit/delete */}
+              <div className="md:hidden flex items-center gap-2 px-4 py-3 border-t border-dashed border-border/30 mt-1">
+                <button
+                  className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  onClick={() => openEditGroup(selectedGroup)}
+                >
+                  <Pencil className="h-3 w-3" />
+                  Editar grupo
+                </button>
+                <button
+                  className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg text-xs font-medium text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  onClick={() => openDeleteGroup(selectedGroup)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Excluir grupo
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+      </PageBody>
+
+      {/* ── Dialog: Salário ──────────────────────────────────────────────────── */}
       <Dialog open={salaryOpen} onOpenChange={setSalaryOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Salário de {monthLabel}</DialogTitle></DialogHeader>
@@ -723,7 +845,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* ── Dialog: Copiar mês anterior ────────────────────────────────────── */}
+      {/* ── Dialog: Copiar mês anterior ─────────────────────────────────────── */}
       <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Copiar do mês anterior</DialogTitle></DialogHeader>
@@ -738,7 +860,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* ── Dialog: Grupo ──────────────────────────────────────────────────── */}
+      {/* ── Dialog: Grupo ───────────────────────────────────────────────────── */}
       <Dialog open={groupOpen} onOpenChange={setGroupOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>{editingGroup ? "Editar grupo" : "Novo grupo"}</DialogTitle></DialogHeader>
@@ -770,7 +892,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* ── Dialog: Item ───────────────────────────────────────────────────── */}
+      {/* ── Dialog: Item ────────────────────────────────────────────────────── */}
       <Dialog open={itemOpen} onOpenChange={setItemOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>{editingItem ? "Editar item" : "Novo item"}</DialogTitle></DialogHeader>
@@ -836,7 +958,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           </div>
         </DialogContent>
       </Dialog>
-      {/* ── Dialog: Confirmar exclusão ─────────────────────────────────────── */}
+
+      {/* ── Dialog: Confirmar exclusão ──────────────────────────────────────── */}
       <Dialog open={!!confirmDialog} onOpenChange={(open) => !open && setConfirmDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -857,7 +980,6 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           </div>
         </DialogContent>
       </Dialog>
-      </PageBody>
     </PageShell>
   );
 }
