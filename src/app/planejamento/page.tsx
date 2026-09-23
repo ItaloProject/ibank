@@ -470,62 +470,67 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         </button>
       </div>
 
-      <PageBody className="px-0 pt-0 space-y-0 md:flex md:flex-row md:overflow-hidden">
+      <PageBody className="px-0 pt-0 space-y-0 md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
 
-        {/* ── LEFT SIDEBAR (desktop ≥768px) ──────────────────────────────────── */}
-        <div className="hidden md:flex md:flex-col md:w-64 md:border-r md:shrink-0 md:overflow-y-auto">
-
-          {/* Budget overview */}
-          <div className="px-4 pt-4 pb-3 space-y-3 border-b bg-muted/10 shrink-0">
-            <div
-              className="flex items-end justify-between cursor-pointer group"
-              onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
-            >
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/50 mb-0.5">Renda</p>
-                <p className={`text-xl font-bold tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
-                  {salary > 0 ? fmt(salary) : "— informar"}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 text-muted-foreground/30 group-hover:text-primary transition-colors pb-0.5">
-                <Pencil className="h-3 w-3" />
-              </div>
+        {/* ── BUDGET OVERVIEW — full width, mobile + desktop ──────────────────── */}
+        <div className="px-4 sm:px-6 pt-4 pb-3 space-y-3 border-b bg-muted/10 shrink-0">
+          <div
+            className="flex items-end justify-between cursor-pointer group"
+            onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
+          >
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/50 mb-0.5">Renda do mês</p>
+              <p className={`text-2xl font-bold tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
+                {salary > 0 ? fmt(salary) : "— informar"}
+              </p>
             </div>
-            {salary > 0 && (
-              <div className="space-y-1">
-                <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${totalActual > salary ? "bg-destructive" : "bg-primary"}`}
-                    style={{ width: `${Math.min(100, (totalActual / salary) * 100)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground/50">
-                  <span>{fmt(totalActual)}</span>
-                  <span className={sobra >= 0 ? "text-green-500/70" : "text-destructive/70"}>
-                    {sobra >= 0 ? `${fmt(sobra)} sobra` : `${fmt(Math.abs(sobra))} acima`}
-                  </span>
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-3 gap-1.5">
-              <div className="rounded-lg bg-background border border-blue-500/20 px-2 py-2 space-y-1">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-blue-500 leading-none">Fixos</p>
-                <p className="text-xs font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
-              </div>
-              <div className="rounded-lg bg-background border border-orange-400/20 px-2 py-2 space-y-1">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-orange-400 leading-none">Var.</p>
-                <p className="text-xs font-bold tabular-nums leading-none">{fmt(totalVarActual)}</p>
-              </div>
-              <div className={`rounded-lg bg-background border px-2 py-2 space-y-1 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
-                <p className={`text-[9px] font-bold uppercase tracking-widest leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>Sobra</p>
-                <p className={`text-xs font-bold tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
-                  {salary > 0 ? fmt(sobra) : "—"}
-                </p>
-              </div>
+            <div className="flex items-center gap-1 text-muted-foreground/30 group-hover:text-primary transition-colors pb-0.5">
+              <Pencil className="h-3 w-3" />
+              <span className="text-[11px] font-medium">editar</span>
             </div>
           </div>
+          {salary > 0 && (
+            <div className="space-y-1">
+              <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${totalActual > salary ? "bg-destructive" : "bg-primary"}`}
+                  style={{ width: `${Math.min(100, (totalActual / salary) * 100)}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-muted-foreground/50">
+                <span>Gasto {fmt(totalActual)}</span>
+                <span className={sobra >= 0 ? "text-green-500/70" : "text-destructive/70"}>
+                  {sobra >= 0 ? `Sobra ${fmt(sobra)}` : `Excedeu ${fmt(Math.abs(sobra))}`}
+                </span>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">Fixos</p>
+              <p className="text-base font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
+              <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalFixoPlanned)}</p>
+            </div>
+            <div className="rounded-xl bg-background border border-orange-400/20 px-3 py-3 space-y-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Variáveis</p>
+              <p className="text-base font-bold tabular-nums leading-none">{fmt(totalVarActual)}</p>
+              <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalVarPlanned)}</p>
+            </div>
+            <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>Sobra</p>
+              <p className={`text-base font-bold tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
+                {salary > 0 ? fmt(sobra) : "—"}
+              </p>
+              {salary > 0 && <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(sobraPlanned)}</p>}
+            </div>
+          </div>
+        </div>
 
-          {/* Groups list */}
+        {/* ── SPLIT: sidebar + main ────────────────────────────────────────────── */}
+        <div className="flex-1 min-h-0 md:flex md:overflow-hidden">
+
+        {/* ── LEFT SIDEBAR: groups only (desktop ≥768px) ─────────────────────── */}
+        <div className="hidden md:flex md:flex-col md:w-56 md:border-r md:shrink-0 md:overflow-y-auto">
           <div className="flex-1 overflow-y-auto divide-y">
             {groups.map((group, index) => {
               const gItems   = items.filter(i => i.group_id === group.id);
@@ -565,8 +570,6 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               );
             })}
           </div>
-
-          {/* New group */}
           <button
             onClick={openNewGroup}
             className="flex items-center gap-2 px-4 py-3 text-xs font-medium text-muted-foreground/50 hover:text-primary border-t hover:bg-primary/5 transition-colors shrink-0"
@@ -578,60 +581,6 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
         {/* ── MAIN CONTENT AREA ───────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 md:overflow-y-auto">
-
-          {/* Mobile: budget overview */}
-          <div className="md:hidden px-4 pt-4 pb-3 space-y-3 border-b bg-muted/10">
-            <div
-              className="flex items-end justify-between cursor-pointer group"
-              onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
-            >
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/50 mb-0.5">Renda do mês</p>
-                <p className={`text-2xl font-bold tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
-                  {salary > 0 ? fmt(salary) : "— informar"}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 text-muted-foreground/30 group-hover:text-primary transition-colors pb-0.5">
-                <Pencil className="h-3 w-3" />
-                <span className="text-[11px] font-medium">editar</span>
-              </div>
-            </div>
-            {salary > 0 && (
-              <div className="space-y-1">
-                <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${totalActual > salary ? "bg-destructive" : "bg-primary"}`}
-                    style={{ width: `${Math.min(100, (totalActual / salary) * 100)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground/50">
-                  <span>Gasto {fmt(totalActual)}</span>
-                  <span className={sobra >= 0 ? "text-green-500/70" : "text-destructive/70"}>
-                    {sobra >= 0 ? `Sobra ${fmt(sobra)}` : `Excedeu ${fmt(Math.abs(sobra))}`}
-                  </span>
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">Fixos</p>
-                <p className="text-base font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
-                <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalFixoPlanned)}</p>
-              </div>
-              <div className="rounded-xl bg-background border border-orange-400/20 px-3 py-3 space-y-1.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Variáveis</p>
-                <p className="text-base font-bold tabular-nums leading-none">{fmt(totalVarActual)}</p>
-                <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalVarPlanned)}</p>
-              </div>
-              <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
-                <p className={`text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>Sobra</p>
-                <p className={`text-base font-bold tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
-                  {salary > 0 ? fmt(sobra) : "—"}
-                </p>
-                {salary > 0 && <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(sobraPlanned)}</p>}
-              </div>
-            </div>
-          </div>
 
           {/* Mobile: group chip row */}
           {groups.length > 0 && (
@@ -816,6 +765,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           ) : null}
         </div>
 
+        </div>{/* end split */}
       </PageBody>
 
       {/* ── Dialog: Salário ──────────────────────────────────────────────────── */}
