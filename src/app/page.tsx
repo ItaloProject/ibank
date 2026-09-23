@@ -98,7 +98,13 @@ export default function DashboardPage() {
       setStockQuotes(Array.isArray(sq) ? (sq as StockQuote[]) : []);
       setPlanSalary(Number((salaryData as { salary?: number })?.salary) || 0);
       setPlanGroups(Array.isArray(groupsData) ? (groupsData as PlanGroup[]) : []);
-      setPlanItems(Array.isArray(itemsData) ? (itemsData as PlanItem[]) : []);
+      setPlanItems(Array.isArray(itemsData)
+        ? (itemsData as Record<string, unknown>[]).map(i => ({
+            ...i,
+            planned: Number(i.planned) || 0,
+            actual:  Number(i.actual)  || 0,
+          } as PlanItem))
+        : []);
       setParcelas(Array.isArray(parcData) ? (parcData as Parcelamento[]) : []);
     })
     .catch(err => setError(String(err)))
