@@ -77,7 +77,6 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   const [items, setItems] = useState<ExpenseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
   // Group form
@@ -376,14 +375,6 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     }
   }
 
-  function isGroupCollapsed(id: string) {
-    return collapsed[id] === true;
-  }
-
-  function toggleCollapse(id: string) {
-    setCollapsed((prev) => ({ ...prev, [id]: !isGroupCollapsed(id) }));
-  }
-
   // ── Totals ─────────────────────────────────────────────────────────────────
 
   const totalFixoPlanned = items.filter(i => i.type === "fixo").reduce((s, i) => s + i.planned, 0);
@@ -443,12 +434,10 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-              {items.length === 0 && (
-                <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => setCopyOpen(true)}>
-                  <Copy className="h-3.5 w-3.5" />
-                  Copiar mês anterior
-                </Button>
-              )}
+              <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => setCopyOpen(true)}>
+                <Copy className="h-3.5 w-3.5" />
+                Copiar mês anterior
+              </Button>
               {items.length > 0 && (
                 <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => {
                   const userName = USERS.find(u => u.id === userId)?.name ?? userId;
@@ -494,7 +483,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           >
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/50 mb-0.5">Renda do mês</p>
-              <p className={`text-2xl font-bold tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
+              <p className={`text-2xl font-display font-black tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
                 {salary > 0 ? fmt(salary) : "— informar"}
               </p>
             </div>
@@ -524,13 +513,13 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             <span className="inline-flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />
               <span className="text-[11px] text-muted-foreground">Fixos</span>
-              <span className="text-[11px] font-bold tabular-nums">{fmt(totalFixoActual)}</span>
+              <span className="text-[11px] font-display font-black tabular-nums">{fmt(totalFixoActual)}</span>
             </span>
             <span className="text-border/60 text-xs select-none">·</span>
             <span className="inline-flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-orange-400 shrink-0" />
               <span className="text-[11px] text-muted-foreground">Variáveis</span>
-              <span className="text-[11px] font-bold tabular-nums">{fmt(totalVarActual)}</span>
+              <span className="text-[11px] font-display font-black tabular-nums">{fmt(totalVarActual)}</span>
             </span>
             {salary > 0 && (
               <>
@@ -538,7 +527,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 <span className="inline-flex items-center gap-1.5">
                   <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${sobra >= 0 ? "bg-green-500" : "bg-destructive"}`} />
                   <span className="text-[11px] text-muted-foreground">Sobra</span>
-                  <span className={`text-[11px] font-bold tabular-nums ${sobra >= 0 ? "text-green-600 dark:text-green-400" : "text-destructive"}`}>
+                  <span className={`text-[11px] font-display font-black tabular-nums ${sobra >= 0 ? "text-green-600 dark:text-green-400" : "text-destructive"}`}>
                     {fmt(Math.abs(sobra))}
                   </span>
                 </span>
@@ -549,17 +538,17 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           <div className="hidden md:grid grid-cols-3 gap-2">
             <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">Fixos</p>
-              <p className="text-base font-bold tabular-nums leading-none">{fmt(totalFixoActual)}</p>
+              <p className="text-base font-display font-black tabular-nums leading-none">{fmt(totalFixoActual)}</p>
               <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalFixoPlanned)}</p>
             </div>
             <div className="rounded-xl bg-background border border-orange-400/20 px-3 py-3 space-y-1.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Variáveis</p>
-              <p className="text-base font-bold tabular-nums leading-none">{fmt(totalVarActual)}</p>
+              <p className="text-base font-display font-black tabular-nums leading-none">{fmt(totalVarActual)}</p>
               <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalVarPlanned)}</p>
             </div>
             <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
               <p className={`text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>Sobra</p>
-              <p className={`text-base font-bold tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
+              <p className={`text-base font-display font-black tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
                 {salary > 0 ? fmt(sobra) : "—"}
               </p>
               {salary > 0 && <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(sobraPlanned)}</p>}
@@ -594,7 +583,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                       isSelected ? "text-foreground" : "text-muted-foreground/50"
                     }`}>{group.name}</span>
                   </div>
-                  <span className={`text-lg font-bold tabular-nums leading-none ${
+                  <span className={`text-lg font-display font-black tabular-nums leading-none ${
                     gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-muted-foreground/35"
                   }`}>{fmt(gActual)}</span>
                   {gPlanned > 0 && (
@@ -656,15 +645,13 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <FolderPlus className="h-3.5 w-3.5" />
               Novo grupo
             </button>
-            {items.length === 0 && (
-              <button
-                onClick={() => setCopyOpen(true)}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-all"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copiar mês
-              </button>
-            )}
+            <button
+              onClick={() => setCopyOpen(true)}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-all"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copiar mês
+            </button>
             {items.length > 0 && (
               <button
                 onClick={() => {
@@ -839,7 +826,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Subtotal</span>
                         <div className="flex items-center gap-3">
                           <span className="text-[10px] text-muted-foreground/40 tabular-nums">plan. {fmt(sgPlanned)}</span>
-                          <span className={`text-sm font-bold tabular-nums ${sgOver ? "text-destructive" : ""}`}>{fmt(sgActual)}</span>
+                          <span className={`text-sm font-display font-black tabular-nums ${sgOver ? "text-destructive" : ""}`}>{fmt(sgActual)}</span>
                         </div>
                       </div>
                     </div>
