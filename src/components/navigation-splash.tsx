@@ -1,37 +1,44 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-
-const NAV_SPLASH_MS = 1000;
 
 export function NavigationSplash() {
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
-  const isFirst = useRef(true);
 
+  // Detecta CLIQUE em links internos → mostra imediatamente (antes de navegar)
   useEffect(() => {
-    if (isFirst.current) {
-      isFirst.current = false;
-      return;
+    function handleClick(e: MouseEvent) {
+      const anchor = (e.target as Element).closest("a[href]");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href") ?? "";
+      // ignora âncoras, links externos e links do mesmo pathname
+      if (!href || href.startsWith("#") || href.startsWith("http") || href.startsWith("mailto")) return;
+      if (href === pathname) return;
+      setVisible(true);
     }
-    setVisible(true);
-    const t = setTimeout(() => setVisible(false), NAV_SPLASH_MS);
-    return () => clearTimeout(t);
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [pathname]);
+
+  // Quando a nova rota estiver pronta → esconde
+  useEffect(() => {
+    setVisible(false);
   }, [pathname]);
 
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none">
+    <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center gap-5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/loading.gif"
         alt=""
-        className="w-16 h-16 object-contain drop-shadow-xl"
+        className="w-32 h-32 object-contain dark:invert"
       />
-      <div className="h-0.5 w-24 rounded-full bg-border/60 overflow-hidden">
-        <div className="h-full rounded-full bg-amber-400 animate-[loading-bar_1s_ease-in-out_forwards]" />
+      <div className="h-[2px] w-40 rounded-full bg-border overflow-hidden">
+        <div className="h-full rounded-full bg-amber-400 animate-[loading-bar_0.8s_ease-in-out_infinite]" />
       </div>
     </div>
   );
