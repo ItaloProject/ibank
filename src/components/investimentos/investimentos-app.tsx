@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Plus, TrendingUp, LineChart, Info, Zap, Landmark, PlusCircle, ChevronRight, Radio,
+  Plus, TrendingUp, LineChart, Info, Zap, Landmark, PlusCircle, ChevronRight, ChevronLeft, Radio,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -137,10 +137,23 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     try { localStorage.setItem("ibank_live_mode", "1"); } catch { /* ignore */ }
     setInvestorMode(true);
   }
-  const [selectedView, setSelectedView] = useState<null | "live" | "bot">(null);
+  const [selectedView, setSelectedView] = useState<null | "live" | "bot">(() => {
+    try {
+      const saved = localStorage.getItem("ibank_inv_view");
+      if (saved === "live" || saved === "bot") return saved as "live" | "bot";
+    } catch { /* ignore */ }
+    return null;
+  });
   const [incomeGoal, setIncomeGoal] = useState<number>(() => {
     try { return Number(localStorage.getItem("ibank_income_goal") ?? 0) || 0; } catch { return 0; }
   });
+
+  useEffect(() => {
+    try {
+      if (selectedView) localStorage.setItem("ibank_inv_view", selectedView);
+      else localStorage.removeItem("ibank_inv_view");
+    } catch { /* ignore */ }
+  }, [selectedView]);
   const [incomeGoalInput, setIncomeGoalInput] = useState("");
 
   const now = new Date();
@@ -184,6 +197,12 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     date: format(now, "yyyy-MM-dd"),
   });
   const [scoreHistory, setScoreHistory] = useState<ScoreSnapshot[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: "account" | "investment" | "stock";
+    id: string;
+    label: string;
+    inv?: Investment;
+  } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -663,22 +682,34 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     load();
   }
 
-  async function handleDeleteInvestment(inv: Investment) {
-    await deleteInvestment(inv.id);
-    const delta = inv.type === "retirada" ? inv.amount : -inv.amount;
-    const acc = accounts.find((a) => a.id === inv.account_id);
-    if (acc) await updateAccountBalance(inv.account_id, acc.current_balance + delta);
-    load();
+  function handleDeleteInvestment(inv: Investment) {
+    setDeleteConfirm({ type: "investment", id: inv.id, label: inv.description || formatCurrency(inv.amount), inv });
   }
 
-  async function handleDeleteStock(id: string) {
-    await deleteStockTrade(id);
-    load();
+  function handleDeleteStock(id: string) {
+    setDeleteConfirm({ type: "stock", id, label: "esta operação" });
   }
 
-  async function handleDeleteAccount(id: string) {
-    await deleteInvestmentAccount(id);
-    setActiveTab("total");
+  function handleDeleteAccount(id: string) {
+    const acc = accounts.find((a) => a.id === id);
+    setDeleteConfirm({ type: "account", id, label: acc?.name || "esta conta" });
+  }
+
+  async function confirmDelete() {
+    if (!deleteConfirm) return;
+    if (deleteConfirm.type === "account") {
+      await deleteInvestmentAccount(deleteConfirm.id);
+      setActiveTab("total");
+    } else if (deleteConfirm.type === "investment" && deleteConfirm.inv) {
+      const inv = deleteConfirm.inv;
+      await deleteInvestment(inv.id);
+      const delta = inv.type === "retirada" ? inv.amount : -inv.amount;
+      const acc = accounts.find((a) => a.id === inv.account_id);
+      if (acc) await updateAccountBalance(inv.account_id, acc.current_balance + delta);
+    } else if (deleteConfirm.type === "stock") {
+      await deleteStockTrade(deleteConfirm.id);
+    }
+    setDeleteConfirm(null);
     load();
   }
 
@@ -808,6 +839,8 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
           </div>
           <h1 className="text-2xl font-bold tracking-tight font-display">Investimentos</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Escolha sua experiência</p>
+          <p className="mt-3 text-3xl font-display font-black tabular-nums tracking-tight">{formatCurrency(grandTotal)}</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground/40 mt-0.5">Patrimônio total</p>
         </div>
 
         {/* Selector cards */}
@@ -983,17 +1016,18 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       {/* Mobile header */}
       <div className="md:hidden flex items-center px-2 h-14 border-b shrink-0 gap-1">
         <button
+          type="button"
           onClick={() => setSelectedView(null)}
           className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted transition-colors shrink-0"
           aria-label="Voltar"
         >
-          ←
+          <ChevronLeft className="h-5 w-5" />
         </button>
         <span className="flex-1 text-center text-[15px] font-bold tracking-tight">MUVO LIVE</span>
         {botEnabled ? (
           <button
             onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
-            className="flex h-9 items-center gap-1.5 px-3 rounded-full border border-violet-300/60 text-violet-600 dark:border-violet-700/50 dark:text-violet-400 text-xs font-semibold shrink-0"
+            className="flex h-9 items-center gap-1.5 px-3 rounded-full border border-border text-foreground/70 text-xs font-semibold shrink-0 hover:bg-muted transition-colors"
           >
             <Zap className="h-3.5 w-3.5" />BOT
           </button>
@@ -1028,7 +1062,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
             onClick={() => setSelectedView(null)}
             className="min-h-10 w-full sm:w-auto text-muted-foreground"
           >
-            ← Início
+            <ChevronLeft className="h-4 w-4" /> Início
           </Button>
           {botEnabled ? (
             <>
@@ -1036,7 +1070,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                 variant="outline"
                 size="sm"
                 onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
-                className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950/40 min-h-10 w-full sm:w-auto"
+                className="min-h-10 w-full sm:w-auto"
               >
                 <Zap className="h-4 w-4" />
                 MUVO BOT
@@ -1045,7 +1079,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
           ) : (
             <a
               href="/vender"
-              className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-md border border-violet-300/50 px-3 text-sm font-medium text-violet-700/80 dark:text-violet-300/80 min-h-10 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+              className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground min-h-10 hover:bg-muted transition-colors"
             >
               <Zap className="h-4 w-4" />
               Bot
@@ -1086,7 +1120,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                   </div>
                 </label>
                 {accForm.is_turbo && (
-                  <div className="space-y-3 pl-2 border-l-2 border-blue-400">
+                  <div className="space-y-3 rounded-lg bg-muted/50 border border-border p-3">
                     <div className="space-y-1.5">
                       <Label>% do CDI contratado</Label>
                       <div className="flex items-center gap-2">
@@ -1176,9 +1210,10 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                   const selAcc = accounts.find((a) => a.id === invForm.account_id);
                   if (!selAcc?.is_turbo) return null;
                   return (
-                    <div className="space-y-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                        ⚡ TURBO {selAcc.cdi_percent ? `· ${selAcc.cdi_percent}% CDI` : ""}
+                    <div className="space-y-3 p-3 rounded-lg bg-muted/50 border border-border">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground/70 uppercase tracking-wide">
+                        <Zap className="h-3 w-3 shrink-0" />
+                        TURBO {selAcc.cdi_percent ? `· ${selAcc.cdi_percent}% CDI` : ""}
                         {selAcc.max_rendimento ? ` · teto ${formatCurrency(selAcc.max_rendimento)}` : ""}
                       </p>
                       <div className="space-y-1.5">
@@ -1467,7 +1502,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                     onChange={(e) => setRenameForm({ ...renameForm, valor_liquido: e.target.value })} />
                 </div>
                 {renameForm.is_turbo && (
-                  <div className="space-y-3 pl-2 border-l-2 border-blue-400">
+                  <div className="space-y-3 rounded-lg bg-muted/50 border border-border p-3">
                     <div className="space-y-1.5">
                       <Label>% do CDI contratado</Label>
                       <div className="flex items-center gap-2">
@@ -1527,6 +1562,22 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
           </Dialog>
         </div>
       )}
+
+      {/* ── Dialog: confirmação de exclusão ── */}
+      <Dialog open={deleteConfirm !== null} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Deseja excluir <span className="font-semibold text-foreground">{deleteConfirm?.label}</span>? Esta ação não pode ser desfeita.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
+            <Button variant="destructive" className="flex-1" onClick={confirmDelete}>Excluir</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       </PageBody>
     </PageShell>
   );
