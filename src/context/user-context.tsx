@@ -44,11 +44,14 @@ const UserContext = createContext<UserContextType>({
   switchUser: () => {},
 });
 
+const SPLASH_MIN_MS = 2500;
+
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    const start = Date.now();
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((data) => {
@@ -58,7 +61,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {})
-      .finally(() => setReady(true));
+      .finally(() => {
+        const elapsed = Date.now() - start;
+        const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+        setTimeout(() => setReady(true), remaining);
+      });
   }, []);
 
   function login(u: AuthUser) {
