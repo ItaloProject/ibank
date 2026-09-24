@@ -166,28 +166,38 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                       title={isCollapsed ? item.label : undefined}
                       onClick={onMobileClose}
                       className={cn(
-                        "group flex items-center px-2.5 py-2.5 text-[13px] font-medium",
+                        "group relative flex items-center rounded-xl px-2.5 py-2.5 text-[13px] font-medium",
                         "transition-all duration-150 ease-out",
-                        isCollapsed ? "justify-center gap-0 rounded-xl" : "gap-3",
-                        // featured: borda esquerda violet permanente (não collapsed)
-                        !isCollapsed && isFeatured && "rounded-r-xl rounded-l-sm border-l-2",
-                        !isCollapsed && !isFeatured && "rounded-xl",
-                        isActive && isFeatured && !isCollapsed && "border-l-[#a855f7] bg-sidebar-primary/15 text-sidebar-primary",
-                        isActive && !isFeatured && "bg-sidebar-primary/15 text-sidebar-primary",
-                        isActive && isFeatured && isCollapsed && "bg-sidebar-primary/15 text-sidebar-primary",
-                        !isActive && isFeatured && !isCollapsed && "border-l-[#a855f7]/50 bg-[#a855f7]/5 text-sidebar-foreground/80 hover:bg-[#a855f7]/12 hover:border-l-[#a855f7]/80 hover:text-sidebar-foreground",
+                        isCollapsed ? "justify-center gap-0" : "gap-3",
+                        isFeatured && !isCollapsed && "overflow-hidden",
+                        isActive && "bg-sidebar-primary/15 text-sidebar-primary",
+                        !isActive && isFeatured && !isCollapsed && "bg-sidebar-accent/60 text-sidebar-foreground/85 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground",
                         !isActive && isFeatured && isCollapsed && "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                         !isActive && !isFeatured && "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                       )}>
-                      <Icon className={cn(
-                        "shrink-0 transition-colors duration-100",
-                        isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
-                        isActive
-                          ? "text-sidebar-primary"
-                          : isFeatured
-                          ? "text-[#a855f7]/70 group-hover:text-[#a855f7]"
-                          : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
-                      )} />
+                      {/* shimmer sweep — featured, expandido, inativo */}
+                      {isFeatured && !isCollapsed && !isActive && (
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute inset-y-0 w-1/2 animate-[sidebar-sweep_4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.07] to-transparent skew-x-[-15deg]"
+                        />
+                      )}
+                      {/* ícone com dot pulsante âmbar no canto */}
+                      <span className="relative shrink-0 flex items-center justify-center">
+                        <Icon className={cn(
+                          "transition-colors duration-100",
+                          isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
+                          isActive
+                            ? "text-sidebar-primary"
+                            : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
+                        )} />
+                        {isFeatured && !isCollapsed && (
+                          <span className="absolute -top-[3px] -right-[3px] flex h-[7px] w-[7px]">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-70" />
+                            <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-amber-400" />
+                          </span>
+                        )}
+                      </span>
                       <span className={cn(
                         "flex-1 whitespace-nowrap overflow-hidden transition-all duration-150 leading-none",
                         isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100",
@@ -198,8 +208,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                         <span className={cn(
                           "ml-auto shrink-0 text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md transition-all duration-150",
                           isActive
-                            ? "bg-[#a855f7]/20 text-sidebar-primary"
-                            : "bg-[#a855f7]/10 text-[#a855f7]/80",
+                            ? "bg-sidebar-primary/20 text-sidebar-primary"
+                            : "bg-white/[0.08] text-sidebar-foreground/65",
                         )}>
                           {fmtCompact(portfolioTotal)}
                         </span>
