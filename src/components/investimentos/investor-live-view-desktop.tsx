@@ -1,10 +1,38 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { X, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Minus, Check, Plus, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
+import { CASH_ACCOUNT_NAME } from "@/lib/account-groups";
+import {
+  createStockTrade,
+  createInvestment,
+  updateAccountBalance,
+  createInvestmentAccount,
+  deleteStockTrade,
+  deleteInvestment,
+  deleteInvestmentAccount,
+} from "@/lib/api";
+import {
+  SimulatorInvestFlow,
+  DEFAULT_TESOURO_PRODUCTS,
+  type MarketSection,
+  type TesouroProduct,
+} from "@/components/investimentos/simulator-invest-flow";
 import type { InvestorLiveViewProps } from "./investor-live-view";
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function safeDelete(action: () => Promise<unknown>, label: string) {
+  try {
+    await action();
+  } catch (err) {
+    console.error(`Falha ao reverter ${label}:`, err);
+  }
+}
 
 function fmtQty(n: number) {
   return n % 1 === 0 ? n.toString() : n.toFixed(2).replace(".", ",");
@@ -50,9 +78,28 @@ export function InvestorLiveViewDesktop({
   investments,
   cashAccountId,
   cashBalance,
+  onRefresh,
   onClose,
 }: InvestorLiveViewProps) {
   const [tab, setTab] = useState<"inicio" | "investimentos" | "simular">("inicio");
+
+  /* ── Market / buy flow ────────────────────────────────────────── */
+  const [marketOpen, setMarketOpen] = useState(false);
+  const [marketSection, setMarketSection] = useState<MarketSection>("hub");
+
+  /* ── Sell flow ────────────────────────────────────────────────── */
+  const [sellTicker, setSellTicker] = useState<string | null>(null);
+  const [sellQtyMask, setSellQtyMask] = useState("");
+  const [sellSubmitting, setSellSubmitting] = useState(false);
+  const [sellError, setSellError] = useState<string | null>(null);
+
+  /* ── Feedback ────────────────────────────────────────────────── */
+  const [confirmedFlash, setConfirmedFlash] = useState(false);
+
+  function flashConfirm() {
+    setConfirmedFlash(true);
+    setTimeout(() => setConfirmedFlash(false), 1600);
+  }
 
   /* ── Derived: holdings ────────────────────────────────────────── */
   const holdingRows = useMemo(() => {
@@ -64,7 +111,7 @@ export function InvestorLiveViewDesktop({
         const cost = p.quantity * p.avgPrice;
         const gain = value - cost;
         const gainPct = cost > 0 ? (gain / cost) * 100 : 0;
-        return { ticker: p.ticker, quantity: p.quantity, value, gain, gainPct, type: detectAssetType(p.ticker) };
+        return { ticker: p.ticker, quantity: p.quantity, value, gain, gainPct, price, type: detectAssetType(p.ticker) };
       })
       .sort((a, b) => b.value - a.value);
   }, [stockPositions, quoteMap]);
@@ -81,6 +128,217 @@ export function InvestorLiveViewDesktop({
   const emergenciaTotal = emergenciaAccountsReal.reduce((s, a) => s + a.valor, 0);
   const investimentosTotal = investimentosAccountsReal.reduce((s, a) => s + a.valor, 0);
   const patrimonioTotal = turboTotal + emergenciaTotal + investimentosTotal + investedValue + cashBalance;
+
+  /* ── Market catalog (for SimulatorInvestFlow) ─────────────────── */
+  const marketCatalog = useMemo(() => {
+    const BASE = [
+      { ticker: "PETR4", name: "Petrobras PN",      category: "Ação" as const, price: 38.5,  variation: 0.021,  color: "#22c55e" },
+      { ticker: "VALE3", name: "Vale ON",            category: "Ação" as const, price: 61.2,  variation: -0.014, color: "#f97316" },
+      { ticker: "ITUB4", name: "Itaú Unibanco PN",   category: "Ação" as const, price: 34.1,  variation: 0.008,  color: "#f59e0b" },
+      { ticker: "BBAS3", name: "Banco do Brasil ON", category: "Ação" as const, price: 22.5,  variation: 0.04,   color: "#3b82f6" },
+      { ticker: "WEGE3", name: "WEG ON",             category: "Ação" as const, price: 48.2,  variation: 0.015,  color: "#06b6d4" },
+      { ticker: "MXRF11", name: "Maxi Renda",        category: "FII" as const,  price: 10.15, variation: 0.012,  color: "#a855f7" },
+      { ticker: "HGLG11", name: "CSHG Logística",    category: "FII" as const,  price: 165.4, variation: 0.019,  color: "#8b5cf6" },
+      { ticker: "XPML11", name: "XP Malls",          category: "FII" as const,  price: 98.5,  variation: 0.008,  color: "#ec4899" },
+    ];
+    const knownTickers = new Set(BASE.map((a) => a.ticker));
+    const extras = stockPositions
+      .filter((p) => p.quantity > 0 && !knownTickers.has(p.ticker))
+      .map((p, i) => {
+        const extraColors = ["#22c55e", "#3b82f6", "#a855f7", "#f59e0b", "#ef4444", "#06b6d4"];
+        const kind = detectAssetType(p.ticker);
+        return {
+          ticker: p.ticker,
+          name: p.ticker,
+          category: kind === "FII" ? ("FII" as const) : ("Ação" as const),
+          price: quoteMap.get(p.ticker) ?? p.avgPrice,
+          variation: 0,
+          color: extraColors[i % extraColors.length],
+        };
+      });
+    return [...BASE.map((a) => ({
+      ...a,
+      price: quoteMap.get(a.ticker) ?? a.price,
+    })), ...extras];
+  }, [stockPositions, quoteMap]);
+
+  /* ── Sell helpers ─────────────────────────────────────────────── */
+  const sellHolding = useMemo(() => {
+    if (!sellTicker) return null;
+    const h = holdingRows.find((x) => x.ticker === sellTicker);
+    if (!h) return null;
+    return h;
+  }, [sellTicker, holdingRows]);
+
+  const sellQty = (() => {
+    const n = parseFloat(sellQtyMask.replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  })();
+  const sellProceeds = sellHolding ? sellQty * sellHolding.price : 0;
+  const canConfirmSell =
+    !!sellHolding && sellQty > 0 && sellQty <= sellHolding.quantity + 0.0001 && !sellSubmitting;
+
+  function openSell(ticker: string) {
+    setSellTicker(ticker);
+    setSellQtyMask("");
+    setSellError(null);
+  }
+
+  function onSellQtyChange(raw: string) {
+    let v = raw.replace(/[^\d,]/g, "");
+    const parts = v.split(",");
+    if (parts.length > 2) v = parts[0] + "," + parts.slice(1).join("");
+    setSellQtyMask(v);
+  }
+
+  /* ── Buy actions ──────────────────────────────────────────────── */
+  async function handleBuyStock(ticker: string, _name: string, price: number, amount: number) {
+    if (!cashAccountId || amount <= 0 || amount > cashBalance + 0.001 || price <= 0) return;
+    const qty = Math.floor(amount / price);
+    if (qty < 1) throw new Error(`Valor insuficiente para 1 ação de ${ticker} (${formatCurrency(price)}).`);
+    const spent = qty * price;
+    const trade = await createStockTrade({
+      ticker,
+      type: "compra",
+      quantity: qty,
+      price_per_share: price,
+      total_amount: spent,
+      date: today(),
+    });
+    try {
+      await createInvestment({
+        account_id: cashAccountId,
+        type: "retirada",
+        amount: spent,
+        description: `Compra ${ticker}`,
+        date: today(),
+      });
+    } catch (err) {
+      await safeDelete(() => deleteStockTrade(trade.id), "compra de ação");
+      throw err;
+    }
+    await onRefresh();
+    flashConfirm();
+  }
+
+  async function handleBuyTesouro(product: TesouroProduct, amount: number) {
+    if (!cashAccountId || amount <= 0 || amount > cashBalance + 0.001) return;
+    const existing = investimentosAccountsReal.find((a) => a.nome === product.nome);
+    const previousBalance = existing?.valor ?? 0;
+    let accountId: string;
+    let createdAccount = false;
+
+    if (existing) {
+      accountId = existing.id;
+    } else {
+      const acc = await createInvestmentAccount({ name: product.nome, institution: product.taxa });
+      accountId = acc.id;
+      createdAccount = true;
+    }
+
+    let depositRecordId: string | null = null;
+    try {
+      const depositRecord = await createInvestment({
+        account_id: accountId,
+        type: "deposito",
+        amount,
+        description: "Compra Tesouro Direto",
+        date: today(),
+      });
+      depositRecordId = depositRecord.id;
+      await updateAccountBalance(accountId, previousBalance + amount);
+      await createInvestment({
+        account_id: cashAccountId,
+        type: "retirada",
+        amount,
+        description: `Compra ${product.nome}`,
+        date: today(),
+      });
+    } catch (err) {
+      if (createdAccount) {
+        await safeDelete(() => deleteInvestmentAccount(accountId), "conta de Tesouro criada");
+      } else {
+        await safeDelete(() => updateAccountBalance(accountId, previousBalance), "saldo do Tesouro");
+        if (depositRecordId) await safeDelete(() => deleteInvestment(depositRecordId!), "depósito do Tesouro");
+      }
+      throw err;
+    }
+    await onRefresh();
+    flashConfirm();
+  }
+
+  async function handleAporte(accountId: string, amount: number) {
+    if (!cashAccountId || amount <= 0 || amount > cashBalance + 0.001) return;
+    const acc = [...turboAccountsReal, ...emergenciaAccountsReal, ...investimentosAccountsReal].find(
+      (a) => a.id === accountId
+    );
+    if (!acc) return;
+    const depositRecord = await createInvestment({
+      account_id: accountId,
+      type: "deposito",
+      amount,
+      description: `Aporte · ${acc.nome}`,
+      date: today(),
+    });
+    try {
+      await updateAccountBalance(accountId, acc.valor + amount);
+      await createInvestment({
+        account_id: cashAccountId,
+        type: "retirada",
+        amount,
+        description: `Aporte · ${acc.nome}`,
+        date: today(),
+      });
+    } catch (err) {
+      await safeDelete(() => updateAccountBalance(accountId, acc.valor), "saldo do aporte");
+      await safeDelete(() => deleteInvestment(depositRecord.id), "depósito do aporte");
+      throw err;
+    }
+    await onRefresh();
+    flashConfirm();
+  }
+
+  async function confirmSell() {
+    if (!sellHolding || !canConfirmSell) return;
+    setSellSubmitting(true);
+    setSellError(null);
+    const ticker = sellHolding.ticker;
+    const price = sellHolding.price;
+    const amount = sellQty * price;
+    let cid = cashAccountId;
+    let cashRecordId: string | null = null;
+    try {
+      if (!cid) {
+        const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
+        cid = acc.id;
+      }
+      const cashRecord = await createInvestment({
+        account_id: cid,
+        type: "deposito",
+        amount,
+        description: `Venda ${ticker}`,
+        date: today(),
+      });
+      cashRecordId = cashRecord.id;
+      await createStockTrade({
+        ticker,
+        type: "venda",
+        quantity: sellQty,
+        price_per_share: price,
+        total_amount: amount,
+        date: today(),
+      });
+      await onRefresh();
+      flashConfirm();
+      setSellTicker(null);
+    } catch (err) {
+      console.error("Erro ao vender:", err);
+      if (cashRecordId) await safeDelete(() => deleteInvestment(cashRecordId!), "crédito da venda");
+      setSellError(err instanceof Error ? err.message : "Não foi possível concluir a venda. Tente novamente.");
+    } finally {
+      setSellSubmitting(false);
+    }
+  }
 
   /* ── Derived: movements ───────────────────────────────────────── */
   const movements = useMemo(() => {
@@ -155,7 +413,6 @@ export function InvestorLiveViewDesktop({
 
       {/* ── Header ────────────────────────────────────────────────── */}
       <div className="relative flex items-center justify-between px-7 py-4 border-b border-white/[0.07] shrink-0">
-        {/* Brand + tabs */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 shrink-0">
             <span className="relative flex h-2.5 w-2.5">
@@ -184,12 +441,23 @@ export function InvestorLiveViewDesktop({
           </div>
         </div>
 
-        <button
-          onClick={onClose}
-          className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:bg-white/14 hover:text-white/80 transition-colors"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Comprar button */}
+          <button
+            onClick={() => { setMarketSection("hub"); setMarketOpen(true); }}
+            className="flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500/50 text-xs font-semibold transition-all"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Comprar / Aportar
+          </button>
+
+          <button
+            onClick={onClose}
+            className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:bg-white/14 hover:text-white/80 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* ── KPI strip ─────────────────────────────────────────────── */}
@@ -245,7 +513,6 @@ export function InvestorLiveViewDesktop({
             <div className="p-6 overflow-y-auto">
               <SectionHeading>Distribuição</SectionHeading>
 
-              {/* Stacked bar */}
               <div className="flex h-2.5 rounded-full overflow-hidden mb-4 gap-px">
                 {allocation.map((a) => (
                   <div
@@ -281,27 +548,47 @@ export function InvestorLiveViewDesktop({
                 ))}
               </div>
 
-              {/* Saldo livre */}
               <div className="mt-6 pt-5 border-t border-white/[0.07]">
                 <SectionHeading>Saldo disponível</SectionHeading>
                 <p className="text-2xl font-bold text-emerald-400 tabular-nums">{formatCurrency(cashBalance)}</p>
                 <p className="text-xs text-white/30 mt-0.5">Para novos aportes</p>
+                <button
+                  onClick={() => { setMarketSection("hub"); setMarketOpen(true); }}
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all"
+                >
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                  Investir agora
+                </button>
               </div>
             </div>
 
             {/* Center: Holdings */}
             <div className="p-6 overflow-y-auto">
-              <SectionHeading>Posições em bolsa</SectionHeading>
+              <div className="flex items-center justify-between mb-3">
+                <SectionHeading>Posições em bolsa</SectionHeading>
+                <button
+                  onClick={() => { setMarketSection("acoes"); setMarketOpen(true); }}
+                  className="flex items-center gap-1 text-[10px] font-bold text-emerald-400/70 hover:text-emerald-400 transition-colors uppercase tracking-wider"
+                >
+                  <Plus className="h-3 w-3" /> Comprar ação
+                </button>
+              </div>
               {holdingRows.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <p className="text-white/25 text-sm">Nenhuma posição em bolsa</p>
+                  <button
+                    onClick={() => { setMarketSection("acoes"); setMarketOpen(true); }}
+                    className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-400/60 hover:text-emerald-400 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" /> Comprar primeira ação
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-1.5">
                   {holdingRows.map((h) => (
                     <div
                       key={h.ticker}
-                      className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 hover:bg-white/[0.06] transition-colors"
+                      className="group flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 hover:bg-white/[0.06] transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-white/[0.07] flex items-center justify-center shrink-0">
@@ -312,14 +599,22 @@ export function InvestorLiveViewDesktop({
                           <p className="text-[11px] text-white/35">{h.type} · {fmtQty(h.quantity)} un.</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold tabular-nums">{formatCurrency(h.value)}</p>
-                        <PctBadge pct={h.gainPct} />
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-sm font-bold tabular-nums">{formatCurrency(h.value)}</p>
+                          <PctBadge pct={h.gainPct} />
+                        </div>
+                        {/* Sell button — visible on hover */}
+                        <button
+                          onClick={() => openSell(h.ticker)}
+                          className="opacity-0 group-hover:opacity-100 flex items-center gap-1 h-7 px-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold hover:bg-red-500/20 transition-all"
+                        >
+                          Vender
+                        </button>
                       </div>
                     </div>
                   ))}
 
-                  {/* Bolsa total */}
                   <div className="mt-3 pt-3 border-t border-white/[0.06] flex justify-between items-center px-1">
                     <span className="text-xs text-white/30">Total bolsa</span>
                     <div className="text-right">
@@ -368,7 +663,15 @@ export function InvestorLiveViewDesktop({
             <div className="p-6 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>TURBO</SectionHeading>
-                <span className="text-[11px] font-bold text-amber-400/70 tabular-nums">{formatCurrency(turboTotal)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-amber-400/70 tabular-nums">{formatCurrency(turboTotal)}</span>
+                  <button
+                    onClick={() => { setMarketSection("turbo"); setMarketOpen(true); }}
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold hover:bg-amber-500/20 transition-all"
+                  >
+                    <Plus className="h-3 w-3" /> Aportar
+                  </button>
+                </div>
               </div>
               {turboAccountsReal.length === 0 ? (
                 <p className="text-sm text-white/25">Nenhuma conta TURBO.</p>
@@ -405,7 +708,15 @@ export function InvestorLiveViewDesktop({
             <div className="p-6 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>Emergência</SectionHeading>
-                <span className="text-[11px] font-bold text-blue-400/70 tabular-nums">{formatCurrency(emergenciaTotal)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-blue-400/70 tabular-nums">{formatCurrency(emergenciaTotal)}</span>
+                  <button
+                    onClick={() => { setMarketSection("eme"); setMarketOpen(true); }}
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold hover:bg-blue-500/20 transition-all"
+                  >
+                    <Plus className="h-3 w-3" /> Aportar
+                  </button>
+                </div>
               </div>
               {emergenciaAccountsReal.length === 0 ? (
                 <p className="text-sm text-white/25">Nenhuma conta de emergência.</p>
@@ -430,9 +741,17 @@ export function InvestorLiveViewDesktop({
             <div className="p-6 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>Renda Fixa & Bolsa</SectionHeading>
-                <span className="text-[11px] font-bold text-emerald-400/70 tabular-nums">
-                  {formatCurrency(investimentosTotal + investedValue)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-emerald-400/70 tabular-nums">
+                    {formatCurrency(investimentosTotal + investedValue)}
+                  </span>
+                  <button
+                    onClick={() => { setMarketSection("tesouro"); setMarketOpen(true); }}
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold hover:bg-emerald-500/20 transition-all"
+                  >
+                    <Plus className="h-3 w-3" /> Investir
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 {investimentosAccountsReal.map((acc) => (
@@ -457,9 +776,17 @@ export function InvestorLiveViewDesktop({
                             <p className="text-sm font-semibold text-white/90">{h.ticker}</p>
                             <p className="text-[11px] text-white/35">{h.type} · {fmtQty(h.quantity)} un.</p>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-bold tabular-nums text-violet-400">{formatCurrency(h.value)}</p>
-                            <PctBadge pct={h.gainPct} />
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-sm font-bold tabular-nums text-violet-400">{formatCurrency(h.value)}</p>
+                              <PctBadge pct={h.gainPct} />
+                            </div>
+                            <button
+                              onClick={() => openSell(h.ticker)}
+                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold hover:bg-red-500/20 transition-all"
+                            >
+                              Vender
+                            </button>
                           </div>
                         </div>
                       </Card>
@@ -558,7 +885,6 @@ export function InvestorLiveViewDesktop({
             <div className="p-6 flex flex-col">
               <SectionHeading>Projeção patrimonial</SectionHeading>
 
-              {/* Bar chart */}
               <div className="flex-1 flex flex-col">
                 <div className="flex-1 flex items-end gap-[2px] min-h-0">
                   {simData
@@ -577,7 +903,6 @@ export function InvestorLiveViewDesktop({
                               : "rgba(16,185,129,0.35)",
                           }}
                         >
-                          {/* Tooltip */}
                           <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:block z-10 pointer-events-none">
                             <div className="bg-zinc-900/95 border border-white/10 text-white text-[11px] rounded-lg px-2.5 py-1.5 whitespace-nowrap">
                               <p className="text-white/50">Mês {p.month}</p>
@@ -589,14 +914,12 @@ export function InvestorLiveViewDesktop({
                     })}
                 </div>
 
-                {/* X-axis labels */}
                 <div className="flex justify-between text-[11px] text-white/25 mt-3">
                   <span>Agora</span>
                   <span>Mês {Math.floor(simMeses / 2)}</span>
                   <span>Mês {simMeses}</span>
                 </div>
 
-                {/* Milestone line */}
                 <div className="mt-4 flex items-center gap-3 rounded-xl bg-emerald-500/8 border border-emerald-500/15 px-4 py-3">
                   <div className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
                   <div>
@@ -614,6 +937,127 @@ export function InvestorLiveViewDesktop({
           </div>
         )}
       </div>
+
+      {/* ── Market overlay ────────────────────────────────────────── */}
+      {marketOpen && (
+        <div className="absolute inset-0 z-20 bg-[#05050a] flex flex-col">
+          {/* Header inside overlay */}
+          <div className="flex items-center justify-between px-7 py-4 border-b border-white/[0.07] shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              </span>
+              <span className="text-[11px] font-black uppercase tracking-[0.22em] text-white/55">MUVO · LIVE</span>
+            </div>
+            <button
+              onClick={() => setMarketOpen(false)}
+              className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:bg-white/14 hover:text-white/80 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {/* Flow content */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-7 pt-4 pb-6">
+            <SimulatorInvestFlow
+              cash={cashBalance}
+              catalog={marketCatalog}
+              tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
+              turboAccounts={turboAccountsReal}
+              emergenciaAccounts={emergenciaAccountsReal}
+              section={marketSection}
+              onSectionChange={setMarketSection}
+              onClose={() => setMarketOpen(false)}
+              onBuyStock={handleBuyStock}
+              onBuyTesouro={handleBuyTesouro}
+              onAporte={handleAporte}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Sell modal ────────────────────────────────────────────── */}
+      {sellTicker && sellHolding && (
+        <div
+          className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center"
+          onClick={() => !sellSubmitting && setSellTicker(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-400/60 mb-0.5">Vender posição</p>
+                <p className="text-lg font-bold text-white">{sellHolding.ticker}</p>
+                <p className="text-xs text-white/35 mt-0.5">
+                  {fmtQty(sellHolding.quantity)} un. · {formatCurrency(sellHolding.price)}/un.
+                </p>
+              </div>
+              <button
+                onClick={() => !sellSubmitting && setSellTicker(null)}
+                className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-2">
+                Quantidade a vender
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={sellQtyMask}
+                  onChange={(e) => onSellQtyChange(e.target.value)}
+                  placeholder="0"
+                  className="flex-1 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-red-400/50 text-sm font-semibold tabular-nums"
+                />
+                <button
+                  onClick={() => sellHolding && setSellQtyMask(fmtQty(sellHolding.quantity).replace(".", ","))}
+                  className="px-3 rounded-xl border border-white/10 bg-white/[0.04] text-white/40 text-xs font-semibold hover:text-white/70 hover:bg-white/[0.08] transition-all"
+                >
+                  Tudo
+                </button>
+              </div>
+              {sellQty > 0 && sellQty <= sellHolding.quantity + 0.0001 && (
+                <p className="text-xs text-white/40 mt-2">
+                  Você receberá{" "}
+                  <span className="font-semibold text-emerald-400">{formatCurrency(sellProceeds)}</span>
+                </p>
+              )}
+              {sellQty > sellHolding.quantity + 0.0001 && (
+                <p className="text-xs text-red-400 mt-2">Quantidade maior que a posição atual.</p>
+              )}
+            </div>
+
+            {sellError && (
+              <p className="text-xs text-red-400 bg-red-400/10 rounded-xl px-3 py-2 mb-3">{sellError}</p>
+            )}
+
+            <button
+              disabled={!canConfirmSell}
+              onClick={confirmSell}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-400 transition-all"
+            >
+              {sellSubmitting ? (
+                <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              ) : null}
+              {sellSubmitting ? "Vendendo..." : `Confirmar venda de ${sellQty > 0 ? fmtQty(sellQty) : "—"} ${sellHolding.ticker}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Flash confirmação ─────────────────────────────────────── */}
+      {confirmedFlash && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white shadow-xl shadow-emerald-500/30 pointer-events-none">
+          <Check className="h-4 w-4" />
+          Operação confirmada
+        </div>
+      )}
     </div>
   );
 }

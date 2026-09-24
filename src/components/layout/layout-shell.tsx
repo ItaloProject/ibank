@@ -137,7 +137,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
                 priority
               />
             </div>
-            <span className="font-bold text-base truncate">MUVO</span>
+            <span className="font-display font-bold text-base truncate">MUVO</span>
           </div>
         </header>
         <main
