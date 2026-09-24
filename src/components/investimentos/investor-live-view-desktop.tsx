@@ -1071,8 +1071,8 @@ export function InvestorLiveViewDesktop({
                           style={{
                             height: `${h}%`,
                             background: isLast
-                              ? "rgba(255,255,255,0.60)"
-                              : "rgba(255,255,255,0.18)",
+                              ? "hsl(var(--foreground) / 0.7)"
+                              : "hsl(var(--foreground) / 0.15)",
                           }}
                         >
                           <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:block z-10 pointer-events-none">

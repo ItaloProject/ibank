@@ -300,19 +300,19 @@ export function InvestorModeView({
                     <AreaChart data={chartMonths}>
                       <defs>
                         <linearGradient id="gradInvestorRenda" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ffffff" stopOpacity={0.15} />
-                          <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
+                          <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.12} />
+                          <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} />
-                      <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} width={52} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                      <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={52} />
                       <Tooltip
                         content={({ active, payload, label }) => {
                           if (!active || !payload?.length) return null;
                           return (
                             <div className="bg-card border border-border rounded-xl shadow-2xl p-3 min-w-[160px]">
-                              <p className="text-xs font-bold border-b border-border pb-1.5 mb-2 text-foreground/70">{label}</p>
+                              <p className="text-xs font-bold border-b border-border pb-1.5 mb-2 text-muted-foreground">{label}</p>
                               <div className="flex justify-between text-sm gap-4">
                                 <span className="text-muted-foreground">Rendimento</span>
                                 <span className="font-bold text-foreground tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
@@ -321,7 +321,7 @@ export function InvestorModeView({
                           );
                         }}
                       />
-                      <Area type="monotone" dataKey="Renda recebida" stroke="rgba(255,255,255,0.6)" strokeWidth={2} fill="url(#gradInvestorRenda)" />
+                      <Area type="monotone" dataKey="Renda recebida" stroke="hsl(var(--foreground) / 0.6)" strokeWidth={2} fill="url(#gradInvestorRenda)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -424,7 +424,7 @@ export function InvestorModeView({
                   <div className="flex items-center gap-5 mb-8 rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
                     <div className="relative flex-shrink-0" style={{ width: 64, height: 64 }}>
                       <svg width="64" height="64" className="-rotate-90 absolute inset-0">
-                        <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+                        <circle cx="32" cy="32" r="28" fill="none" strokeWidth="6" style={{ stroke: "hsl(var(--foreground) / 0.12)" }} />
                         <circle cx="32" cy="32" r="28" fill="none" stroke={scoreColor} strokeWidth="6" strokeLinecap="round"
                           strokeDasharray={circumS} strokeDashoffset={circumS * (1 - score / 100)}
                           style={{ transition: "stroke-dashoffset 1s ease" }} />
@@ -453,9 +453,9 @@ export function InvestorModeView({
                                 <stop offset="95%" stopColor={scoreColor} stopOpacity={0} />
                               </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
-                            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} />
-                            <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} width={30} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                            <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={30} />
                             <Tooltip
                               content={({ active, payload, label }) => {
                                 if (!active || !payload?.length) return null;
