@@ -18,6 +18,8 @@ export type NavItem = {
   icon: LucideIcon;
   /** Só no mobile: aparece no bottom nav (além de Início). */
   bottomTab?: boolean;
+  /** Destaque permanente: borda esquerda violet mesmo sem estar ativo. */
+  featured?: boolean;
 };
 
 export type NavGroup = {
@@ -52,7 +54,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Investimentos",
     accent: true,
     items: [
-      { href: "/investimentos", label: "Investimentos", icon: TrendingUp, bottomTab: true },
+      { href: "/investimentos", label: "Investimentos", icon: TrendingUp, bottomTab: true, featured: true },
       { href: "/proventos", label: "Proventos", icon: CalendarCheck },
       { href: "/impostos", label: "Imposto de Renda", icon: Landmark },
       { href: "/metas", label: "Metas", icon: Target },

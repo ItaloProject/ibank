@@ -105,23 +105,32 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = isNavItemActive(pathname, item.href);
+                  const isFeatured = item.featured;
                   return (
                     <Link key={item.href} href={item.href}
                       title={isCollapsed ? item.label : undefined}
                       onClick={onMobileClose}
                       className={cn(
-                        "group flex items-center rounded-xl px-2.5 py-2.5 text-[13px] font-medium",
-                        "transition-all duration-100 ease-out",
-                        isCollapsed ? "justify-center gap-0" : "gap-3",
-                        isActive
-                          ? "bg-sidebar-primary/15 text-sidebar-primary"
-                          : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                        "group flex items-center px-2.5 py-2.5 text-[13px] font-medium",
+                        "transition-all duration-150 ease-out",
+                        isCollapsed ? "justify-center gap-0 rounded-xl" : "gap-3",
+                        // featured: borda esquerda violet permanente (não collapsed)
+                        !isCollapsed && isFeatured && "rounded-r-xl rounded-l-sm border-l-2",
+                        !isCollapsed && !isFeatured && "rounded-xl",
+                        isActive && isFeatured && !isCollapsed && "border-l-[#a855f7] bg-sidebar-primary/15 text-sidebar-primary",
+                        isActive && !isFeatured && "bg-sidebar-primary/15 text-sidebar-primary",
+                        isActive && isFeatured && isCollapsed && "bg-sidebar-primary/15 text-sidebar-primary",
+                        !isActive && isFeatured && !isCollapsed && "border-l-[#a855f7]/50 bg-[#a855f7]/5 text-sidebar-foreground/80 hover:bg-[#a855f7]/12 hover:border-l-[#a855f7]/80 hover:text-sidebar-foreground",
+                        !isActive && isFeatured && isCollapsed && "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                        !isActive && !isFeatured && "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                       )}>
                       <Icon className={cn(
                         "shrink-0 transition-colors duration-100",
                         isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
                         isActive
                           ? "text-sidebar-primary"
+                          : isFeatured
+                          ? "text-[#a855f7]/70 group-hover:text-[#a855f7]"
                           : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
                       )} />
                       <span className={cn(
