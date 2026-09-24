@@ -485,12 +485,12 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
           >
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70 mb-0.5">Renda do mês</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/55 mb-0.5">Renda do mês</p>
               <p className={`text-2xl font-display font-black tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
                 {salary > 0 ? fmt(salary) : "— informar"}
               </p>
             </div>
-            <div className="flex items-center gap-1 text-muted-foreground/70 group-hover:text-primary transition-colors pb-0.5">
+            <div className="flex items-center gap-1 text-foreground/55 group-hover:text-primary transition-colors pb-0.5">
               <Pencil className="h-3 w-3" />
               <span className="text-[11px] font-medium">editar</span>
             </div>
@@ -503,7 +503,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   style={{ width: `${Math.min(100, (totalActual / salary) * 100)}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[10px] text-muted-foreground/70">
+              <div className="flex justify-between text-[10px] text-foreground/55">
                 <span>Gasto {fmt(totalActual)}</span>
                 <span className={sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive/70"}>
                   {sobra >= 0 ? `Sobra ${fmt(sobra)}` : `Excedeu ${fmt(Math.abs(sobra))}`}
@@ -595,11 +595,11 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   <div className="flex items-center gap-2 w-full mb-1">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
                     <span className={`text-[10px] font-bold uppercase tracking-widest truncate ${
-                      isSelected ? "text-foreground" : "text-muted-foreground/65"
+                      isSelected ? "text-foreground" : "text-foreground/50"
                     }`}>{group.name}</span>
                   </div>
                   <span className={`text-lg font-display font-black tabular-nums leading-none ${
-                    gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-muted-foreground/70"
+                    gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-foreground/55"
                   }`}>{fmt(gActual)}</span>
                   {gPlanned > 0 && (
                     <>
@@ -607,7 +607,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                         <div className="h-full rounded-full transition-all duration-300"
                           style={{ width: `${gPct}%`, backgroundColor: gOver ? "hsl(var(--destructive))" : group.color }} />
                       </div>
-                      <p className="text-[10px] text-muted-foreground/65 tabular-nums mt-0.5">de {fmt(gPlanned)}</p>
+                      <p className="text-[10px] text-foreground/50 tabular-nums mt-0.5">de {fmt(gPlanned)}</p>
                     </>
                   )}
                   {/* Active indicator */}
@@ -621,7 +621,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             <div className="flex-1 min-w-4" />
             <button
               onClick={openNewGroup}
-              className="flex items-center gap-1.5 px-3 py-2 self-center shrink-0 text-xs font-medium text-muted-foreground/75 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 self-center shrink-0 text-xs font-medium text-foreground/55 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
             >
               <FolderPlus className="h-3.5 w-3.5" />
               Novo grupo
@@ -746,14 +746,14 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 </div>
                 <div className="flex items-center gap-1">
                   <button
-                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/70 hover:text-foreground transition-colors"
+                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-muted text-foreground/50 hover:text-foreground transition-colors"
                     onClick={() => openEditGroup(selectedGroup)}
                     aria-label={`Editar grupo ${selectedGroup.name}`}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
-                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/70 hover:text-destructive transition-colors"
+                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-foreground/50 hover:text-destructive transition-colors"
                     onClick={() => openDeleteGroup(selectedGroup)}
                     aria-label={`Excluir grupo ${selectedGroup.name}`}
                   >
