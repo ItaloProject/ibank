@@ -49,10 +49,12 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
     Promise.all([
       fetch(`/api/investment-accounts?user=${userId}`).then((r) => r.json()),
       fetch(`/api/investments?user=${userId}`).then((r) => r.json()),
-    ]).then(([accts, invs]) => {
+      fetch(`/api/stock-trades?user=${userId}`).then((r) => r.json()),
+      fetch(`/api/stock-quotes?user=${userId}`).then((r) => r.json()),
+    ]).then(([accts, invs, trades, quotes]) => {
       if (cancelled || !Array.isArray(accts)) return;
       const invArr = Array.isArray(invs) ? invs : [];
-      const total = accts.reduce((s: number, a: { id: string; is_turbo: boolean; current_balance: number }) => {
+      const acctTotal = accts.reduce((s: number, a: { id: string; is_turbo: boolean; current_balance: number }) => {
         if (a.is_turbo) return s + (Number(a.current_balance) || 0);
         const bal = invArr
           .filter((i: { account_id: string }) => i.account_id === a.id)
@@ -60,7 +62,30 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
             i.type === "retirada" ? b - (Number(i.amount) || 0) : b + (Number(i.amount) || 0), 0);
         return s + bal;
       }, 0);
-      setPortfolioTotal(total);
+      // stock positions (compra - venda) com preço atual quando disponível
+      const quoteMap = new Map((Array.isArray(quotes) ? quotes : []).map(
+        (q: { ticker: string; current_price: number }) => [q.ticker, Number(q.current_price) || 0],
+      ));
+      type TradeRow = { ticker: string; type: string; quantity: number; total_amount: number };
+      const posMap = new Map<string, { qty: number; invested: number }>();
+      for (const t of (Array.isArray(trades) ? trades : []) as TradeRow[]) {
+        const cur = posMap.get(t.ticker) ?? { qty: 0, invested: 0 };
+        if (t.type === "compra") {
+          cur.qty += Number(t.quantity) || 0;
+          cur.invested += Number(t.total_amount) || 0;
+        } else {
+          cur.qty -= Number(t.quantity) || 0;
+          cur.invested -= Number(t.total_amount) || 0;
+        }
+        posMap.set(t.ticker, cur);
+      }
+      const stockTotal = [...posMap.entries()]
+        .filter(([, v]) => v.qty > 0.0001)
+        .reduce((s, [ticker, v]) => {
+          const price = quoteMap.get(ticker);
+          return s + (price ? price * v.qty : v.invested);
+        }, 0);
+      setPortfolioTotal(acctTotal + stockTotal);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [userId]);
