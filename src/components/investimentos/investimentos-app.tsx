@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Plus, TrendingUp, LineChart, Info, Zap, Landmark, PlusCircle, ChevronRight, ChevronLeft, Radio,
+  Plus, TrendingUp, LineChart, Info, Zap, Landmark, PlusCircle, ChevronRight, ChevronLeft, Radio, Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -805,8 +805,9 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Carregando...</p>
+      <div role="status" className="flex items-center justify-center h-full">
+        <Loader2 className="h-6 w-6 motion-safe:animate-spin text-muted-foreground" aria-hidden="true" />
+        <span className="sr-only">Carregando...</span>
       </div>
     );
   }
@@ -816,6 +817,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
         <p className="text-destructive font-medium">{loadError}</p>
         <button
+          type="button"
           onClick={load}
           className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
         >
@@ -840,7 +842,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
           <h1 className="text-2xl font-bold tracking-tight font-display">Investimentos</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Escolha sua experiência</p>
           <p className="mt-3 text-3xl font-display font-black tabular-nums tracking-tight">{formatCurrency(grandTotal)}</p>
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground/40 mt-0.5">Patrimônio total</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/40 mt-0.5">Patrimônio total</p>
         </div>
 
         {/* Selector cards */}
@@ -1023,7 +1025,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <span className="flex-1 text-center text-[15px] font-bold tracking-tight">MUVO LIVE</span>
+        <span className="flex-1 text-center text-base font-bold tracking-tight">MUVO LIVE</span>
         {botEnabled ? (
           <button
             onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
@@ -1098,13 +1100,13 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
               <DialogHeader><DialogTitle>Adicionar conta de investimento</DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label>Nome da conta</Label>
-                  <Input placeholder="Ex: Poupança Caixa" value={accForm.name}
+                  <Label htmlFor="acc-name-input">Nome da conta</Label>
+                  <Input id="acc-name-input" autoFocus placeholder="Ex: Poupança Caixa" value={accForm.name}
                     onChange={(e) => setAccForm({ ...accForm, name: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Instituição</Label>
-                  <Input placeholder="Ex: Caixa Econômica" value={accForm.institution}
+                  <Label htmlFor="acc-institution-input">Instituição</Label>
+                  <Input id="acc-institution-input" placeholder="Ex: Caixa Econômica" value={accForm.institution}
                     onChange={(e) => setAccForm({ ...accForm, institution: e.target.value })} />
                 </div>
                 <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 select-none">
@@ -1112,7 +1114,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                     type="checkbox"
                     checked={accForm.is_turbo}
                     onChange={(e) => setAccForm({ ...accForm, is_turbo: e.target.checked })}
-                    className="w-4 h-4 accent-blue-600"
+                    className="w-4 h-4"
                   />
                   <div>
                     <p className="font-medium text-sm">TURBO</p>
@@ -1122,26 +1124,26 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                 {accForm.is_turbo && (
                   <div className="space-y-3 rounded-lg bg-muted/50 border border-border p-3">
                     <div className="space-y-1.5">
-                      <Label>% do CDI contratado</Label>
+                      <Label htmlFor="acc-cdi-input">% do CDI contratado</Label>
                       <div className="flex items-center gap-2">
-                        <Input type="number" placeholder="Ex: 115" value={accForm.cdi_percent}
+                        <Input id="acc-cdi-input" type="number" placeholder="Ex: 115" value={accForm.cdi_percent}
                           onChange={(e) => setAccForm({ ...accForm, cdi_percent: e.target.value })} />
                         <span className="text-sm text-muted-foreground shrink-0">% CDI</span>
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Valor máximo de rendimento (R$)</Label>
-                      <Input type="number" placeholder="Ex: 5000.00" value={accForm.max_rendimento}
+                      <Label htmlFor="acc-max-input">Valor máximo de rendimento (R$)</Label>
+                      <Input id="acc-max-input" type="number" placeholder="Ex: 5000.00" value={accForm.max_rendimento}
                         onChange={(e) => setAccForm({ ...accForm, max_rendimento: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Valor bruto atual (R$)</Label>
-                      <Input type="number" placeholder="Ex: 5110.96" value={accForm.valor_bruto}
+                      <Label htmlFor="acc-bruto-input">Valor bruto atual (R$)</Label>
+                      <Input id="acc-bruto-input" type="number" placeholder="Ex: 5110.96" value={accForm.valor_bruto}
                         onChange={(e) => setAccForm({ ...accForm, valor_bruto: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Valor líquido atual (R$)</Label>
-                      <Input type="number" placeholder="Ex: 5086.01" value={accForm.valor_liquido}
+                      <Label htmlFor="acc-liquido-input">Valor líquido atual (R$)</Label>
+                      <Input id="acc-liquido-input" type="number" placeholder="Ex: 5086.01" value={accForm.valor_liquido}
                         onChange={(e) => setAccForm({ ...accForm, valor_liquido: e.target.value })} />
                     </div>
                   </div>
@@ -1171,19 +1173,19 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
               <DialogHeader><DialogTitle>Registrar movimentação</DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label>Conta</Label>
+                  <Label htmlFor="inv-account-select">Conta</Label>
                   <Select value={invForm.account_id} onValueChange={(v) => setInvForm({ ...invForm, account_id: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="inv-account-select" autoFocus><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Tipo</Label>
+                  <Label htmlFor="inv-type-select">Tipo</Label>
                   <Select value={invForm.type}
                     onValueChange={(v) => setInvForm({ ...invForm, type: v as InvestmentType })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="inv-type-select"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="deposito">Depósito</SelectItem>
                       <SelectItem value="retirada">Retirada</SelectItem>
@@ -1192,18 +1194,18 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Valor (R$)</Label>
-                  <Input type="number" placeholder="0.00" value={invForm.amount}
+                  <Label htmlFor="inv-amount-input">Valor (R$)</Label>
+                  <Input id="inv-amount-input" type="number" placeholder="0.00" value={invForm.amount}
                     onChange={(e) => setInvForm({ ...invForm, amount: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Descrição (opcional)</Label>
-                  <Input placeholder="Ex: Salário de junho" value={invForm.description}
+                  <Label htmlFor="inv-desc-input">Descrição (opcional)</Label>
+                  <Input id="inv-desc-input" placeholder="Ex: Salário de junho" value={invForm.description}
                     onChange={(e) => setInvForm({ ...invForm, description: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Data</Label>
-                  <Input type="date" value={invForm.date}
+                  <Label htmlFor="inv-date-input">Data</Label>
+                  <Input id="inv-date-input" type="date" value={invForm.date}
                     onChange={(e) => setInvForm({ ...invForm, date: e.target.value })} />
                 </div>
                 {(() => {
@@ -1267,8 +1269,10 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                   </button>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Ticker</Label>
+                  <Label htmlFor="stock-ticker-input">Ticker</Label>
                   <Input
+                    id="stock-ticker-input"
+                    autoFocus
                     list="ticker-suggestions"
                     placeholder="Ex: PETR4, VALE3, ITUB4"
                     value={stockForm.ticker}
@@ -1282,13 +1286,13 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label>Quantidade</Label>
-                    <Input type="number" placeholder="100" value={stockForm.quantity}
+                    <Label htmlFor="stock-qty-input">Quantidade</Label>
+                    <Input id="stock-qty-input" type="number" placeholder="100" value={stockForm.quantity}
                       onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Preço por ação (R$)</Label>
-                    <Input type="number" placeholder="0.00" value={stockForm.price_per_share}
+                    <Label htmlFor="stock-price-input">Preço por ação (R$)</Label>
+                    <Input id="stock-price-input" type="number" placeholder="0.00" value={stockForm.price_per_share}
                       onChange={(e) => setStockForm({ ...stockForm, price_per_share: e.target.value })} />
                   </div>
                 </div>
@@ -1297,13 +1301,13 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                   <p className="text-lg font-bold tabular-nums">{formatCurrency(stockTotalPreview)}</p>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Observação (opcional)</Label>
-                  <Input placeholder="Ex: Compra mensal" value={stockForm.notes}
+                  <Label htmlFor="stock-notes-input">Observação (opcional)</Label>
+                  <Input id="stock-notes-input" placeholder="Ex: Compra mensal" value={stockForm.notes}
                     onChange={(e) => setStockForm({ ...stockForm, notes: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Data</Label>
-                  <Input type="date" value={stockForm.date}
+                  <Label htmlFor="stock-date-input">Data</Label>
+                  <Input id="stock-date-input" type="date" value={stockForm.date}
                     onChange={(e) => setStockForm({ ...stockForm, date: e.target.value })} />
                 </div>
                 <Button className="w-full" onClick={addStockTrade}>
@@ -1360,8 +1364,8 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                 href="/investimentos/acoes"
                 className="flex items-center gap-3 rounded-2xl border bg-card p-4 hover:bg-muted/40 transition-colors"
               >
-                <span className="h-11 w-11 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
-                  <LineChart className="h-5 w-5 text-violet-500" />
+                <span className="h-11 w-11 rounded-full bg-muted/50 flex items-center justify-center shrink-0">
+                  <LineChart className="h-5 w-5 text-muted-foreground" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold">Ações & FIIs</p>
@@ -1474,14 +1478,14 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
               <DialogHeader><DialogTitle>Editar conta</DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label>Nome da conta</Label>
-                  <Input placeholder="Ex: Tesouro Selic" value={renameForm.name}
+                  <Label htmlFor="rename-name-input">Nome da conta</Label>
+                  <Input id="rename-name-input" placeholder="Ex: Tesouro Selic" value={renameForm.name}
                     onChange={(e) => setRenameForm({ ...renameForm, name: e.target.value })}
                     autoFocus />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Instituição (opcional)</Label>
-                  <Input placeholder="Ex: NuInvest" value={renameForm.institution}
+                  <Label htmlFor="rename-inst-input">Instituição (opcional)</Label>
+                  <Input id="rename-inst-input" placeholder="Ex: NuInvest" value={renameForm.institution}
                     onChange={(e) => setRenameForm({ ...renameForm, institution: e.target.value })} />
                 </div>
                 <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 select-none">
@@ -1489,36 +1493,36 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                     type="checkbox"
                     checked={renameForm.is_turbo}
                     onChange={(e) => setRenameForm({ ...renameForm, is_turbo: e.target.checked })}
-                    className="w-4 h-4 accent-blue-600"
+                    className="w-4 h-4"
                   />
                   <div>
-                    <p className="font-medium text-sm">⚡ TURBO</p>
+                    <p className="flex items-center gap-1 font-medium text-sm"><Zap className="h-3.5 w-3.5" /> TURBO</p>
                     <p className="text-xs text-muted-foreground">CDI acima de 100% com teto de rendimento</p>
                   </div>
                 </label>
                 <div className="space-y-1.5">
-                  <Label>Valor líquido após IR/taxas (R$) <span className="text-muted-foreground text-xs">opcional</span></Label>
-                  <Input type="number" step="0.01" placeholder="Ex: 399.90" value={renameForm.valor_liquido}
+                  <Label htmlFor="rename-liquido-input">Valor líquido após IR/taxas (R$) <span className="text-muted-foreground text-xs">opcional</span></Label>
+                  <Input id="rename-liquido-input" type="number" step="0.01" placeholder="Ex: 399.90" value={renameForm.valor_liquido}
                     onChange={(e) => setRenameForm({ ...renameForm, valor_liquido: e.target.value })} />
                 </div>
                 {renameForm.is_turbo && (
                   <div className="space-y-3 rounded-lg bg-muted/50 border border-border p-3">
                     <div className="space-y-1.5">
-                      <Label>% do CDI contratado</Label>
+                      <Label htmlFor="rename-cdi-input">% do CDI contratado</Label>
                       <div className="flex items-center gap-2">
-                        <Input type="number" placeholder="Ex: 115" value={renameForm.cdi_percent}
+                        <Input id="rename-cdi-input" type="number" placeholder="Ex: 115" value={renameForm.cdi_percent}
                           onChange={(e) => setRenameForm({ ...renameForm, cdi_percent: e.target.value })} />
                         <span className="text-sm text-muted-foreground shrink-0">% CDI</span>
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Valor máximo de rendimento (R$)</Label>
-                      <Input type="number" placeholder="Ex: 5000.00" value={renameForm.max_rendimento}
+                      <Label htmlFor="rename-max-input">Valor máximo de rendimento (R$)</Label>
+                      <Input id="rename-max-input" type="number" placeholder="Ex: 5000.00" value={renameForm.max_rendimento}
                         onChange={(e) => setRenameForm({ ...renameForm, max_rendimento: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Valor bruto atual (R$)</Label>
-                      <Input type="number" placeholder="Ex: 5110.96" value={renameForm.valor_bruto}
+                      <Label htmlFor="rename-bruto-input">Valor bruto atual (R$)</Label>
+                      <Input id="rename-bruto-input" type="number" placeholder="Ex: 5110.96" value={renameForm.valor_bruto}
                         onChange={(e) => setRenameForm({ ...renameForm, valor_bruto: e.target.value })} />
                     </div>
                   </div>
@@ -1537,8 +1541,8 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
               <DialogHeader><DialogTitle>Atualizar cotação — {quoteForm.ticker}</DialogTitle></DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label>Preço atual por ação (R$)</Label>
-                  <Input type="number" step="0.01" placeholder="0,00" value={quoteForm.price}
+                  <Label htmlFor="quote-price-input">Preço atual por ação (R$)</Label>
+                  <Input id="quote-price-input" type="number" step="0.01" placeholder="0,00" value={quoteForm.price}
                     onChange={(e) => setQuoteForm({ ...quoteForm, price: e.target.value })}
                     onKeyDown={(e) => e.key === "Enter" && handleSaveQuote()}
                     autoFocus />
