@@ -399,10 +399,10 @@ export function InvestorModeView({
             {/* Diagnóstico da carteira */}
             {(() => {
               const { insights, nextMoves, score } = portfolioAnalysis;
-              const levelColors: Record<string, string> = { critical: "#ef4444", warning: "#f59e0b", ok: "#10b981", suggestion: "#6366f1" };
+              const levelColors: Record<string, string> = { critical: "#f87171", warning: "#fbbf24", ok: "#34d399", suggestion: "#818cf8" };
               const levelBgs: Record<string, string> = { critical: "border-red-500/20 bg-red-500/[0.06]", warning: "border-amber-500/20 bg-amber-500/[0.06]", ok: "border-emerald-500/20 bg-emerald-500/[0.06]", suggestion: "border-amber-500/20 bg-amber-500/[0.06]" };
               const levelLabels: Record<string, string> = { critical: "CRÍTICO", warning: "ATENÇÃO", ok: "OK", suggestion: "SUGESTÃO" };
-              const scoreColor = score >= 70 ? "#10b981" : score >= 40 ? "#f59e0b" : "#ef4444";
+              const scoreColor = score >= 70 ? "#34d399" : score >= 40 ? "#fbbf24" : "#f87171";
               const circumS = 2 * Math.PI * 28;
               return (
                 <div className="mt-14 sm:mt-20">

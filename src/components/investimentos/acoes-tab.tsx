@@ -70,7 +70,7 @@ export function AcoesTab({
       <div className="flex overflow-x-auto border-b divide-x">
         <div className="px-4 py-3 flex-1 min-w-[100px] shrink-0">
           <p className="text-xs text-muted-foreground">Total em ações</p>
-          <p className="text-xl font-bold text-blue-600 tabular-nums">{formatCurrency(totalStocks)}</p>
+          <p className="text-xl font-bold tabular-nums">{formatCurrency(totalStocks)}</p>
         </div>
         <div className="px-4 py-3 flex-1 min-w-[80px] shrink-0">
           <p className="text-xs text-muted-foreground">Ativos</p>
@@ -118,7 +118,7 @@ export function AcoesTab({
                       <p className="font-bold">{p.ticker}</p>
                       <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${assetBadge[assetType]}`}>{assetType}</span>
                       {gain !== undefined && (
-                        <span className={`text-xs font-semibold ${gain >= 0 ? "text-green-600" : "text-destructive"}`}>
+                        <span className={`text-xs font-semibold ${gain >= 0 ? "text-emerald-500" : "text-destructive"}`}>
                           {gain >= 0 ? "+" : ""}{gainPct?.toFixed(2)}%
                         </span>
                       )}
@@ -131,13 +131,13 @@ export function AcoesTab({
                   <div className="text-right shrink-0">
                     {curValue !== undefined ? (
                       <>
-                        <p className="font-semibold text-blue-600 tabular-nums">{formatCurrency(curValue)}</p>
+                        <p className="font-semibold tabular-nums">{formatCurrency(curValue)}</p>
                         <p className="text-xs text-muted-foreground tabular-nums">
                           investido {formatCurrency(p.totalInvested)}
                         </p>
                       </>
                     ) : (
-                      <p className="font-semibold text-blue-600 tabular-nums">{formatCurrency(p.totalInvested)}</p>
+                      <p className="font-semibold tabular-nums">{formatCurrency(p.totalInvested)}</p>
                     )}
                   </div>
                   <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
@@ -167,7 +167,7 @@ export function AcoesTab({
               const gainPct = first.total > 0 ? (gain / first.total) * 100 : 0;
               return (
                 <div className="text-right">
-                  <p className={`text-sm font-bold tabular-nums ${gain >= 0 ? "text-green-600" : "text-destructive"}`}>
+                  <p className={`text-sm font-bold tabular-nums ${gain >= 0 ? "text-emerald-500" : "text-destructive"}`}>
                     {gain >= 0 ? "+" : ""}{gainPct.toFixed(2)}%
                   </p>
                   <p className="text-xs text-muted-foreground">{gain >= 0 ? "+" : ""}{formatCurrency(gain)} no período</p>
@@ -212,7 +212,7 @@ export function AcoesTab({
                           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-slate-400 inline-block" />Investido</span>
                           <span className="font-bold tabular-nums">{formatCurrency(invested)}</span>
                         </div>
-                        <div className={`flex justify-between text-sm font-semibold border-t pt-2 ${diff >= 0 ? "text-green-600" : "text-destructive"}`}>
+                        <div className={`flex justify-between text-sm font-semibold border-t pt-2 ${diff >= 0 ? "text-emerald-500" : "text-destructive"}`}>
                           <span>Ganho/perda</span>
                           <span className="tabular-nums">{diff >= 0 ? "+" : ""}{formatCurrency(diff)}</span>
                         </div>
@@ -452,10 +452,10 @@ export function AcoesTab({
                                     <td className="py-2.5 px-3 text-right tabular-nums">
                                       {quoteMap.has(p.ticker) ? formatCurrency(quoteMap.get(p.ticker)!) : <span className="text-muted-foreground text-xs">sem cotação</span>}
                                     </td>
-                                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-blue-600">{formatCurrency(p.curValue)}</td>
+                                    <td className="py-2.5 px-3 text-right tabular-nums font-semibold">{formatCurrency(p.curValue)}</td>
                                     <td className="py-2.5 px-3 text-right tabular-nums">
                                       {p.gainPct !== undefined ? (
-                                        <span className={`font-semibold ${p.gainPct >= 0 ? "text-green-600" : "text-destructive"}`}>
+                                        <span className={`font-semibold ${p.gainPct >= 0 ? "text-emerald-500" : "text-destructive"}`}>
                                           {p.gainPct >= 0 ? "+" : ""}{p.gainPct.toFixed(2)}%
                                         </span>
                                       ) : <span className="text-muted-foreground text-xs">—</span>}
@@ -467,7 +467,7 @@ export function AcoesTab({
                             <tfoot>
                               <tr className="border-t bg-muted/20">
                                 <td className="py-2 px-3 text-xs text-muted-foreground font-semibold" colSpan={4}>Total do setor</td>
-                                <td className="py-2 px-3 text-right tabular-nums font-bold text-blue-700">{formatCurrency(s.value)}</td>
+                                <td className="py-2 px-3 text-right tabular-nums font-bold">{formatCurrency(s.value)}</td>
                                 <td className="py-2 px-3 text-right tabular-nums font-bold" style={{ color }}>
                                   {s.pct.toFixed(1)}% da carteira
                                 </td>
@@ -520,7 +520,7 @@ export function AcoesTab({
                       <Badge className="bg-blue-100 text-blue-800 shrink-0">Compra</Badge>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <p className="font-semibold text-blue-600 tabular-nums">+{formatCurrency(trade.total_amount)}</p>
+                      <p className="font-semibold text-emerald-500 tabular-nums">+{formatCurrency(trade.total_amount)}</p>
                       <Button variant="ghost" size="icon"
                         className="text-muted-foreground hover:text-destructive"
                         onClick={(e) => { e.stopPropagation(); handleDeleteStock(trade.id); }}>

@@ -1536,7 +1536,7 @@ export function InvestorLiveView({
                             </p>
                             <p
                               className={`text-[10px] font-semibold tabular-nums ${
-                                item.gain >= 0 ? "text-emerald-400" : "text-rose-400"
+                                item.gain >= 0 ? "text-emerald-400" : "text-red-400"
                               }`}
                             >
                               {item.gain >= 0 ? "+" : ""}
@@ -1590,7 +1590,7 @@ export function InvestorLiveView({
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <p className="text-[12px] font-extrabold tabular-nums text-rose-300">
+                            <p className="text-[12px] font-extrabold tabular-nums text-red-400">
                               −{formatCurrency(mov.amount)}
                             </p>
                             <button

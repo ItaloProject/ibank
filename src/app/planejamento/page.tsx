@@ -530,7 +530,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 <span className="inline-flex items-center gap-1.5">
                   <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${sobra >= 0 ? "bg-green-500" : "bg-destructive"}`} />
                   <span className="text-[11px] text-muted-foreground">Sobra</span>
-                  <span className={`text-[11px] font-display font-black tabular-nums ${sobra >= 0 ? "text-green-600 dark:text-green-400" : "text-destructive"}`}>
+                  <span className={`text-[11px] font-display font-black tabular-nums ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>
                     {fmt(Math.abs(sobra))}
                   </span>
                 </span>

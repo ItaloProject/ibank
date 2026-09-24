@@ -154,7 +154,7 @@ export function AccountTab({
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
                     Total bruto
                   </p>
-                  <p className="text-sm sm:text-xl font-bold text-green-600 tabular-nums leading-tight truncate">
+                  <p className="text-sm sm:text-xl font-bold text-emerald-500 tabular-nums leading-tight truncate">
                     {formatCurrency(account.current_balance)}
                   </p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
@@ -165,7 +165,7 @@ export function AccountTab({
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
                     Valor líquido
                   </p>
-                  <p className="text-sm sm:text-xl font-bold text-blue-600 tabular-nums leading-tight truncate">
+                  <p className="text-sm sm:text-xl font-bold tabular-nums leading-tight truncate">
                     {account.valor_liquido != null ? formatCurrency(account.valor_liquido) : "—"}
                   </p>
                   {account.valor_liquido != null && account.current_balance > 0 ? (
@@ -191,7 +191,7 @@ export function AccountTab({
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">
                     Rendimentos
                   </p>
-                  <p className="text-sm sm:text-xl font-bold text-green-600 tabular-nums leading-tight truncate">
+                  <p className="text-sm sm:text-xl font-bold text-emerald-500 tabular-nums leading-tight truncate">
                     +{formatCurrency(turboHistory.reduce((s, r) => s + r.rendimento, 0))}
                   </p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
@@ -206,11 +206,11 @@ export function AccountTab({
                   <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight min-h-[2.5rem] flex items-end">
                     Saldo atual
                   </p>
-                  <p className="text-sm sm:text-xl font-bold text-green-600 tabular-nums leading-tight truncate">
+                  <p className="text-sm sm:text-xl font-bold text-emerald-500 tabular-nums leading-tight truncate">
                     {formatCurrency(computedBalance)}
                   </p>
                   {account.valor_liquido != null ? (
-                    <p className="text-[10px] sm:text-xs font-semibold text-blue-600 tabular-nums truncate">
+                    <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground tabular-nums truncate">
                       {formatCurrency(account.valor_liquido)}{" "}
                       <span className="font-normal text-muted-foreground">líq.</span>
                     </p>
@@ -241,7 +241,7 @@ export function AccountTab({
                     <span className="sm:hidden">Rendimentos</span>
                     <span className="hidden sm:inline">Total de rendimentos</span>
                   </p>
-                  <p className="text-sm sm:text-xl font-bold text-blue-600 tabular-nums leading-tight truncate">
+                  <p className="text-sm sm:text-xl font-bold text-emerald-500 tabular-nums leading-tight truncate">
                     {formatCurrency(
                       accountInvestments
                         .filter((i) => i.type === "rendimento")
@@ -488,9 +488,9 @@ export function AccountTab({
                                         {new Date(r.month + "-15").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
                                       </span>
                                     </td>
-                                    <td className="py-2.5 px-4 text-right tabular-nums text-green-600 font-semibold whitespace-nowrap">{formatCurrency(r.total_bruto)}</td>
-                                    <td className="py-2.5 px-4 text-right tabular-nums text-amber-600 font-semibold whitespace-nowrap">+{formatCurrency(r.rendimento)}</td>
-                                    <td className="py-2.5 px-4 text-right tabular-nums text-blue-600 font-semibold whitespace-nowrap">
+                                    <td className="py-2.5 px-4 text-right tabular-nums text-emerald-500 font-semibold whitespace-nowrap">{formatCurrency(r.total_bruto)}</td>
+                                    <td className="py-2.5 px-4 text-right tabular-nums text-amber-500 font-semibold whitespace-nowrap">+{formatCurrency(r.rendimento)}</td>
+                                    <td className="py-2.5 px-4 text-right tabular-nums font-semibold whitespace-nowrap">
                                       {r.valor_liquido != null ? formatCurrency(r.valor_liquido) : "—"}
                                     </td>
                                     <td className="py-2.5 px-2 text-right">
@@ -505,13 +505,13 @@ export function AccountTab({
                               <tfoot>
                                 <tr className="border-t-2">
                                   <td className="py-2 px-4 text-xs text-muted-foreground font-semibold whitespace-nowrap">Totais</td>
-                                  <td className="py-2 px-4 text-right tabular-nums font-bold text-green-700 whitespace-nowrap">
+                                  <td className="py-2 px-4 text-right tabular-nums font-bold text-emerald-500 whitespace-nowrap">
                                     {formatCurrency(turboHistory[turboHistory.length - 1]?.total_bruto ?? 0)}
                                   </td>
-                                  <td className="py-2 px-4 text-right tabular-nums font-bold text-amber-700 whitespace-nowrap">
+                                  <td className="py-2 px-4 text-right tabular-nums font-bold text-amber-500 whitespace-nowrap">
                                     +{formatCurrency(turboHistory.reduce((s, r) => s + r.rendimento, 0))}
                                   </td>
-                                  <td className="py-2 px-4 text-right tabular-nums font-bold text-blue-700 whitespace-nowrap">
+                                  <td className="py-2 px-4 text-right tabular-nums font-bold whitespace-nowrap">
                                     {turboHistory[turboHistory.length - 1]?.valor_liquido != null
                                       ? formatCurrency(turboHistory[turboHistory.length - 1].valor_liquido!)
                                       : "—"}
@@ -606,16 +606,16 @@ export function AccountTab({
                         {/* mini-stats flat */}
                         <div className="flex overflow-x-auto divide-x border rounded-xl overflow-hidden">
                           <div className="px-4 py-3 flex-1 min-w-[90px] text-center shrink-0">
-                            <p className="text-xs text-amber-600 mb-1">Último mês</p>
-                            <p className="text-sm font-bold text-amber-700 tabular-nums">+{formatCurrency(lastRend)}</p>
+                            <p className="text-xs text-amber-500 mb-1">Último mês</p>
+                            <p className="text-sm font-bold text-amber-500 tabular-nums">+{formatCurrency(lastRend)}</p>
                           </div>
                           <div className="px-4 py-3 flex-1 min-w-[100px] text-center shrink-0">
-                            <p className="text-xs text-blue-600 mb-1">Total acumulado</p>
-                            <p className="text-sm font-bold text-blue-700 tabular-nums">+{formatCurrency(totalRend)}</p>
+                            <p className="text-xs text-emerald-500 mb-1">Total acumulado</p>
+                            <p className="text-sm font-bold text-emerald-500 tabular-nums">+{formatCurrency(totalRend)}</p>
                           </div>
                           <div className="px-4 py-3 flex-1 min-w-[90px] text-center shrink-0">
-                            <p className="text-xs text-emerald-600 mb-1">Média mensal</p>
-                            <p className="text-sm font-bold text-emerald-700 tabular-nums">+{formatCurrency(totalRend / rendData.length)}</p>
+                            <p className="text-xs text-emerald-500 mb-1">Média mensal</p>
+                            <p className="text-sm font-bold text-emerald-500 tabular-nums">+{formatCurrency(totalRend / rendData.length)}</p>
                           </div>
                         </div>
                         {/* gráfico de barras */}
@@ -632,7 +632,7 @@ export function AccountTab({
                                     <p className="text-xs font-bold border-b pb-1.5 mb-2">{label}</p>
                                     <div className="flex justify-between text-sm gap-4">
                                       <span className="text-muted-foreground">Rendimento</span>
-                                      <span className="font-bold text-amber-600 tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
+                                      <span className="font-bold text-amber-500 tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
                                     </div>
                                   </div>
                                 );
