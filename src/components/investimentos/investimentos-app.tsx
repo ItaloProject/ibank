@@ -34,6 +34,7 @@ import {
 import { printInvestorReport } from "@/lib/generate-investor-report";
 import { InvestorModeView } from "@/components/investimentos/investor-mode-view";
 import { InvestorLiveView } from "@/components/investimentos/investor-live-view";
+import { InvestorLiveViewDesktop } from "@/components/investimentos/investor-live-view-desktop";
 import { categorizeAccount, isCashAccountName } from "@/lib/account-groups";
 import { AccountTab } from "@/components/investimentos/account-tab";
 import { AcoesTab } from "@/components/investimentos/acoes-tab";
@@ -946,21 +947,31 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     const sortByValor = <T extends { valor: number }>(arr: T[]) => [...arr].sort((a, b) => b.valor - a.valor);
     const cashEntry = accountBalances.find((x) => isCashAccountName(x.account.name));
     const nonCashBalances = accountBalances.filter((x) => x !== cashEntry);
+    const liveProps = {
+      grandTotal,
+      turboAccountsReal: sortByValor(nonCashBalances.filter((x) => categorizeAccount(x.account) === "turbo").map(toItem)),
+      emergenciaAccountsReal: sortByValor(nonCashBalances.filter((x) => categorizeAccount(x.account) === "emergencia").map(toItem)),
+      investimentosAccountsReal: sortByValor(nonCashBalances.filter((x) => categorizeAccount(x.account) === "investimentos").map(toItem)),
+      stockPositions,
+      quoteMap,
+      stockTrades,
+      investments,
+      cashAccountId: cashEntry?.account.id ?? null,
+      cashBalance: cashEntry?.balance ?? 0,
+      onRefresh: load,
+      onClose: () => setSelectedView(null),
+    };
     return (
-      <InvestorLiveView
-        grandTotal={grandTotal}
-        turboAccountsReal={sortByValor(nonCashBalances.filter((x) => categorizeAccount(x.account) === "turbo").map(toItem))}
-        emergenciaAccountsReal={sortByValor(nonCashBalances.filter((x) => categorizeAccount(x.account) === "emergencia").map(toItem))}
-        investimentosAccountsReal={sortByValor(nonCashBalances.filter((x) => categorizeAccount(x.account) === "investimentos").map(toItem))}
-        stockPositions={stockPositions}
-        quoteMap={quoteMap}
-        stockTrades={stockTrades}
-        investments={investments}
-        cashAccountId={cashEntry?.account.id ?? null}
-        cashBalance={cashEntry?.balance ?? 0}
-        onRefresh={load}
-        onClose={() => setSelectedView(null)}
-      />
+      <>
+        {/* Mobile: phone-frame overlay */}
+        <div className="md:hidden">
+          <InvestorLiveView {...liveProps} />
+        </div>
+        {/* Desktop: full-page dashboard */}
+        <div className="hidden md:flex flex-col h-full">
+          <InvestorLiveViewDesktop {...liveProps} />
+        </div>
+      </>
     );
   }
 
