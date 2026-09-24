@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Menu, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBottomTabs, isNavItemActive } from "@/lib/nav";
+import { useTheme } from "@/components/theme-provider";
 
 const TABS = getBottomTabs().map((item) => ({
   href: item.href,
@@ -14,6 +15,7 @@ const TABS = getBottomTabs().map((item) => ({
 
 export function BottomNav({ onMore }: { onMore: () => void }) {
   const pathname = usePathname();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <nav
@@ -22,7 +24,7 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
       aria-label="Navegação principal"
     >
       <div
-        className="grid grid-cols-5 h-[var(--bottom-nav-h)]"
+        className="grid grid-cols-6 h-[var(--bottom-nav-h)]"
         style={{ paddingLeft: "var(--safe-left)", paddingRight: "var(--safe-right)" }}
       >
         {TABS.map((tab) => {
@@ -43,6 +45,15 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
             </Link>
           );
         })}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
+          className="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] transition-colors"
+        >
+          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          <span>Tema</span>
+        </button>
         <button
           type="button"
           onClick={onMore}
