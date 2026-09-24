@@ -56,7 +56,7 @@ function PctBadge({ pct }: { pct: number }) {
   return (
     <span
       className={`inline-flex items-center gap-0.5 text-[11px] font-semibold tabular-nums ${
-        pos ? "text-emerald-400" : neg ? "text-red-400" : "text-foreground/40"
+        pos ? "text-emerald-400" : neg ? "text-red-400" : "text-muted-foreground"
       }`}
     >
       {pos ? <TrendingUp className="h-3 w-3" /> : neg ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
@@ -67,13 +67,13 @@ function PctBadge({ pct }: { pct: number }) {
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-foreground/35 mb-3">{children}</p>
+    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-3">{children}</p>
   );
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-border bg-muted/[0.04] backdrop-blur-sm p-4 ${className}`}>
+    <div className={`rounded-2xl border border-border bg-muted/50 backdrop-blur-sm p-4 ${className}`}>
       {children}
     </div>
   );
@@ -530,9 +530,9 @@ export function InvestorLiveViewDesktop({
     <div className="flex flex-col h-full bg-background text-foreground relative overflow-hidden select-none">
       {/* Ambient mesh */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-muted/[0.04] blur-[140px]" />
-        <div className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full bg-muted/[0.03] blur-[130px]" />
-        <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] rounded-full bg-muted/[0.02] blur-[130px]" />
+        <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-muted/50 blur-[140px]" />
+        <div className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full bg-card blur-[130px]" />
+        <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] rounded-full bg-muted/20 blur-[130px]" />
       </div>
 
       {/* ── Header ────────────────────────────────────────────────── */}
@@ -566,7 +566,7 @@ export function InvestorLiveViewDesktop({
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                   tab === t.id
                     ? "bg-muted/12 text-foreground shadow-sm"
-                    : "text-foreground/35 hover:text-foreground/60"
+                    : "text-muted-foreground hover:text-foreground/60"
                 }`}
               >
                 {t.label}
@@ -579,7 +579,7 @@ export function InvestorLiveViewDesktop({
           {/* Comprar button */}
           <button
             onClick={() => { setMarketSection("hub"); setMarketOpen(true); }}
-            className="flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-muted/[0.06] border border-border text-foreground/70 hover:bg-muted/10 hover:text-foreground text-xs font-semibold transition-all"
+            className="flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-muted/50 border border-border text-foreground/70 hover:bg-muted/60 hover:text-foreground text-xs font-semibold transition-all"
           >
             <Plus className="h-3.5 w-3.5" />
             Comprar / Aportar
@@ -588,7 +588,7 @@ export function InvestorLiveViewDesktop({
           <button
             onClick={onClose}
             aria-label="Fechar"
-            className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/7 text-foreground/40 hover:bg-muted/14 hover:text-foreground/80 transition-colors"
+            className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground/80 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -610,7 +610,7 @@ export function InvestorLiveViewDesktop({
           { label: "Ativos em bolsa", value: holdingRows.length.toString(), sub: "posições", accent: false },
         ].map((kpi, i) => (
           <div key={i} className="px-6 py-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-foreground/30 mb-1">{kpi.label}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-1">{kpi.label}</p>
             <p
               className={`text-xl font-black font-display tabular-nums ${
                 kpi.accent
@@ -628,7 +628,7 @@ export function InvestorLiveViewDesktop({
               <p className={`text-xs mt-0.5 ${
                 "positive" in kpi
                   ? kpi.positive ? "text-emerald-400/60" : "text-red-400/60"
-                  : "text-foreground/30"
+                  : "text-muted-foreground"
               }`}>
                 {kpi.sub}
               </p>
@@ -666,16 +666,16 @@ export function InvestorLiveViewDesktop({
                         <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
                         <span className="text-sm text-foreground/70">{a.label}</span>
                       </div>
-                      <span className="text-[11px] text-foreground/35 tabular-nums">{a.pct.toFixed(1)}%</span>
+                      <span className="text-[11px] text-muted-foreground tabular-nums">{a.pct.toFixed(1)}%</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <div className="flex-1 h-1 bg-muted/[0.06] rounded-full overflow-hidden mr-3">
+                      <div className="flex-1 h-1 bg-muted/50 rounded-full overflow-hidden mr-3">
                         <div
                           className="h-full rounded-full"
                           style={{ width: `${a.pct}%`, backgroundColor: a.color, opacity: 0.7 }}
                         />
                       </div>
-                      <span className="text-xs font-medium text-foreground/50 tabular-nums w-24 text-right">
+                      <span className="text-xs font-medium text-muted-foreground tabular-nums w-24 text-right">
                         {formatCurrency(a.value)}
                       </span>
                     </div>
@@ -686,10 +686,10 @@ export function InvestorLiveViewDesktop({
               <div className="mt-6 pt-5 border-t border-border">
                 <SectionHeading>Saldo disponível</SectionHeading>
                 <p className="text-2xl font-black font-display text-foreground tabular-nums">{formatCurrency(cashBalance)}</p>
-                <p className="text-xs text-foreground/30 mt-0.5">Para novos aportes</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Para novos aportes</p>
                 <button
                   onClick={() => { setMarketSection("hub"); setMarketOpen(true); }}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-muted/[0.05] border border-border text-foreground/60 text-xs font-semibold hover:bg-muted/10 hover:text-foreground/80 transition-all"
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-muted/[0.05] border border-border text-foreground/60 text-xs font-semibold hover:bg-muted/60 hover:text-foreground/80 transition-all"
                 >
                   <ShoppingCart className="h-3.5 w-3.5" />
                   Investir agora
@@ -703,17 +703,17 @@ export function InvestorLiveViewDesktop({
                 <SectionHeading>Posições em bolsa</SectionHeading>
                 <button
                   onClick={() => { setMarketSection("acoes"); setMarketOpen(true); }}
-                  className="flex items-center gap-1 text-[10px] font-bold text-foreground/35 hover:text-foreground/70 transition-colors uppercase tracking-wider"
+                  className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground hover:text-foreground/70 transition-colors uppercase tracking-wider"
                 >
                   <Plus className="h-3 w-3" /> Comprar ação
                 </button>
               </div>
               {holdingRows.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <p className="text-foreground/25 text-sm">Nenhuma posição em bolsa</p>
+                  <p className="text-muted-foreground/60 text-sm">Nenhuma posição em bolsa</p>
                   <button
                     onClick={() => { setMarketSection("acoes"); setMarketOpen(true); }}
-                    className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-foreground/35 hover:text-foreground/70 transition-colors"
+                    className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground/70 transition-colors"
                   >
                     <Plus className="h-3 w-3" /> Comprar primeira ação
                   </button>
@@ -723,15 +723,15 @@ export function InvestorLiveViewDesktop({
                   {holdingRows.map((h) => (
                     <div
                       key={h.ticker}
-                      className="group flex items-center justify-between rounded-xl border border-border bg-muted/[0.03] px-4 py-3 hover:bg-muted/[0.06] transition-colors"
+                      className="group flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted/60 transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-muted/[0.07] flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
                           <span className="text-[10px] font-bold text-foreground/60">{h.ticker.slice(0, 2)}</span>
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-foreground">{h.ticker}</p>
-                          <p className="text-[11px] text-foreground/35">{h.type} · {fmtQty(h.quantity)} un.</p>
+                          <p className="text-[11px] text-muted-foreground">{h.type} · {fmtQty(h.quantity)} un.</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -751,7 +751,7 @@ export function InvestorLiveViewDesktop({
                   ))}
 
                   <div className="mt-3 pt-3 border-t border-border flex justify-between items-center px-1">
-                    <span className="text-xs text-foreground/30">Total bolsa</span>
+                    <span className="text-xs text-muted-foreground">Total bolsa</span>
                     <div className="text-right">
                       <p className="text-sm font-black font-display tabular-nums">{formatCurrency(investedValue)}</p>
                       <PctBadge pct={totalGainPct} />
@@ -766,7 +766,7 @@ export function InvestorLiveViewDesktop({
               <SectionHeading>Últimas movimentações</SectionHeading>
               {movements.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <p className="text-foreground/25 text-sm">Sem movimentações</p>
+                  <p className="text-muted-foreground/60 text-sm">Sem movimentações</p>
                 </div>
               ) : (
                 <div className="space-y-px">
@@ -777,7 +777,7 @@ export function InvestorLiveViewDesktop({
                     >
                       <div className="min-w-0">
                         <p className="text-sm text-foreground/80 truncate">{mov.title}</p>
-                        <p className="text-[11px] text-foreground/30">{mov.sub} · {mov.date}</p>
+                        <p className="text-[11px] text-muted-foreground">{mov.sub} · {mov.date}</p>
                       </div>
                       <p className="text-sm font-semibold tabular-nums text-foreground/70 shrink-0 ml-4">
                         {formatCurrency(mov.amount)}
@@ -799,23 +799,23 @@ export function InvestorLiveViewDesktop({
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>TURBO</SectionHeading>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-foreground/40 tabular-nums">{formatCurrency(turboTotal)}</span>
+                  <span className="text-[11px] font-bold text-muted-foreground tabular-nums">{formatCurrency(turboTotal)}</span>
                   <button
                     onClick={() => { setMarketSection("turbo"); setMarketOpen(true); }}
-                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/5 border border-border text-foreground/40 text-[10px] font-bold hover:bg-muted/10 hover:text-foreground/70 transition-all"
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/40 border border-border text-muted-foreground text-[10px] font-bold hover:bg-muted/60 hover:text-foreground/70 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Aportar
                   </button>
                   <button
                     onClick={() => openNewCaixinha("turbo")}
-                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/5 border border-border text-foreground/40 text-[10px] font-bold hover:bg-muted/10 hover:text-foreground/70 transition-all"
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/40 border border-border text-muted-foreground text-[10px] font-bold hover:bg-muted/60 hover:text-foreground/70 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Nova
                   </button>
                 </div>
               </div>
               {turboAccountsReal.length === 0 ? (
-                <p className="text-sm text-foreground/25">Nenhuma conta TURBO.</p>
+                <p className="text-sm text-muted-foreground/60">Nenhuma conta TURBO.</p>
               ) : (
                 <div className="space-y-2">
                   {turboAccountsReal.map((acc) => (
@@ -823,17 +823,17 @@ export function InvestorLiveViewDesktop({
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-foreground/90 truncate">{acc.nome}</p>
-                          <p className="text-[11px] text-foreground/35 mt-0.5">{acc.instituicao}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{acc.instituicao}</p>
                         </div>
                         <p className="text-sm font-bold tabular-nums text-foreground/80 shrink-0">{formatCurrency(acc.valor)}</p>
                       </div>
                       {acc.cdiPercent && (
                         <div className="mt-2.5 flex flex-wrap gap-1.5">
-                          <span className="text-[10px] bg-muted/[0.06] text-foreground/45 rounded-full px-2 py-0.5 font-semibold">
+                          <span className="text-[10px] bg-muted/50 text-muted-foreground rounded-full px-2 py-0.5 font-semibold">
                             {acc.cdiPercent}% CDI
                           </span>
                           {acc.maxRendimento && (
-                            <span className="text-[10px] bg-muted/[0.04] text-foreground/30 rounded-full px-2 py-0.5">
+                            <span className="text-[10px] bg-muted/50 text-muted-foreground rounded-full px-2 py-0.5">
                               Teto {formatCurrency(acc.maxRendimento)}
                             </span>
                           )}
@@ -841,7 +841,7 @@ export function InvestorLiveViewDesktop({
                       )}
                       <button
                         onClick={() => openWithdraw(acc)}
-                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-muted/[0.04] border border-border text-foreground/40 text-[11px] font-semibold hover:bg-muted/[0.08] hover:text-foreground/70 transition-all"
+                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-muted/50 border border-border text-muted-foreground text-[11px] font-semibold hover:bg-muted/70 hover:text-foreground/70 transition-all"
                       >
                         Retirar
                       </button>
@@ -856,23 +856,23 @@ export function InvestorLiveViewDesktop({
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>Emergência</SectionHeading>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-foreground/40 tabular-nums">{formatCurrency(emergenciaTotal)}</span>
+                  <span className="text-[11px] font-bold text-muted-foreground tabular-nums">{formatCurrency(emergenciaTotal)}</span>
                   <button
                     onClick={() => { setMarketSection("eme"); setMarketOpen(true); }}
-                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/5 border border-border text-foreground/40 text-[10px] font-bold hover:bg-muted/10 hover:text-foreground/70 transition-all"
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/40 border border-border text-muted-foreground text-[10px] font-bold hover:bg-muted/60 hover:text-foreground/70 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Aportar
                   </button>
                   <button
                     onClick={() => openNewCaixinha("emergencia")}
-                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/5 border border-border text-foreground/40 text-[10px] font-bold hover:bg-muted/10 hover:text-foreground/70 transition-all"
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/40 border border-border text-muted-foreground text-[10px] font-bold hover:bg-muted/60 hover:text-foreground/70 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Nova
                   </button>
                 </div>
               </div>
               {emergenciaAccountsReal.length === 0 ? (
-                <p className="text-sm text-foreground/25">Nenhuma conta de emergência.</p>
+                <p className="text-sm text-muted-foreground/60">Nenhuma conta de emergência.</p>
               ) : (
                 <div className="space-y-2">
                   {emergenciaAccountsReal.map((acc) => (
@@ -880,13 +880,13 @@ export function InvestorLiveViewDesktop({
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-foreground/90 truncate">{acc.nome}</p>
-                          <p className="text-[11px] text-foreground/35 mt-0.5">{acc.instituicao}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{acc.instituicao}</p>
                         </div>
                         <p className="text-sm font-bold tabular-nums text-foreground/80 shrink-0">{formatCurrency(acc.valor)}</p>
                       </div>
                       <button
                         onClick={() => openWithdraw(acc)}
-                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-muted/[0.04] border border-border text-foreground/40 text-[11px] font-semibold hover:bg-muted/[0.08] hover:text-foreground/70 transition-all"
+                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-muted/50 border border-border text-muted-foreground text-[11px] font-semibold hover:bg-muted/70 hover:text-foreground/70 transition-all"
                       >
                         Retirar
                       </button>
@@ -901,18 +901,18 @@ export function InvestorLiveViewDesktop({
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>Renda Fixa & Bolsa</SectionHeading>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-foreground/40 tabular-nums">
+                  <span className="text-[11px] font-bold text-muted-foreground tabular-nums">
                     {formatCurrency(investimentosTotal + investedValue)}
                   </span>
                   <button
                     onClick={() => { setMarketSection("tesouro"); setMarketOpen(true); }}
-                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/5 border border-border text-foreground/40 text-[10px] font-bold hover:bg-muted/10 hover:text-foreground/70 transition-all"
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/40 border border-border text-muted-foreground text-[10px] font-bold hover:bg-muted/60 hover:text-foreground/70 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Investir
                   </button>
                   <button
                     onClick={() => openNewCaixinha("investimentos")}
-                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/5 border border-border text-foreground/40 text-[10px] font-bold hover:bg-muted/10 hover:text-foreground/70 transition-all"
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-muted/40 border border-border text-muted-foreground text-[10px] font-bold hover:bg-muted/60 hover:text-foreground/70 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Nova
                   </button>
@@ -924,13 +924,13 @@ export function InvestorLiveViewDesktop({
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground/90 truncate">{acc.nome}</p>
-                        <p className="text-[11px] text-foreground/35 mt-0.5">{acc.instituicao}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{acc.instituicao}</p>
                       </div>
                       <p className="text-sm font-bold tabular-nums text-foreground/80 shrink-0">{formatCurrency(acc.valor)}</p>
                     </div>
                     <button
                       onClick={() => openWithdraw(acc)}
-                      className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-muted/[0.04] border border-border text-foreground/40 text-[11px] font-semibold hover:bg-muted/[0.08] hover:text-foreground/70 transition-all"
+                      className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-muted/50 border border-border text-muted-foreground text-[11px] font-semibold hover:bg-muted/70 hover:text-foreground/70 transition-all"
                     >
                       Retirar
                     </button>
@@ -939,13 +939,13 @@ export function InvestorLiveViewDesktop({
 
                 {holdingRows.length > 0 && (
                   <>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-foreground/30 pt-3 pb-1">Bolsa</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground pt-3 pb-1">Bolsa</p>
                     {holdingRows.map((h) => (
                       <Card key={h.ticker}>
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm font-semibold text-foreground/90">{h.ticker}</p>
-                            <p className="text-[11px] text-foreground/35">{h.type} · {fmtQty(h.quantity)} un.</p>
+                            <p className="text-[11px] text-muted-foreground">{h.type} · {fmtQty(h.quantity)} un.</p>
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-right">
@@ -1017,7 +1017,7 @@ export function InvestorLiveViewDesktop({
               ].map((param) => (
                 <div key={param.label}>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-foreground/50">{param.label}</span>
+                    <span className="text-muted-foreground">{param.label}</span>
                     <span className="font-semibold text-foreground">{param.value}</span>
                   </div>
                   <input
@@ -1046,7 +1046,7 @@ export function InvestorLiveViewDesktop({
                   },
                 ].map((r) => (
                   <Card key={r.label} className="!p-3.5">
-                    <p className="text-[10px] text-foreground/30 uppercase tracking-wider mb-1">{r.label}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{r.label}</p>
                     <p className={`text-base font-black font-display tabular-nums ${r.color}`}>{r.value}</p>
                   </Card>
                 ))}
@@ -1077,7 +1077,7 @@ export function InvestorLiveViewDesktop({
                         >
                           <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:block z-10 pointer-events-none">
                             <div className="bg-zinc-900/95 border border-border text-foreground text-[11px] rounded-lg px-2.5 py-1.5 whitespace-nowrap">
-                              <p className="text-foreground/50">Mês {p.month}</p>
+                              <p className="text-muted-foreground">Mês {p.month}</p>
                               <p className="font-bold">{formatCurrency(p.value)}</p>
                             </div>
                           </div>
@@ -1086,20 +1086,20 @@ export function InvestorLiveViewDesktop({
                     })}
                 </div>
 
-                <div className="flex justify-between text-[11px] text-foreground/25 mt-3">
+                <div className="flex justify-between text-[11px] text-muted-foreground/60 mt-3">
                   <span>Agora</span>
                   <span>Mês {Math.floor(simMeses / 2)}</span>
                   <span>Mês {simMeses}</span>
                 </div>
 
-                <div className="mt-4 flex items-center gap-3 rounded-xl bg-muted/[0.04] border border-border px-4 py-3">
+                <div className="mt-4 flex items-center gap-3 rounded-xl bg-muted/50 border border-border px-4 py-3">
                   <div className="h-2 w-2 rounded-full bg-muted/50 shrink-0" />
                   <div>
-                    <p className="text-xs text-foreground/50">
+                    <p className="text-xs text-muted-foreground">
                       Em {simMeses} meses, seu patrimônio pode chegar a{" "}
                       <span className="font-bold text-foreground/80">{formatCurrency(simFinal)}</span>
                     </p>
-                    <p className="text-[11px] text-foreground/25 mt-0.5">
+                    <p className="text-[11px] text-muted-foreground/60 mt-0.5">
                       Rendendo {simTaxa.toFixed(2)}% ao mês · aportando {formatCurrency(simMensal)}/mês
                     </p>
                   </div>
@@ -1125,7 +1125,7 @@ export function InvestorLiveViewDesktop({
             <button
               onClick={() => setMarketOpen(false)}
               aria-label="Fechar"
-              className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/7 text-foreground/40 hover:bg-muted/14 hover:text-foreground/80 transition-colors"
+              className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground/80 transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -1167,21 +1167,21 @@ export function InvestorLiveViewDesktop({
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-400/60 mb-0.5">Vender posição</p>
                 <p id="sell-modal-title" className="text-lg font-bold text-foreground">{sellHolding.ticker}</p>
-                <p className="text-xs text-foreground/35 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {fmtQty(sellHolding.quantity)} un. · {formatCurrency(sellHolding.price)}/un.
                 </p>
               </div>
               <button
                 onClick={() => !sellSubmitting && setSellTicker(null)}
                 aria-label="Fechar"
-                className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/7 text-foreground/40 hover:text-foreground/80 transition-colors"
+                className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/40 text-muted-foreground hover:text-foreground/80 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="mb-4">
-              <label htmlFor="sell-qty" className="text-[10px] font-bold uppercase tracking-wider text-foreground/35 block mb-2">
+              <label htmlFor="sell-qty" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-2">
                 Quantidade a vender
               </label>
               <div className="flex gap-2">
@@ -1197,13 +1197,13 @@ export function InvestorLiveViewDesktop({
                 />
                 <button
                   onClick={() => sellHolding && setSellQtyMask(fmtQty(sellHolding.quantity).replace(".", ","))}
-                  className="px-3 rounded-xl border border-border bg-muted/[0.04] text-foreground/40 text-xs font-semibold hover:text-foreground/70 hover:bg-muted/[0.08] transition-all"
+                  className="px-3 rounded-xl border border-border bg-muted/50 text-muted-foreground text-xs font-semibold hover:text-foreground/70 hover:bg-muted/70 transition-all"
                 >
                   Tudo
                 </button>
               </div>
               {sellQty > 0 && sellQty <= sellHolding.quantity + 0.0001 && (
-                <p className="text-xs text-foreground/40 mt-2">
+                <p className="text-xs text-muted-foreground mt-2">
                   Você receberá{" "}
                   <span className="font-semibold text-foreground/80">{formatCurrency(sellProceeds)}</span>
                 </p>
@@ -1247,28 +1247,28 @@ export function InvestorLiveViewDesktop({
           >
             <div className="flex items-center justify-between mb-5">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/35 mb-0.5">Retirar da caixinha</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-0.5">Retirar da caixinha</p>
                 <p id="withdraw-modal-title" className="text-lg font-bold text-foreground">{withdrawAccount.nome}</p>
-                <p className="text-xs text-foreground/35 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Disponível: {formatCurrency(withdrawAccount.valor)}
                 </p>
               </div>
               <button
                 onClick={() => !withdrawSubmitting && setWithdrawAccount(null)}
                 aria-label="Fechar"
-                className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/7 text-foreground/40 hover:text-foreground/80 transition-colors"
+                className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/40 text-muted-foreground hover:text-foreground/80 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="mb-4">
-              <label htmlFor="withdraw-amount" className="text-[10px] font-bold uppercase tracking-wider text-foreground/35 block mb-2">
+              <label htmlFor="withdraw-amount" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-2">
                 Valor a retirar
               </label>
               <div className="flex gap-2">
                 <div className="flex-1 flex items-center gap-2 rounded-xl border border-border bg-muted/[0.05] px-4 py-3 focus-within:ring-1 focus-within:ring-foreground/30">
-                  <span className="text-foreground/30 text-sm shrink-0">R$</span>
+                  <span className="text-muted-foreground text-sm shrink-0">R$</span>
                   <input
                     id="withdraw-amount"
                     type="text"
@@ -1282,7 +1282,7 @@ export function InvestorLiveViewDesktop({
                 </div>
                 <button
                   onClick={() => setWithdrawMask(formatBRLMask((withdrawAccount.valor * 100).toFixed(0)))}
-                  className="px-3 rounded-xl border border-border bg-muted/[0.04] text-foreground/40 text-xs font-semibold hover:text-foreground/70 hover:bg-muted/[0.08] transition-all"
+                  className="px-3 rounded-xl border border-border bg-muted/50 text-muted-foreground text-xs font-semibold hover:text-foreground/70 hover:bg-muted/70 transition-all"
                 >
                   Tudo
                 </button>
@@ -1326,13 +1326,13 @@ export function InvestorLiveViewDesktop({
           >
             <div className="flex items-center justify-between mb-5">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/35 mb-0.5">Nova caixinha</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-0.5">Nova caixinha</p>
                 <p id="caixinha-modal-title" className="text-lg font-bold text-foreground">Criar caixinha</p>
               </div>
               <button
                 onClick={() => !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
                 aria-label="Fechar"
-                className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/7 text-foreground/40 hover:text-foreground/80 transition-colors"
+                className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/40 text-muted-foreground hover:text-foreground/80 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1350,7 +1350,7 @@ export function InvestorLiveViewDesktop({
                     className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
                       active
                         ? "bg-muted/15 border-border text-foreground"
-                        : "bg-muted/[0.04] border-border text-foreground/35 hover:text-foreground/60"
+                        : "bg-muted/50 border-border text-muted-foreground hover:text-foreground/60"
                     }`}
                   >
                     {labels[t]}
@@ -1361,7 +1361,7 @@ export function InvestorLiveViewDesktop({
 
             <div className="space-y-3 mb-4">
               <div>
-                <label htmlFor="caixinha-nome" className="text-[10px] font-bold uppercase tracking-wider text-foreground/35 block mb-1.5">Nome</label>
+                <label htmlFor="caixinha-nome" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">Nome</label>
                 <input
                   id="caixinha-nome"
                   type="text"
@@ -1373,7 +1373,7 @@ export function InvestorLiveViewDesktop({
                 />
               </div>
               <div>
-                <label htmlFor="caixinha-instituicao" className="text-[10px] font-bold uppercase tracking-wider text-foreground/35 block mb-1.5">Instituição</label>
+                <label htmlFor="caixinha-instituicao" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">Instituição</label>
                 <input
                   id="caixinha-instituicao"
                   type="text"
@@ -1387,7 +1387,7 @@ export function InvestorLiveViewDesktop({
               {newCaixinhaTipo === "turbo" && (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label htmlFor="caixinha-cdi" className="text-[10px] font-bold uppercase tracking-wider text-foreground/35 block mb-1.5">% CDI</label>
+                    <label htmlFor="caixinha-cdi" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">% CDI</label>
                     <input
                       id="caixinha-cdi"
                       type="text"
@@ -1399,7 +1399,7 @@ export function InvestorLiveViewDesktop({
                     />
                   </div>
                   <div>
-                    <label htmlFor="caixinha-teto" className="text-[10px] font-bold uppercase tracking-wider text-foreground/35 block mb-1.5">Teto (R$)</label>
+                    <label htmlFor="caixinha-teto" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">Teto (R$)</label>
                     <input
                       id="caixinha-teto"
                       type="text"
@@ -1414,7 +1414,7 @@ export function InvestorLiveViewDesktop({
               )}
 
               {newCaixinhaTipo === "emergencia" && newCaixinhaName.trim() && !isEmergencyAccountName(newCaixinhaName.trim()) && (
-                <p className="text-[11px] text-foreground/35">
+                <p className="text-[11px] text-muted-foreground">
                   Vai ser salva como &quot;{newCaixinhaName.trim()} (Emergência)&quot;
                 </p>
               )}

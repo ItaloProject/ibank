@@ -165,9 +165,9 @@ export function InvestorModeView({
         <div className="relative min-h-full bg-background text-foreground overflow-hidden">
           {/* Ambient mesh — MUVO neutral */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-muted/[0.04] blur-[140px]" />
-            <div className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full bg-muted/[0.03] blur-[130px]" />
-            <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] rounded-full bg-muted/[0.02] blur-[130px]" />
+            <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-muted/50 blur-[140px]" />
+            <div className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full bg-card blur-[130px]" />
+            <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] rounded-full bg-muted/20 blur-[130px]" />
           </div>
 
           {/* Sticky top bar — anchored to the layout scroll area */}
@@ -184,21 +184,21 @@ export function InvestorModeView({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setLiveMode(true)}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/[0.06] px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/10 hover:text-foreground"
+                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground"
               >
                 <Radio className="h-3.5 w-3.5" />
                 Live
               </button>
               <button
                 onClick={onGenerateReport}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/[0.06] px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/10 hover:text-foreground"
+                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground"
               >
                 <FileText className="h-3.5 w-3.5" />
                 PDF
               </button>
               <button
                 onClick={() => setInvestorMode(false)}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-foreground/50 transition-colors hover:bg-muted/10 hover:text-foreground/80"
+                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground/80"
               >
                 Sair
               </button>
@@ -210,18 +210,19 @@ export function InvestorModeView({
 
             {/* Hero central */}
             <div className="flex flex-col items-center text-center mb-14 sm:mb-20">
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-foreground/30 mb-4">Sua renda passiva mensal</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-4">Sua renda passiva mensal</p>
 
               <div className="relative flex items-center justify-center mb-2" style={{ width: 280, height: 280 }}>
                 <svg width="280" height="280" className="absolute inset-0 -rotate-90">
-                  <circle cx="140" cy="140" r="118" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+                  <circle cx="140" cy="140" r="118" fill="none" strokeWidth="6"
+                    style={{ stroke: "hsl(var(--foreground) / 0.12)" }} />
                   {incomeGoal > 0 && (
                     <circle
                       cx="140" cy="140" r="118" fill="none"
-                      stroke="rgba(255,255,255,0.85)" strokeWidth="6" strokeLinecap="round"
+                      strokeWidth="6" strokeLinecap="round"
                       strokeDasharray={circumference}
                       strokeDashoffset={circumference - (goalProgress / 100) * circumference}
-                      style={{ transition: "stroke-dashoffset 1s ease" }}
+                      style={{ stroke: "hsl(var(--foreground))", transition: "stroke-dashoffset 1s ease" }}
                     />
                   )}
                 </svg>
@@ -229,12 +230,12 @@ export function InvestorModeView({
                   <p className="text-3xl sm:text-4xl font-black tabular-nums text-foreground leading-none text-center font-display">
                     {formatCurrency(totalRendaMensal)}
                   </p>
-                  <p className="text-xs text-foreground/40 mt-2">por mês</p>
+                  <p className="text-xs text-muted-foreground mt-2">por mês</p>
                 </div>
               </div>
 
               {incomeGoal > 0 && (
-                <p className="text-sm text-foreground/50 mb-6">
+                <p className="text-sm text-muted-foreground mb-6">
                   <span className="font-bold text-foreground">{goalProgress.toFixed(0)}%</span> da meta de{" "}
                   <span className="font-bold text-foreground">{formatCurrency(incomeGoal)}</span>
                   {goalProgress < 100 && <> · faltam <span className="font-bold text-emerald-400">{formatCurrency(incomeGoal - totalRendaMensal)}</span></>}
@@ -242,11 +243,11 @@ export function InvestorModeView({
               )}
 
               <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-foreground/30" />
+                <Target className="h-4 w-4 text-muted-foreground" />
                 <input
                   type="number"
                   placeholder="Definir meta mensal (R$)..."
-                  className="bg-muted/5 border border-border rounded-full px-4 py-2 text-sm text-foreground placeholder:text-foreground/30 w-56 text-center focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-border transition-all"
+                  className="bg-muted/40 border border-border rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground w-56 text-center focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-border transition-all"
                   value={incomeGoalInput}
                   onChange={(e) => setIncomeGoalInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -265,25 +266,25 @@ export function InvestorModeView({
 
             {/* Fontes de renda */}
             <div className="mb-14 sm:mb-20">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/40 mb-4">Fontes de renda</h3>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Fontes de renda</h3>
               {allSources.length === 0 ? (
-                <p className="text-foreground/40 text-center py-12 text-sm">Nenhuma fonte de renda identificada ainda.</p>
+                <p className="text-muted-foreground text-center py-12 text-sm">Nenhuma fonte de renda identificada ainda.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {allSources.map((src, i) => (
                     <div key={i}
-                      className="rounded-2xl border border-border bg-muted/[0.03] backdrop-blur-xl p-5 transition-all hover:bg-muted/[0.06] hover:border-border"
+                      className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 transition-all hover:bg-muted/60 hover:border-border"
                     >
                       <div className="flex items-center gap-1.5 mb-3">
-                        <span className="h-1.5 w-1.5 rounded-full bg-muted/40" />
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-foreground/35">{src.tipo}</p>
+                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{src.tipo}</p>
                       </div>
                       <p className="text-sm font-semibold text-foreground/90 mb-0.5 truncate">{src.nome}</p>
-                      <p className="text-xs text-foreground/30 mb-4 truncate">{src.badge}</p>
+                      <p className="text-xs text-muted-foreground mb-4 truncate">{src.badge}</p>
                       <p className="text-2xl font-extrabold tabular-nums text-foreground">
                         +{formatCurrency(src.rendaMensal)}
                       </p>
-                      <p className="text-xs text-foreground/25 mt-1">/mês · capital {formatCurrency(src.capital)}</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">/mês · capital {formatCurrency(src.capital)}</p>
                     </div>
                   ))}
                 </div>
@@ -293,8 +294,8 @@ export function InvestorModeView({
             {/* Evolução */}
             {chartMonths.length > 0 && (
               <div className="mb-14 sm:mb-20">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/40 mb-4">Evolução registrada</h3>
-                <div className="rounded-2xl border border-border bg-muted/[0.03] backdrop-blur-xl p-5">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Evolução registrada</h3>
+                <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
                   <ResponsiveContainer width="100%" height={220}>
                     <AreaChart data={chartMonths}>
                       <defs>
@@ -313,7 +314,7 @@ export function InvestorModeView({
                             <div className="bg-card border border-border rounded-xl shadow-2xl p-3 min-w-[160px]">
                               <p className="text-xs font-bold border-b border-border pb-1.5 mb-2 text-foreground/70">{label}</p>
                               <div className="flex justify-between text-sm gap-4">
-                                <span className="text-foreground/50">Rendimento</span>
+                                <span className="text-muted-foreground">Rendimento</span>
                                 <span className="font-bold text-foreground tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
                               </div>
                             </div>
@@ -329,25 +330,25 @@ export function InvestorModeView({
 
             {/* Alocação */}
             <div className="mb-14 sm:mb-20">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/40 mb-4">Alocação atual vs. ideal</h3>
-              <div className="rounded-2xl border border-border bg-muted/[0.03] backdrop-blur-xl p-5 sm:p-6 space-y-6">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Alocação atual vs. ideal</h3>
+              <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 sm:p-6 space-y-6">
                 {recommendations.map((r) => (
                   <div key={r.label} className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                       <div className="flex items-center gap-2">
                         <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: r.cor }} />
                         <span className="font-semibold text-foreground/90">{r.label}</span>
-                        <span className="text-xs text-foreground/35 hidden sm:inline">{r.desc}</span>
+                        <span className="text-xs text-muted-foreground hidden sm:inline">{r.desc}</span>
                       </div>
                       <div className="flex items-center gap-3 text-xs">
                         <span className="tabular-nums font-bold" style={{ color: r.cor }}>{r.atual.toFixed(1)}%</span>
-                        <span className="text-foreground/30">alvo {r.ideal}%</span>
+                        <span className="text-muted-foreground">alvo {r.ideal}%</span>
                         <span className={`font-bold ${r.atual >= r.ideal ? "text-emerald-400" : "text-amber-400"}`}>
                           {r.atual >= r.ideal ? "✓" : `+${(r.ideal - r.atual).toFixed(0)}%`}
                         </span>
                       </div>
                     </div>
-                    <div className="relative h-2 rounded-full bg-muted/[0.06] overflow-hidden">
+                    <div className="relative h-2 rounded-full bg-muted/50 overflow-hidden">
                       <div className="absolute inset-y-0 left-0 rounded-full opacity-25" style={{ width: `${r.ideal}%`, background: r.cor }} />
                       <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{ width: `${Math.min(r.atual, 100)}%`, background: r.cor }} />
                       <div className="absolute inset-y-0 w-0.5 bg-muted/50" style={{ left: `${r.ideal}%` }} />
@@ -364,13 +365,13 @@ export function InvestorModeView({
               const goalReached = remainingGap === 0;
               return (
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/40 mb-4">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">
                     Simulador · capital adicional para chegar em {formatCurrency(goalValue)}/mês
                   </h3>
                   {goalReached ? (
                     <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-6 text-center">
                       <p className="text-lg font-bold text-emerald-400">🎉 Meta já atingida!</p>
-                      <p className="text-xs text-foreground/40 mt-1">Sua renda passiva atual já cobre essa meta. Defina uma meta maior para continuar simulando.</p>
+                      <p className="text-xs text-muted-foreground mt-1">Sua renda passiva atual já cobre essa meta. Defina uma meta maior para continuar simulando.</p>
                     </div>
                   ) : (
                     <>
@@ -380,14 +381,14 @@ export function InvestorModeView({
                           { label: "Via TURBO 115% CDI", value: formatCurrency(remainingGap / (1.15 * CDI_MENSAL)), sub: "a mais em CDB TURBO" },
                           { label: "Via dividendos (~0,4%/mês)", value: formatCurrency(remainingGap / 0.004), sub: "a mais em ações pagadoras" },
                         ].map((item) => (
-                          <div key={item.label} className="rounded-2xl border border-border bg-muted/[0.03] backdrop-blur-xl p-5">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-foreground/35 mb-2">{item.label}</p>
+                          <div key={item.label} className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">{item.label}</p>
                             <p className="text-2xl font-extrabold tabular-nums text-foreground">{item.value}</p>
-                            <p className="text-xs text-foreground/30 mt-1">{item.sub}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{item.sub}</p>
                           </div>
                         ))}
                       </div>
-                      <p className="text-xs text-foreground/30 mt-4 text-center">
+                      <p className="text-xs text-muted-foreground mt-4 text-center">
                         Você já tem {formatCurrency(totalRendaMensal)}/mês · faltam {formatCurrency(remainingGap)}/mês para a meta
                       </p>
                     </>
@@ -407,7 +408,7 @@ export function InvestorModeView({
               return (
                 <div className="mt-14 sm:mt-20">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/40 min-w-0">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground min-w-0">
                       Diagnóstico da carteira
                     </h3>
                     <button
@@ -420,7 +421,7 @@ export function InvestorModeView({
                   </div>
 
                   {/* Score */}
-                  <div className="flex items-center gap-5 mb-8 rounded-2xl border border-border bg-muted/[0.03] backdrop-blur-xl p-5">
+                  <div className="flex items-center gap-5 mb-8 rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
                     <div className="relative flex-shrink-0" style={{ width: 64, height: 64 }}>
                       <svg width="64" height="64" className="-rotate-90 absolute inset-0">
                         <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
@@ -432,15 +433,15 @@ export function InvestorModeView({
                     </div>
                     <div>
                       <p className="text-lg font-bold text-foreground">{score >= 70 ? "Carteira saudável" : score >= 40 ? "Precisa de ajustes" : "Atenção necessária"}</p>
-                      <p className="text-xs text-foreground/40 mt-0.5">Score baseado nos pontos de melhoria identificados abaixo</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Score baseado nos pontos de melhoria identificados abaixo</p>
                     </div>
                   </div>
 
                   {/* Evolução do score */}
                   {scoreHistory.length > 1 && (
                     <div className="mb-10">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/40 mb-4">Evolução do score</h3>
-                      <div className="rounded-2xl border border-border bg-muted/[0.03] backdrop-blur-xl p-5">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Evolução do score</h3>
+                      <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
                         <ResponsiveContainer width="100%" height={160}>
                           <AreaChart data={scoreHistory.map((s) => ({
                             label: new Date(s.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
@@ -462,7 +463,7 @@ export function InvestorModeView({
                                   <div className="bg-card border border-border rounded-xl shadow-2xl p-3 min-w-[120px]">
                                     <p className="text-xs font-bold border-b border-border pb-1.5 mb-2 text-foreground/70">{label}</p>
                                     <div className="flex justify-between text-sm gap-4">
-                                      <span className="text-foreground/50">Score</span>
+                                      <span className="text-muted-foreground">Score</span>
                                       <span className="font-bold tabular-nums" style={{ color: scoreColor }}>{payload[0].value}</span>
                                     </div>
                                   </div>
@@ -490,7 +491,7 @@ export function InvestorModeView({
                           <div className="min-w-0 flex-1 space-y-2">
                             <div>
                               <p className="text-sm font-semibold text-foreground/90 leading-snug">{ins.title}</p>
-                              <p className="text-xs text-foreground/50 mt-1 leading-relaxed">{ins.detail}</p>
+                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{ins.detail}</p>
                               {ins.action && (
                                 <p className="text-xs font-semibold mt-1.5 leading-snug" style={{ color: levelColors[ins.level] }}>
                                   → {ins.action}
@@ -513,11 +514,11 @@ export function InvestorModeView({
                   </div>
 
                   {/* Próximos aportes */}
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/40 mb-4">Próximos aportes recomendados</h3>
-                  <div className="rounded-2xl border border-border bg-muted/[0.03] backdrop-blur-xl overflow-hidden">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Próximos aportes recomendados</h3>
+                  <div className="rounded-2xl border border-border bg-card backdrop-blur-xl overflow-hidden">
                     {nextMoves.map((m, i) => (
                       <div key={i} className="flex items-start gap-3 p-4 border-b border-border last:border-b-0">
-                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-muted/[0.08] border border-border flex items-center justify-center text-xs font-black text-foreground/50 mt-0.5">
+                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-muted/60 border border-border flex items-center justify-center text-xs font-black text-muted-foreground mt-0.5">
                           {m.prioridade}
                         </span>
                         <div className="flex-1 min-w-0">
@@ -527,7 +528,7 @@ export function InvestorModeView({
                               {m.valor}
                             </span>
                           </div>
-                          <p className="text-xs text-foreground/40 mt-1 leading-relaxed break-words">{m.razao}</p>
+                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed break-words">{m.razao}</p>
                         </div>
                       </div>
                     ))}
