@@ -248,6 +248,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   useEffect(() => {
     if (botEnabled && searchParams.get("modo") === "investidor") {
       setInvestorMode(true);
+      setSelectedView("bot");
     }
     fetch("/api/goals")
       .then((r) => r.json())
@@ -404,7 +405,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       tipo: "TURBO" as const,
       capital: a.current_balance,
       rendaMensal: a.current_balance * ((a.cdi_percent ?? 115) / 100) * CDI_MENSAL,
-      cor: "#10b981",
+      cor: "#f5c425",
       badge: "TURBO · " + (a.cdi_percent ?? 115) + "% CDI",
     }));
 
@@ -419,7 +420,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       tipo: "FII" as const,
       capital: fiiCapital,
       rendaMensal: fiiCapital * 0.0085,
-      cor: "#a855f7",
+      cor: "#14b8a6",
       badge: "~0,85%/mês (estimativa)",
     }] : [];
 
@@ -437,7 +438,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       tipo: "Ação" as const,
       capital: dividendCapital,
       rendaMensal: dividendCapital * 0.004,
-      cor: "#3b82f6",
+      cor: "#10b981",
       badge: "~0,4%/mês (estimativa)",
     }] : [];
 
@@ -459,7 +460,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         tipo: "Renda Fixa" as const,
         capital,
         rendaMensal: avg,
-        cor: "#f59e0b",
+        cor: "#38bdf8",
         badge: `${months.length} mês${months.length !== 1 ? "es" : ""} registrado${months.length !== 1 ? "s" : ""}`,
       }];
     });
@@ -487,9 +488,9 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     const divPct = totalPortfolio > 0 ? (dividendCapital / totalPortfolio) * 100 : 0;
 
     const recommendations = [
-      { label: "FIIs", atual: fiiPct, ideal: 40, cor: "#a855f7", desc: "Melhor renda mensal (~0,85%/mês)" },
-      { label: "TURBO/CDB", atual: turboPct + rfPct, ideal: 30, cor: "#10b981", desc: "Segurança + rendimento CDI" },
-      { label: "Ações/Dividendos", atual: divPct, ideal: 30, cor: "#3b82f6", desc: "Crescimento + dividendos" },
+      { label: "FIIs", atual: fiiPct, ideal: 40, cor: "#14b8a6", desc: "Melhor renda mensal (~0,85%/mês)" },
+      { label: "TURBO/CDB", atual: turboPct + rfPct, ideal: 30, cor: "#f5c425", desc: "Segurança + rendimento CDI" },
+      { label: "Ações/Dividendos", atual: divPct, ideal: 30, cor: "#10b981", desc: "Crescimento + dividendos" },
     ];
 
     return { allSources, totalRendaMensal, chartMonths, recommendations, fiiCapital, CDI_MENSAL };
@@ -1407,7 +1408,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
             />
           ) : section === "acoes" && !hasStocks ? (
             <EmptyCaixinha
-              icon={LineChart} iconColor="text-violet-600"
+              icon={LineChart} iconColor="text-emerald-600"
               label="Nenhuma ação ainda"
               desc="Registre compras de ações, FIIs ou ETFs para acompanhar a carteira."
               onCreate={() => setStockOpen(true)}

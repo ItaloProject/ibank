@@ -184,8 +184,8 @@ export function AcoesTab({
               }))}>
                 <defs>
                   <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gradInvested" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.15} />
@@ -222,7 +222,7 @@ export function AcoesTab({
                 />
                 <Legend iconType="square" iconSize={10} formatter={(v) => <span className="text-xs text-muted-foreground">{v}</span>} />
                 <Area type="monotone" dataKey="Investido" stroke="#94a3b8" strokeWidth={1.5} fill="url(#gradInvested)" strokeDasharray="4 2" />
-                <Area type="monotone" dataKey="Valor atual" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gradTotal)" />
+                <Area type="monotone" dataKey="Valor atual" stroke="#10b981" strokeWidth={2.5} fill="url(#gradTotal)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

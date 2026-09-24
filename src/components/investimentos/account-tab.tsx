@@ -327,8 +327,8 @@ export function AccountTab({
                                     };
                                     const colors: Record<string, string> = {
                                       "Total bruto": "#10b981",
-                                      "Rendimento": "#f59e0b",
-                                      "Líquido": "#3b82f6",
+                                      "Rendimento": "#f5c425",
+                                      "Líquido": "#38bdf8",
                                     };
                                     return (
                                       <div className="bg-white dark:bg-zinc-900 border rounded-xl shadow-lg p-3.5 min-w-[220px] space-y-2.5">
@@ -373,20 +373,20 @@ export function AccountTab({
                                     return <rect x={x} y={y} width={width} height={height} rx={4} fill={isSelected ? "#059669" : "#10b981"} opacity={selectedTurboMonth && !isSelected ? 0.4 : 1} />;
                                   }}
                                 />
-                                <Bar dataKey="Rendimento" fill="#f59e0b" radius={[4, 4, 0, 0]}
+                                <Bar dataKey="Rendimento" fill="#f5c425" radius={[4, 4, 0, 0]}
                                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                   shape={(props: any) => {
                                     const isSelected = props.mes === selectedTurboMonth;
                                     const { x, y, width, height } = props;
-                                    return <rect x={x} y={y} width={width} height={height} rx={4} fill={isSelected ? "#d97706" : "#f59e0b"} opacity={selectedTurboMonth && !isSelected ? 0.4 : 1} />;
+                                    return <rect x={x} y={y} width={width} height={height} rx={4} fill={isSelected ? "#d97706" : "#f5c425"} opacity={selectedTurboMonth && !isSelected ? 0.4 : 1} />;
                                   }}
                                 />
-                                <Bar dataKey="Líquido" fill="#3b82f6" radius={[4, 4, 0, 0]}
+                                <Bar dataKey="Líquido" fill="#38bdf8" radius={[4, 4, 0, 0]}
                                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                   shape={(props: any) => {
                                     const isSelected = props.mes === selectedTurboMonth;
                                     const { x, y, width, height } = props;
-                                    return <rect x={x} y={y} width={width} height={height} rx={4} fill={isSelected ? "#2563eb" : "#3b82f6"} opacity={selectedTurboMonth && !isSelected ? 0.4 : 1} />;
+                                    return <rect x={x} y={y} width={width} height={height} rx={4} fill={isSelected ? "#0ea5e9" : "#38bdf8"} opacity={selectedTurboMonth && !isSelected ? 0.4 : 1} />;
                                   }}
                                 />
                               </BarChart>
@@ -638,7 +638,7 @@ export function AccountTab({
                                 );
                               }}
                             />
-                            <Bar dataKey="Rendimento" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                            <Bar dataKey="Rendimento" fill="#f5c425" radius={[6, 6, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>

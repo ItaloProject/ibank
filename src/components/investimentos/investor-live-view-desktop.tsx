@@ -488,9 +488,9 @@ export function InvestorLiveViewDesktop({
   const allocation = useMemo(() => {
     const base = patrimonioTotal || 1;
     return [
-      { label: "TURBO", value: turboTotal, color: "#a855f7", pct: (turboTotal / base) * 100 },
+      { label: "TURBO", value: turboTotal, color: "#f5c425", pct: (turboTotal / base) * 100 },
       { label: "Emergência", value: emergenciaTotal, color: "#06b6d4", pct: (emergenciaTotal / base) * 100 },
-      { label: "Renda Fixa", value: investimentosTotal, color: "#3b82f6", pct: (investimentosTotal / base) * 100 },
+      { label: "Renda Fixa", value: investimentosTotal, color: "#38bdf8", pct: (investimentosTotal / base) * 100 },
       { label: "Bolsa", value: investedValue, color: "#10b981", pct: (investedValue / base) * 100 },
       { label: "Saldo Livre", value: cashBalance, color: "#94a3b8", pct: (cashBalance / base) * 100 },
     ].filter((x) => x.value > 0);
@@ -819,7 +819,7 @@ export function InvestorLiveViewDesktop({
               ) : (
                 <div className="space-y-2">
                   {turboAccountsReal.map((acc) => (
-                    <Card key={acc.id} className="border-t-2 border-t-[#a855f7]">
+                    <Card key={acc.id} className="border-t-2 border-t-[#f5c425]">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-foreground/90 truncate">{acc.nome}</p>
@@ -920,7 +920,7 @@ export function InvestorLiveViewDesktop({
               </div>
               <div className="space-y-2">
                 {investimentosAccountsReal.map((acc) => (
-                  <Card key={acc.id} className="border-t-2 border-t-[#3b82f6]">
+                  <Card key={acc.id} className="border-t-2 border-t-[#38bdf8]">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground/90 truncate">{acc.nome}</p>
@@ -1029,7 +1029,7 @@ export function InvestorLiveViewDesktop({
                     onChange={(e) => param.set(Number(e.target.value) as never)}
                     aria-label={param.label}
                     className="w-full h-1.5 appearance-none rounded-full bg-muted/50 cursor-pointer"
-                    style={{ accentColor: "#a855f7" }}
+                    style={{ accentColor: "#f5c425" }}
                   />
                 </div>
               ))}
