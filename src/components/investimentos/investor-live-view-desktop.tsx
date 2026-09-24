@@ -543,10 +543,12 @@ export function InvestorLiveViewDesktop({
             </span>
           </div>
 
-          <div className="flex items-center gap-1 bg-white/[0.05] rounded-full p-1">
+          <div role="tablist" className="flex items-center gap-1 bg-white/[0.05] rounded-full p-1">
             {tabs.map((t) => (
               <button
                 key={t.id}
+                role="tab"
+                aria-selected={tab === t.id}
                 onClick={() => setTab(t.id)}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                   tab === t.id
@@ -594,7 +596,7 @@ export function InvestorLiveViewDesktop({
           },
           { label: "Ativos em bolsa", value: holdingRows.length.toString(), sub: "posições", accent: false },
         ].map((kpi, i) => (
-          <div key={i} className="px-7 py-4">
+          <div key={i} className="px-6 py-4">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30 mb-1">{kpi.label}</p>
             <p
               className={`text-xl font-black font-display tabular-nums ${
@@ -630,7 +632,7 @@ export function InvestorLiveViewDesktop({
           <div className="grid grid-cols-[280px_1fr_1fr] gap-0 h-full divide-x divide-white/[0.06]">
 
             {/* Left: Allocation */}
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto scrollbar-thin-dark">
               <SectionHeading>Distribuição</SectionHeading>
 
               <div className="flex h-2.5 rounded-full overflow-hidden mb-4 gap-px">
@@ -670,7 +672,7 @@ export function InvestorLiveViewDesktop({
 
               <div className="mt-6 pt-5 border-t border-white/[0.07]">
                 <SectionHeading>Saldo disponível</SectionHeading>
-                <p className="text-2xl font-bold font-display text-white tabular-nums">{formatCurrency(cashBalance)}</p>
+                <p className="text-2xl font-black font-display text-white tabular-nums">{formatCurrency(cashBalance)}</p>
                 <p className="text-xs text-white/30 mt-0.5">Para novos aportes</p>
                 <button
                   onClick={() => { setMarketSection("hub"); setMarketOpen(true); }}
@@ -683,7 +685,7 @@ export function InvestorLiveViewDesktop({
             </div>
 
             {/* Center: Holdings */}
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto scrollbar-thin-dark">
               <div className="flex items-center justify-between mb-3">
                 <SectionHeading>Posições em bolsa</SectionHeading>
                 <button
@@ -738,7 +740,7 @@ export function InvestorLiveViewDesktop({
                   <div className="mt-3 pt-3 border-t border-white/[0.06] flex justify-between items-center px-1">
                     <span className="text-xs text-white/30">Total bolsa</span>
                     <div className="text-right">
-                      <p className="text-sm font-bold tabular-nums">{formatCurrency(investedValue)}</p>
+                      <p className="text-sm font-black font-display tabular-nums">{formatCurrency(investedValue)}</p>
                       <PctBadge pct={totalGainPct} />
                     </div>
                   </div>
@@ -747,7 +749,7 @@ export function InvestorLiveViewDesktop({
             </div>
 
             {/* Right: Movements */}
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto scrollbar-thin-dark">
               <SectionHeading>Últimas movimentações</SectionHeading>
               {movements.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -780,7 +782,7 @@ export function InvestorLiveViewDesktop({
           <div className="grid grid-cols-3 gap-0 h-full divide-x divide-white/[0.06]">
 
             {/* TURBO */}
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto scrollbar-thin-dark">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>TURBO</SectionHeading>
                 <div className="flex items-center gap-1.5">
@@ -837,7 +839,7 @@ export function InvestorLiveViewDesktop({
             </div>
 
             {/* Emergência */}
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto scrollbar-thin-dark">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>Emergência</SectionHeading>
                 <div className="flex items-center gap-1.5">
@@ -882,7 +884,7 @@ export function InvestorLiveViewDesktop({
             </div>
 
             {/* Renda Fixa + Bolsa */}
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto scrollbar-thin-dark">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>Renda Fixa & Bolsa</SectionHeading>
                 <div className="flex items-center gap-1.5">
@@ -959,7 +961,7 @@ export function InvestorLiveViewDesktop({
           <div className="grid grid-cols-[360px_1fr] gap-0 h-full divide-x divide-white/[0.06]">
 
             {/* Controls */}
-            <div className="p-6 overflow-y-auto space-y-6">
+            <div className="p-6 overflow-y-auto scrollbar-thin-dark space-y-6">
               <SectionHeading>Parâmetros da simulação</SectionHeading>
 
               {[
