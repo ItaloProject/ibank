@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { setCurrentUser, clearCurrentUser } from "@/lib/user";
+import { SplashScreen } from "@/components/splash-screen";
 
 interface AuthUser {
   id: string;
@@ -80,7 +81,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setUser((prev) => (prev ? { ...prev, investmentProfile: profile } : prev));
   }
 
-  if (!ready) return null;
+  if (!ready) return <SplashScreen />;
 
   return (
     <UserContext.Provider
