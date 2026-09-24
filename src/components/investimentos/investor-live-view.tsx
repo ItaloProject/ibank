@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
 import {
@@ -138,7 +138,7 @@ function PhoneStatusBar() {
     return () => clearInterval(id);
   }, []);
   return (
-    <div className="hidden sm:flex items-center justify-between px-6 pt-3 pb-1 text-white text-[13px] font-semibold shrink-0">
+    <div className="hidden sm:flex items-center justify-between px-6 pt-3 pb-1 text-foreground text-[13px] font-semibold shrink-0">
       <span>{time}</span>
       <div className="flex items-center gap-1.5">
         <Signal className="h-3.5 w-3.5" />
@@ -213,13 +213,13 @@ function CaixinhaRow({
         <Icon className={`h-3.5 w-3.5 ${tones.icon}`} />
       </span>
       <div className="min-w-0">
-        <p className="text-[13px] font-bold text-white leading-tight truncate">{title}</p>
-        <p className="text-[10px] text-white/60 leading-tight mt-0.5 truncate">{subtitle}</p>
+        <p className="text-[13px] font-bold text-foreground leading-tight truncate">{title}</p>
+        <p className="text-[10px] text-foreground/60 leading-tight mt-0.5 truncate">{subtitle}</p>
       </div>
-      <p className="text-[12px] font-extrabold tabular-nums text-white text-right whitespace-nowrap">
+      <p className="text-[12px] font-extrabold tabular-nums text-foreground text-right whitespace-nowrap">
         {formatCurrency(value)}
       </p>
-      <ChevronRight className="h-4 w-4 text-white/25 justify-self-end" />
+      <ChevronRight className="h-4 w-4 text-foreground/25 justify-self-end" />
     </button>
   );
 }
@@ -228,8 +228,8 @@ function CaixinhaHeader({ label, total }: { label: string; total: number }) {
   const animated = useCountUp(total, 1200);
   return (
     <div className="text-center pt-2 pb-1">
-      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">{label}</p>
-      <p className="text-[30px] font-black tabular-nums text-white leading-none">
+      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-foreground/40 mb-2">{label}</p>
+      <p className="text-[30px] font-black tabular-nums text-foreground leading-none">
         {formatCurrency(animated)}
       </p>
     </div>
@@ -261,7 +261,7 @@ function PortfolioSection({
   if (empty) return null;
   return (
     <div className="space-y-2">
-      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">{title}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-foreground/40">{title}</p>
       {children}
     </div>
   );
@@ -281,19 +281,19 @@ function RealAccountList({
           key={item.id}
           type="button"
           onClick={() => onSelect(item)}
-          className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5 flex items-center justify-between gap-3 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
+          className="w-full text-left rounded-2xl border border-border bg-muted/[0.04] backdrop-blur-xl p-3.5 flex items-center justify-between gap-3 hover:bg-muted/[0.07] hover:border-border transition-colors"
         >
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{item.nome}</p>
+            <p className="text-sm font-semibold text-foreground truncate">{item.nome}</p>
             {item.instituicao && (
-              <p className="text-[10px] text-white/40 truncate">{item.instituicao}</p>
+              <p className="text-[10px] text-foreground/40 truncate">{item.instituicao}</p>
             )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <p className="text-sm font-extrabold tabular-nums text-white">
+            <p className="text-sm font-extrabold tabular-nums text-foreground">
               {formatCurrency(item.valor)}
             </p>
-            <ChevronRight className="h-4 w-4 text-white/25" />
+            <ChevronRight className="h-4 w-4 text-foreground/25" />
           </div>
         </button>
       ))}
@@ -326,7 +326,7 @@ function HoldingList({
           key={item.ticker}
           type="button"
           onClick={() => onSelect(item.ticker)}
-          className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-3.5 flex items-center justify-between gap-3 hover:bg-white/[0.07] hover:border-white/20 transition-colors"
+          className="w-full text-left rounded-2xl border border-border bg-muted/[0.04] backdrop-blur-xl p-3.5 flex items-center justify-between gap-3 hover:bg-muted/[0.07] hover:border-border transition-colors"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <span
@@ -334,14 +334,14 @@ function HoldingList({
               style={{ background: item.color }}
             />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{item.ticker}</p>
-              <p className="text-[10px] text-white/40 truncate">
+              <p className="text-sm font-semibold text-foreground truncate">{item.ticker}</p>
+              <p className="text-[10px] text-foreground/40 truncate">
                 {item.typeLabel} · {formatQty(item.quantity)} un.
               </p>
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-sm font-extrabold tabular-nums text-white">
+            <p className="text-sm font-extrabold tabular-nums text-foreground">
               {formatCurrency(item.value)}
             </p>
             <p
@@ -1093,7 +1093,7 @@ export function InvestorLiveView({
 
   return (
     <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center select-none p-0 sm:p-4">
-      <div className="relative w-full h-full sm:h-[min(844px,92dvh)] sm:aspect-[390/844] sm:w-auto sm:max-w-[92vw] sm:rounded-[3rem] sm:border-[8px] sm:border-zinc-800 overflow-hidden bg-[#05050a]">
+      <div className="relative w-full h-full sm:h-[min(844px,92dvh)] sm:aspect-[390/844] sm:w-auto sm:max-w-[92vw] sm:rounded-[3rem] sm:border-[8px] sm:border-zinc-800 overflow-hidden bg-background">
         {/* Mesh de fundo */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-violet-600/25 blur-[90px]" />
@@ -1114,11 +1114,11 @@ export function InvestorLiveView({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               </span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">MUVO · Live</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-foreground/70">MUVO · Live</span>
             </div>
             <button
               onClick={onClose}
-              className="h-7 w-7 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-white/20"
+              className="h-7 w-7 flex items-center justify-center rounded-full bg-muted/10 text-foreground/70 hover:bg-muted/20"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -1138,11 +1138,11 @@ export function InvestorLiveView({
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300/80 mb-1">
                     Aplicar saldo
                   </p>
-                  <p className="text-xl font-black text-white">
+                  <p className="text-xl font-black text-foreground">
                     Investir agora
                   </p>
-                  <p className="text-[11px] text-white/60 mt-1">
-                    Saldo disponível: <span className="font-bold text-white/85">{formatCurrency(cash)}</span> — ações, Tesouro Direto ou caixinhas.
+                  <p className="text-[11px] text-foreground/60 mt-1">
+                    Saldo disponível: <span className="font-bold text-foreground/85">{formatCurrency(cash)}</span> — ações, Tesouro Direto ou caixinhas.
                   </p>
                 </button>
 
@@ -1179,7 +1179,7 @@ export function InvestorLiveView({
                   <button
                     type="button"
                     onClick={openNewCaixinha}
-                    className="w-full rounded-xl border border-dashed border-white/20 py-3 flex items-center justify-center gap-1.5 text-xs font-bold text-white/60 hover:text-white hover:border-white/35 transition-colors"
+                    className="w-full rounded-xl border border-dashed border-border py-3 flex items-center justify-center gap-1.5 text-xs font-bold text-foreground/60 hover:text-foreground hover:border-border transition-colors"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     Nova Caixinha
@@ -1196,18 +1196,18 @@ export function InvestorLiveView({
                     setFocusGroup("all");
                     setInvestSubPage(null);
                   }}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/55 hover:text-white/80"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground/55 hover:text-foreground/80"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                   Caixinhas
                 </button>
 
                 <div className="text-center pt-1 pb-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-1">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-foreground/40 mb-1">
                     {caixinhaPageMeta.title}
                   </p>
-                  <p className="text-[11px] text-white/35 mb-2">{caixinhaPageMeta.subtitle}</p>
-                  <p className="text-[28px] font-black tabular-nums text-white leading-none">
+                  <p className="text-[11px] text-foreground/35 mb-2">{caixinhaPageMeta.subtitle}</p>
+                  <p className="text-[28px] font-black tabular-nums text-foreground leading-none">
                     {formatCurrency(caixinhaPageMeta.total)}
                   </p>
                 </div>
@@ -1222,7 +1222,7 @@ export function InvestorLiveView({
                         />
                       </PortfolioSection>
                     ) : (
-                      <p className="text-sm text-white/40 text-center py-8">Nenhuma conta turbo.</p>
+                      <p className="text-sm text-foreground/40 text-center py-8">Nenhuma conta turbo.</p>
                     )
                   )}
 
@@ -1235,7 +1235,7 @@ export function InvestorLiveView({
                         />
                       </PortfolioSection>
                     ) : (
-                      <p className="text-sm text-white/40 text-center py-8">
+                      <p className="text-sm text-foreground/40 text-center py-8">
                         Nenhuma conta de emergência.
                       </p>
                     )
@@ -1266,7 +1266,7 @@ export function InvestorLiveView({
                       <button
                         type="button"
                         onClick={() => openMarket("hub")}
-                        className="w-full rounded-xl border border-dashed border-white/20 py-3 text-xs font-bold text-white/60 hover:text-white hover:border-white/35 transition-colors"
+                        className="w-full rounded-xl border border-dashed border-border py-3 text-xs font-bold text-foreground/60 hover:text-foreground hover:border-border transition-colors"
                       >
                         + Aplicar saldo disponível
                       </button>
@@ -1281,23 +1281,23 @@ export function InvestorLiveView({
                 <button
                   type="button"
                   onClick={() => setInvestSubPage(null)}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/55 hover:text-white/80"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground/55 hover:text-foreground/80"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                   Investimentos
                 </button>
 
                 <div className="text-center pt-1 pb-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-foreground/40 mb-2">
                     Tesouro Direto
                   </p>
-                  <p className="text-[28px] font-black tabular-nums text-white leading-none">
+                  <p className="text-[28px] font-black tabular-nums text-foreground leading-none">
                     {formatCurrency(tesouroTotal)}
                   </p>
                 </div>
 
                 {tesouroAccounts.length === 0 && outrasRendaFixa.length === 0 ? (
-                  <p className="text-sm text-white/40 text-center py-8">Nenhum título cadastrado.</p>
+                  <p className="text-sm text-foreground/40 text-center py-8">Nenhum título cadastrado.</p>
                 ) : (
                   <div className="space-y-5">
                     <PortfolioSection title="Títulos" empty={tesouroAccounts.length === 0}>
@@ -1318,7 +1318,7 @@ export function InvestorLiveView({
                 <button
                   type="button"
                   onClick={() => openMarket("tesouro")}
-                  className="w-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 py-3 text-sm font-bold text-white"
+                  className="w-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 py-3 text-sm font-bold text-foreground"
                 >
                   Comprar Tesouro com saldo
                 </button>
@@ -1330,23 +1330,23 @@ export function InvestorLiveView({
                 <button
                   type="button"
                   onClick={() => setInvestSubPage(null)}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/55 hover:text-white/80"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground/55 hover:text-foreground/80"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                   Investimentos
                 </button>
 
                 <div className="text-center pt-1 pb-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-foreground/40 mb-2">
                     Ações
                   </p>
-                  <p className="text-[28px] font-black tabular-nums text-white leading-none">
+                  <p className="text-[28px] font-black tabular-nums text-foreground leading-none">
                     {formatCurrency(acoesPageTotal)}
                   </p>
                 </div>
 
                 {acoesPageHoldings.length === 0 ? (
-                  <p className="text-sm text-white/40 text-center py-8">Nenhuma ação cadastrada.</p>
+                  <p className="text-sm text-foreground/40 text-center py-8">Nenhuma ação cadastrada.</p>
                 ) : (
                   <div className="space-y-5">
                     <PortfolioSection title="Ações" empty={acoesHoldings.length === 0}>
@@ -1379,15 +1379,15 @@ export function InvestorLiveView({
               <div className="space-y-4 pt-1 pb-2">
                 {/* Hero do saldo — alinhado estilo banco */}
                 <div className="pt-1">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/40 mb-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-foreground/40 mb-1.5">
                     Saldo na conta
                   </p>
-                  <p className="text-[32px] font-black tabular-nums text-white leading-none tracking-tight">
+                  <p className="text-[32px] font-black tabular-nums text-foreground leading-none tracking-tight">
                     {formatCurrency(animatedCash)}
                   </p>
-                  <p className="text-[11px] text-white/40 mt-2">
+                  <p className="text-[11px] text-foreground/40 mt-2">
                     Patrimônio{" "}
-                    <span className="font-semibold text-white/70 tabular-nums">
+                    <span className="font-semibold text-foreground/70 tabular-nums">
                       {formatCurrency(patrimonioTotal)}
                     </span>
                   </p>
@@ -1404,8 +1404,8 @@ export function InvestorLiveView({
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80 mb-0.5">
                         Usar saldo
                       </p>
-                      <p className="text-[15px] font-black text-white">Investir agora</p>
-                      <p className="text-[11px] text-white/45 mt-0.5 truncate">
+                      <p className="text-[15px] font-black text-foreground">Investir agora</p>
+                      <p className="text-[11px] text-foreground/45 mt-0.5 truncate">
                         Ações, Tesouro Direto ou caixinhas Turbo/EME.
                       </p>
                     </div>
@@ -1443,12 +1443,12 @@ export function InvestorLiveView({
                           }
                           setFinancePanel(item.id);
                         }}
-                        className={`flex flex-col items-center gap-1.5 rounded-xl border ${tones.border} bg-white/[0.03] px-1 py-2.5 hover:bg-white/[0.06] transition-colors`}
+                        className={`flex flex-col items-center gap-1.5 rounded-xl border ${tones.border} bg-muted/[0.03] px-1 py-2.5 hover:bg-muted/[0.06] transition-colors`}
                       >
                         <span className={`h-9 w-9 rounded-full ${tones.bg} flex items-center justify-center`}>
                           <Icon className={`h-4 w-4 ${tones.icon}`} />
                         </span>
-                        <span className="text-[9.5px] font-semibold text-white/75 text-center leading-tight">
+                        <span className="text-[9.5px] font-semibold text-foreground/75 text-center leading-tight">
                           {item.label}
                         </span>
                       </button>
@@ -1459,7 +1459,7 @@ export function InvestorLiveView({
                 {/* Meus investimentos */}
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between px-0.5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-foreground/40">
                       Meus investimentos
                     </p>
                     <button
@@ -1508,7 +1508,7 @@ export function InvestorLiveView({
 
                   {homeTopHoldings.length > 0 && (
                     <div className="space-y-2 pt-1">
-                      <p className="text-[10px] font-semibold text-white/35 px-0.5">Principais posições</p>
+                      <p className="text-[10px] font-semibold text-foreground/35 px-0.5">Principais posições</p>
                       {homeTopHoldings.map((item) => (
                         <button
                           key={item.ticker}
@@ -1518,7 +1518,7 @@ export function InvestorLiveView({
                             setInvestSubPage("acoes");
                             setSelectedTicker(item.ticker);
                           }}
-                          className="w-full text-left rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 flex items-center justify-between gap-2 hover:bg-white/[0.06] transition-colors"
+                          className="w-full text-left rounded-xl border border-border bg-muted/[0.03] px-3 py-2.5 flex items-center justify-between gap-2 hover:bg-muted/[0.06] transition-colors"
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span
@@ -1526,12 +1526,12 @@ export function InvestorLiveView({
                               style={{ background: item.color }}
                             />
                             <div className="min-w-0">
-                              <p className="text-[13px] font-semibold text-white truncate">{item.ticker}</p>
-                              <p className="text-[10px] text-white/40 truncate">{item.typeLabel}</p>
+                              <p className="text-[13px] font-semibold text-foreground truncate">{item.ticker}</p>
+                              <p className="text-[10px] text-foreground/40 truncate">{item.typeLabel}</p>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-[12px] font-extrabold tabular-nums text-white">
+                            <p className="text-[12px] font-extrabold tabular-nums text-foreground">
                               {formatCurrency(item.value)}
                             </p>
                             <p
@@ -1552,29 +1552,29 @@ export function InvestorLiveView({
                 {/* Extrato / últimas movimentações */}
                 <div className="space-y-2.5">
                   <div className="flex items-center gap-2 px-0.5">
-                    <Receipt className="h-3.5 w-3.5 text-white/40" />
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">
+                    <Receipt className="h-3.5 w-3.5 text-foreground/40" />
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-foreground/40">
                       Últimas movimentações
                     </p>
                   </div>
 
                   {homeMovements.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.02] px-4 py-6 text-center">
-                      <p className="text-sm font-semibold text-white/55">Nenhuma movimentação ainda</p>
-                      <p className="text-[11px] text-white/35 mt-1.5 leading-relaxed">
+                    <div className="rounded-2xl border border-dashed border-border bg-muted/[0.02] px-4 py-6 text-center">
+                      <p className="text-sm font-semibold text-foreground/55">Nenhuma movimentação ainda</p>
+                      <p className="text-[11px] text-foreground/35 mt-1.5 leading-relaxed">
                         Compras e aportes do simulador aparecem aqui.
                       </p>
                       <button
                         type="button"
                         onClick={() => openMarket("hub")}
-                        className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-3.5 py-1.5 text-[11px] font-semibold text-white/70 hover:bg-white/[0.09]"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/[0.05] px-3.5 py-1.5 text-[11px] font-semibold text-foreground/70 hover:bg-muted/[0.09]"
                       >
                         Começar a investir
                         <ArrowUpRight className="h-3 w-3" />
                       </button>
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden divide-y divide-white/[0.06]">
+                    <div className="rounded-2xl border border-border bg-muted/[0.03] overflow-hidden divide-y divide-white/[0.06]">
                       {homeMovements.map((mov) => (
                         <div
                           key={mov.id}
@@ -1585,8 +1585,8 @@ export function InvestorLiveView({
                               <ArrowDownRight className="h-3.5 w-3.5 text-rose-300" />
                             </span>
                             <div className="min-w-0">
-                              <p className="text-[13px] font-semibold text-white truncate">{mov.title}</p>
-                              <p className="text-[10px] text-white/40 truncate">{mov.subtitle}</p>
+                              <p className="text-[13px] font-semibold text-foreground truncate">{mov.title}</p>
+                              <p className="text-[10px] text-foreground/40 truncate">{mov.subtitle}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
@@ -1598,7 +1598,7 @@ export function InvestorLiveView({
                               onClick={() => undoMovement(mov)}
                               disabled={undoingId === mov.id}
                               aria-label={`Desfazer ${mov.title}`}
-                              className="h-7 w-7 flex items-center justify-center rounded-full text-white/25 hover:text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                              className="h-7 w-7 flex items-center justify-center rounded-full text-foreground/25 hover:text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-40"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -1609,7 +1609,7 @@ export function InvestorLiveView({
                   )}
                 </div>
 
-                <p className="text-center text-[11px] text-white/30 px-2 pt-1">
+                <p className="text-center text-[11px] text-foreground/30 px-2 pt-1">
                   Para alterar o saldo disponível, use a aba Simular.
                 </p>
               </div>
@@ -1618,12 +1618,12 @@ export function InvestorLiveView({
             {tab === "rebalancear" && !marketOpen && (
               <div className="space-y-4 pt-1">
                 <div className="text-center pt-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-foreground/40">
                     Alocação atual vs. ideal
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 space-y-5">
+                <div className="rounded-2xl border border-border bg-muted/[0.04] backdrop-blur-xl p-4 space-y-5">
                   {allocationRecommendations.map((r) => {
                     const gap = r.ideal - r.atual;
                     const isBelow = gap > 0.5;
@@ -1632,13 +1632,13 @@ export function InvestorLiveView({
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: r.cor }} />
-                            <span className="text-sm font-bold text-white truncate">{r.label}</span>
+                            <span className="text-sm font-bold text-foreground truncate">{r.label}</span>
                           </div>
                           <div className="flex items-center gap-2 text-xs shrink-0">
                             <span className="font-extrabold tabular-nums" style={{ color: r.cor }}>
                               {r.atual.toFixed(0)}%
                             </span>
-                            <span className="text-white/35">alvo {r.ideal}%</span>
+                            <span className="text-foreground/35">alvo {r.ideal}%</span>
                             {isBelow ? (
                               <span className="font-bold text-amber-400">+{gap.toFixed(0)}%</span>
                             ) : (
@@ -1646,7 +1646,7 @@ export function InvestorLiveView({
                             )}
                           </div>
                         </div>
-                        <div className="relative h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                        <div className="relative h-2 rounded-full bg-muted/[0.06] overflow-hidden">
                           <div
                             className="absolute inset-y-0 left-0 rounded-full opacity-25"
                             style={{ width: `${Math.min(r.ideal, 100)}%`, background: r.cor }}
@@ -1656,16 +1656,16 @@ export function InvestorLiveView({
                             style={{ width: `${Math.min(r.atual, 100)}%`, background: r.cor }}
                           />
                           <div
-                            className="absolute inset-y-0 w-0.5 bg-white/50"
+                            className="absolute inset-y-0 w-0.5 bg-muted/50"
                             style={{ left: `${Math.min(r.ideal, 100)}%` }}
                           />
                         </div>
-                        <p className="text-[11px] text-white/40">{r.desc}</p>
+                        <p className="text-[11px] text-foreground/40">{r.desc}</p>
                         {isBelow && (
                           <button
                             type="button"
                             onClick={() => openMarket(r.action)}
-                            className="w-full rounded-full py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
+                            className="w-full rounded-full py-2.5 text-xs font-bold text-foreground transition-opacity hover:opacity-90"
                             style={{ background: `linear-gradient(90deg, ${r.cor}66, ${r.cor}aa)` }}
                           >
                             Aplicar saldo em {r.label}
@@ -1676,7 +1676,7 @@ export function InvestorLiveView({
                   })}
                 </div>
 
-                <p className="text-center text-[11px] text-white/30 px-2">
+                <p className="text-center text-[11px] text-foreground/30 px-2">
                   Referência de alocação (FIIs 40% · Turbo/CDB 30% · Ações 30%) sobre o seu patrimônio total. Os botões usam o saldo disponível na conta.
                 </p>
               </div>
@@ -1684,11 +1684,11 @@ export function InvestorLiveView({
 
             {tab === "simular" && (
               <div className="space-y-5 pt-2">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 space-y-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Saldo disponível</p>
+                <div className="rounded-2xl border border-border bg-muted/[0.04] backdrop-blur-xl p-4 space-y-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-foreground/40">Saldo disponível</p>
                   {editingCash ? (
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-bold text-white/50">R$</span>
+                      <span className="text-sm font-bold text-foreground/50">R$</span>
                       <input
                         autoFocus
                         type="text"
@@ -1697,7 +1697,7 @@ export function InvestorLiveView({
                         onChange={(e) => onCashMaskChange(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") commitEditCash(); if (e.key === "Escape") setEditingCash(false); }}
                         onBlur={commitEditCash}
-                        className="min-w-[7.5rem] w-auto bg-transparent border-b border-violet-400 text-lg font-extrabold tabular-nums text-white focus:outline-none"
+                        className="min-w-[7.5rem] w-auto bg-transparent border-b border-violet-400 text-lg font-extrabold tabular-nums text-foreground focus:outline-none"
                       />
                     </div>
                   ) : (
@@ -1705,28 +1705,28 @@ export function InvestorLiveView({
                       type="button"
                       onClick={startEditCash}
                       disabled={savingCash}
-                      className="flex items-center gap-1.5 text-lg font-extrabold tabular-nums text-white hover:text-violet-300 transition-colors disabled:opacity-60"
+                      className="flex items-center gap-1.5 text-lg font-extrabold tabular-nums text-foreground hover:text-violet-300 transition-colors disabled:opacity-60"
                     >
                       <span>{formatCurrency(animatedCash)}</span>
                       {savingCash ? (
-                        <span className="text-[10px] font-semibold text-white/40">salvando…</span>
+                        <span className="text-[10px] font-semibold text-foreground/40">salvando…</span>
                       ) : (
-                        <Pencil className="h-3 w-3 text-white/30 shrink-0" />
+                        <Pencil className="h-3 w-3 text-foreground/30 shrink-0" />
                       )}
                     </button>
                   )}
-                  <p className="text-[11px] text-white/35">
+                  <p className="text-[11px] text-foreground/35">
                     Esse saldo aparece na aba Início como “Saldo na conta”.
                   </p>
                 </div>
 
-                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">Simulador de rendimentos</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-foreground/40">Simulador de rendimentos</p>
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 space-y-4">
+                <div className="rounded-2xl border border-border bg-muted/[0.04] backdrop-blur-xl p-4 space-y-4">
                   <div>
-                    <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                    <div className="flex justify-between text-xs text-foreground/50 mb-1.5">
                       <span>Valor inicial</span>
-                      <span className="font-bold text-white">{formatCurrency(simAporteInicial)}</span>
+                      <span className="font-bold text-foreground">{formatCurrency(simAporteInicial)}</span>
                     </div>
                     <input
                       type="range" min={0} max={simMax} step={100}
@@ -1736,9 +1736,9 @@ export function InvestorLiveView({
                     />
                   </div>
                   <div>
-                    <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                    <div className="flex justify-between text-xs text-foreground/50 mb-1.5">
                       <span>Aporte mensal</span>
-                      <span className="font-bold text-white">{formatCurrency(simAporteMensal)}</span>
+                      <span className="font-bold text-foreground">{formatCurrency(simAporteMensal)}</span>
                     </div>
                     <input
                       type="range" min={0} max={3000} step={50}
@@ -1748,9 +1748,9 @@ export function InvestorLiveView({
                     />
                   </div>
                   <div>
-                    <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                    <div className="flex justify-between text-xs text-foreground/50 mb-1.5">
                       <span>Prazo</span>
-                      <span className="font-bold text-white">{simMeses} meses</span>
+                      <span className="font-bold text-foreground">{simMeses} meses</span>
                     </div>
                     <input
                       type="range" min={1} max={120} step={1}
@@ -1760,9 +1760,9 @@ export function InvestorLiveView({
                     />
                   </div>
                   <div>
-                    <div className="flex justify-between text-xs text-white/50 mb-1.5">
+                    <div className="flex justify-between text-xs text-foreground/50 mb-1.5">
                       <span>Rendimento ao mês</span>
-                      <span className="font-bold text-white">{simTaxa.toFixed(1)}%</span>
+                      <span className="font-bold text-foreground">{simTaxa.toFixed(1)}%</span>
                     </div>
                     <input
                       type="range" min={0.1} max={2} step={0.1}
@@ -1775,14 +1775,14 @@ export function InvestorLiveView({
 
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-5 text-center">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300/70 mb-1.5">Patrimônio projetado</p>
-                  <p className="text-3xl font-black tabular-nums text-white">{formatCurrency(simFinalValue)}</p>
-                  <p className="text-xs text-white/40 mt-2">
-                    Aportado: <span className="font-semibold text-white/70">{formatCurrency(simTotalAportado)}</span>
+                  <p className="text-3xl font-black tabular-nums text-foreground">{formatCurrency(simFinalValue)}</p>
+                  <p className="text-xs text-foreground/40 mt-2">
+                    Aportado: <span className="font-semibold text-foreground/70">{formatCurrency(simTotalAportado)}</span>
                     {" · "}Rendimento: <span className="font-semibold text-emerald-400">+{formatCurrency(simTotalRendimento)}</span>
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4">
+                <div className="rounded-2xl border border-border bg-muted/[0.04] backdrop-blur-xl p-4">
                   <div className="flex items-end gap-[3px] h-28">
                     {simProjection.filter((_, i) => i % Math.ceil(simProjection.length / 24 || 1) === 0).map((p, i) => (
                       <div
@@ -1792,14 +1792,14 @@ export function InvestorLiveView({
                       />
                     ))}
                   </div>
-                  <p className="text-[10px] text-white/30 text-center mt-2">Evolução simulada ao longo de {simMeses} meses</p>
+                  <p className="text-[10px] text-foreground/30 text-center mt-2">Evolução simulada ao longo de {simMeses} meses</p>
                 </div>
               </div>
             )}
           </div>
 
           {/* Bottom tab bar */}
-          <div className="flex items-center justify-center gap-3 border-t border-white/10 bg-black/40 backdrop-blur-xl px-1 pt-2 pb-1 shrink-0">
+          <div className="flex items-center justify-center gap-3 border-t border-border bg-black/40 backdrop-blur-xl px-1 pt-2 pb-1 shrink-0">
             {[
               { id: "inicio" as const, label: "Início", icon: Home },
               { id: "investimentos" as const, label: "Investir", icon: Landmark },
@@ -1817,7 +1817,7 @@ export function InvestorLiveView({
                   setFinancePanel(null);
                 }}
                 className={`flex flex-col items-center gap-1 min-w-[58px] px-2 py-1.5 rounded-xl transition-colors ${
-                  tab === t.id ? "text-white bg-white/10" : "text-white/35"
+                  tab === t.id ? "text-foreground bg-muted/10" : "text-foreground/35"
                 }`}
               >
                 <t.icon className="h-5 w-5" />
@@ -1828,12 +1828,12 @@ export function InvestorLiveView({
 
           {/* Home indicator */}
           <div className="flex justify-center pb-2 pt-1 shrink-0 bg-black/40">
-            <div className="h-1 w-32 rounded-full bg-white/30" />
+            <div className="h-1 w-32 rounded-full bg-muted/30" />
           </div>
 
           {/* Compra/aporte via Live (overlay sobre o frame inteiro) */}
           {marketOpen && (
-            <div className="absolute inset-0 z-10 bg-[#05050a] flex flex-col">
+            <div className="absolute inset-0 z-10 bg-background flex flex-col">
               <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pt-4 pb-4">
                 <SimulatorInvestFlow
                   cash={cash}
@@ -1854,7 +1854,7 @@ export function InvestorLiveView({
 
           {/* Flash de confirmação */}
           {confirmedFlash && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-xl">
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-foreground shadow-xl">
               <Check className="h-3.5 w-3.5" />
               Compra confirmada
             </div>
@@ -1867,11 +1867,11 @@ export function InvestorLiveView({
               onClick={() => setSelectedFixedIncome(null)}
             >
               <div
-                className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 p-5 pb-6"
+                className="w-full rounded-t-3xl bg-card border-t border-border p-5 pb-6"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-center mb-4">
-                  <div className="h-1 w-10 rounded-full bg-white/20" />
+                  <div className="h-1 w-10 rounded-full bg-muted/20" />
                 </div>
 
                 <div className="flex items-start gap-3 mb-5">
@@ -1885,8 +1885,8 @@ export function InvestorLiveView({
                     }`}
                   />
                   <div className="min-w-0">
-                    <p className="text-lg font-bold text-white leading-snug">{selectedFixedIncome.nome}</p>
-                    <p className="text-xs text-white/40 mt-0.5">
+                    <p className="text-lg font-bold text-foreground leading-snug">{selectedFixedIncome.nome}</p>
+                    <p className="text-xs text-foreground/40 mt-0.5">
                       {[
                         selectedFixedIncome.isTurbo
                           ? "Turbo"
@@ -1901,9 +1901,9 @@ export function InvestorLiveView({
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 mb-3">
-                  <p className="text-[10px] text-white/40 uppercase tracking-wide">Valor investido</p>
-                  <p className="text-lg font-black tabular-nums text-white mt-0.5">{formatCurrency(selectedFixedIncome.valor)}</p>
+                <div className="rounded-xl border border-border bg-muted/[0.04] p-3 mb-3">
+                  <p className="text-[10px] text-foreground/40 uppercase tracking-wide">Valor investido</p>
+                  <p className="text-lg font-black tabular-nums text-foreground mt-0.5">{formatCurrency(selectedFixedIncome.valor)}</p>
                 </div>
 
                 {selectedFixedIncome.isTurbo && (
@@ -1911,13 +1911,13 @@ export function InvestorLiveView({
                     {selectedFixedIncome.cdiPercent != null && (
                       <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3">
                         <p className="text-[10px] text-amber-300/70 uppercase tracking-wide">% do CDI</p>
-                        <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{selectedFixedIncome.cdiPercent}%</p>
+                        <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">{selectedFixedIncome.cdiPercent}%</p>
                       </div>
                     )}
                     {selectedFixedIncome.maxRendimento != null && (
                       <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3">
                         <p className="text-[10px] text-amber-300/70 uppercase tracking-wide">Teto de rendimento</p>
-                        <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{formatCurrency(selectedFixedIncome.maxRendimento)}</p>
+                        <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">{formatCurrency(selectedFixedIncome.maxRendimento)}</p>
                       </div>
                     )}
                   </div>
@@ -1945,7 +1945,7 @@ export function InvestorLiveView({
                 </button>
                 <button
                   onClick={() => setSelectedFixedIncome(null)}
-                  className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors"
+                  className="w-full rounded-full bg-muted/10 hover:bg-muted/15 py-3 text-sm font-bold text-foreground transition-colors"
                 >
                   Fechar
                 </button>
@@ -1960,47 +1960,47 @@ export function InvestorLiveView({
               onClick={() => setSelectedTicker(null)}
             >
               <div
-                className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 p-5 pb-6"
+                className="w-full rounded-t-3xl bg-card border-t border-border p-5 pb-6"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-center mb-4">
-                  <div className="h-1 w-10 rounded-full bg-white/20" />
+                  <div className="h-1 w-10 rounded-full bg-muted/20" />
                 </div>
 
                 <div className="flex items-start gap-3 mb-5">
                   <span className="h-3 w-3 rounded-full shrink-0 mt-1.5" style={{ background: selectedHolding.asset.color }} />
                   <div className="min-w-0">
-                    <p className="text-lg font-bold text-white leading-snug">{selectedHolding.asset.ticker}</p>
-                    <p className="text-xs text-white/40 mt-0.5">
+                    <p className="text-lg font-bold text-foreground leading-snug">{selectedHolding.asset.ticker}</p>
+                    <p className="text-xs text-foreground/40 mt-0.5">
                       {selectedHolding.asset.name} · {detectAssetType(selectedHolding.asset.ticker)}
                     </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Quantidade</p>
-                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{formatQty(selectedHolding.h.quantity)}</p>
+                  <div className="rounded-xl border border-border bg-muted/[0.04] p-3">
+                    <p className="text-[10px] text-foreground/40 uppercase tracking-wide">Quantidade</p>
+                    <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">{formatQty(selectedHolding.h.quantity)}</p>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Preço médio</p>
-                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{formatCurrency(selectedHolding.h.avgPrice)}</p>
+                  <div className="rounded-xl border border-border bg-muted/[0.04] p-3">
+                    <p className="text-[10px] text-foreground/40 uppercase tracking-wide">Preço médio</p>
+                    <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">{formatCurrency(selectedHolding.h.avgPrice)}</p>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Cotação atual</p>
-                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">
+                  <div className="rounded-xl border border-border bg-muted/[0.04] p-3">
+                    <p className="text-[10px] text-foreground/40 uppercase tracking-wide">Cotação atual</p>
+                    <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">
                       {formatCurrency(selectedHolding.asset.price * (1 + selectedHolding.asset.variation))}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                    <p className="text-[10px] text-white/40 uppercase tracking-wide">Valor investido</p>
-                    <p className="text-base font-extrabold tabular-nums text-white mt-0.5">{formatCurrency(selectedHolding.cost)}</p>
+                  <div className="rounded-xl border border-border bg-muted/[0.04] p-3">
+                    <p className="text-[10px] text-foreground/40 uppercase tracking-wide">Valor investido</p>
+                    <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">{formatCurrency(selectedHolding.cost)}</p>
                   </div>
                 </div>
 
                 <div className={`rounded-xl border p-3 mb-5 ${selectedHolding.gain >= 0 ? "border-emerald-500/20 bg-emerald-500/[0.06]" : "border-red-500/20 bg-red-500/[0.06]"}`}>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wide">Valor atual · rendimento</p>
-                  <p className="text-lg font-black tabular-nums text-white mt-0.5">{formatCurrency(selectedHolding.value)}</p>
+                  <p className="text-[10px] text-foreground/40 uppercase tracking-wide">Valor atual · rendimento</p>
+                  <p className="text-lg font-black tabular-nums text-foreground mt-0.5">{formatCurrency(selectedHolding.value)}</p>
                   <p className={`text-xs font-semibold mt-1 inline-flex items-center gap-1 ${selectedHolding.gain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {selectedHolding.gain >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
                     {formatCurrency(Math.abs(selectedHolding.gain))} ({selectedHolding.gainPct >= 0 ? "+" : ""}{selectedHolding.gainPct.toFixed(1)}%)
@@ -2024,7 +2024,7 @@ export function InvestorLiveView({
                 </button>
                 <button
                   onClick={() => setSelectedTicker(null)}
-                  className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors"
+                  className="w-full rounded-full bg-muted/10 hover:bg-muted/15 py-3 text-sm font-bold text-foreground transition-colors"
                 >
                   Fechar
                 </button>
@@ -2039,26 +2039,26 @@ export function InvestorLiveView({
               onClick={() => !sellSubmitting && setSellTicker(null)}
             >
               <div
-                className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 p-5 pb-6"
+                className="w-full rounded-t-3xl bg-card border-t border-border p-5 pb-6"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-center mb-4">
-                  <div className="h-1 w-10 rounded-full bg-white/20" />
+                  <div className="h-1 w-10 rounded-full bg-muted/20" />
                 </div>
 
                 <div className="flex items-start gap-3 mb-5">
                   <span className="h-3 w-3 rounded-full shrink-0 mt-1.5" style={{ background: sellHolding.asset.color }} />
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-300/70">Vender</p>
-                    <p className="text-lg font-bold text-white leading-snug">{sellHolding.asset.ticker}</p>
-                    <p className="text-xs text-white/40 mt-0.5">
+                    <p className="text-lg font-bold text-foreground leading-snug">{sellHolding.asset.ticker}</p>
+                    <p className="text-xs text-foreground/40 mt-0.5">
                       Você tem {formatQty(sellHolding.h.quantity)} un. · cotação atual {formatCurrency(sellHolding.price)}
                     </p>
                   </div>
                 </div>
 
                 <label className="block mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Quantidade a vender</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/40">Quantidade a vender</span>
                   <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/[0.06] px-3.5 py-3.5">
                     <input
                       autoFocus
@@ -2067,12 +2067,12 @@ export function InvestorLiveView({
                       value={sellQtyMask}
                       onChange={(e) => onSellQtyChange(e.target.value)}
                       placeholder="0"
-                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-white placeholder:text-white/25 focus:outline-none"
+                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-foreground placeholder:text-foreground/25 focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={setSellAll}
-                      className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
+                      className="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-muted/10"
                     >
                       Tudo
                     </button>
@@ -2082,7 +2082,7 @@ export function InvestorLiveView({
                 {sellQty > 0 && (
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] px-3.5 py-3 mb-4 flex items-center justify-between">
                     <span className="text-[11px] text-emerald-300/80">Você recebe no saldo</span>
-                    <span className="text-base font-black tabular-nums text-white">{formatCurrency(sellProceeds)}</span>
+                    <span className="text-base font-black tabular-nums text-foreground">{formatCurrency(sellProceeds)}</span>
                   </div>
                 )}
 
@@ -2095,7 +2095,7 @@ export function InvestorLiveView({
                   type="button"
                   disabled={!canConfirmSell}
                   onClick={confirmSell}
-                  className="w-full rounded-full bg-gradient-to-r from-red-600 to-orange-500 py-3.5 text-sm font-bold text-white disabled:opacity-35 disabled:cursor-not-allowed transition-opacity mb-2"
+                  className="w-full rounded-full bg-gradient-to-r from-red-600 to-orange-500 py-3.5 text-sm font-bold text-foreground disabled:opacity-35 disabled:cursor-not-allowed transition-opacity mb-2"
                 >
                   {sellSubmitting ? "Processando…" : "Confirmar venda"}
                 </button>
@@ -2103,7 +2103,7 @@ export function InvestorLiveView({
                   type="button"
                   disabled={sellSubmitting}
                   onClick={() => setSellTicker(null)}
-                  className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors disabled:opacity-50"
+                  className="w-full rounded-full bg-muted/10 hover:bg-muted/15 py-3 text-sm font-bold text-foreground transition-colors disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -2118,44 +2118,44 @@ export function InvestorLiveView({
               onClick={() => !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
             >
               <div
-                className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 p-5 pb-6 max-h-[85%] overflow-y-auto scrollbar-thin-dark"
+                className="w-full rounded-t-3xl bg-card border-t border-border p-5 pb-6 max-h-[85%] overflow-y-auto scrollbar-thin-dark"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-center mb-4">
-                  <div className="h-1 w-10 rounded-full bg-white/20" />
+                  <div className="h-1 w-10 rounded-full bg-muted/20" />
                 </div>
 
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/70 mb-1">
                   Nova caixinha
                 </p>
-                <p className="text-lg font-bold text-white leading-snug mb-4">
+                <p className="text-lg font-bold text-foreground leading-snug mb-4">
                   Criar conta de investimento
                 </p>
 
                 <label className="block mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Nome</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/40">Nome</span>
                   <input
                     autoFocus
                     type="text"
                     value={newCaixinhaName}
                     onChange={(e) => setNewCaixinhaName(e.target.value)}
                     placeholder="Ex: CDB Banco Inter"
-                    className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/[0.04] px-3.5 py-3.5 text-base font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-500/40"
+                    className="mt-1.5 w-full rounded-xl border border-border bg-muted/[0.04] px-3.5 py-3.5 text-base font-bold text-foreground placeholder:text-foreground/25 focus:outline-none focus:border-emerald-500/40"
                   />
                 </label>
 
                 <label className="block mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Instituição (opcional)</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/40">Instituição (opcional)</span>
                   <input
                     type="text"
                     value={newCaixinhaInstituicao}
                     onChange={(e) => setNewCaixinhaInstituicao(e.target.value)}
                     placeholder="Ex: Banco Inter"
-                    className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/[0.04] px-3.5 py-3.5 text-sm font-semibold text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-500/40"
+                    className="mt-1.5 w-full rounded-xl border border-border bg-muted/[0.04] px-3.5 py-3.5 text-sm font-semibold text-foreground placeholder:text-foreground/25 focus:outline-none focus:border-emerald-500/40"
                   />
                 </label>
 
-                <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Tipo de caixinha</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-foreground/40 mb-2">Tipo de caixinha</p>
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   {(
                     [
@@ -2166,9 +2166,9 @@ export function InvestorLiveView({
                   ).map((opt) => {
                     const active = newCaixinhaTipo === opt.id;
                     const toneClasses = {
-                      amber: active ? "border-amber-500/50 bg-amber-500/15 text-amber-300" : "border-white/10 bg-white/[0.03] text-white/50",
-                      blue: active ? "border-blue-500/50 bg-blue-500/15 text-blue-300" : "border-white/10 bg-white/[0.03] text-white/50",
-                      emerald: active ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300" : "border-white/10 bg-white/[0.03] text-white/50",
+                      amber: active ? "border-amber-500/50 bg-amber-500/15 text-amber-300" : "border-border bg-muted/[0.03] text-foreground/50",
+                      blue: active ? "border-blue-500/50 bg-blue-500/15 text-blue-300" : "border-border bg-muted/[0.03] text-foreground/50",
+                      emerald: active ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300" : "border-border bg-muted/[0.03] text-foreground/50",
                     }[opt.tone];
                     return (
                       <button
@@ -2187,9 +2187,9 @@ export function InvestorLiveView({
                 {newCaixinhaTipo === "emergencia" &&
                   newCaixinhaName.trim() &&
                   !isEmergencyAccountName(newCaixinhaName.trim()) && (
-                    <p className="text-[11px] text-white/40 mb-4">
+                    <p className="text-[11px] text-foreground/40 mb-4">
                       Vai ser salva como{" "}
-                      <span className="font-semibold text-white/70">
+                      <span className="font-semibold text-foreground/70">
                         &quot;{newCaixinhaName.trim()} (Emergência)&quot;
                       </span>{" "}
                       para entrar certinho na caixinha EME.
@@ -2199,7 +2199,7 @@ export function InvestorLiveView({
                 {newCaixinhaTipo === "turbo" && (
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <label className="block">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">% do CDI</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/40">% do CDI</span>
                       <div className="mt-1.5 flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-3.5 py-3.5">
                         <input
                           type="text"
@@ -2207,22 +2207,22 @@ export function InvestorLiveView({
                           value={newCaixinhaCdiMask}
                           onChange={(e) => setNewCaixinhaCdiMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
                           placeholder="0,00"
-                          className="flex-1 min-w-0 bg-transparent text-base font-black tabular-nums text-white placeholder:text-white/25 focus:outline-none"
+                          className="flex-1 min-w-0 bg-transparent text-base font-black tabular-nums text-foreground placeholder:text-foreground/25 focus:outline-none"
                         />
-                        <span className="text-xs font-semibold text-white/40 shrink-0">%</span>
+                        <span className="text-xs font-semibold text-foreground/40 shrink-0">%</span>
                       </div>
                     </label>
                     <label className="block">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Teto rendimento</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/40">Teto rendimento</span>
                       <div className="mt-1.5 flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-3.5 py-3.5">
-                        <span className="text-xs font-semibold text-white/40 shrink-0">R$</span>
+                        <span className="text-xs font-semibold text-foreground/40 shrink-0">R$</span>
                         <input
                           type="text"
                           inputMode="decimal"
                           value={newCaixinhaTetoMask}
                           onChange={(e) => setNewCaixinhaTetoMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
                           placeholder="0,00"
-                          className="flex-1 min-w-0 bg-transparent text-base font-black tabular-nums text-white placeholder:text-white/25 focus:outline-none"
+                          className="flex-1 min-w-0 bg-transparent text-base font-black tabular-nums text-foreground placeholder:text-foreground/25 focus:outline-none"
                         />
                       </div>
                     </label>
@@ -2237,7 +2237,7 @@ export function InvestorLiveView({
                   type="button"
                   disabled={!newCaixinhaName.trim() || newCaixinhaSubmitting}
                   onClick={confirmNewCaixinha}
-                  className="w-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 py-3.5 text-sm font-bold text-white disabled:opacity-35 disabled:cursor-not-allowed transition-opacity mb-2"
+                  className="w-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 py-3.5 text-sm font-bold text-foreground disabled:opacity-35 disabled:cursor-not-allowed transition-opacity mb-2"
                 >
                   {newCaixinhaSubmitting ? "Criando…" : "Criar caixinha"}
                 </button>
@@ -2245,7 +2245,7 @@ export function InvestorLiveView({
                   type="button"
                   disabled={newCaixinhaSubmitting}
                   onClick={() => setNewCaixinhaOpen(false)}
-                  className="w-full rounded-full bg-white/10 hover:bg-white/15 py-3 text-sm font-bold text-white transition-colors disabled:opacity-50"
+                  className="w-full rounded-full bg-muted/10 hover:bg-muted/15 py-3 text-sm font-bold text-foreground transition-colors disabled:opacity-50"
                 >
                   Cancelar
                 </button>
