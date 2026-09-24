@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-24T00:00:00Z",
+  "title": "Design System: MUVO",
+  "extensions": {
+    "colorMeta": {
+      "bg-light": {
+        "role": "neutral",
+        "displayName": "Off-White Quente",
+        "canonical": "oklch(95% 0.008 75)",
+        "tonalRamp": ["oklch(15% 0.008 75)", "oklch(25% 0.008 75)", "oklch(38% 0.008 75)", "oklch(52% 0.008 75)", "oklch(65% 0.008 75)", "oklch(78% 0.008 75)", "oklch(88% 0.008 75)", "oklch(95% 0.008 75)"]
+      },
+      "bg-dark": {
+        "role": "neutral",
+        "displayName": "Grafite Profundo",
+        "canonical": "oklch(5% 0 0)",
+        "tonalRamp": ["oklch(5% 0 0)", "oklch(10% 0 0)", "oklch(18% 0 0)", "oklch(30% 0 0)", "oklch(45% 0 0)", "oklch(60% 0 0)", "oklch(75% 0 0)", "oklch(90% 0 0)"]
+      },
+      "fg-dark": {
+        "role": "neutral",
+        "displayName": "Off-White Display",
+        "canonical": "oklch(96% 0 0)",
+        "tonalRamp": ["oklch(8% 0 0)", "oklch(18% 0 0)", "oklch(32% 0 0)", "oklch(48% 0 0)", "oklch(62% 0 0)", "oklch(75% 0 0)", "oklch(86% 0 0)", "oklch(96% 0 0)"]
+      },
+      "bot-surface": {
+        "role": "neutral",
+        "displayName": "Abissal",
+        "canonical": "oklch(2% 0.005 275)",
+        "tonalRamp": ["oklch(2% 0.005 275)", "oklch(7% 0.005 275)", "oklch(14% 0.004 275)", "oklch(24% 0.003 275)", "oklch(38% 0.002 275)", "oklch(54% 0.002 275)", "oklch(70% 0.001 275)", "oklch(88% 0 0)"]
+      },
+      "state-positive": {
+        "role": "tertiary",
+        "displayName": "Emerald Diagnóstico",
+        "canonical": "oklch(62% 0.17 155)",
+        "tonalRamp": ["oklch(18% 0.17 155)", "oklch(28% 0.17 155)", "oklch(40% 0.17 155)", "oklch(52% 0.17 155)", "oklch(62% 0.17 155)", "oklch(72% 0.14 155)", "oklch(83% 0.09 155)", "oklch(93% 0.04 155)"]
+      },
+      "state-warning": {
+        "role": "secondary",
+        "displayName": "Amber Atenção",
+        "canonical": "oklch(84% 0.16 85)",
+        "tonalRamp": ["oklch(22% 0.16 85)", "oklch(35% 0.16 85)", "oklch(48% 0.16 85)", "oklch(60% 0.16 85)", "oklch(72% 0.16 85)", "oklch(80% 0.16 85)", "oklch(84% 0.16 85)", "oklch(93% 0.07 85)"]
+      },
+      "state-negative": {
+        "role": "secondary",
+        "displayName": "Red-Pink Crítico",
+        "canonical": "oklch(55% 0.21 15)",
+        "tonalRamp": ["oklch(18% 0.21 15)", "oklch(28% 0.21 15)", "oklch(40% 0.21 15)", "oklch(50% 0.21 15)", "oklch(55% 0.21 15)", "oklch(65% 0.17 15)", "oklch(76% 0.11 15)", "oklch(88% 0.05 15)"]
+      },
+      "state-score": {
+        "role": "tertiary",
+        "displayName": "Violet Score",
+        "canonical": "oklch(52% 0.22 295)",
+        "tonalRamp": ["oklch(16% 0.22 295)", "oklch(26% 0.22 295)", "oklch(36% 0.22 295)", "oklch(46% 0.22 295)", "oklch(52% 0.22 295)", "oklch(62% 0.18 295)", "oklch(74% 0.12 295)", "oklch(88% 0.06 295)"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display — Funnel Display",
+        "purpose": "Valores monetários em destaque, títulos de página, heroes de seção. Sempre com font-black (weight 800) em números financeiros."
+      },
+      "headline": {
+        "displayName": "Headline — DM Sans Bold",
+        "purpose": "Cabeçalhos de seção, títulos de card, headings de modal."
+      },
+      "title": {
+        "displayName": "Title — DM Sans SemiBold",
+        "purpose": "Subsection labels, primários de list item, headers de coluna em tabelas."
+      },
+      "body": {
+        "displayName": "Body — DM Sans Regular",
+        "purpose": "Texto narrativo, descrições, mensagens de erro. Máx 65–75ch em blocos de leitura."
+      },
+      "label": {
+        "displayName": "Label — DM Sans Black Uppercase",
+        "purpose": "Kickers de categoria, badges de modo (MUVO · BOT), indicadores de estado. tracking-[0.18–0.22em]. Nunca acima de um heading."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card-lift",
+        "value": "0 1px 2px rgba(0,0,0,0.05)",
+        "purpose": "Separação mínima de card sobre background no tema claro. Ausente no escuro."
+      },
+      {
+        "name": "ambient-mesh-lg",
+        "value": "radial at top-left: bg-white/[0.04] blur-[140px] 500px; radial at mid-right: bg-white/[0.03] blur-[130px] 400px; radial at bottom-center: bg-white/[0.02] blur-[130px] 350px",
+        "purpose": "Textura atmosférica da superfície MUVO BOT. Posicionados como absolute dentro do container; não substituem separação tonal."
+      },
+      {
+        "name": "sticky-header-blur",
+        "value": "backdrop-filter: blur(24px)",
+        "purpose": "Headers sticky sobre conteúdo scrollável. Legibilidade funcional — não decoração."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Easing padrão para transições de estado (hover, active, focus). 100–150ms."
+      },
+      {
+        "name": "ease-sidebar",
+        "value": "cubic-bezier(0.4, 0, 0.6, 1)",
+        "purpose": "Sidebar collapse/expand: transition-[width,transform] duration-150."
+      },
+      {
+        "name": "ease-progress",
+        "value": "ease (CSS default)",
+        "purpose": "Barras de progresso e stroke-dashoffset em rings de score: 700ms–1s."
+      },
+      {
+        "name": "ping-dot",
+        "value": "animate-ping (Tailwind built-in)",
+        "purpose": "Dot pulsante do MUVO Signal Chip. Indica estado ativo em tempo real."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "CTA principal. Near-black sobre near-white (claro) / near-white sobre near-black (escuro).",
+      "html": "<button class=\"ds-btn-primary\">Confirmar</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 16px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); font-family: 'DM Sans', ui-sans-serif, sans-serif; font-size: 0.875rem; font-weight: 500; letter-spacing: 0; border: none; border-radius: 8px; cursor: pointer; transition: background 100ms cubic-bezier(0.4,0,0.2,1), opacity 100ms; } .ds-btn-primary:hover { opacity: 0.9; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring)); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Ação secundária. Sem fill em repouso; borda sutil; hover revela background de accent.",
+      "html": "<button class=\"ds-btn-outline\">Cancelar</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 16px; background: transparent; color: hsl(var(--foreground)); font-family: 'DM Sans', ui-sans-serif, sans-serif; font-size: 0.875rem; font-weight: 500; border: 1px solid hsl(var(--input)); border-radius: 8px; cursor: pointer; transition: background 100ms, color 100ms; } .ds-btn-outline:hover { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring)); } .ds-btn-outline:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Pill Button (dark surface)",
+      "kind": "button",
+      "refersTo": "button-pill-dark",
+      "description": "Ação contextual rápida sobre superfícies escuras (MUVO BOT, MUVO LIVE). rounded-full, borda translúcida.",
+      "html": "<button class=\"ds-btn-pill\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83\"/></svg>Live</button>",
+      "css": ".ds-btn-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.70); font-family: 'DM Sans', ui-sans-serif, sans-serif; font-size: 0.75rem; font-weight: 500; border: 1px solid rgba(255,255,255,0.15); border-radius: 9999px; cursor: pointer; transition: background 100ms, color 100ms; } .ds-btn-pill:hover { background: rgba(255,255,255,0.10); color: rgba(255,255,255,1); } .ds-btn-pill:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(255,255,255,0.05), 0 0 0 4px rgba(255,255,255,0.25); }"
+    },
+    {
+      "name": "Card (default)",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "Container padrão de conteúdo. Tonal acima do background; shadow-sm no claro; border no escuro.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-title\">Patrimônio Total</p><p class=\"ds-card-value\">R$ 7.923,19</p></div>",
+      "css": ".ds-card { background: hsl(var(--card)); color: hsl(var(--card-foreground)); border: 1px solid hsl(var(--border)); border-radius: 10px; padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); } .ds-card-title { font-family: 'DM Sans', ui-sans-serif, sans-serif; font-size: 0.625rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: hsl(var(--muted-foreground)); margin: 0 0 8px; } .ds-card-value { font-family: 'Funnel Display', ui-sans-serif, sans-serif; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; color: hsl(var(--card-foreground)); margin: 0; }"
+    },
+    {
+      "name": "Card (dark surface)",
+      "kind": "card",
+      "description": "Card sobre superfície escura (MUVO BOT, MUVO LIVE). Borda translúcida, background quase invisível.",
+      "html": "<div class=\"ds-card-dark\"><p class=\"ds-card-dark-label\">TURBO</p><p class=\"ds-card-dark-name\">Minha Reserva</p><p class=\"ds-card-dark-value\">R$ 5.110,96</p></div>",
+      "css": ".ds-card-dark { background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.9); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; transition: background 150ms, border-color 150ms; } .ds-card-dark:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); } .ds-card-dark-label { font-family: 'DM Sans', ui-sans-serif, sans-serif; font-size: 0.625rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.35); margin: 0 0 12px; display: flex; align-items: center; gap: 6px; } .ds-card-dark-label::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.40); } .ds-card-dark-name { font-family: 'DM Sans', ui-sans-serif, sans-serif; font-size: 0.875rem; font-weight: 600; color: rgba(255,255,255,0.90); margin: 0 0 4px; } .ds-card-dark-value { font-family: 'Funnel Display', ui-sans-serif, sans-serif; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; color: rgba(255,255,255,1); margin: 0; }"
+    },
+    {
+      "name": "Input (default)",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Campo de texto padrão. Clean e sem ornamento; focus ring adota o primary do tema.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Nome da conta...\">",
+      "css": ".ds-input { display: flex; height: 44px; width: 100%; padding: 0 12px; background: hsl(var(--background)); color: hsl(var(--foreground)); font-family: 'DM Sans', ui-sans-serif, sans-serif; font-size: 0.875rem; font-weight: 400; border: 1px solid hsl(var(--input)); border-radius: 8px; outline: none; transition: box-shadow 100ms, border-color 100ms; } .ds-input::placeholder { color: hsl(var(--muted-foreground)); } .ds-input:focus { box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring)); border-color: hsl(var(--ring)); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "description": "Item de navegação da sidebar. Sempre sobre fundo escuro; active com tonal highlight, nunca borda colorida.",
+      "html": "<a href=\"#\" class=\"ds-nav-item ds-nav-item--active\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2\" y=\"3\" width=\"6\" height=\"18\" rx=\"1\"/><rect x=\"10\" y=\"3\" width=\"12\" height=\"11\" rx=\"1\"/><rect x=\"10\" y=\"16\" width=\"12\" height=\"5\" rx=\"1\"/></svg><span>Investimentos</span></a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 12px; font-family: 'DM Sans', ui-sans-serif, sans-serif; font-size: 0.8125rem; font-weight: 500; color: rgba(235,235,235,0.65); text-decoration: none; transition: background 100ms, color 100ms; } .ds-nav-item:hover { background: rgba(255,255,255,0.08); color: rgba(235,235,235,1); } .ds-nav-item--active { background: rgba(255,255,255,0.15); color: rgba(235,235,235,1); }"
+    },
+    {
+      "name": "MUVO Signal Chip",
+      "kind": "custom",
+      "description": "Chip de estado em tempo real. Dot pulsante + label uppercase tracking. Indica modo ativo (MUVO BOT, MUVO LIVE). Não é clicável — é indicador funcional.",
+      "html": "<div class=\"ds-signal-chip\"><span class=\"ds-signal-chip__dot-wrap\"><span class=\"ds-signal-chip__dot-ping\"></span><span class=\"ds-signal-chip__dot-solid\"></span></span><span class=\"ds-signal-chip__label\">MUVO · BOT</span></div>",
+      "css": ".ds-signal-chip { display: inline-flex; align-items: center; gap: 8px; } .ds-signal-chip__dot-wrap { position: relative; display: inline-flex; width: 8px; height: 8px; } .ds-signal-chip__dot-ping { position: absolute; inset: 0; border-radius: 50%; background: #34d399; opacity: 0.6; animation: ds-ping 1s cubic-bezier(0,0,0.2,1) infinite; } @keyframes ds-ping { 75%, 100% { transform: scale(2); opacity: 0; } } .ds-signal-chip__dot-solid { position: relative; display: inline-flex; width: 8px; height: 8px; border-radius: 50%; background: #34d399; } .ds-signal-chip__label { font-family: 'DM Sans', ui-sans-serif, sans-serif; font-size: 0.6875rem; font-weight: 900; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,255,255,0.55); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "O Analista Noturno",
+    "overview": "MUVO é a interface que um analista financeiro construiria para si mesmo: densa o suficiente para nunca esconder dados, silenciosa o suficiente para não competir com eles. O sistema visual é construído sobre um único eixo — escuro profundo contra off-white quente — sem cor de marca vibrante, sem gradiente decorativo, sem ornamento que não sirva informação. A identidade é o vazio controlado; o que faz o MUVO ser o MUVO é o que ele recusa, não o que ele acrescenta.\n\nEm modo claro, o MUVO respira como papel de qualidade: #F3F0EF, um off-white com temperatura levemente quente que recusa o branco clínico dos apps bancários. Em modo escuro — o estado primário das superfícies de análise — o fundo é #0D0D0D, grafite tão denso que os números em branco flutuam sem ancoragem visível. A sidebar permanece sempre escura independentemente do tema ativo, criando um frame de ancoragem constante. A superfície MUVO BOT aprofunda ainda mais: #05050A, quase primordial.\n\nA cor nunca é identidade. Onde cor aparece — emerald para positivo, amber para atenção, vermelho para crítico — é linguagem diagnóstica funcional, não estética. A tipografia faz o trabalho expressivo: Funnel Display em peso 800 para hierarquias que precisam de presença editorial; DM Sans para leitura densa e eficiente.",
+    "keyCharacteristics": [
+      "Monochrome absoluto como identidade; cor apenas como código semântico de diagnóstico",
+      "Sidebar sempre escura — frame constante independente do tema claro/escuro",
+      "Superfície MUVO BOT: camada mais profunda (#05050A), separada do token system principal",
+      "Densidade informacional alta; componentes compactos e sem padding decorativo",
+      "Radius consistente e moderado (10px base); pill apenas em ações contextuais em superfícies escuras",
+      "Tipografia e tracking trabalham como sistema expressivo — Funnel Display como voz de display"
+    ],
+    "rules": [
+      { "name": "The No-Brand-Color Rule", "body": "MUVO não tem cor primária vibrante. --primary resolve para o extremo oposto do background em cada tema. Qualquer outra cor é semântica e reflete o estado dos dados.", "section": "colors" },
+      { "name": "The Diagnostic-Only Rule", "body": "Emerald, amber, red-pink e violet existem apenas quando carregam informação semântica (positivo/negativo/atenção/score). Nunca para diferenciar seções, categorias de UI, ou elementos decorativos.", "section": "colors" },
+      { "name": "The Display-on-Numbers Rule", "body": "Valores monetários em destaque sempre recebem font-display font-black (Funnel Display 800). É a assinatura tipográfica do MUVO.", "section": "typography" },
+      { "name": "The Tracking Doctrine", "body": "Labels em caps usam tracking entre 0.18em e 0.22em com weight 700–800. Tracking e peso fazem o trabalho da cor. Body e display nunca recebem tracking positivo.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Sombras aparecem somente como shadow-sm em cards do tema claro. Escuro usa profundidade tonal pura: nenhuma sombra, nenhum glow.", "section": "elevation" },
+      { "name": "The Pill Exception Rule", "body": "rounded-full é exclusivo de ações rápidas contextuais em superfícies escuras. Nunca em CTAs primários de formulários ou botões de submit.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do usar font-display font-black (Funnel Display 800) em qualquer valor monetário em destaque.",
+      "Do usar rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl em cards sobre superfícies escuras.",
+      "Do reservar emerald, amber e red-pink para diagnóstico e estado financeiro exclusivamente.",
+      "Do manter a sidebar sempre com bg-sidebar (near-black) independente do tema.",
+      "Do usar sticky top-0 backdrop-blur-xl bg-[surface]/85 border-b para headers que precisam persistir durante scroll.",
+      "Do usar tracking-[0.18–0.22em] com font-black uppercase em labels de categoria e badges de modo."
+    ],
+    "donts": [
+      "Don't usar gradientes coloridos decorativos (qualquer hue→hue transition). Gradientes apenas como transparência neutra para mesh atmosférico.",
+      "Don't usar backdrop-blur como glass morphism com borda colorida luminosa. Blur só quando serve legibilidade real.",
+      "Don't introduzir cor como identidade de marca — nenhum verde/azul/roxo MUVO. Identidade é o contraste extremo bg/fg.",
+      "Don't usar border-left ou border-right colorida em cards, alerts ou list items.",
+      "Don't usar emoji ou unicode decorativo como sistema de ícones. Usar Lucide React.",
+      "Don't colocar kicker/eyebrow acima de headings. Metadata vai abaixo ou inline, nunca acima."
+    ]
+  }
+}
