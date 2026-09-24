@@ -526,9 +526,9 @@ export function InvestorLiveViewDesktop({
     <div className="flex flex-col h-full bg-[#05050a] text-white relative overflow-hidden select-none">
       {/* Ambient mesh */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-violet-600/12 blur-[140px]" />
-        <div className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full bg-blue-500/8 blur-[130px]" />
-        <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] rounded-full bg-emerald-500/8 blur-[130px]" />
+        <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-white/[0.04] blur-[140px]" />
+        <div className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full bg-white/[0.03] blur-[130px]" />
+        <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] rounded-full bg-white/[0.02] blur-[130px]" />
       </div>
 
       {/* ── Header ────────────────────────────────────────────────── */}
@@ -565,7 +565,7 @@ export function InvestorLiveViewDesktop({
           {/* Comprar button */}
           <button
             onClick={() => { setMarketSection("hub"); setMarketOpen(true); }}
-            className="flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500/50 text-xs font-semibold transition-all"
+            className="flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-white/[0.06] border border-white/15 text-white/70 hover:bg-white/10 hover:text-white text-xs font-semibold transition-all"
           >
             <Plus className="h-3.5 w-3.5" />
             Comprar / Aportar
@@ -597,7 +597,7 @@ export function InvestorLiveViewDesktop({
           <div key={i} className="px-7 py-4">
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/30 mb-1">{kpi.label}</p>
             <p
-              className={`text-xl font-bold tabular-nums ${
+              className={`text-xl font-bold font-display tabular-nums ${
                 kpi.accent
                   ? "positive" in kpi
                     ? kpi.positive
@@ -670,11 +670,11 @@ export function InvestorLiveViewDesktop({
 
               <div className="mt-6 pt-5 border-t border-white/[0.07]">
                 <SectionHeading>Saldo disponível</SectionHeading>
-                <p className="text-2xl font-bold text-emerald-400 tabular-nums">{formatCurrency(cashBalance)}</p>
+                <p className="text-2xl font-bold font-display text-white tabular-nums">{formatCurrency(cashBalance)}</p>
                 <p className="text-xs text-white/30 mt-0.5">Para novos aportes</p>
                 <button
                   onClick={() => { setMarketSection("hub"); setMarketOpen(true); }}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all"
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white/[0.05] border border-white/12 text-white/60 text-xs font-semibold hover:bg-white/10 hover:text-white/80 transition-all"
                 >
                   <ShoppingCart className="h-3.5 w-3.5" />
                   Investir agora
@@ -784,10 +784,10 @@ export function InvestorLiveViewDesktop({
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>TURBO</SectionHeading>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-amber-400/70 tabular-nums">{formatCurrency(turboTotal)}</span>
+                  <span className="text-[11px] font-bold text-white/40 tabular-nums">{formatCurrency(turboTotal)}</span>
                   <button
                     onClick={() => { setMarketSection("turbo"); setMarketOpen(true); }}
-                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold hover:bg-amber-500/20 transition-all"
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-white/5 border border-white/10 text-white/40 text-[10px] font-bold hover:bg-white/10 hover:text-white/70 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Aportar
                   </button>
@@ -841,10 +841,10 @@ export function InvestorLiveViewDesktop({
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>Emergência</SectionHeading>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-blue-400/70 tabular-nums">{formatCurrency(emergenciaTotal)}</span>
+                  <span className="text-[11px] font-bold text-white/40 tabular-nums">{formatCurrency(emergenciaTotal)}</span>
                   <button
                     onClick={() => { setMarketSection("eme"); setMarketOpen(true); }}
-                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold hover:bg-blue-500/20 transition-all"
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-white/5 border border-white/10 text-white/40 text-[10px] font-bold hover:bg-white/10 hover:text-white/70 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Aportar
                   </button>
@@ -886,12 +886,12 @@ export function InvestorLiveViewDesktop({
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>Renda Fixa & Bolsa</SectionHeading>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-emerald-400/70 tabular-nums">
+                  <span className="text-[11px] font-bold text-white/40 tabular-nums">
                     {formatCurrency(investimentosTotal + investedValue)}
                   </span>
                   <button
                     onClick={() => { setMarketSection("tesouro"); setMarketOpen(true); }}
-                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold hover:bg-emerald-500/20 transition-all"
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-white/5 border border-white/10 text-white/40 text-[10px] font-bold hover:bg-white/10 hover:text-white/70 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Investir
                   </button>
@@ -911,7 +911,7 @@ export function InvestorLiveViewDesktop({
                         <p className="text-sm font-semibold text-white/90 truncate">{acc.nome}</p>
                         <p className="text-[11px] text-white/35 mt-0.5">{acc.instituicao}</p>
                       </div>
-                      <p className="text-sm font-bold tabular-nums text-emerald-400 shrink-0">{formatCurrency(acc.valor)}</p>
+                      <p className="text-sm font-bold tabular-nums text-white/80 shrink-0">{formatCurrency(acc.valor)}</p>
                     </div>
                     <button
                       onClick={() => openWithdraw(acc)}
@@ -924,7 +924,7 @@ export function InvestorLiveViewDesktop({
 
                 {holdingRows.length > 0 && (
                   <>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-violet-400/50 pt-3 pb-1">Bolsa</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30 pt-3 pb-1">Bolsa</p>
                     {holdingRows.map((h) => (
                       <Card key={h.ticker}>
                         <div className="flex items-center justify-between">
@@ -934,7 +934,7 @@ export function InvestorLiveViewDesktop({
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <p className="text-sm font-bold tabular-nums text-violet-400">{formatCurrency(h.value)}</p>
+                              <p className="text-sm font-bold tabular-nums text-white/80">{formatCurrency(h.value)}</p>
                               <PctBadge pct={h.gainPct} />
                             </div>
                             <button
@@ -1055,8 +1055,8 @@ export function InvestorLiveViewDesktop({
                           style={{
                             height: `${h}%`,
                             background: isLast
-                              ? "linear-gradient(to top, #10b981, #34d399)"
-                              : "rgba(16,185,129,0.35)",
+                              ? "rgba(255,255,255,0.60)"
+                              : "rgba(255,255,255,0.18)",
                           }}
                         >
                           <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:block z-10 pointer-events-none">
@@ -1181,7 +1181,7 @@ export function InvestorLiveViewDesktop({
               {sellQty > 0 && sellQty <= sellHolding.quantity + 0.0001 && (
                 <p className="text-xs text-white/40 mt-2">
                   Você receberá{" "}
-                  <span className="font-semibold text-emerald-400">{formatCurrency(sellProceeds)}</span>
+                  <span className="font-semibold text-white/80">{formatCurrency(sellProceeds)}</span>
                 </p>
               )}
               {sellQty > sellHolding.quantity + 0.0001 && (
@@ -1313,11 +1313,7 @@ export function InvestorLiveViewDesktop({
                     onClick={() => setNewCaixinhaTipo(t)}
                     className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
                       active
-                        ? t === "turbo"
-                          ? "bg-amber-500/20 border-amber-500/40 text-amber-400"
-                          : t === "emergencia"
-                          ? "bg-blue-500/20 border-blue-500/40 text-blue-400"
-                          : "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
+                        ? "bg-white/15 border-white/30 text-white"
                         : "bg-white/[0.04] border-white/10 text-white/35 hover:text-white/60"
                     }`}
                   >
@@ -1403,7 +1399,7 @@ export function InvestorLiveViewDesktop({
 
       {/* ── Flash confirmação ─────────────────────────────────────── */}
       {confirmedFlash && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white shadow-xl shadow-emerald-500/30 pointer-events-none">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black shadow-xl shadow-black/30 pointer-events-none">
           <Check className="h-4 w-4" />
           Operação confirmada
         </div>
