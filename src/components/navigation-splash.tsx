@@ -1,31 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+
+const MIN_MS = 700; // garante que a animação seja visível antes de sumir
 
 export function NavigationSplash() {
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
+  const hideAt = useRef<number>(0);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Detecta CLIQUE em links internos → mostra imediatamente (antes de navegar)
+  // Clique em link interno → mostra imediatamente, agenda tempo mínimo
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       const anchor = (e.target as Element).closest("a[href]");
       if (!anchor) return;
       const href = anchor.getAttribute("href") ?? "";
-      // ignora âncoras, links externos e links do mesmo pathname
       if (!href || href.startsWith("#") || href.startsWith("http") || href.startsWith("mailto")) return;
       if (href === pathname) return;
+
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      hideAt.current = Date.now() + MIN_MS;
       setVisible(true);
     }
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
   }, [pathname]);
 
-  // Quando a nova rota estiver pronta → esconde
+  // Pathname mudou → espera o tempo mínimo restante antes de sumir
   useEffect(() => {
-    setVisible(false);
-  }, [pathname]);
+    if (!visible) return;
+    const remaining = Math.max(0, hideAt.current - Date.now());
+    hideTimer.current = setTimeout(() => setVisible(false), remaining);
+    return () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!visible) return null;
 
@@ -38,7 +49,10 @@ export function NavigationSplash() {
         className="w-32 h-32 object-contain dark:invert"
       />
       <div className="h-[2px] w-40 rounded-full bg-border overflow-hidden">
-        <div className="h-full rounded-full bg-amber-400 animate-[loading-bar_0.8s_ease-in-out_infinite]" />
+        <div
+          className="h-full rounded-full bg-amber-400"
+          style={{ animation: `loading-bar ${MIN_MS}ms ease-in-out forwards` }}
+        />
       </div>
     </div>
   );
