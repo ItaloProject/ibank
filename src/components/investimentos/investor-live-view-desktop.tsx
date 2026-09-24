@@ -488,11 +488,11 @@ export function InvestorLiveViewDesktop({
   const allocation = useMemo(() => {
     const base = patrimonioTotal || 1;
     return [
-      { label: "TURBO", value: turboTotal, color: "#e8e8e8", pct: (turboTotal / base) * 100 },
-      { label: "Emergência", value: emergenciaTotal, color: "#a0a0a0", pct: (emergenciaTotal / base) * 100 },
-      { label: "Renda Fixa", value: investimentosTotal, color: "#6c6c6c", pct: (investimentosTotal / base) * 100 },
-      { label: "Bolsa", value: investedValue, color: "#404040", pct: (investedValue / base) * 100 },
-      { label: "Saldo Livre", value: cashBalance, color: "#2a2a2a", pct: (cashBalance / base) * 100 },
+      { label: "TURBO", value: turboTotal, color: "#a855f7", pct: (turboTotal / base) * 100 },
+      { label: "Emergência", value: emergenciaTotal, color: "#06b6d4", pct: (emergenciaTotal / base) * 100 },
+      { label: "Renda Fixa", value: investimentosTotal, color: "#3b82f6", pct: (investimentosTotal / base) * 100 },
+      { label: "Bolsa", value: investedValue, color: "#10b981", pct: (investedValue / base) * 100 },
+      { label: "Saldo Livre", value: cashBalance, color: "#94a3b8", pct: (cashBalance / base) * 100 },
     ].filter((x) => x.value > 0);
   }, [patrimonioTotal, turboTotal, emergenciaTotal, investimentosTotal, investedValue, cashBalance]);
 
@@ -555,7 +555,7 @@ export function InvestorLiveViewDesktop({
               if (e.key === "ArrowRight") { e.preventDefault(); setTab(tabs[(idx + 1) % tabs.length].id); }
               if (e.key === "ArrowLeft") { e.preventDefault(); setTab(tabs[(idx - 1 + tabs.length) % tabs.length].id); }
             }}
-            className="flex items-center gap-1 bg-muted/[0.05] rounded-full p-1"
+            className="flex items-center gap-1 bg-muted/40 rounded-full p-1"
           >
             {tabs.map((t) => (
               <button
@@ -565,7 +565,7 @@ export function InvestorLiveViewDesktop({
                 onClick={() => setTab(t.id)}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                   tab === t.id
-                    ? "bg-muted/12 text-foreground shadow-sm"
+                    ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground/60"
                 }`}
               >
@@ -579,7 +579,7 @@ export function InvestorLiveViewDesktop({
           {/* Comprar button */}
           <button
             onClick={() => { setMarketSection("hub"); setMarketOpen(true); }}
-            className="flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-muted/50 border border-border text-foreground/70 hover:bg-muted/60 hover:text-foreground text-xs font-semibold transition-all"
+            className="flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-semibold transition-all shadow-sm"
           >
             <Plus className="h-3.5 w-3.5" />
             Comprar / Aportar
@@ -596,7 +596,7 @@ export function InvestorLiveViewDesktop({
       </div>
 
       {/* ── KPI strip ─────────────────────────────────────────────── */}
-      <div className="relative grid grid-cols-4 divide-x divide-white/[0.06] border-b border-border shrink-0">
+      <div className="relative grid grid-cols-4 divide-x divide-border border-b border-border shrink-0">
         {[
           { label: "Patrimônio total", value: formatCurrency(patrimonioTotal), sub: null, accent: false },
           { label: "Saldo livre", value: formatCurrency(cashBalance), sub: null, accent: true },
@@ -642,7 +642,7 @@ export function InvestorLiveViewDesktop({
 
         {/* ═══ INÍCIO ═══════════════════════════════════════════════ */}
         {tab === "inicio" && (
-          <div className="grid grid-cols-[280px_1fr_1fr] gap-0 h-full divide-x divide-white/[0.06]">
+          <div className="grid grid-cols-[280px_1fr_1fr] gap-0 h-full divide-x divide-border">
 
             {/* Left: Allocation */}
             <div className="p-6 overflow-y-auto scrollbar-thin-dark">
@@ -689,7 +689,7 @@ export function InvestorLiveViewDesktop({
                 <p className="text-xs text-muted-foreground mt-0.5">Para novos aportes</p>
                 <button
                   onClick={() => { setMarketSection("hub"); setMarketOpen(true); }}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-muted/[0.05] border border-border text-foreground/60 text-xs font-semibold hover:bg-muted/60 hover:text-foreground/80 transition-all"
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-500/25 transition-all"
                 >
                   <ShoppingCart className="h-3.5 w-3.5" />
                   Investir agora
@@ -742,7 +742,7 @@ export function InvestorLiveViewDesktop({
                         <button
                           onClick={() => openSell(h.ticker)}
                           aria-label={`Vender ${h.ticker}`}
-                          className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400/60 text-[11px] font-semibold hover:bg-red-500/20 hover:text-red-400 transition-all"
+                          className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-red-500/15 border border-red-500/40 text-red-500 dark:text-red-400 text-[11px] font-semibold hover:bg-red-500/25 hover:text-red-600 dark:hover:text-red-300 transition-all"
                         >
                           Vender
                         </button>
@@ -792,7 +792,7 @@ export function InvestorLiveViewDesktop({
 
         {/* ═══ INVESTIMENTOS ════════════════════════════════════════ */}
         {tab === "investimentos" && (
-          <div className="grid grid-cols-3 gap-0 h-full divide-x divide-white/[0.06]">
+          <div className="grid grid-cols-3 gap-0 h-full divide-x divide-border">
 
             {/* TURBO */}
             <div className="p-6 overflow-y-auto scrollbar-thin-dark">
@@ -971,7 +971,7 @@ export function InvestorLiveViewDesktop({
 
         {/* ═══ SIMULAR ══════════════════════════════════════════════ */}
         {tab === "simular" && (
-          <div className="grid grid-cols-[360px_1fr] gap-0 h-full divide-x divide-white/[0.06]">
+          <div className="grid grid-cols-[360px_1fr] gap-0 h-full divide-x divide-border">
 
             {/* Controls */}
             <div className="p-6 overflow-y-auto scrollbar-thin-dark space-y-6">
@@ -1076,7 +1076,7 @@ export function InvestorLiveViewDesktop({
                           }}
                         >
                           <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:block z-10 pointer-events-none">
-                            <div className="bg-zinc-900/95 border border-border text-foreground text-[11px] rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                            <div className="bg-card border border-border text-foreground text-[11px] rounded-lg px-2.5 py-1.5 whitespace-nowrap">
                               <p className="text-muted-foreground">Mês {p.month}</p>
                               <p className="font-bold">{formatCurrency(p.value)}</p>
                             </div>
@@ -1193,7 +1193,7 @@ export function InvestorLiveViewDesktop({
                   value={sellQtyMask}
                   onChange={(e) => onSellQtyChange(e.target.value)}
                   placeholder="0"
-                  className="flex-1 rounded-xl border border-border bg-muted/[0.05] px-4 py-3 text-foreground placeholder:text-foreground/20 focus:outline-none focus:ring-1 focus:ring-red-400/40 focus:border-red-400/50 text-sm font-semibold tabular-nums"
+                  className="flex-1 rounded-xl border border-border bg-muted/40 px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-red-400/40 focus:border-red-400/50 text-sm font-semibold tabular-nums"
                 />
                 <button
                   onClick={() => sellHolding && setSellQtyMask(fmtQty(sellHolding.quantity).replace(".", ","))}
@@ -1267,7 +1267,7 @@ export function InvestorLiveViewDesktop({
                 Valor a retirar
               </label>
               <div className="flex gap-2">
-                <div className="flex-1 flex items-center gap-2 rounded-xl border border-border bg-muted/[0.05] px-4 py-3 focus-within:ring-1 focus-within:ring-foreground/30">
+                <div className="flex-1 flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-4 py-3 focus-within:ring-1 focus-within:ring-foreground/30">
                   <span className="text-muted-foreground text-sm shrink-0">R$</span>
                   <input
                     id="withdraw-amount"
@@ -1277,7 +1277,7 @@ export function InvestorLiveViewDesktop({
                     value={withdrawMask}
                     onChange={(e) => setWithdrawMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
                     placeholder="0,00"
-                    className="flex-1 bg-transparent text-foreground placeholder:text-foreground/20 focus:outline-none text-sm font-semibold tabular-nums"
+                    className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none text-sm font-semibold tabular-nums"
                   />
                 </div>
                 <button
@@ -1299,7 +1299,7 @@ export function InvestorLiveViewDesktop({
             <button
               disabled={!canConfirmWithdraw}
               onClick={confirmWithdraw}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-muted/10 text-foreground text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted/15 transition-all"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-muted/50 text-foreground text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted/65 transition-all"
             >
               {withdrawSubmitting ? (
                 <span className="h-4 w-4 rounded-full border-2 border-border border-t-white animate-spin" />
@@ -1349,7 +1349,7 @@ export function InvestorLiveViewDesktop({
                     onClick={() => setNewCaixinhaTipo(t)}
                     className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
                       active
-                        ? "bg-muted/15 border-border text-foreground"
+                        ? "bg-muted/60 border-border text-foreground"
                         : "bg-muted/50 border-border text-muted-foreground hover:text-foreground/60"
                     }`}
                   >
@@ -1369,7 +1369,7 @@ export function InvestorLiveViewDesktop({
                   value={newCaixinhaName}
                   onChange={(e) => setNewCaixinhaName(e.target.value)}
                   placeholder={newCaixinhaTipo === "turbo" ? "Ex: Nubank Turbo" : newCaixinhaTipo === "emergencia" ? "Ex: Reserva" : "Ex: Prefixado 2029"}
-                  className="w-full rounded-xl border border-border bg-muted/[0.05] px-4 py-2.5 text-foreground placeholder:text-foreground/20 focus:outline-none focus:ring-1 focus:ring-foreground/30 focus:border-border text-sm"
+                  className="w-full rounded-xl border border-border bg-muted/40 px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/30 focus:border-border text-sm"
                 />
               </div>
               <div>
@@ -1380,7 +1380,7 @@ export function InvestorLiveViewDesktop({
                   value={newCaixinhaInstituicao}
                   onChange={(e) => setNewCaixinhaInstituicao(e.target.value)}
                   placeholder="Ex: Nubank, XP, BTG..."
-                  className="w-full rounded-xl border border-border bg-muted/[0.05] px-4 py-2.5 text-foreground placeholder:text-foreground/20 focus:outline-none focus:ring-1 focus:ring-foreground/30 focus:border-border text-sm"
+                  className="w-full rounded-xl border border-border bg-muted/40 px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/30 focus:border-border text-sm"
                 />
               </div>
 
@@ -1395,7 +1395,7 @@ export function InvestorLiveViewDesktop({
                       value={newCaixinhaCdiMask}
                       onChange={(e) => setNewCaixinhaCdiMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
                       placeholder="0,00"
-                      className="w-full rounded-xl border border-border bg-muted/[0.05] px-3 py-2.5 text-foreground placeholder:text-foreground/20 focus:outline-none focus:ring-1 focus:ring-foreground/30 focus:border-border text-sm tabular-nums"
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/30 focus:border-border text-sm tabular-nums"
                     />
                   </div>
                   <div>
@@ -1407,7 +1407,7 @@ export function InvestorLiveViewDesktop({
                       value={newCaixinhaTetoMask}
                       onChange={(e) => setNewCaixinhaTetoMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
                       placeholder="0,00"
-                      className="w-full rounded-xl border border-border bg-muted/[0.05] px-3 py-2.5 text-foreground placeholder:text-foreground/20 focus:outline-none focus:ring-1 focus:ring-foreground/30 focus:border-border text-sm tabular-nums"
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/30 focus:border-border text-sm tabular-nums"
                     />
                   </div>
                 </div>
@@ -1427,10 +1427,10 @@ export function InvestorLiveViewDesktop({
             <button
               disabled={!newCaixinhaName.trim() || newCaixinhaSubmitting}
               onClick={confirmNewCaixinha}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white text-black text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted/90 transition-all"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-foreground text-background text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-foreground/90 transition-all"
             >
               {newCaixinhaSubmitting ? (
-                <span className="h-4 w-4 rounded-full border-2 border-black/30 border-t-black animate-spin" />
+                <span className="h-4 w-4 rounded-full border-2 border-background/30 border-t-background animate-spin" />
               ) : null}
               {newCaixinhaSubmitting ? "Criando…" : "Criar caixinha"}
             </button>
@@ -1440,7 +1440,7 @@ export function InvestorLiveViewDesktop({
 
       {/* ── Flash confirmação ─────────────────────────────────────── */}
       {confirmedFlash && (
-        <div role="status" aria-live="polite" className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black shadow-xl shadow-black/30 pointer-events-none">
+        <div role="status" aria-live="polite" className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-xl shadow-foreground/30 pointer-events-none">
           <Check className="h-4 w-4" />
           Operação confirmada
         </div>

@@ -1567,14 +1567,14 @@ export function InvestorLiveView({
                       <button
                         type="button"
                         onClick={() => openMarket("hub")}
-                        className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/[0.05] px-3.5 py-1.5 text-[11px] font-semibold text-foreground/70 hover:bg-muted/[0.09]"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3.5 py-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25"
                       >
                         Começar a investir
                         <ArrowUpRight className="h-3 w-3" />
                       </button>
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-white/[0.06]">
+                    <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
                       {homeMovements.map((mov) => (
                         <div
                           key={mov.id}
