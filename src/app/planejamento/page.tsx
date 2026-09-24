@@ -490,7 +490,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 {salary > 0 ? fmt(salary) : "— informar"}
               </p>
             </div>
-            <div className="flex items-center gap-1 text-muted-foreground/30 group-hover:text-primary transition-colors pb-0.5">
+            <div className="flex items-center gap-1 text-muted-foreground/55 group-hover:text-primary transition-colors pb-0.5">
               <Pencil className="h-3 w-3" />
               <span className="text-[11px] font-medium">editar</span>
             </div>
@@ -599,7 +599,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     }`}>{group.name}</span>
                   </div>
                   <span className={`text-lg font-display font-black tabular-nums leading-none ${
-                    gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-muted-foreground/35"
+                    gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-muted-foreground/55"
                   }`}>{fmt(gActual)}</span>
                   {gPlanned > 0 && (
                     <>
@@ -607,7 +607,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                         <div className="h-full rounded-full transition-all duration-300"
                           style={{ width: `${gPct}%`, backgroundColor: gOver ? "hsl(var(--destructive))" : group.color }} />
                       </div>
-                      <p className="text-[10px] text-muted-foreground/30 tabular-nums mt-0.5">de {fmt(gPlanned)}</p>
+                      <p className="text-[10px] text-muted-foreground/50 tabular-nums mt-0.5">de {fmt(gPlanned)}</p>
                     </>
                   )}
                   {/* Active indicator */}
@@ -621,7 +621,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             <div className="flex-1 min-w-4" />
             <button
               onClick={openNewGroup}
-              className="flex items-center gap-1.5 px-3 py-2 self-center shrink-0 text-xs font-medium text-muted-foreground/40 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 self-center shrink-0 text-xs font-medium text-muted-foreground/60 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
             >
               <FolderPlus className="h-3.5 w-3.5" />
               Novo grupo
@@ -746,14 +746,14 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 </div>
                 <div className="flex items-center gap-1">
                   <button
-                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors"
+                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/70 hover:text-foreground transition-colors"
                     onClick={() => openEditGroup(selectedGroup)}
                     aria-label={`Editar grupo ${selectedGroup.name}`}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
-                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors"
+                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/70 hover:text-destructive transition-colors"
                     onClick={() => openDeleteGroup(selectedGroup)}
                     aria-label={`Excluir grupo ${selectedGroup.name}`}
                   >
@@ -810,8 +810,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                             <div className="min-w-0">
                               <span className="text-sm font-medium truncate block leading-snug">{item.name}</span>
                               {item.planned > 0 && (
-                                <span className="text-[10px] text-muted-foreground/40 tabular-nums">
-                                  plan. {fmt(item.planned)}
+                                <span className="text-[10px] text-muted-foreground/60 tabular-nums">plan. {fmt(item.planned)}
                                 </span>
                               )}
                             </div>
@@ -827,13 +826,13 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                               onBlur={(e) => updateActual(item, e.target.value)}
                             />
                             <button type="button"
-                              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/30 hover:text-foreground transition-colors touch-manipulation"
+                              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/60 hover:text-foreground transition-colors touch-manipulation"
                               onClick={() => openEditItem(item)}
                               aria-label={`Editar ${item.name}`}>
                               <Pencil className="h-3 w-3" />
                             </button>
                             <button type="button"
-                              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-colors touch-manipulation"
+                              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive transition-colors touch-manipulation"
                               onClick={() => openDeleteItem(item)}
                               aria-label={`Excluir ${item.name}`}>
                               <Trash2 className="h-3 w-3" />
@@ -844,7 +843,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                       <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 bg-muted/20">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Subtotal</span>
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] text-muted-foreground/40 tabular-nums">plan. {fmt(sgPlanned)}</span>
+                          <span className="text-[10px] text-muted-foreground/60 tabular-nums">plan. {fmt(sgPlanned)}</span>
                           <span className={`text-sm font-display font-black tabular-nums ${sgOver ? "text-destructive" : ""}`}>{fmt(sgActual)}</span>
                         </div>
                       </div>

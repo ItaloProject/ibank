@@ -220,15 +220,15 @@ function ParcelamentosContent({ userId }: { userId: string }) {
         {plans.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-xl bg-card border px-3 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1 leading-tight">Em aberto</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mb-1 leading-tight">Em aberto</p>
               <p className="text-sm font-display font-black text-destructive tabular-nums leading-none">{fmt(totalEmAberto)}</p>
             </div>
             <div className="rounded-xl bg-card border px-3 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1 leading-tight">Por mês</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mb-1 leading-tight">Por mês</p>
               <p className="text-sm font-display font-black tabular-nums leading-none">{fmt(parcelasMesAtual)}</p>
             </div>
             <div className="rounded-xl bg-card border px-3 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1 leading-tight">Ativos</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mb-1 leading-tight">Ativos</p>
               <p className="text-sm font-bold tabular-nums leading-none">{active.length}</p>
             </div>
           </div>
@@ -489,12 +489,12 @@ function PlanCard({
       <div className="flex items-center justify-between px-4 pb-3 pt-0.5">
         <div className="flex items-baseline gap-3">
           <div>
-            <p className="text-[10px] text-muted-foreground/40 leading-none mb-0.5">Por parcela</p>
+            <p className="text-[10px] text-muted-foreground/60 leading-none mb-0.5">Por parcela</p>
             <p className="text-sm font-display font-black tabular-nums leading-none">{fmt(perParcela)}</p>
           </div>
           {!isDone && (
             <div>
-              <p className="text-[10px] text-muted-foreground/40 leading-none mb-0.5">Restante</p>
+              <p className="text-[10px] text-muted-foreground/60 leading-none mb-0.5">Restante</p>
               <p className="text-sm font-display font-black text-destructive tabular-nums leading-none">{fmt(valorRestante)}</p>
             </div>
           )}

@@ -45,11 +45,20 @@ interface Parcelamento {
   installments: number; paid_installments: number; start_date: string | null;
 }
 
-const SOURCE_COLORS: Record<string, string> = {
-  TURBO: "#10b981",
-  FIIs: "#a855f7",
-  "Dividendos de ações": "#3b82f6",
+// Canonical investment-type colors — used in charts, dots and badges across the app
+export const INVESTMENT_TYPE_COLORS: Record<string, string> = {
+  TURBO:               "#a855f7", // violet  — TURBO/CDI
+  FII:                 "#06b6d4", // cyan    — fundos imobiliários
+  FIIs:                "#06b6d4",
+  "RENDA FIXA":        "#3b82f6", // blue    — prefixado / CDB / LCI
+  "Renda Fixa":        "#3b82f6",
+  AÇÃO:                "#10b981", // emerald — ações
+  "Dividendos de ações": "#10b981",
+  ETF:                 "#f59e0b", // amber   — ETFs
+  BDR:                 "#94a3b8", // slate   — BDRs
 };
+
+const SOURCE_COLORS = INVESTMENT_TYPE_COLORS;
 
 export default function DashboardPage() {
   const { userId } = useUser();
@@ -298,10 +307,9 @@ export default function DashboardPage() {
                 {incomeSources.map(src => {
                   const color =
                     SOURCE_COLORS[src.label] ??
-                    (src.detail?.includes("TURBO") ? "#10b981" :
-                      src.detail?.includes("CDI")  ? "#10b981" :
-                      src.detail?.includes("0,85%") ? "#a855f7" :
-                      src.detail?.includes("0,4%")  ? "#3b82f6" : "#f59e0b");
+                    (src.detail?.includes("TURBO") || src.detail?.includes("CDI") ? "#a855f7" :
+                      src.detail?.includes("0,85%") ? "#06b6d4" :
+                      src.detail?.includes("0,4%")  ? "#10b981" : "#3b82f6");
                   const pct = monthlyIncome > 0 ? (src.value / monthlyIncome) * 100 : 0;
                   return (
                     <div key={src.label + (src.detail ?? "")} className="rounded-xl border p-4">
@@ -529,7 +537,11 @@ export default function DashboardPage() {
                     contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText }}
                     cursor={{ fill: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)" }}
                   />
-                  <Bar dataKey="saldo" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="saldo" radius={[4, 4, 0, 0]}>
+                    {accounts.map((a, i) => (
+                      <Cell key={i} fill={a.is_turbo ? "#a855f7" : "#3b82f6"} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
