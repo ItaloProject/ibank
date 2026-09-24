@@ -841,7 +841,7 @@ export function InvestorLiveViewDesktop({
                       )}
                       <button
                         onClick={() => openWithdraw(acc)}
-                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-border text-foreground/70 text-[11px] font-semibold hover:bg-muted/40 hover:text-foreground transition-all"
+                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-border text-foreground/70 text-[11px] font-semibold hover:bg-red-500/15 hover:border-red-500/40 hover:text-red-400 transition-all duration-200"
                       >
                         Retirar
                       </button>
@@ -886,7 +886,7 @@ export function InvestorLiveViewDesktop({
                       </div>
                       <button
                         onClick={() => openWithdraw(acc)}
-                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-border text-foreground/70 text-[11px] font-semibold hover:bg-muted/40 hover:text-foreground transition-all"
+                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-border text-foreground/70 text-[11px] font-semibold hover:bg-red-500/15 hover:border-red-500/40 hover:text-red-400 transition-all duration-200"
                       >
                         Retirar
                       </button>
@@ -930,7 +930,7 @@ export function InvestorLiveViewDesktop({
                     </div>
                     <button
                       onClick={() => openWithdraw(acc)}
-                      className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-border text-foreground/70 text-[11px] font-semibold hover:bg-muted/40 hover:text-foreground transition-all"
+                      className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-border text-foreground/70 text-[11px] font-semibold hover:bg-red-500/15 hover:border-red-500/40 hover:text-red-400 transition-all duration-200"
                     >
                       Retirar
                     </button>
