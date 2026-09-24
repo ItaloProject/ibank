@@ -21,7 +21,7 @@ const funnelDisplay = Funnel_Display({
 });
 
 const APP_NAME = "MUVO";
-const APP_DEFAULT_TITLE = "MUVO — Smart Control Finances";
+const APP_DEFAULT_TITLE = "MUVO";
 const APP_DESCRIPTION = "Gerencie seu planejamento e investimentos com controle inteligente";
 
 export const metadata: Metadata = {
@@ -42,10 +42,9 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/logo.png", type: "image/png" },
     ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    apple: [{ url: "/logo.png", sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
     type: "website",
