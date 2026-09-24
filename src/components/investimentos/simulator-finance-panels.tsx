@@ -1,13 +1,12 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useState, type ElementType, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, CreditCard, CalendarRange, Layers } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarRange, Layers } from "lucide-react";
 import { addMonths, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/utils";
-import { getCards, getTransactions } from "@/lib/api";
 
-export type FinancePanelId = "cartao" | "planejamento" | "parcelamentos";
+export type FinancePanelId = "planejamento" | "parcelamentos";
 
 type Props = {
   panel: FinancePanelId;
@@ -106,68 +105,6 @@ function MonthNav({
   );
 }
 
-function CartaoPanel({ onBack }: { onBack: () => void }) {
-  const [loading, setLoading] = useState(true);
-  const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
-  const [rows, setRows] = useState<{ name: string; fatura: number; limit: number }[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    (async () => {
-      try {
-        const cards = await getCards();
-        const data = await Promise.all(
-          cards.map(async (c) => {
-            const txs = await getTransactions({ cardId: c.id, billingCycle: month }).catch(() => []);
-            const fatura = txs.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-            return { name: c.name, fatura, limit: c.limit };
-          }),
-        );
-        if (!cancelled) setRows(data);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [month]);
-
-  return (
-    <PanelShell title="Cartão" icon={CreditCard} onBack={onBack}>
-      <MonthNav month={month} onChange={setMonth} />
-      {loading ? (
-        <Loading />
-      ) : rows.length === 0 ? (
-        <Empty text="Nenhum cartão cadastrado." />
-      ) : (
-        <div className="space-y-2.5">
-          {rows.map((r) => (
-            <div
-              key={r.name}
-              className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.06] p-3.5 space-y-1.5"
-            >
-              <p className="text-sm font-semibold text-foreground">{r.name}</p>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Fatura</span>
-                <span className="font-bold tabular-nums text-foreground">{formatCurrency(r.fatura)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Limite</span>
-                <span className="tabular-nums text-foreground/70">{formatCurrency(r.limit)}</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-rose-400"
-                  style={{ width: `${Math.min(100, r.limit > 0 ? (r.fatura / r.limit) * 100 : 0)}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </PanelShell>
-  );
-}
 
 function PlanejamentoPanel({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(true);
@@ -311,7 +248,6 @@ function ParcelamentosPanel({ onBack }: { onBack: () => void }) {
 }
 
 export function SimulatorFinancePanel({ panel, onBack }: Props) {
-  if (panel === "cartao") return <CartaoPanel onBack={onBack} />;
   if (panel === "planejamento") return <PlanejamentoPanel onBack={onBack} />;
   return <ParcelamentosPanel onBack={onBack} />;
 }

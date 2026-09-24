@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode 
 import {
   X, Signal, Wifi, BatteryFull, Landmark, Calculator, Zap, Shield,
   ArrowUpRight, ArrowDownRight, Check, ChevronLeft, Pencil, Home, ChevronRight,
-  CreditCard, CalendarRange, Layers, TrendingUp, Wallet, Receipt, Scale, Plus, Trash2,
+  CalendarRange, Layers, TrendingUp, Wallet, Receipt, Scale, Plus, Trash2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
@@ -1416,17 +1416,15 @@ export function InvestorLiveView({
                 </button>
 
                 {/* Atalhos compactos */}
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {(
                     [
-                      { label: "Cartão", icon: CreditCard, id: "cartao" as const, tone: "rose" as const },
                       { label: "Plano", icon: CalendarRange, id: "planejamento" as const, tone: "violet" as const },
                       { label: "Parcelas", icon: Layers, id: "parcelamentos" as const, tone: "cyan" as const },
                       { label: "Investir", icon: Landmark, id: "investir" as const, tone: "emerald" as const },
                     ] as const
                   ).map((item) => {
                     const tones = {
-                      rose: { bg: "bg-rose-500/15", icon: "text-rose-400", border: "border-rose-500/25" },
                       violet: { bg: "bg-violet-500/15", icon: "text-violet-400", border: "border-violet-500/25" },
                       cyan: { bg: "bg-cyan-500/15", icon: "text-cyan-400", border: "border-cyan-500/25" },
                       emerald: { bg: "bg-emerald-500/15", icon: "text-emerald-400", border: "border-emerald-500/25" },

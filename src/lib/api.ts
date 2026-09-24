@@ -1,7 +1,4 @@
 import type {
-  CreditCard,
-  Transaction,
-  TransactionCategory,
   InvestmentAccount,
   Investment,
   InvestmentType,
@@ -41,22 +38,6 @@ function normalizeDate(raw: any): string {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toCard(r: any): CreditCard {
-  return { ...r, limit: Number(r.limit), closing_day: Number(r.closing_day), due_day: Number(r.due_day) };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toTransaction(r: any): Transaction {
-  return {
-    ...r,
-    amount: Number(r.amount),
-    installments: Number(r.installments),
-    installment_current: Number(r.installment_current),
-    date: normalizeDate(r.date),
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toAccount(r: any): InvestmentAccount {
   return {
     ...r,
@@ -82,93 +63,6 @@ function toStockTrade(r: any): StockTrade {
     total_amount: Number(r.total_amount),
     date: normalizeDate(r.date),
   };
-}
-
-// ─── Cards ────────────────────────────────────────────────────────────────────
-
-export async function getCards(): Promise<CreditCard[]> {
-  const res = await fetch(`/api/cards?user=${uid()}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data.map(toCard) : [];
-}
-
-export async function createCard(data: {
-  name: string; limit: number; closing_day: number; due_day: number;
-}): Promise<CreditCard> {
-  const res = await fetch("/api/cards", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...data, user_id: uid() }),
-  });
-  return toCard(await res.json());
-}
-
-export async function deleteCard(id: string): Promise<void> {
-  await fetch(`/api/cards/${id}?user=${uid()}`, { method: "DELETE" });
-}
-
-// ─── Transactions ─────────────────────────────────────────────────────────────
-
-export async function getTransactions(params?: {
-  start?: string; end?: string; cardId?: string; billingCycle?: string;
-}): Promise<Transaction[]> {
-  const qs = new URLSearchParams({ user: uid() });
-  if (params?.start) qs.set("start", params.start);
-  if (params?.end) qs.set("end", params.end);
-  if (params?.cardId) qs.set("card_id", params.cardId);
-  if (params?.billingCycle) qs.set("billing_cycle", params.billingCycle);
-  const res = await fetch(`/api/transactions?${qs}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data.map(toTransaction) : [];
-}
-
-export async function getFutureCommitted(cardId: string, afterCycle: string): Promise<Transaction[]> {
-  const qs = new URLSearchParams({ user: uid(), card_id: cardId, after_cycle: afterCycle });
-  const res = await fetch(`/api/transactions?${qs}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data.map(toTransaction) : [];
-}
-
-export async function getAvailableCycles(cardId: string): Promise<string[]> {
-  const qs = new URLSearchParams({ user: uid(), card_id: cardId, list_cycles: "true" });
-  const res = await fetch(`/api/transactions?${qs}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data : [];
-}
-
-export async function createTransactions(rows: {
-  credit_card_id: string; description: string; amount: number;
-  category: TransactionCategory; date: string; installments?: number;
-  installment_current?: number; billing_cycle?: string | null;
-}[]): Promise<Transaction[]> {
-  const res = await fetch("/api/transactions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(rows.map((r) => ({ ...r, user_id: uid() }))),
-  });
-  const data = await res.json();
-  return Array.isArray(data) ? data.map(toTransaction) : [];
-}
-
-export async function updateTransactionCategory(id: string, category: TransactionCategory): Promise<Transaction> {
-  const res = await fetch(`/api/transactions/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category }),
-  });
-  return toTransaction(await res.json());
-}
-
-export async function deleteTransaction(id: string): Promise<void> {
-  await fetch(`/api/transactions/${id}?user=${uid()}`, { method: "DELETE" });
-}
-
-export async function clearTransactions(cardId: string, start?: string, end?: string, billingCycle?: string): Promise<void> {
-  const qs = new URLSearchParams({ card_id: cardId, user: uid() });
-  if (start) qs.set("start", start);
-  if (end) qs.set("end", end);
-  if (billingCycle) qs.set("billing_cycle", billingCycle);
-  await fetch(`/api/transactions?${qs}`, { method: "DELETE" });
 }
 
 // ─── Investment Accounts ──────────────────────────────────────────────────────
