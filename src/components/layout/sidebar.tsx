@@ -11,6 +11,12 @@ import { USERS } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import { useState, useEffect } from "react";
+
+function fmtCompact(v: number): string {
+  if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1).replace(".", ",")}M`;
+  if (v >= 1_000) return `R$ ${(v / 1_000).toFixed(1).replace(".", ",")}k`;
+  return `R$ ${v.toFixed(0)}`;
+}
 import {
   NAV_GROUPS,
   SYSTEM_NAV_ITEMS,
@@ -34,6 +40,29 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   const isCollapsed = collapsed && !mobileOpen;
 
   const [hiddenPages, setHiddenPages] = useState<Set<string>>(() => readHiddenPages());
+  const [portfolioTotal, setPortfolioTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    Promise.all([
+      fetch(`/api/investment-accounts?user=${userId}`).then((r) => r.json()),
+      fetch(`/api/investments?user=${userId}`).then((r) => r.json()),
+    ]).then(([accts, invs]) => {
+      if (cancelled || !Array.isArray(accts)) return;
+      const invArr = Array.isArray(invs) ? invs : [];
+      const total = accts.reduce((s: number, a: { id: string; is_turbo: boolean; current_balance: number }) => {
+        if (a.is_turbo) return s + (a.current_balance || 0);
+        const bal = invArr
+          .filter((i: { account_id: string }) => i.account_id === a.id)
+          .reduce((b: number, i: { type: string; amount: number }) =>
+            i.type === "retirada" ? b - i.amount : b + i.amount, 0);
+        return s + bal;
+      }, 0);
+      setPortfolioTotal(total);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [userId]);
 
   useEffect(() => {
     function refresh() {
@@ -134,11 +163,21 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                           : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
                       )} />
                       <span className={cn(
-                        "whitespace-nowrap overflow-hidden transition-all duration-150 leading-none",
+                        "flex-1 whitespace-nowrap overflow-hidden transition-all duration-150 leading-none",
                         isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100",
                       )}>
                         {item.label}
                       </span>
+                      {isFeatured && !isCollapsed && portfolioTotal !== null && (
+                        <span className={cn(
+                          "ml-auto shrink-0 text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md transition-all duration-150",
+                          isActive
+                            ? "bg-[#a855f7]/20 text-sidebar-primary"
+                            : "bg-[#a855f7]/10 text-[#a855f7]/80",
+                        )}>
+                          {fmtCompact(portfolioTotal)}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
