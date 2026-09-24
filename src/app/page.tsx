@@ -15,6 +15,7 @@ import {
 import { getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { accountBalance } from "@/lib/stock-utils";
+import { INVESTMENT_TYPE_COLORS } from "@/lib/investment-colors";
 import { computeMonthlyPassiveIncome } from "@/lib/passive-income";
 import type { InvestmentAccount, Investment, StockTrade } from "@/types/database";
 import type { StockQuote } from "@/lib/api";
@@ -44,19 +45,6 @@ interface Parcelamento {
   id: string; description: string; total_amount: number;
   installments: number; paid_installments: number; start_date: string | null;
 }
-
-// Canonical investment-type colors — used in charts, dots and badges across the app
-export const INVESTMENT_TYPE_COLORS: Record<string, string> = {
-  TURBO:               "#a855f7", // violet  — TURBO/CDI
-  FII:                 "#06b6d4", // cyan    — fundos imobiliários
-  FIIs:                "#06b6d4",
-  "RENDA FIXA":        "#3b82f6", // blue    — prefixado / CDB / LCI
-  "Renda Fixa":        "#3b82f6",
-  AÇÃO:                "#10b981", // emerald — ações
-  "Dividendos de ações": "#10b981",
-  ETF:                 "#f59e0b", // amber   — ETFs
-  BDR:                 "#94a3b8", // slate   — BDRs
-};
 
 const SOURCE_COLORS = INVESTMENT_TYPE_COLORS;
 
