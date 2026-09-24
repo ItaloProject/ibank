@@ -11,6 +11,7 @@ const TABS = getBottomTabs().map((item) => ({
   href: item.href,
   label: item.href === "/" ? "Início" : item.href === "/planejamento" ? "Plano" : item.href === "/investimentos" ? "Investir" : item.label,
   icon: item.icon,
+  featured: item.featured ?? false,
 }));
 
 export function BottomNav({ onMore }: { onMore: () => void }) {
@@ -35,12 +36,28 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
               key={tab.href}
               href={tab.href}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-                "touch-manipulation min-h-[44px]",
+                "relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+                "touch-manipulation min-h-[44px] overflow-hidden",
                 active ? "text-primary" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <Icon className={cn("h-5 w-5", active && "stroke-[2.25px]")} />
+              {/* shimmer sweep — apenas featured, inativo */}
+              {tab.featured && !active && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 animate-[sidebar-sweep_4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-foreground/[0.06] to-transparent skew-x-[-15deg]"
+                />
+              )}
+              {/* ícone com amber dot pulsante */}
+              <span className="relative">
+                <Icon className={cn("h-5 w-5", active && "stroke-[2.25px]")} />
+                {tab.featured && (
+                  <span className="absolute -top-[3px] -right-[3px] flex h-[7px] w-[7px]">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-70" />
+                    <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-amber-400" />
+                  </span>
+                )}
+              </span>
               <span>{tab.label}</span>
             </Link>
           );
