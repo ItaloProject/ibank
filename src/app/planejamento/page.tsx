@@ -485,12 +485,12 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
           >
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/50 mb-0.5">Renda do mês</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70 mb-0.5">Renda do mês</p>
               <p className={`text-2xl font-display font-black tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
                 {salary > 0 ? fmt(salary) : "— informar"}
               </p>
             </div>
-            <div className="flex items-center gap-1 text-muted-foreground/55 group-hover:text-primary transition-colors pb-0.5">
+            <div className="flex items-center gap-1 text-muted-foreground/70 group-hover:text-primary transition-colors pb-0.5">
               <Pencil className="h-3 w-3" />
               <span className="text-[11px] font-medium">editar</span>
             </div>
@@ -503,7 +503,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   style={{ width: `${Math.min(100, (totalActual / salary) * 100)}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[10px] text-muted-foreground/50">
+              <div className="flex justify-between text-[10px] text-muted-foreground/70">
                 <span>Gasto {fmt(totalActual)}</span>
                 <span className={sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive/70"}>
                   {sobra >= 0 ? `Sobra ${fmt(sobra)}` : `Excedeu ${fmt(Math.abs(sobra))}`}
@@ -542,19 +542,19 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">Fixos</p>
               <p className="text-base font-display font-black tabular-nums leading-none">{fmt(totalFixoActual)}</p>
-              <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalFixoPlanned)}</p>
+              <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(totalFixoPlanned)}</p>
             </div>
             <div className="rounded-xl bg-background border border-orange-400/20 px-3 py-3 space-y-1.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Variáveis</p>
               <p className="text-base font-display font-black tabular-nums leading-none">{fmt(totalVarActual)}</p>
-              <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalVarPlanned)}</p>
+              <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(totalVarPlanned)}</p>
             </div>
             <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
               <p className={`text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>Sobra</p>
               <p className={`text-base font-display font-black tabular-nums leading-none ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>
                 {salary > 0 ? fmt(sobra) : "—"}
               </p>
-              {salary > 0 && <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(sobraPlanned)}</p>}
+              {salary > 0 && <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(sobraPlanned)}</p>}
             </div>
           </div>
         </div>
@@ -595,11 +595,11 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   <div className="flex items-center gap-2 w-full mb-1">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
                     <span className={`text-[10px] font-bold uppercase tracking-widest truncate ${
-                      isSelected ? "text-foreground" : "text-muted-foreground/50"
+                      isSelected ? "text-foreground" : "text-muted-foreground/65"
                     }`}>{group.name}</span>
                   </div>
                   <span className={`text-lg font-display font-black tabular-nums leading-none ${
-                    gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-muted-foreground/55"
+                    gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-muted-foreground/70"
                   }`}>{fmt(gActual)}</span>
                   {gPlanned > 0 && (
                     <>
@@ -607,7 +607,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                         <div className="h-full rounded-full transition-all duration-300"
                           style={{ width: `${gPct}%`, backgroundColor: gOver ? "hsl(var(--destructive))" : group.color }} />
                       </div>
-                      <p className="text-[10px] text-muted-foreground/50 tabular-nums mt-0.5">de {fmt(gPlanned)}</p>
+                      <p className="text-[10px] text-muted-foreground/65 tabular-nums mt-0.5">de {fmt(gPlanned)}</p>
                     </>
                   )}
                   {/* Active indicator */}
@@ -621,7 +621,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             <div className="flex-1 min-w-4" />
             <button
               onClick={openNewGroup}
-              className="flex items-center gap-1.5 px-3 py-2 self-center shrink-0 text-xs font-medium text-muted-foreground/60 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 self-center shrink-0 text-xs font-medium text-muted-foreground/75 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
             >
               <FolderPlus className="h-3.5 w-3.5" />
               Novo grupo
@@ -716,13 +716,13 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                           backgroundColor: sgOver ? "hsl(var(--destructive))" : selectedGroup.color,
                         }} />
                     </div>
-                    <div className="flex justify-between text-[10px] text-muted-foreground/50 tabular-nums">
+                    <div className="flex justify-between text-[10px] text-muted-foreground/70 tabular-nums">
                       <span>{fmt(sgActual)}</span>
                       <span className={sgOver ? "text-destructive/70" : ""}>de {fmt(sgPlanned)}</span>
                     </div>
                   </div>
                 ) : (
-                  <span className="flex-1 text-[11px] text-muted-foreground/40 font-medium">
+                  <span className="flex-1 text-[11px] text-muted-foreground/65 font-medium">
                     {selectedGroupItems.length} {selectedGroupItems.length === 1 ? "item" : "itens"}
                   </span>
                 )}
@@ -740,7 +740,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 <div className="flex items-center gap-2.5">
                   <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: selectedGroup.color }} />
                   <h2 className="font-bold text-sm uppercase tracking-wide">{selectedGroup.name}</h2>
-                  <span className="text-[10px] text-muted-foreground/40 font-medium">
+                  <span className="text-[10px] text-muted-foreground/65 font-medium">
                     {selectedGroupItems.length} {selectedGroupItems.length === 1 ? "item" : "itens"}
                   </span>
                 </div>
@@ -781,7 +781,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                       }}
                     />
                   </div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground/50">
+                  <div className="flex justify-between text-[10px] text-muted-foreground/70">
                     <span>Gasto {fmt(sgActual)}</span>
                     <span className={sgOver ? "text-destructive/70" : ""}>de {fmt(sgPlanned)}</span>
                   </div>
@@ -798,7 +798,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                 >
                   {selectedGroupItems.length === 0 ? (
-                    <p className="px-6 py-10 text-sm text-muted-foreground/40 italic text-center">
+                    <p className="px-6 py-10 text-sm text-muted-foreground/60 italic text-center">
                       Sem itens em {monthLabel}.
                     </p>
                   ) : (
@@ -810,7 +810,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                             <div className="min-w-0">
                               <span className="text-sm font-medium truncate block leading-snug">{item.name}</span>
                               {item.planned > 0 && (
-                                <span className="text-[10px] text-muted-foreground/60 tabular-nums">plan. {fmt(item.planned)}
+                                <span className="text-[10px] text-muted-foreground/70 tabular-nums">plan. {fmt(item.planned)}
                                 </span>
                               )}
                             </div>
@@ -841,9 +841,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                         </div>
                       ))}
                       <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 bg-muted/20">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Subtotal</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/65">Subtotal</span>
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] text-muted-foreground/60 tabular-nums">plan. {fmt(sgPlanned)}</span>
+                          <span className="text-[10px] text-muted-foreground/70 tabular-nums">plan. {fmt(sgPlanned)}</span>
                           <span className={`text-sm font-display font-black tabular-nums ${sgOver ? "text-destructive" : ""}`}>{fmt(sgActual)}</span>
                         </div>
                       </div>
