@@ -60,7 +60,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
             className="h-full w-full object-contain" priority />
         </div>
         <div className={cn("ml-2 overflow-hidden transition-all duration-150 ease-out", isCollapsed ? "w-0 opacity-0" : "w-36 opacity-100")}>
-          <p className="text-[17px] font-bold leading-none text-sidebar-foreground font-display italic whitespace-nowrap">MUVO</p>
+          <p className="text-[17px] font-bold leading-none text-sidebar-foreground font-display whitespace-nowrap">MUVO</p>
           <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-primary/60 whitespace-nowrap">Financeiro</p>
         </div>
         <button type="button" onClick={onMobileClose}

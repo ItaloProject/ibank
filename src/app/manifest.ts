@@ -2,16 +2,16 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "MUVO — Gestão Financeira",
+    name: "MUVO — Smart Control Finances",
     short_name: "MUVO",
-    description: "Gerencie seu cartão de crédito e investimentos",
+    description: "Gerencie seu planejamento e investimentos com controle inteligente",
     start_url: "/",
     scope: "/",
     id: "/",
     display: "standalone",
     display_override: ["standalone", "browser"],
-    background_color: "#09090b",
-    theme_color: "#09090b",
+    background_color: "#0C0C0C",
+    theme_color: "#0C0C0C",
     orientation: "portrait-primary",
     categories: ["finance", "productivity"],
     lang: "pt-BR",

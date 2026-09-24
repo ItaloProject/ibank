@@ -49,7 +49,7 @@ export function LoginScreen() {
           className="h-[120px] w-[120px] object-contain"
           priority
         />
-        <h1 className="text-3xl font-bold tracking-tight text-foreground font-display italic -mt-1">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground font-display -mt-1">
           MUVO
         </h1>
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/70 mt-1">

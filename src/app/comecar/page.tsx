@@ -185,7 +185,7 @@ export default function ComecarPage() {
 
           {/* Headline + features */}
           <div key={step} className="transition-all duration-300">
-            <h2 className="text-3xl lg:text-4xl font-bold leading-tight mb-3 text-white font-display italic">
+            <h2 className="text-3xl lg:text-4xl font-bold leading-tight mb-3 text-white font-display">
               {side.headline}
             </h2>
             <p className="text-zinc-400 text-base leading-relaxed mb-6">{side.sub}</p>

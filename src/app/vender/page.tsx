@@ -34,7 +34,7 @@ export default function VenderPage() {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">MUVO</p>
-            <h1 className="text-2xl sm:text-3xl font-bold mt-1 leading-tight font-display italic">
+            <h1 className="text-2xl sm:text-3xl font-bold mt-1 leading-tight font-display">
               Ferramenta para quem investe
             </h1>
             <p className="text-sm text-muted-foreground mt-2">
