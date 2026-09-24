@@ -13,9 +13,10 @@ import { useTheme } from "@/components/theme-provider";
 import { useState, useEffect } from "react";
 
 function fmtCompact(v: number): string {
-  if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1).replace(".", ",")}M`;
-  if (v >= 1_000) return `R$ ${(v / 1_000).toFixed(1).replace(".", ",")}k`;
-  return `R$ ${v.toFixed(0)}`;
+  const n = Number(v) || 0;
+  if (n >= 1_000_000) return `R$ ${(n / 1_000_000).toFixed(1).replace(".", ",")}M`;
+  if (n >= 1_000) return `R$ ${(n / 1_000).toFixed(1).replace(".", ",")}k`;
+  return `R$ ${n.toFixed(0)}`;
 }
 import {
   NAV_GROUPS,
@@ -52,11 +53,11 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
       if (cancelled || !Array.isArray(accts)) return;
       const invArr = Array.isArray(invs) ? invs : [];
       const total = accts.reduce((s: number, a: { id: string; is_turbo: boolean; current_balance: number }) => {
-        if (a.is_turbo) return s + (a.current_balance || 0);
+        if (a.is_turbo) return s + (Number(a.current_balance) || 0);
         const bal = invArr
           .filter((i: { account_id: string }) => i.account_id === a.id)
           .reduce((b: number, i: { type: string; amount: number }) =>
-            i.type === "retirada" ? b - i.amount : b + i.amount, 0);
+            i.type === "retirada" ? b - (Number(i.amount) || 0) : b + (Number(i.amount) || 0), 0);
         return s + bal;
       }, 0);
       setPortfolioTotal(total);
