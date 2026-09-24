@@ -175,8 +175,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                         !isActive && isFeatured && isCollapsed && "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                         !isActive && !isFeatured && "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                       )}>
-                      {/* shimmer sweep — featured, expandido, inativo */}
-                      {isFeatured && !isCollapsed && !isActive && (
+                      {/* shimmer sweep — featured, inativo */}
+                      {isFeatured && !isActive && (
                         <span
                           aria-hidden
                           className="pointer-events-none absolute inset-y-0 w-1/2 animate-[sidebar-sweep_4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.07] to-transparent skew-x-[-15deg]"
@@ -191,7 +191,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                             ? "text-sidebar-primary"
                             : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
                         )} />
-                        {isFeatured && !isCollapsed && (
+                        {isFeatured && (
                           <span className="absolute -top-[3px] -right-[3px] flex h-[7px] w-[7px]">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-70" />
                             <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-amber-400" />
