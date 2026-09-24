@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { X, TrendingUp, TrendingDown, Minus, Check, Plus, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
@@ -125,10 +125,15 @@ export function InvestorLiveViewDesktop({
   /* ── Feedback ────────────────────────────────────────────────── */
   const [confirmedFlash, setConfirmedFlash] = useState(false);
 
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   function flashConfirm() {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     setConfirmedFlash(true);
-    setTimeout(() => setConfirmedFlash(false), 1600);
+    flashTimerRef.current = setTimeout(() => setConfirmedFlash(false), 1600);
   }
+
+  useEffect(() => () => { if (flashTimerRef.current) clearTimeout(flashTimerRef.current); }, []);
 
   /* ── Derived: holdings ────────────────────────────────────────── */
   const holdingRows = useMemo(() => {
@@ -535,7 +540,7 @@ export function InvestorLiveViewDesktop({
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 shrink-0">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+              <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
             </span>
             <span className="text-[11px] font-black uppercase tracking-[0.22em] text-white/55">
@@ -543,7 +548,15 @@ export function InvestorLiveViewDesktop({
             </span>
           </div>
 
-          <div role="tablist" className="flex items-center gap-1 bg-white/[0.05] rounded-full p-1">
+          <div
+            role="tablist"
+            onKeyDown={(e) => {
+              const idx = tabs.findIndex((t) => t.id === tab);
+              if (e.key === "ArrowRight") { e.preventDefault(); setTab(tabs[(idx + 1) % tabs.length].id); }
+              if (e.key === "ArrowLeft") { e.preventDefault(); setTab(tabs[(idx - 1 + tabs.length) % tabs.length].id); }
+            }}
+            className="flex items-center gap-1 bg-white/[0.05] rounded-full p-1"
+          >
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -575,7 +588,7 @@ export function InvestorLiveViewDesktop({
           <button
             onClick={onClose}
             aria-label="Fechar"
-            className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:bg-white/14 hover:text-white/80 transition-colors"
+            className="h-9 w-9 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:bg-white/14 hover:text-white/80 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -1104,7 +1117,7 @@ export function InvestorLiveViewDesktop({
           <div className="flex items-center justify-between px-7 py-4 border-b border-white/[0.07] shrink-0">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
               </span>
               <span className="text-[11px] font-black uppercase tracking-[0.22em] text-white/55">MUVO · LIVE</span>
@@ -1112,7 +1125,7 @@ export function InvestorLiveViewDesktop({
             <button
               onClick={() => setMarketOpen(false)}
               aria-label="Fechar"
-              className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:bg-white/14 hover:text-white/80 transition-colors"
+              className="h-9 w-9 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:bg-white/14 hover:text-white/80 transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -1141,15 +1154,19 @@ export function InvestorLiveViewDesktop({
         <div
           className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center"
           onClick={() => !sellSubmitting && setSellTicker(null)}
+          onKeyDown={(e) => e.key === "Escape" && !sellSubmitting && setSellTicker(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sell-modal-title"
+            className="w-full max-w-sm rounded-2xl bg-[#05050A] border border-white/10 p-6 mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-400/60 mb-0.5">Vender posição</p>
-                <p className="text-lg font-bold text-white">{sellHolding.ticker}</p>
+                <p id="sell-modal-title" className="text-lg font-bold text-white">{sellHolding.ticker}</p>
                 <p className="text-xs text-white/35 mt-0.5">
                   {fmtQty(sellHolding.quantity)} un. · {formatCurrency(sellHolding.price)}/un.
                 </p>
@@ -1157,24 +1174,26 @@ export function InvestorLiveViewDesktop({
               <button
                 onClick={() => !sellSubmitting && setSellTicker(null)}
                 aria-label="Fechar"
-                className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
+                className="h-9 w-9 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="mb-4">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-2">
+              <label htmlFor="sell-qty" className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-2">
                 Quantidade a vender
               </label>
               <div className="flex gap-2">
                 <input
+                  id="sell-qty"
                   type="text"
                   inputMode="decimal"
+                  autoFocus
                   value={sellQtyMask}
                   onChange={(e) => onSellQtyChange(e.target.value)}
                   placeholder="0"
-                  className="flex-1 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-red-400/50 text-sm font-semibold tabular-nums"
+                  className="flex-1 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-red-400/40 focus:border-red-400/50 text-sm font-semibold tabular-nums"
                 />
                 <button
                   onClick={() => sellHolding && setSellQtyMask(fmtQty(sellHolding.quantity).replace(".", ","))}
@@ -1217,15 +1236,19 @@ export function InvestorLiveViewDesktop({
         <div
           className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center"
           onClick={() => !withdrawSubmitting && setWithdrawAccount(null)}
+          onKeyDown={(e) => e.key === "Escape" && !withdrawSubmitting && setWithdrawAccount(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="withdraw-modal-title"
+            className="w-full max-w-sm rounded-2xl bg-[#05050A] border border-white/10 p-6 mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 mb-0.5">Retirar da caixinha</p>
-                <p className="text-lg font-bold text-white">{withdrawAccount.nome}</p>
+                <p id="withdraw-modal-title" className="text-lg font-bold text-white">{withdrawAccount.nome}</p>
                 <p className="text-xs text-white/35 mt-0.5">
                   Disponível: {formatCurrency(withdrawAccount.valor)}
                 </p>
@@ -1233,22 +1256,24 @@ export function InvestorLiveViewDesktop({
               <button
                 onClick={() => !withdrawSubmitting && setWithdrawAccount(null)}
                 aria-label="Fechar"
-                className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
+                className="h-9 w-9 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="mb-4">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-2">
+              <label htmlFor="withdraw-amount" className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-2">
                 Valor a retirar
               </label>
               <div className="flex gap-2">
-                <div className="flex-1 flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-3">
+                <div className="flex-1 flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-3 focus-within:ring-1 focus-within:ring-white/30">
                   <span className="text-white/30 text-sm shrink-0">R$</span>
                   <input
+                    id="withdraw-amount"
                     type="text"
                     inputMode="decimal"
+                    autoFocus
                     value={withdrawMask}
                     onChange={(e) => setWithdrawMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
                     placeholder="0,00"
@@ -1290,20 +1315,24 @@ export function InvestorLiveViewDesktop({
         <div
           className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center"
           onClick={() => !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
+          onKeyDown={(e) => e.key === "Escape" && !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="caixinha-modal-title"
+            className="w-full max-w-sm rounded-2xl bg-[#05050A] border border-white/10 p-6 mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 mb-0.5">Nova caixinha</p>
-                <p className="text-lg font-bold text-white">Criar caixinha</p>
+                <p id="caixinha-modal-title" className="text-lg font-bold text-white">Criar caixinha</p>
               </div>
               <button
                 onClick={() => !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
                 aria-label="Fechar"
-                className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
+                className="h-9 w-9 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1332,48 +1361,53 @@ export function InvestorLiveViewDesktop({
 
             <div className="space-y-3 mb-4">
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">Nome</label>
+                <label htmlFor="caixinha-nome" className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">Nome</label>
                 <input
+                  id="caixinha-nome"
                   type="text"
+                  autoFocus
                   value={newCaixinhaName}
                   onChange={(e) => setNewCaixinhaName(e.target.value)}
                   placeholder={newCaixinhaTipo === "turbo" ? "Ex: Nubank Turbo" : newCaixinhaTipo === "emergencia" ? "Ex: Reserva" : "Ex: Prefixado 2029"}
-                  className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 text-sm"
+                  className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/30 text-sm"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">Instituição</label>
+                <label htmlFor="caixinha-instituicao" className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">Instituição</label>
                 <input
+                  id="caixinha-instituicao"
                   type="text"
                   value={newCaixinhaInstituicao}
                   onChange={(e) => setNewCaixinhaInstituicao(e.target.value)}
                   placeholder="Ex: Nubank, XP, BTG..."
-                  className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 text-sm"
+                  className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/30 text-sm"
                 />
               </div>
 
               {newCaixinhaTipo === "turbo" && (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">% CDI</label>
+                    <label htmlFor="caixinha-cdi" className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">% CDI</label>
                     <input
+                      id="caixinha-cdi"
                       type="text"
                       inputMode="decimal"
                       value={newCaixinhaCdiMask}
                       onChange={(e) => setNewCaixinhaCdiMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
                       placeholder="0,00"
-                      className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 text-sm tabular-nums"
+                      className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/30 text-sm tabular-nums"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">Teto (R$)</label>
+                    <label htmlFor="caixinha-teto" className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">Teto (R$)</label>
                     <input
+                      id="caixinha-teto"
                       type="text"
                       inputMode="decimal"
                       value={newCaixinhaTetoMask}
                       onChange={(e) => setNewCaixinhaTetoMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
                       placeholder="0,00"
-                      className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 text-sm tabular-nums"
+                      className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/30 text-sm tabular-nums"
                     />
                   </div>
                 </div>
@@ -1406,7 +1440,7 @@ export function InvestorLiveViewDesktop({
 
       {/* ── Flash confirmação ─────────────────────────────────────── */}
       {confirmedFlash && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black shadow-xl shadow-black/30 pointer-events-none">
+        <div role="status" aria-live="polite" className="absolute top-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black shadow-xl shadow-black/30 pointer-events-none">
           <Check className="h-4 w-4" />
           Operação confirmada
         </div>
