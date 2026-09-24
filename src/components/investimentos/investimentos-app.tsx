@@ -33,6 +33,8 @@ import {
 } from "@/lib/stock-utils";
 import { printInvestorReport } from "@/lib/generate-investor-report";
 import { InvestorModeView } from "@/components/investimentos/investor-mode-view";
+import { InvestorLiveView } from "@/components/investimentos/investor-live-view";
+import { categorizeAccount, isCashAccountName } from "@/lib/account-groups";
 import { AccountTab } from "@/components/investimentos/account-tab";
 import { AcoesTab } from "@/components/investimentos/acoes-tab";
 import { useUser } from "@/context/user-context";
@@ -931,6 +933,37 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       />
     );
   }
+  if (selectedView === "live") {
+    const toItem = (x: { account: InvestmentAccount; balance: number }) => ({
+      id: x.account.id,
+      nome: x.account.name,
+      instituicao: x.account.institution,
+      valor: x.balance,
+      isTurbo: x.account.is_turbo,
+      cdiPercent: x.account.cdi_percent,
+      maxRendimento: x.account.max_rendimento,
+    });
+    const sortByValor = <T extends { valor: number }>(arr: T[]) => [...arr].sort((a, b) => b.valor - a.valor);
+    const cashEntry = accountBalances.find((x) => isCashAccountName(x.account.name));
+    const nonCashBalances = accountBalances.filter((x) => x !== cashEntry);
+    return (
+      <InvestorLiveView
+        grandTotal={grandTotal}
+        turboAccountsReal={sortByValor(nonCashBalances.filter((x) => categorizeAccount(x.account) === "turbo").map(toItem))}
+        emergenciaAccountsReal={sortByValor(nonCashBalances.filter((x) => categorizeAccount(x.account) === "emergencia").map(toItem))}
+        investimentosAccountsReal={sortByValor(nonCashBalances.filter((x) => categorizeAccount(x.account) === "investimentos").map(toItem))}
+        stockPositions={stockPositions}
+        quoteMap={quoteMap}
+        stockTrades={stockTrades}
+        investments={investments}
+        cashAccountId={cashEntry?.account.id ?? null}
+        cashBalance={cashEntry?.balance ?? 0}
+        onRefresh={load}
+        onClose={() => setSelectedView(null)}
+      />
+    );
+  }
+
   const pageTitle =
     section === "contas" ? "Contas" : section === "acoes" ? "Ações & FIIs" : "Investimentos";
   const pageDescription =
