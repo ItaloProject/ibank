@@ -162,49 +162,51 @@ export function InvestorModeView({
   }
 
   return (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#05050a] text-white">
+        <div className="relative min-h-full bg-[#05050a] text-white overflow-hidden">
           {/* Ambient mesh — MUVO neutral */}
-          <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-white/[0.04] blur-[140px]" />
             <div className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full bg-white/[0.03] blur-[130px]" />
             <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] rounded-full bg-white/[0.02] blur-[130px]" />
           </div>
 
-          <div className="relative mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12">
-            {/* Top bar */}
-            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between mb-10 sm:mb-16">
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                </span>
-                <span className="text-[11px] font-black uppercase tracking-[0.22em] text-white/55">
-                  MUVO · BOT
-                </span>
-              </div>
-              <div className="flex items-center justify-center gap-2 flex-wrap">
-                <button
-                  onClick={() => setLiveMode(true)}
-                  className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/70 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
-                >
-                  <Radio className="h-3.5 w-3.5" />
-                  Live
-                </button>
-                <button
-                  onClick={onGenerateReport}
-                  className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/70 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                  PDF
-                </button>
-                <button
-                  onClick={() => setInvestorMode(false)}
-                  className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/50 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white/80"
-                >
-                  Sair
-                </button>
-              </div>
+          {/* Sticky top bar — anchored to the layout scroll area */}
+          <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/[0.07] bg-[#05050a]/85 px-5 py-3 backdrop-blur-xl sm:px-8">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              <span className="text-[11px] font-black uppercase tracking-[0.22em] text-white/55">
+                MUVO · BOT
+              </span>
             </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLiveMode(true)}
+                className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <Radio className="h-3.5 w-3.5" />
+                Live
+              </button>
+              <button
+                onClick={onGenerateReport}
+                className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                PDF
+              </button>
+              <button
+                onClick={() => setInvestorMode(false)}
+                className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/50 transition-colors hover:bg-white/10 hover:text-white/80"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
+
+          <div className="relative mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12">
+            {/* spacing placeholder — topbar takes its own row now */}
 
             {/* Hero central */}
             <div className="flex flex-col items-center text-center mb-14 sm:mb-20">
