@@ -76,6 +76,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [form, setForm] = useState({
     description: "",
     total_amount: "",
@@ -88,6 +89,9 @@ function ParcelamentosContent({ userId }: { userId: string }) {
     try {
       const data = await fetchPlans(userId);
       setPlans(Array.isArray(data) ? data : []);
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -172,6 +176,15 @@ function ParcelamentosContent({ userId }: { userId: string }) {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3">
+        <p className="text-sm text-muted-foreground">Erro ao carregar parcelamentos.</p>
+        <Button type="button" variant="outline" size="sm" onClick={load}>Tentar novamente</Button>
+      </div>
+    );
+  }
+
   return (
     <PageShell>
       {/* Desktop: full page header */}
@@ -233,9 +246,9 @@ function ParcelamentosContent({ userId }: { userId: string }) {
         {/* ── Em andamento ── */}
         {active.length > 0 && (
           <div className="space-y-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 px-0.5">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 px-0.5">
               Em andamento ({active.length})
-            </p>
+            </h2>
             {active.map((plan) => (
               <PlanCard key={plan.id} plan={plan} onPay={handlePay} onDelete={handleDelete} onEdit={openEdit} />
             ))}
@@ -245,9 +258,9 @@ function ParcelamentosContent({ userId }: { userId: string }) {
         {/* ── Quitados ── */}
         {done.length > 0 && (
           <div className="space-y-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 px-0.5">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 px-0.5">
               Quitados ({done.length})
-            </p>
+            </h2>
             {done.map((plan) => (
               <PlanCard key={plan.id} plan={plan} onPay={handlePay} onDelete={handleDelete} onEdit={openEdit} />
             ))}
@@ -399,7 +412,7 @@ function PlanCard({
       <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
         <div className="shrink-0" aria-hidden="true">
           {isDone
-            ? <CheckCircle2 className="h-4 w-4 text-green-500" />
+            ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             : <Circle className="h-4 w-4 text-muted-foreground/40" />
           }
         </div>
@@ -408,7 +421,7 @@ function PlanCard({
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors"
             disabled={plan.paid_installments <= 0}
             onClick={() => onPay(plan, -1)}
             title="Desfazer parcela"
@@ -421,7 +434,7 @@ function PlanCard({
           </span>
           <button
             type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors"
             disabled={isDone}
             onClick={() => onPay(plan, +1)}
             title="Marcar parcela paga"
@@ -434,7 +447,7 @@ function PlanCard({
         <div className="flex items-center gap-0 shrink-0">
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
             onClick={() => onEdit(plan)}
             title="Editar"
             aria-label="Editar parcelamento"
@@ -443,7 +456,7 @@ function PlanCard({
           </button>
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
             onClick={() => onDelete(plan)}
             title="Excluir"
             aria-label="Excluir parcelamento"
@@ -466,7 +479,7 @@ function PlanCard({
         </div>
         <div className="h-1.5 rounded-full bg-muted overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${isDone ? "bg-green-500" : "bg-primary"}`}
+            className={`h-full rounded-full transition-all duration-500 ${isDone ? "bg-emerald-500" : "bg-primary"}`}
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -492,8 +505,8 @@ function PlanCard({
           </p>
         )}
         {isDone && (
-          <span className="flex items-center gap-1 text-[10px] font-bold text-green-500 uppercase tracking-wide">
-            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase tracking-wide">
+            <CheckCircle2 className="h-3 w-3 text-emerald-500" aria-hidden="true" />
             Quitado
           </span>
         )}
