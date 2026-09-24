@@ -128,14 +128,10 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           </button>
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="h-9 w-9 rounded-lg shrink-0 flex items-center justify-center">
-              <Image
-                src="/logo.png"
-                alt="MUVO"
-                width={200}
-                height={200}
-                className="h-full w-full object-contain"
-                priority
-              />
+              <Image src="/logo-dark.png" alt="MUVO" width={200} height={200}
+                className="h-full w-full object-contain dark:hidden" priority />
+              <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
+                className="h-full w-full object-contain hidden dark:block" priority />
             </div>
             <span className="font-display font-bold text-base truncate">MUVO</span>
           </div>

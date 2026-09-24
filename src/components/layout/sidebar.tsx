@@ -56,7 +56,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
     >
       <div className="flex h-16 shrink-0 items-center px-3 border-b border-sidebar-border/50">
         <div className="h-10 w-10 shrink-0 flex items-center justify-center">
-          <Image src="/logo.png" alt="MUVO" width={200} height={200}
+          <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
             className="h-full w-full object-contain" priority />
         </div>
         <div className={cn("ml-2 overflow-hidden transition-all duration-150 ease-out", isCollapsed ? "w-0 opacity-0" : "w-36 opacity-100")}>

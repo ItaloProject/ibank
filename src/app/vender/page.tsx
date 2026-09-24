@@ -22,15 +22,12 @@ export default function VenderPage() {
       <div className="mx-auto max-w-lg px-5 py-10 space-y-10">
         <header className="flex flex-col items-center text-center gap-3">
           <div className="h-16 w-16 rounded-2xl overflow-hidden">
-            <Image
-              src="/logo.png"
-              alt="MUVO"
-              width={200}
-              height={200}
-              className="h-full w-full object-cover"
-              style={{ objectPosition: "50% 48%" }}
-              priority
-            />
+            <Image src="/logo-dark.png" alt="MUVO" width={200} height={200}
+              className="h-full w-full object-cover dark:hidden"
+              style={{ objectPosition: "50% 48%" }} priority />
+            <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
+              className="h-full w-full object-cover hidden dark:block"
+              style={{ objectPosition: "50% 48%" }} priority />
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">MUVO</p>

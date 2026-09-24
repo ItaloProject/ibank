@@ -41,14 +41,10 @@ export function LoginScreen() {
 
       {/* Logo + marca */}
       <div className="flex flex-col items-center mb-8">
-        <Image
-          src="/logo.png"
-          alt="MUVO"
-          width={120}
-          height={120}
-          className="h-[120px] w-[120px] object-contain"
-          priority
-        />
+        <Image src="/logo-dark.png" alt="MUVO" width={120} height={120}
+          className="h-[120px] w-[120px] object-contain dark:hidden" priority />
+        <Image src="/logo-white.png" alt="MUVO" width={120} height={120}
+          className="h-[120px] w-[120px] object-contain hidden dark:block" priority />
         <h1 className="text-3xl font-bold tracking-tight text-foreground font-display -mt-1">
           MUVO
         </h1>

@@ -697,7 +697,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             >
-              <Image src="/logo.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30" />
+              <Image src="/logo-dark.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30 dark:hidden" />
+              <Image src="/logo-white.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30 hidden dark:block" />
               <p className="font-semibold text-foreground/70">Nenhum grupo criado</p>
               <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
             </motion.div>

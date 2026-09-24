@@ -19,15 +19,12 @@ export function SubscriptionGate() {
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-6 safe-pt safe-pb">
       <div className="h-16 w-16 rounded-2xl overflow-hidden mb-5">
-        <Image
-          src="/logo.png"
-          alt="MUVO"
-          width={200}
-          height={200}
-          className="h-full w-full object-cover"
-          style={{ objectPosition: "50% 48%" }}
-          priority
-        />
+        <Image src="/logo-dark.png" alt="MUVO" width={200} height={200}
+          className="h-full w-full object-cover dark:hidden"
+          style={{ objectPosition: "50% 48%" }} priority />
+        <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
+          className="h-full w-full object-cover hidden dark:block"
+          style={{ objectPosition: "50% 48%" }} priority />
       </div>
       <h1 className="text-xl font-bold text-center">Assinatura necessária</h1>
       <p className="text-sm text-muted-foreground text-center mt-2 max-w-sm">

@@ -177,8 +177,10 @@ export default function ComecarPage() {
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10">
             <div className="h-10 w-10 rounded-xl overflow-hidden">
-              <Image src="/logo.png" alt="MUVO" width={200} height={200}
-                className="h-full w-full object-cover" style={{ objectPosition: "50% 48%" }} priority />
+              <Image src="/logo-dark.png" alt="MUVO" width={200} height={200}
+                className="h-full w-full object-cover dark:hidden" style={{ objectPosition: "50% 48%" }} priority />
+              <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
+                className="h-full w-full object-cover hidden dark:block" style={{ objectPosition: "50% 48%" }} priority />
             </div>
             <span className="font-bold text-lg tracking-tight">MUVO</span>
           </div>
