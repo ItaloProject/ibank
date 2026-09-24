@@ -163,47 +163,43 @@ export function InvestorModeView({
 
   return (
         <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#05050a] text-white">
-          {/* Mesh de fundo */}
+          {/* Ambient mesh — MUVO neutral */}
           <div className="pointer-events-none fixed inset-0 overflow-hidden">
-            <div className="absolute -top-32 -left-32 h-[28rem] w-[28rem] rounded-full bg-amber-500/15 blur-[100px]" />
-            <div className="absolute top-1/4 -right-32 h-[26rem] w-[26rem] rounded-full bg-blue-500/20 blur-[100px]" />
-            <div className="absolute bottom-0 left-1/3 h-[24rem] w-[24rem] rounded-full bg-emerald-500/15 blur-[110px]" />
-            <div className="absolute inset-0 opacity-[0.03]" style={{
-              backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
-              backgroundSize: "48px 48px",
-            }} />
+            <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-white/[0.04] blur-[140px]" />
+            <div className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full bg-white/[0.03] blur-[130px]" />
+            <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] rounded-full bg-white/[0.02] blur-[130px]" />
           </div>
 
           <div className="relative mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12">
             {/* Top bar */}
             <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between mb-10 sm:mb-16">
-              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-xl w-fit">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
                 </span>
-                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-white/70">
-                  Modo Investidor
+                <span className="text-[11px] font-black uppercase tracking-[0.22em] text-white/55">
+                  MUVO · BOT
                 </span>
               </div>
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <button
                   onClick={() => setLiveMode(true)}
-                  className="flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-red-300 backdrop-blur-xl transition-colors hover:bg-red-500/20 hover:text-red-200"
+                  className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/70 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
                 >
                   <Radio className="h-3.5 w-3.5" />
                   Live
                 </button>
                 <button
                   onClick={onGenerateReport}
-                  className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-amber-300 backdrop-blur-xl transition-colors hover:bg-amber-500/20 hover:text-amber-200"
+                  className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/70 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
                 >
                   <FileText className="h-3.5 w-3.5" />
                   PDF
                 </button>
                 <button
                   onClick={() => setInvestorMode(false)}
-                  className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/70 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white"
+                  className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-white/50 backdrop-blur-xl transition-colors hover:bg-white/10 hover:text-white/80"
                 >
                   Sair
                 </button>
@@ -212,31 +208,23 @@ export function InvestorModeView({
 
             {/* Hero central */}
             <div className="flex flex-col items-center text-center mb-14 sm:mb-20">
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">Sua renda passiva mensal</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30 mb-4">Sua renda passiva mensal</p>
 
               <div className="relative flex items-center justify-center mb-2" style={{ width: 280, height: 280 }}>
                 <svg width="280" height="280" className="absolute inset-0 -rotate-90">
-                  <circle cx="140" cy="140" r="118" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+                  <circle cx="140" cy="140" r="118" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
                   {incomeGoal > 0 && (
-                    <>
-                      <circle
-                        cx="140" cy="140" r="118" fill="none"
-                        stroke="url(#goalGradient)" strokeWidth="8" strokeLinecap="round"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={circumference - (goalProgress / 100) * circumference}
-                        style={{ transition: "stroke-dashoffset 1s ease" }}
-                      />
-                      <defs>
-                        <linearGradient id="goalGradient" x1="0" y1="0" x2="1" y2="1">
-                          <stop offset="0%" stopColor="#a855f7" />
-                          <stop offset="100%" stopColor="#3b82f6" />
-                        </linearGradient>
-                      </defs>
-                    </>
+                    <circle
+                      cx="140" cy="140" r="118" fill="none"
+                      stroke="rgba(255,255,255,0.85)" strokeWidth="6" strokeLinecap="round"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={circumference - (goalProgress / 100) * circumference}
+                      style={{ transition: "stroke-dashoffset 1s ease" }}
+                    />
                   )}
                 </svg>
                 <div className="flex flex-col items-center px-6">
-                  <p className="text-3xl sm:text-4xl font-black tabular-nums text-white leading-none text-center">
+                  <p className="text-3xl sm:text-4xl font-black tabular-nums text-white leading-none text-center font-display">
                     {formatCurrency(totalRendaMensal)}
                   </p>
                   <p className="text-xs text-white/40 mt-2">por mês</p>
@@ -256,7 +244,7 @@ export function InvestorModeView({
                 <input
                   type="number"
                   placeholder="Definir meta mensal (R$)..."
-                  className="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-white placeholder:text-white/30 w-56 text-center focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all"
+                  className="bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-white placeholder:text-white/30 w-56 text-center focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/25 transition-all"
                   value={incomeGoalInput}
                   onChange={(e) => setIncomeGoalInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -282,21 +270,18 @@ export function InvestorModeView({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {allSources.map((src, i) => (
                     <div key={i}
-                      className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 transition-all hover:bg-white/[0.06] hover:border-white/20"
+                      className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-5 transition-all hover:bg-white/[0.06] hover:border-white/15"
                     >
-                      <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full blur-2xl opacity-30 transition-opacity group-hover:opacity-50" style={{ background: src.cor }} />
-                      <div className="relative">
-                        <div className="flex items-center gap-1.5 mb-3">
-                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: src.cor }} />
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">{src.tipo}</p>
-                        </div>
-                        <p className="text-sm font-semibold text-white/90 mb-0.5">{src.nome}</p>
-                        <p className="text-xs text-white/35 mb-4 truncate">{src.badge}</p>
-                        <p className="text-2xl font-extrabold tabular-nums text-white">
-                          +{formatCurrency(src.rendaMensal)}
-                        </p>
-                        <p className="text-xs text-white/30 mt-1">/mês · capital {formatCurrency(src.capital)}</p>
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-white/35">{src.tipo}</p>
                       </div>
+                      <p className="text-sm font-semibold text-white/90 mb-0.5 truncate">{src.nome}</p>
+                      <p className="text-xs text-white/30 mb-4 truncate">{src.badge}</p>
+                      <p className="text-2xl font-extrabold tabular-nums text-white">
+                        +{formatCurrency(src.rendaMensal)}
+                      </p>
+                      <p className="text-xs text-white/25 mt-1">/mês · capital {formatCurrency(src.capital)}</p>
                     </div>
                   ))}
                 </div>
@@ -312,8 +297,8 @@ export function InvestorModeView({
                     <AreaChart data={chartMonths}>
                       <defs>
                         <linearGradient id="gradInvestorRenda" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#a855f7" stopOpacity={0.5} />
-                          <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#ffffff" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
@@ -327,13 +312,13 @@ export function InvestorModeView({
                               <p className="text-xs font-bold border-b border-white/10 pb-1.5 mb-2 text-white/70">{label}</p>
                               <div className="flex justify-between text-sm gap-4">
                                 <span className="text-white/50">Rendimento</span>
-                                <span className="font-bold text-amber-400 tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
+                                <span className="font-bold text-white tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
                               </div>
                             </div>
                           );
                         }}
                       />
-                      <Area type="monotone" dataKey="Renda recebida" stroke="#a855f7" strokeWidth={2.5} fill="url(#gradInvestorRenda)" />
+                      <Area type="monotone" dataKey="Renda recebida" stroke="rgba(255,255,255,0.6)" strokeWidth={2} fill="url(#gradInvestorRenda)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -388,21 +373,17 @@ export function InvestorModeView({
                   ) : (
                     <>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.06] backdrop-blur-xl p-5">
-                          <p className="text-xs text-purple-300 font-semibold mb-2 uppercase tracking-wide">Via FIIs (~0,85%/mês)</p>
-                          <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency(remainingGap / 0.0085)}</p>
-                          <p className="text-xs text-white/35 mt-1">a mais investidos em FIIs</p>
-                        </div>
-                        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-5">
-                          <p className="text-xs text-emerald-300 font-semibold mb-2 uppercase tracking-wide">Via TURBO 115% CDI</p>
-                          <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency(remainingGap / (1.15 * CDI_MENSAL))}</p>
-                          <p className="text-xs text-white/35 mt-1">a mais investidos em CDB TURBO</p>
-                        </div>
-                        <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[0.06] backdrop-blur-xl p-5">
-                          <p className="text-xs text-blue-300 font-semibold mb-2 uppercase tracking-wide">Via dividendos (~0,4%/mês)</p>
-                          <p className="text-2xl font-extrabold tabular-nums text-white">{formatCurrency(remainingGap / 0.004)}</p>
-                          <p className="text-xs text-white/35 mt-1">a mais em ações pagadoras</p>
-                        </div>
+                        {[
+                          { label: "Via FIIs (~0,85%/mês)", value: formatCurrency(remainingGap / 0.0085), sub: "a mais investidos em FIIs" },
+                          { label: "Via TURBO 115% CDI", value: formatCurrency(remainingGap / (1.15 * CDI_MENSAL)), sub: "a mais em CDB TURBO" },
+                          { label: "Via dividendos (~0,4%/mês)", value: formatCurrency(remainingGap / 0.004), sub: "a mais em ações pagadoras" },
+                        ].map((item) => (
+                          <div key={item.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-5">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-white/35 mb-2">{item.label}</p>
+                            <p className="text-2xl font-extrabold tabular-nums text-white">{item.value}</p>
+                            <p className="text-xs text-white/30 mt-1">{item.sub}</p>
+                          </div>
+                        ))}
                       </div>
                       <p className="text-xs text-white/30 mt-4 text-center">
                         Você já tem {formatCurrency(totalRendaMensal)}/mês · faltam {formatCurrency(remainingGap)}/mês para a meta
@@ -429,7 +410,7 @@ export function InvestorModeView({
                     </h3>
                     <button
                       onClick={onGenerateReport}
-                      className="flex items-center justify-center gap-2 rounded-full bg-amber-500 hover:bg-amber-400 px-4 py-2 text-sm font-semibold text-amber-950 transition-colors shrink-0 w-fit whitespace-nowrap"
+                      className="flex items-center justify-center gap-2 rounded-full bg-white hover:bg-white/90 px-4 py-2 text-sm font-semibold text-black transition-colors shrink-0 w-fit whitespace-nowrap"
                     >
                       <FileText className="h-4 w-4" />
                       Gerar PDF
@@ -534,7 +515,7 @@ export function InvestorModeView({
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl overflow-hidden">
                     {nextMoves.map((m, i) => (
                       <div key={i} className="flex items-start gap-3 p-4 border-b border-white/5 last:border-b-0">
-                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-xs font-black text-amber-400 mt-0.5">
+                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-white/[0.08] border border-white/10 flex items-center justify-center text-xs font-black text-white/50 mt-0.5">
                           {m.prioridade}
                         </span>
                         <div className="flex-1 min-w-0">

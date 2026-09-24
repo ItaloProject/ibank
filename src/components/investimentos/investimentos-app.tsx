@@ -796,48 +796,49 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
 
   if (selectedView === null) {
     return (
-      <div className="flex flex-col h-full select-none overflow-y-auto">
+      <div className="flex flex-col h-full select-none overflow-y-auto bg-background">
         {/* Header */}
-        <div className="px-5 pt-7 pb-5 md:px-8 md:pt-8">
-          <h1 className="text-2xl font-bold tracking-tight">Investimentos</h1>
+        <div className="px-5 pt-7 pb-6 md:px-8 md:pt-9 border-b border-border/50">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary/80" />
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground/50">Smart Control Finances</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight font-display">Investimentos</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Escolha sua experiência</p>
         </div>
+
         {/* Selector cards */}
-        <div className="flex flex-col md:flex-row gap-4 px-5 pb-8 md:px-8">
+        <div className="flex flex-col md:flex-row gap-3 p-5 md:p-8 flex-1">
           {/* MUVO LIVE */}
           <button
             onClick={() => setSelectedView("live")}
-            className="flex-1 flex flex-col gap-4 rounded-2xl border bg-card p-6 text-left shadow-sm ring-1 ring-inset ring-border/40 transition-all hover:ring-emerald-400/50 hover:shadow-md hover:shadow-emerald-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
+            className="group flex-1 flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 text-left transition-all hover:border-foreground/20 hover:shadow-lg active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <div className="flex items-center justify-between">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400">
+            <div className="flex items-start justify-between">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary/70">
                 <Radio className="h-5 w-5" />
-              </span>
-              <span className="text-[10px] font-bold tracking-widest text-emerald-600/60 dark:text-emerald-400/50 uppercase">LIVE</span>
+              </div>
+              <span className="text-[10px] font-black tracking-[0.2em] text-muted-foreground/40 uppercase pt-1">LIVE</span>
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight">MUVO LIVE</h2>
+              <h2 className="text-xl font-bold tracking-tight font-display">MUVO LIVE</h2>
               <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
                 Gerencie sua carteira em tempo real. Contas, ações, FIIs e histórico de movimentações.
               </p>
             </div>
-            <ul className="mt-1 space-y-1.5 text-sm text-muted-foreground/80">
-              <li className="flex items-center gap-2.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/60 shrink-0" />
-                Contas de investimento
-              </li>
-              <li className="flex items-center gap-2.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/60 shrink-0" />
-                Ações, FIIs & ETFs
-              </li>
-              <li className="flex items-center gap-2.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/60 shrink-0" />
-                Distribuição da carteira
-              </li>
+            <ul className="space-y-1.5 text-sm text-muted-foreground/70">
+              {["Contas de investimento", "Ações, FIIs & ETFs", "Distribuição da carteira"].map((f) => (
+                <li key={f} className="flex items-center gap-2.5">
+                  <span className="h-1 w-1 rounded-full bg-foreground/30 shrink-0" />
+                  {f}
+                </li>
+              ))}
             </ul>
-            <div className="mt-auto pt-2 flex items-center gap-1.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-              Entrar
-              <ChevronRight className="h-4 w-4" />
+            <div className="mt-auto pt-1 flex items-center gap-1.5 text-sm font-semibold text-foreground/70 group-hover:text-foreground transition-colors">
+              Entrar <ChevronRight className="h-4 w-4" />
             </div>
           </button>
 
@@ -845,55 +846,48 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
           {botEnabled ? (
             <button
               onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
-              className="flex-1 flex flex-col gap-4 rounded-2xl border bg-card p-6 text-left shadow-sm ring-1 ring-inset ring-border/40 transition-all hover:ring-violet-400/50 hover:shadow-md hover:shadow-violet-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
+              className="group flex-1 flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 text-left transition-all hover:border-foreground/20 hover:shadow-lg active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <div className="flex items-center justify-between">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:bg-violet-400/10 dark:text-violet-400">
+              <div className="flex items-start justify-between">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary/70">
                   <Zap className="h-5 w-5" />
-                </span>
-                <span className="text-[10px] font-bold tracking-widest text-violet-600/60 dark:text-violet-400/50 uppercase">BOT</span>
+                </div>
+                <span className="text-[10px] font-black tracking-[0.2em] text-muted-foreground/40 uppercase pt-1">BOT</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold tracking-tight">MUVO BOT</h2>
+                <h2 className="text-xl font-bold tracking-tight font-display">MUVO BOT</h2>
                 <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
                   Análise inteligente da sua carteira com insights, simulações e recomendações personalizadas.
                 </p>
               </div>
-              <ul className="mt-1 space-y-1.5 text-sm text-muted-foreground/80">
-                <li className="flex items-center gap-2.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500/60 shrink-0" />
-                  Score da carteira
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500/60 shrink-0" />
-                  Insights & alertas
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500/60 shrink-0" />
-                  Simulador de aportes
-                </li>
+              <ul className="space-y-1.5 text-sm text-muted-foreground/70">
+                {["Score da carteira", "Insights & alertas", "Simulador de aportes"].map((f) => (
+                  <li key={f} className="flex items-center gap-2.5">
+                    <span className="h-1 w-1 rounded-full bg-foreground/30 shrink-0" />
+                    {f}
+                  </li>
+                ))}
               </ul>
-              <div className="mt-auto pt-2 flex items-center gap-1.5 text-sm font-semibold text-violet-600 dark:text-violet-400">
-                Entrar
-                <ChevronRight className="h-4 w-4" />
+              <div className="mt-auto pt-1 flex items-center gap-1.5 text-sm font-semibold text-foreground/70 group-hover:text-foreground transition-colors">
+                Entrar <ChevronRight className="h-4 w-4" />
               </div>
             </button>
           ) : (
-            <div className="flex-1 flex flex-col gap-4 rounded-2xl border border-dashed border-border/50 bg-muted/20 p-6 text-left">
-              <div className="flex items-center justify-between">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/5 text-violet-400/40">
+            <div className="flex-1 flex flex-col gap-5 rounded-2xl border border-dashed border-border/50 bg-muted/20 p-6 text-left opacity-60">
+              <div className="flex items-start justify-between">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted/50 text-muted-foreground/40">
                   <Zap className="h-5 w-5" />
-                </span>
+                </div>
                 <span className="rounded-full border border-border/50 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-muted-foreground/50 uppercase">Premium</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold tracking-tight text-muted-foreground/60">MUVO BOT</h2>
+                <h2 className="text-xl font-bold tracking-tight font-display text-muted-foreground/60">MUVO BOT</h2>
                 <p className="mt-1.5 text-sm text-muted-foreground/60 leading-relaxed">
                   Análise inteligente da sua carteira com insights, simulações e recomendações personalizadas.
                 </p>
               </div>
-              <div className="mt-auto pt-2">
-                <a href="/vender" className="text-sm font-semibold text-violet-500/60 hover:text-violet-500 transition-colors">
+              <div className="mt-auto pt-1">
+                <a href="/vender" className="text-sm font-semibold text-foreground/40 hover:text-foreground/70 transition-colors">
                   Ativar acesso →
                 </a>
               </div>
