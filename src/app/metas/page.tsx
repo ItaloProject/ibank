@@ -230,7 +230,7 @@ export default function MetasPage() {
                   </div>
                   <div className="h-2.5 bg-muted rounded-full overflow-hidden">
                     <div
-                      className={cn("h-full rounded-full transition-all", progresso >= 100 ? "bg-emerald-500" : "bg-blue-500")}
+                      className={cn("h-full rounded-full transition-all", progresso >= 100 ? "bg-emerald-500" : "bg-emerald-500/60")}
                       style={{ width: `${progresso}%` }}
                     />
                   </div>
@@ -354,9 +354,9 @@ export default function MetasPage() {
           {/* Atalho para Modo Investidor / upsell bot */}
           <Link
             href={botEnabled ? "/investimentos?modo=investidor" : "/vender"}
-            className="flex items-start gap-3 rounded-xl border border-violet-500/30 bg-violet-500/5 px-4 py-3.5 hover:bg-violet-500/10 transition-colors"
+            className="flex items-start gap-3 rounded-xl border border-foreground/10 bg-foreground/5 px-4 py-3.5 hover:bg-foreground/8 transition-colors"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-500">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-500">
               <Zap className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">

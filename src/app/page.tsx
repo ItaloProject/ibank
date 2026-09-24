@@ -52,11 +52,11 @@ export default function DashboardPage() {
   const { userId } = useUser();
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const chartTextColor  = isDark ? "#94a3b8" : "#6b7280";
-  const chartGridColor  = isDark ? "#1e293b"  : "#e5e7eb";
-  const tooltipBg       = isDark ? "#0f172a"  : "#ffffff";
-  const tooltipBorder   = isDark ? "#1e293b"  : "#e5e7eb";
-  const tooltipText     = isDark ? "#f1f5f9"  : "#111827";
+  const chartTextColor  = isDark ? "#999999"  : "#706A67";
+  const chartGridColor  = isDark ? "#262626"  : "#DEDBD8";
+  const tooltipBg       = isDark ? "#0D0D0D"  : "#F3F0EF";
+  const tooltipBorder   = isDark ? "#262626"  : "#DEDBD8";
+  const tooltipText     = isDark ? "#F5F5F5"  : "#0D0D0D";
 
   const [accounts,    setAccounts]    = useState<InvestmentAccount[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -122,9 +122,9 @@ export default function DashboardPage() {
   const valorFIIs  = Object.entries(netQty).reduce((s, [tk, qty]) => FII_SET.has(tk) ? s + qty * (quoteMap[tk] ?? 0) : s, 0);
   const valorAcoes = acoes - valorFIIs;
   const portfolioPieData = [
-    { name: "Renda Fixa", value: rendaFixa,   color: "#3b82f6" },
+    { name: "Renda Fixa", value: rendaFixa,   color: "#38bdf8" },
     { name: "Ações",      value: valorAcoes,  color: "#10b981" },
-    { name: "FIIs",       value: valorFIIs,   color: "#f59e0b" },
+    { name: "FIIs",       value: valorFIIs,   color: "#14b8a6" },
   ].filter(d => d.value > 0);
   const stockPurchases = stockTrades
     .filter(t => t.type === "compra" && t.date >= monthStart && t.date <= monthEnd)
@@ -207,7 +207,7 @@ export default function DashboardPage() {
                       Excedeu {formatCurrency(planTotalActual - planSalary)}
                     </p>
                   ) : (
-                    <p className="text-xs text-green-600 mt-0.5">
+                    <p className="text-xs text-emerald-600 mt-0.5">
                       Sobra {formatCurrency(planRemaining)}
                     </p>
                   )}
@@ -242,10 +242,10 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardDescription>Renda passiva</CardDescription>
-              <Wallet className="h-4 w-4 text-emerald-500" />
+              <Wallet className="h-4 w-4 text-emerald-600" />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold tabular-nums text-emerald-500">
+              <p className="text-2xl font-bold tabular-nums text-emerald-600">
                 {formatCurrency(monthlyIncome)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">estimativa mensal</p>
@@ -256,10 +256,10 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardDescription>Aportes no mês</CardDescription>
-              <ArrowUpRight className="h-4 w-4 text-green-500" />
+              <ArrowUpRight className="h-4 w-4 text-emerald-600" />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold tabular-nums text-green-600">
+              <p className="text-2xl font-bold tabular-nums text-emerald-600">
                 {formatCurrency(monthDeposits)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -295,9 +295,9 @@ export default function DashboardPage() {
                 {incomeSources.map(src => {
                   const color =
                     SOURCE_COLORS[src.label] ??
-                    (src.detail?.includes("TURBO") || src.detail?.includes("CDI") ? "#a855f7" :
+                    (src.detail?.includes("TURBO") || src.detail?.includes("CDI") ? "#f5c425" :
                       src.detail?.includes("0,85%") ? "#06b6d4" :
-                      src.detail?.includes("0,4%")  ? "#10b981" : "#3b82f6");
+                      src.detail?.includes("0,4%")  ? "#10b981" : "#38bdf8");
                   const pct = monthlyIncome > 0 ? (src.value / monthlyIncome) * 100 : 0;
                   return (
                     <div key={src.label + (src.detail ?? "")} className="rounded-xl border p-4">
@@ -323,7 +323,7 @@ export default function DashboardPage() {
                 <Link href="/metas" className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:underline">
                   Ver meta <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
-                <Link href="/investimentos?modo=investidor" className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:underline">
+                <Link href="/investimentos?modo=investidor" className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 hover:underline">
                   <Zap className="h-3.5 w-3.5" />
                   Modo Investidor
                 </Link>
@@ -527,7 +527,7 @@ export default function DashboardPage() {
                   />
                   <Bar dataKey="saldo" radius={[4, 4, 0, 0]}>
                     {accounts.map((a, i) => (
-                      <Cell key={i} fill={a.is_turbo ? "#a855f7" : "#3b82f6"} />
+                      <Cell key={i} fill={a.is_turbo ? "#f5c425" : "#38bdf8"} />
                     ))}
                   </Bar>
                 </BarChart>

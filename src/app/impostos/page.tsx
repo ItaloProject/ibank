@@ -19,9 +19,9 @@ import { cn } from "@/lib/utils";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 const CAT_COLOR: Record<TaxCategory, string> = {
-  acoes: "text-blue-500 bg-blue-500/10",
+  acoes: "text-emerald-600 bg-emerald-500/10",
   fii:   "text-amber-500 bg-amber-500/10",
-  etf:   "text-purple-500 bg-purple-500/10",
+  etf:   "text-sky-500 bg-sky-500/10",
 };
 
 function monthLabel(m: string) {
@@ -184,7 +184,7 @@ function TaxRow({ row, open, onToggle }: { row: MonthlyTax; open: boolean; onTog
       "rounded-2xl border bg-card overflow-hidden transition-colors",
       devido && "border-amber-500/40",
     )}>
-      <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/30 transition-colors">
+      <button onClick={onToggle} aria-expanded={open} className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/30 transition-colors">
         {/* Status */}
         <div className="shrink-0">
           {devido
