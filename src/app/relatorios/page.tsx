@@ -403,7 +403,7 @@ export default function RelatoriosPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Gastos por mês</CardTitle>
-                  <CardDescription>Total do cartão de crédito</CardDescription>
+                  <CardDescription>Despesas no período</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={240}>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { X, TrendingUp, TrendingDown, Minus, Check, Plus, ShoppingCart } from "lucide-react";
@@ -819,7 +819,7 @@ export function InvestorLiveViewDesktop({
               ) : (
                 <div className="space-y-2">
                   {turboAccountsReal.map((acc) => (
-                    <Card key={acc.id}>
+                    <Card key={acc.id} className="border-t-2 border-t-[#a855f7]">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-foreground/90 truncate">{acc.nome}</p>
@@ -841,7 +841,7 @@ export function InvestorLiveViewDesktop({
                       )}
                       <button
                         onClick={() => openWithdraw(acc)}
-                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-muted/50 border border-border text-muted-foreground text-[11px] font-semibold hover:bg-muted/70 hover:text-foreground/70 transition-all"
+                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-border text-foreground/70 text-[11px] font-semibold hover:bg-muted/40 hover:text-foreground transition-all"
                       >
                         Retirar
                       </button>
@@ -876,7 +876,7 @@ export function InvestorLiveViewDesktop({
               ) : (
                 <div className="space-y-2">
                   {emergenciaAccountsReal.map((acc) => (
-                    <Card key={acc.id}>
+                    <Card key={acc.id} className="border-t-2 border-t-[#06b6d4]">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-foreground/90 truncate">{acc.nome}</p>
@@ -886,7 +886,7 @@ export function InvestorLiveViewDesktop({
                       </div>
                       <button
                         onClick={() => openWithdraw(acc)}
-                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-muted/50 border border-border text-muted-foreground text-[11px] font-semibold hover:bg-muted/70 hover:text-foreground/70 transition-all"
+                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-border text-foreground/70 text-[11px] font-semibold hover:bg-muted/40 hover:text-foreground transition-all"
                       >
                         Retirar
                       </button>
@@ -920,7 +920,7 @@ export function InvestorLiveViewDesktop({
               </div>
               <div className="space-y-2">
                 {investimentosAccountsReal.map((acc) => (
-                  <Card key={acc.id}>
+                  <Card key={acc.id} className="border-t-2 border-t-[#3b82f6]">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground/90 truncate">{acc.nome}</p>
@@ -930,7 +930,7 @@ export function InvestorLiveViewDesktop({
                     </div>
                     <button
                       onClick={() => openWithdraw(acc)}
-                      className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-muted/50 border border-border text-muted-foreground text-[11px] font-semibold hover:bg-muted/70 hover:text-foreground/70 transition-all"
+                      className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-border text-foreground/70 text-[11px] font-semibold hover:bg-muted/40 hover:text-foreground transition-all"
                     >
                       Retirar
                     </button>
@@ -941,7 +941,7 @@ export function InvestorLiveViewDesktop({
                   <>
                     <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground pt-3 pb-1">Bolsa</p>
                     {holdingRows.map((h) => (
-                      <Card key={h.ticker}>
+                      <Card key={h.ticker} className="border-t-2 border-t-[#10b981]">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm font-semibold text-foreground/90">{h.ticker}</p>
@@ -1028,7 +1028,8 @@ export function InvestorLiveViewDesktop({
                     value={param.current}
                     onChange={(e) => param.set(Number(e.target.value) as never)}
                     aria-label={param.label}
-                    className="w-full h-1.5 appearance-none rounded-full bg-muted/10 accent-white cursor-pointer"
+                    className="w-full h-1.5 appearance-none rounded-full bg-muted/50 cursor-pointer"
+                    style={{ accentColor: "#a855f7" }}
                   />
                 </div>
               ))}
@@ -1059,21 +1060,20 @@ export function InvestorLiveViewDesktop({
 
               <div className="flex-1 flex flex-col">
                 <div className="flex-1 flex items-end gap-[2px] min-h-0">
-                  {simData
-                    .filter((_, i) => i % barStep === 0 || i === simData.length - 1)
-                    .map((p) => {
+                  {(() => {
+                    const bars = simData.filter((_, i) => i % barStep === 0 || i === simData.length - 1);
+                    return bars.map((p, idx) => {
                       const h = (p.value / simMax) * 100;
-                      const isLast = p.month === simMeses;
+                      const t = bars.length > 1 ? idx / (bars.length - 1) : 1;
+                      // red #ef4444 → green #10b981
+                      const r = Math.round(239 * (1 - t) + 16 * t);
+                      const g = Math.round(68 * (1 - t) + 185 * t);
+                      const b = Math.round(68 * (1 - t) + 129 * t);
                       return (
                         <div
                           key={p.month}
                           className="flex-1 relative group rounded-t transition-all"
-                          style={{
-                            height: `${h}%`,
-                            background: isLast
-                              ? "#10b981"
-                              : "hsl(var(--muted-foreground) / 0.35)",
-                          }}
+                          style={{ height: `${h}%`, background: `rgb(${r},${g},${b})` }}
                         >
                           <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:block z-10 pointer-events-none">
                             <div className="bg-card border border-border text-foreground text-[11px] rounded-lg px-2.5 py-1.5 whitespace-nowrap">
@@ -1083,7 +1083,8 @@ export function InvestorLiveViewDesktop({
                           </div>
                         </div>
                       );
-                    })}
+                    });
+                  })()}
                 </div>
 
                 <div className="flex justify-between text-[11px] text-muted-foreground/60 mt-3">
