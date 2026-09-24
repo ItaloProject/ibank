@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 import { X, TrendingUp, TrendingDown, Minus, Check, Plus, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
-import { CASH_ACCOUNT_NAME } from "@/lib/account-groups";
+import { CASH_ACCOUNT_NAME, isEmergencyAccountName } from "@/lib/account-groups";
 import {
   createStockTrade,
   createInvestment,
   updateAccountBalance,
   createInvestmentAccount,
+  createInvestmentAccountWithTurbo,
   deleteStockTrade,
   deleteInvestment,
   deleteInvestmentAccount,
@@ -24,6 +25,17 @@ import type { InvestorLiveViewProps } from "./investor-live-view";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function formatBRLMask(digits: string): string {
+  const cleaned = digits.replace(/\D/g, "").slice(0, 12);
+  const cents = parseInt(cleaned || "0", 10);
+  return (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseBRLMask(masked: string): number {
+  const cents = parseInt(masked.replace(/\D/g, "") || "0", 10);
+  return cents / 100;
 }
 
 async function safeDelete(action: () => Promise<unknown>, label: string) {
@@ -92,6 +104,23 @@ export function InvestorLiveViewDesktop({
   const [sellQtyMask, setSellQtyMask] = useState("");
   const [sellSubmitting, setSellSubmitting] = useState(false);
   const [sellError, setSellError] = useState<string | null>(null);
+
+  /* ── Withdraw flow ────────────────────────────────────────────── */
+  type AccountRef = { id: string; nome: string; instituicao: string; valor: number; isTurbo: boolean };
+  const [withdrawAccount, setWithdrawAccount] = useState<AccountRef | null>(null);
+  const [withdrawMask, setWithdrawMask] = useState("");
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+
+  /* ── New caixinha flow ────────────────────────────────────────── */
+  const [newCaixinhaOpen, setNewCaixinhaOpen] = useState(false);
+  const [newCaixinhaTipo, setNewCaixinhaTipo] = useState<"turbo" | "emergencia" | "investimentos">("investimentos");
+  const [newCaixinhaName, setNewCaixinhaName] = useState("");
+  const [newCaixinhaInstituicao, setNewCaixinhaInstituicao] = useState("");
+  const [newCaixinhaCdiMask, setNewCaixinhaCdiMask] = useState("");
+  const [newCaixinhaTetoMask, setNewCaixinhaTetoMask] = useState("");
+  const [newCaixinhaSubmitting, setNewCaixinhaSubmitting] = useState(false);
+  const [newCaixinhaError, setNewCaixinhaError] = useState<string | null>(null);
 
   /* ── Feedback ────────────────────────────────────────────────── */
   const [confirmedFlash, setConfirmedFlash] = useState(false);
@@ -337,6 +366,97 @@ export function InvestorLiveViewDesktop({
       setSellError(err instanceof Error ? err.message : "Não foi possível concluir a venda. Tente novamente.");
     } finally {
       setSellSubmitting(false);
+    }
+  }
+
+  /* ── Withdraw ─────────────────────────────────────────────────── */
+  const withdrawAmount = parseBRLMask(withdrawMask);
+  const canConfirmWithdraw =
+    !!withdrawAccount &&
+    withdrawAmount > 0 &&
+    withdrawAmount <= withdrawAccount.valor + 0.001 &&
+    !withdrawSubmitting;
+
+  function openWithdraw(acc: AccountRef) {
+    setWithdrawAccount(acc);
+    setWithdrawMask("");
+    setWithdrawError(null);
+  }
+
+  async function confirmWithdraw() {
+    if (!withdrawAccount || !canConfirmWithdraw) return;
+    setWithdrawSubmitting(true);
+    setWithdrawError(null);
+    try {
+      let cid = cashAccountId;
+      if (!cid) {
+        const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
+        cid = acc.id;
+      }
+      await createInvestment({
+        account_id: withdrawAccount.id,
+        type: "retirada",
+        amount: withdrawAmount,
+        description: `Retirada · ${withdrawAccount.nome}`,
+        date: today(),
+      });
+      await updateAccountBalance(withdrawAccount.id, withdrawAccount.valor - withdrawAmount);
+      await createInvestment({
+        account_id: cid,
+        type: "deposito",
+        amount: withdrawAmount,
+        description: `Retirada de ${withdrawAccount.nome}`,
+        date: today(),
+      });
+      await onRefresh();
+      flashConfirm();
+      setWithdrawAccount(null);
+    } catch (err) {
+      console.error("Erro ao retirar:", err);
+      setWithdrawError(err instanceof Error ? err.message : "Não foi possível retirar. Tente novamente.");
+    } finally {
+      setWithdrawSubmitting(false);
+    }
+  }
+
+  /* ── New caixinha ─────────────────────────────────────────────── */
+  function openNewCaixinha(tipo: "turbo" | "emergencia" | "investimentos") {
+    setNewCaixinhaTipo(tipo);
+    setNewCaixinhaName("");
+    setNewCaixinhaInstituicao("");
+    setNewCaixinhaCdiMask("");
+    setNewCaixinhaTetoMask("");
+    setNewCaixinhaError(null);
+    setNewCaixinhaOpen(true);
+  }
+
+  async function confirmNewCaixinha() {
+    const name = newCaixinhaName.trim();
+    if (!name || newCaixinhaSubmitting) return;
+    setNewCaixinhaSubmitting(true);
+    setNewCaixinhaError(null);
+    try {
+      const finalName =
+        newCaixinhaTipo === "emergencia" && !isEmergencyAccountName(name)
+          ? `${name} (Emergência)`
+          : name;
+      const cdi = parseBRLMask(newCaixinhaCdiMask);
+      const teto = parseBRLMask(newCaixinhaTetoMask);
+      await createInvestmentAccountWithTurbo({
+        name: finalName,
+        institution: newCaixinhaInstituicao.trim() || "—",
+        is_turbo: newCaixinhaTipo === "turbo",
+        cdi_percent: newCaixinhaTipo === "turbo" && cdi > 0 ? cdi : null,
+        max_rendimento: newCaixinhaTipo === "turbo" && teto > 0 ? teto : null,
+      });
+      await onRefresh();
+      flashConfirm();
+      setNewCaixinhaOpen(false);
+    } catch (err) {
+      console.error("Erro ao criar caixinha:", err);
+      setNewCaixinhaError("Não foi possível criar a caixinha. Tente novamente.");
+    } finally {
+      setNewCaixinhaSubmitting(false);
     }
   }
 
@@ -663,13 +783,19 @@ export function InvestorLiveViewDesktop({
             <div className="p-6 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>TURBO</SectionHeading>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-bold text-amber-400/70 tabular-nums">{formatCurrency(turboTotal)}</span>
                   <button
                     onClick={() => { setMarketSection("turbo"); setMarketOpen(true); }}
                     className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold hover:bg-amber-500/20 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Aportar
+                  </button>
+                  <button
+                    onClick={() => openNewCaixinha("turbo")}
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-white/5 border border-white/10 text-white/40 text-[10px] font-bold hover:bg-white/10 hover:text-white/70 transition-all"
+                  >
+                    <Plus className="h-3 w-3" /> Nova
                   </button>
                 </div>
               </div>
@@ -698,6 +824,12 @@ export function InvestorLiveViewDesktop({
                           )}
                         </div>
                       )}
+                      <button
+                        onClick={() => openWithdraw(acc)}
+                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 text-white/40 text-[11px] font-semibold hover:bg-white/[0.08] hover:text-white/70 transition-all"
+                      >
+                        Retirar
+                      </button>
                     </Card>
                   ))}
                 </div>
@@ -708,13 +840,19 @@ export function InvestorLiveViewDesktop({
             <div className="p-6 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>Emergência</SectionHeading>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-bold text-blue-400/70 tabular-nums">{formatCurrency(emergenciaTotal)}</span>
                   <button
                     onClick={() => { setMarketSection("eme"); setMarketOpen(true); }}
                     className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold hover:bg-blue-500/20 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Aportar
+                  </button>
+                  <button
+                    onClick={() => openNewCaixinha("emergencia")}
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-white/5 border border-white/10 text-white/40 text-[10px] font-bold hover:bg-white/10 hover:text-white/70 transition-all"
+                  >
+                    <Plus className="h-3 w-3" /> Nova
                   </button>
                 </div>
               </div>
@@ -731,6 +869,12 @@ export function InvestorLiveViewDesktop({
                         </div>
                         <p className="text-sm font-bold tabular-nums text-blue-400 shrink-0">{formatCurrency(acc.valor)}</p>
                       </div>
+                      <button
+                        onClick={() => openWithdraw(acc)}
+                        className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 text-white/40 text-[11px] font-semibold hover:bg-white/[0.08] hover:text-white/70 transition-all"
+                      >
+                        Retirar
+                      </button>
                     </Card>
                   ))}
                 </div>
@@ -741,7 +885,7 @@ export function InvestorLiveViewDesktop({
             <div className="p-6 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <SectionHeading>Renda Fixa & Bolsa</SectionHeading>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-bold text-emerald-400/70 tabular-nums">
                     {formatCurrency(investimentosTotal + investedValue)}
                   </span>
@@ -750,6 +894,12 @@ export function InvestorLiveViewDesktop({
                     className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold hover:bg-emerald-500/20 transition-all"
                   >
                     <Plus className="h-3 w-3" /> Investir
+                  </button>
+                  <button
+                    onClick={() => openNewCaixinha("investimentos")}
+                    className="flex items-center gap-0.5 h-6 px-2 rounded-lg bg-white/5 border border-white/10 text-white/40 text-[10px] font-bold hover:bg-white/10 hover:text-white/70 transition-all"
+                  >
+                    <Plus className="h-3 w-3" /> Nova
                   </button>
                 </div>
               </div>
@@ -763,6 +913,12 @@ export function InvestorLiveViewDesktop({
                       </div>
                       <p className="text-sm font-bold tabular-nums text-emerald-400 shrink-0">{formatCurrency(acc.valor)}</p>
                     </div>
+                    <button
+                      onClick={() => openWithdraw(acc)}
+                      className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 rounded-lg bg-white/[0.04] border border-white/10 text-white/40 text-[11px] font-semibold hover:bg-white/[0.08] hover:text-white/70 transition-all"
+                    >
+                      Retirar
+                    </button>
                   </Card>
                 ))}
 
@@ -1046,6 +1202,200 @@ export function InvestorLiveViewDesktop({
                 <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               ) : null}
               {sellSubmitting ? "Vendendo..." : `Confirmar venda de ${sellQty > 0 ? fmtQty(sellQty) : "—"} ${sellHolding.ticker}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Withdraw modal ───────────────────────────────────────── */}
+      {withdrawAccount && (
+        <div
+          className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center"
+          onClick={() => !withdrawSubmitting && setWithdrawAccount(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 mb-0.5">Retirar da caixinha</p>
+                <p className="text-lg font-bold text-white">{withdrawAccount.nome}</p>
+                <p className="text-xs text-white/35 mt-0.5">
+                  Disponível: {formatCurrency(withdrawAccount.valor)}
+                </p>
+              </div>
+              <button
+                onClick={() => !withdrawSubmitting && setWithdrawAccount(null)}
+                className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-2">
+                Valor a retirar
+              </label>
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-3">
+                  <span className="text-white/30 text-sm shrink-0">R$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={withdrawMask}
+                    onChange={(e) => setWithdrawMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
+                    placeholder="0,00"
+                    className="flex-1 bg-transparent text-white placeholder:text-white/20 focus:outline-none text-sm font-semibold tabular-nums"
+                  />
+                </div>
+                <button
+                  onClick={() => setWithdrawMask(formatBRLMask((withdrawAccount.valor * 100).toFixed(0)))}
+                  className="px-3 rounded-xl border border-white/10 bg-white/[0.04] text-white/40 text-xs font-semibold hover:text-white/70 hover:bg-white/[0.08] transition-all"
+                >
+                  Tudo
+                </button>
+              </div>
+              {withdrawAmount > withdrawAccount.valor + 0.001 && (
+                <p className="text-xs text-red-400 mt-2">Valor maior que o saldo disponível.</p>
+              )}
+            </div>
+
+            {withdrawError && (
+              <p className="text-xs text-red-400 bg-red-400/10 rounded-xl px-3 py-2 mb-3">{withdrawError}</p>
+            )}
+
+            <button
+              disabled={!canConfirmWithdraw}
+              onClick={confirmWithdraw}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/15 transition-all"
+            >
+              {withdrawSubmitting ? (
+                <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              ) : null}
+              {withdrawSubmitting ? "Retirando..." : `Retirar ${withdrawAmount > 0 ? formatCurrency(withdrawAmount) : "—"}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── New caixinha modal ────────────────────────────────────── */}
+      {newCaixinhaOpen && (
+        <div
+          className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-center justify-center"
+          onClick={() => !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 mb-0.5">Nova caixinha</p>
+                <p className="text-lg font-bold text-white">Criar conta</p>
+              </div>
+              <button
+                onClick={() => !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
+                className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Tipo */}
+            <div className="flex gap-1.5 mb-4">
+              {(["turbo", "emergencia", "investimentos"] as const).map((t) => {
+                const labels = { turbo: "TURBO", emergencia: "Emergência", investimentos: "Renda Fixa" };
+                const active = newCaixinhaTipo === t;
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setNewCaixinhaTipo(t)}
+                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
+                      active
+                        ? t === "turbo"
+                          ? "bg-amber-500/20 border-amber-500/40 text-amber-400"
+                          : t === "emergencia"
+                          ? "bg-blue-500/20 border-blue-500/40 text-blue-400"
+                          : "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
+                        : "bg-white/[0.04] border-white/10 text-white/35 hover:text-white/60"
+                    }`}
+                  >
+                    {labels[t]}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">Nome</label>
+                <input
+                  type="text"
+                  value={newCaixinhaName}
+                  onChange={(e) => setNewCaixinhaName(e.target.value)}
+                  placeholder={newCaixinhaTipo === "turbo" ? "Ex: Nubank Turbo" : newCaixinhaTipo === "emergencia" ? "Ex: Reserva" : "Ex: Prefixado 2029"}
+                  className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">Instituição</label>
+                <input
+                  type="text"
+                  value={newCaixinhaInstituicao}
+                  onChange={(e) => setNewCaixinhaInstituicao(e.target.value)}
+                  placeholder="Ex: Nubank, XP, BTG..."
+                  className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 text-sm"
+                />
+              </div>
+
+              {newCaixinhaTipo === "turbo" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">% CDI</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={newCaixinhaCdiMask}
+                      onChange={(e) => setNewCaixinhaCdiMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
+                      placeholder="0,00"
+                      className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 text-sm tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-white/35 block mb-1.5">Teto (R$)</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={newCaixinhaTetoMask}
+                      onChange={(e) => setNewCaixinhaTetoMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
+                      placeholder="0,00"
+                      className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 text-sm tabular-nums"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {newCaixinhaTipo === "emergencia" && newCaixinhaName.trim() && !isEmergencyAccountName(newCaixinhaName.trim()) && (
+                <p className="text-[11px] text-white/35">
+                  Vai ser salva como &quot;{newCaixinhaName.trim()} (Emergência)&quot;
+                </p>
+              )}
+            </div>
+
+            {newCaixinhaError && (
+              <p className="text-xs text-red-400 bg-red-400/10 rounded-xl px-3 py-2 mb-3">{newCaixinhaError}</p>
+            )}
+
+            <button
+              disabled={!newCaixinhaName.trim() || newCaixinhaSubmitting}
+              onClick={confirmNewCaixinha}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white text-black text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/90 transition-all"
+            >
+              {newCaixinhaSubmitting ? (
+                <span className="h-4 w-4 rounded-full border-2 border-black/30 border-t-black animate-spin" />
+              ) : null}
+              {newCaixinhaSubmitting ? "Criando…" : "Criar caixinha"}
             </button>
           </div>
         </div>
