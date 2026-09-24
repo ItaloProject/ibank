@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, ChevronUp, ChevronDown, Layers, CheckCircle2, Circle, Pencil } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown, Layers, CheckCircle2, Circle, Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -75,6 +75,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
   const [form, setForm] = useState({
     description: "",
     total_amount: "",
@@ -143,23 +144,30 @@ function ParcelamentosContent({ userId }: { userId: string }) {
     setPlans((prev) => prev.map((p) => (p.id === plan.id ? updated : p)));
   }
 
-  async function handleDelete(id: string) {
-    await deletePlan(id);
-    setPlans((prev) => prev.filter((p) => p.id !== id));
+  function handleDelete(plan: Plan) {
+    setDeleteConfirm({ id: plan.id, label: plan.description });
+  }
+
+  async function confirmDelete() {
+    if (!deleteConfirm) return;
+    await deletePlan(deleteConfirm.id);
+    setPlans((prev) => prev.filter((p) => p.id !== deleteConfirm.id));
+    setDeleteConfirm(null);
   }
 
   const active = plans.filter((p) => p.paid_installments < p.installments);
   const done   = plans.filter((p) => p.paid_installments >= p.installments);
 
-  const totalEmAberto      = active.reduce((s, p) => s + (p.installments - p.paid_installments) * (Number(p.total_amount) / p.installments), 0);
-  const parcelasMesAtual   = active.reduce((s, p) => s + Number(p.total_amount) / p.installments, 0);
+  const totalEmAberto    = active.reduce((s, p) => s + (p.installments - p.paid_installments) * (Number(p.total_amount) / p.installments), 0);
+  const parcelasMesAtual = active.reduce((s, p) => s + Number(p.total_amount) / p.installments, 0);
 
   const isFormOpen = open || !!editingPlan;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground text-sm">Carregando...</p>
+      <div role="status" className="flex items-center justify-center h-full">
+        <Loader2 className="h-6 w-6 motion-safe:animate-spin text-muted-foreground" aria-hidden="true" />
+        <span className="sr-only">Carregando...</span>
       </div>
     );
   }
@@ -173,7 +181,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
           description="Compras parceladas em andamento"
           actions={
             <Button size="sm" className="min-h-11" onClick={() => setOpen(true)}>
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Novo parcelamento
             </Button>
           }
@@ -184,10 +192,12 @@ function ParcelamentosContent({ userId }: { userId: string }) {
       <div className="md:hidden flex items-center justify-between px-4 h-14 border-b shrink-0">
         <h1 className="text-lg font-bold">Parcelamentos</h1>
         <button
+          type="button"
+          aria-label="Novo parcelamento"
           onClick={() => setOpen(true)}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
         >
-          <Plus className="h-5 w-5" />
+          <Plus className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
 
@@ -198,11 +208,11 @@ function ParcelamentosContent({ userId }: { userId: string }) {
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-xl bg-card border px-3 py-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1 leading-tight">Em aberto</p>
-              <p className="text-sm font-bold text-destructive tabular-nums leading-none">{fmt(totalEmAberto)}</p>
+              <p className="text-sm font-display font-black text-destructive tabular-nums leading-none">{fmt(totalEmAberto)}</p>
             </div>
             <div className="rounded-xl bg-card border px-3 py-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1 leading-tight">Por mês</p>
-              <p className="text-sm font-bold tabular-nums leading-none">{fmt(parcelasMesAtual)}</p>
+              <p className="text-sm font-display font-black tabular-nums leading-none">{fmt(parcelasMesAtual)}</p>
             </div>
             <div className="rounded-xl bg-card border px-3 py-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1 leading-tight">Ativos</p>
@@ -214,16 +224,16 @@ function ParcelamentosContent({ userId }: { userId: string }) {
         {/* ── Empty state ── */}
         {plans.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-            <Layers className="h-12 w-12 text-muted-foreground/30" />
+            <Layers className="h-12 w-12 text-muted-foreground/30" aria-hidden="true" />
             <p className="font-semibold text-muted-foreground">Nenhum parcelamento</p>
-            <p className="text-sm text-muted-foreground/60">Toque em &ldquo;Novo parcelamento&rdquo; para começar</p>
+            <p className="text-sm text-muted-foreground/60">Adicione uma compra parcelada para começar</p>
           </div>
         )}
 
         {/* ── Em andamento ── */}
         {active.length > 0 && (
           <div className="space-y-2.5">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/40 px-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 px-0.5">
               Em andamento ({active.length})
             </p>
             {active.map((plan) => (
@@ -235,7 +245,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
         {/* ── Quitados ── */}
         {done.length > 0 && (
           <div className="space-y-2.5">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/40 px-0.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 px-0.5">
               Quitados ({done.length})
             </p>
             {done.map((plan) => (
@@ -254,33 +264,59 @@ function ParcelamentosContent({ userId }: { userId: string }) {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Descrição</Label>
-              <Input placeholder="Ex: iPhone 16 Pro"
+              <Label htmlFor="plan-desc">Descrição</Label>
+              <Input
+                id="plan-desc"
+                autoFocus
+                placeholder="Ex: iPhone 16 Pro"
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Valor total (R$)</Label>
-                <Input type="number" placeholder="3000" value={form.total_amount}
-                  onChange={(e) => setForm({ ...form, total_amount: e.target.value })} />
+                <Label htmlFor="plan-amount">Valor total (R$)</Label>
+                <Input
+                  id="plan-amount"
+                  type="number"
+                  placeholder="3000"
+                  value={form.total_amount}
+                  onChange={(e) => setForm({ ...form, total_amount: e.target.value })}
+                />
               </div>
               <div className="space-y-1.5">
-                <Label>Parcelas</Label>
-                <Input type="number" min={1} max={120} placeholder="12" value={form.installments}
-                  onChange={(e) => setForm({ ...form, installments: e.target.value })} />
+                <Label htmlFor="plan-installments">Parcelas</Label>
+                <Input
+                  id="plan-installments"
+                  type="number"
+                  min={1}
+                  max={120}
+                  placeholder="12"
+                  value={form.installments}
+                  onChange={(e) => setForm({ ...form, installments: e.target.value })}
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Já pagas</Label>
-                <Input type="number" min={0} placeholder="0" value={form.paid_installments}
-                  onChange={(e) => setForm({ ...form, paid_installments: e.target.value })} />
+                <Label htmlFor="plan-paid">Já pagas</Label>
+                <Input
+                  id="plan-paid"
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  value={form.paid_installments}
+                  onChange={(e) => setForm({ ...form, paid_installments: e.target.value })}
+                />
               </div>
               <div className="space-y-1.5">
-                <Label>1ª parcela em</Label>
-                <Input type="date" value={form.start_date}
-                  onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+                <Label htmlFor="plan-start">1ª parcela em</Label>
+                <Input
+                  id="plan-start"
+                  type="date"
+                  value={form.start_date}
+                  onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                />
               </div>
             </div>
             {form.total_amount && form.installments && (
@@ -291,6 +327,22 @@ function ParcelamentosContent({ userId }: { userId: string }) {
             <Button className="w-full" onClick={handleSave}>
               {editingPlan ? "Salvar alterações" : "Adicionar"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: confirmar exclusão ── */}
+      <Dialog open={deleteConfirm !== null} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Deseja excluir <span className="font-semibold text-foreground">{deleteConfirm?.label}</span>? Esta ação não pode ser desfeita.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
+            <Button variant="destructive" className="flex-1" onClick={confirmDelete}>Excluir</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -330,63 +382,79 @@ function PlanCard({
 }: {
   plan: Plan;
   onPay: (plan: Plan, delta: number) => void;
-  onDelete: (id: string) => void;
+  onDelete: (plan: Plan) => void;
   onEdit: (plan: Plan) => void;
 }) {
-  const perParcela   = Number(plan.total_amount) / plan.installments;
-  const remaining    = plan.installments - plan.paid_installments;
+  const perParcela    = Number(plan.total_amount) / plan.installments;
+  const remaining     = plan.installments - plan.paid_installments;
   const valorRestante = remaining * perParcela;
-  const progress     = (plan.paid_installments / plan.installments) * 100;
-  const isDone       = plan.paid_installments >= plan.installments;
-  const endDate      = calcEndDate(plan);
+  const progress      = (plan.paid_installments / plan.installments) * 100;
+  const isDone        = plan.paid_installments >= plan.installments;
+  const endDate       = calcEndDate(plan);
 
   return (
     <div className={`rounded-xl border bg-card overflow-hidden ${isDone ? "opacity-60" : ""}`}>
 
       {/* ── Row 1: name + stepper ── */}
       <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
-        <div className="shrink-0">
+        <div className="shrink-0" aria-hidden="true">
           {isDone
             ? <CheckCircle2 className="h-4 w-4 text-green-500" />
             : <Circle className="h-4 w-4 text-muted-foreground/40" />
           }
         </div>
-        <span className="font-bold text-[15px] flex-1 truncate leading-snug">{plan.description}</span>
+        <span className="font-bold text-base flex-1 truncate leading-snug">{plan.description}</span>
         {/* Stepper */}
         <div className="flex items-center gap-1 shrink-0">
           <button
+            type="button"
             className="flex h-7 w-7 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors"
             disabled={plan.paid_installments <= 0}
             onClick={() => onPay(plan, -1)}
-            title="Desfazer parcela">
-            <ChevronDown className="h-3.5 w-3.5" />
+            title="Desfazer parcela"
+            aria-label="Desfazer parcela"
+          >
+            <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
           <span className="text-xs font-bold tabular-nums min-w-[2.6rem] text-center">
             {plan.paid_installments}/{plan.installments}
           </span>
           <button
+            type="button"
             className="flex h-7 w-7 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors"
             disabled={isDone}
             onClick={() => onPay(plan, +1)}
-            title="Marcar parcela paga">
-            <ChevronUp className="h-3.5 w-3.5" />
+            title="Marcar parcela paga"
+            aria-label="Marcar parcela paga"
+          >
+            <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
         {/* Edit / delete */}
         <div className="flex items-center gap-0 shrink-0">
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
-            onClick={() => onEdit(plan)} title="Editar">
-            <Pencil className="h-3.5 w-3.5" />
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => onEdit(plan)}
+            title="Editar"
+            aria-label="Editar parcelamento"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-            onClick={() => onDelete(plan.id)} title="Excluir">
-            <Trash2 className="h-3.5 w-3.5" />
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+            onClick={() => onDelete(plan)}
+            title="Excluir"
+            aria-label="Excluir parcelamento"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
       </div>
 
       {/* ── Row 2: subtitle — total + start date ── */}
-      <p className="text-[11px] text-muted-foreground/50 tabular-nums px-4 pb-2 pl-10">
+      <p className="text-[10px] text-muted-foreground/50 tabular-nums px-4 pb-2 pl-10">
         {fmt(plan.total_amount)}{formatStartDate(plan.start_date)}
       </p>
 
@@ -409,12 +477,12 @@ function PlanCard({
         <div className="flex items-baseline gap-3">
           <div>
             <p className="text-[10px] text-muted-foreground/40 leading-none mb-0.5">Por parcela</p>
-            <p className="text-sm font-bold tabular-nums leading-none">{fmt(perParcela)}</p>
+            <p className="text-sm font-display font-black tabular-nums leading-none">{fmt(perParcela)}</p>
           </div>
           {!isDone && (
             <div>
               <p className="text-[10px] text-muted-foreground/40 leading-none mb-0.5">Restante</p>
-              <p className="text-sm font-semibold text-destructive tabular-nums leading-none">{fmt(valorRestante)}</p>
+              <p className="text-sm font-display font-black text-destructive tabular-nums leading-none">{fmt(valorRestante)}</p>
             </div>
           )}
         </div>
@@ -424,7 +492,10 @@ function PlanCard({
           </p>
         )}
         {isDone && (
-          <span className="text-[10px] font-bold text-green-500 uppercase tracking-wide">Quitado ✓</span>
+          <span className="flex items-center gap-1 text-[10px] font-bold text-green-500 uppercase tracking-wide">
+            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+            Quitado
+          </span>
         )}
       </div>
 
