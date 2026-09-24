@@ -390,8 +390,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div role="status" className="flex items-center justify-center h-full">
+        <Loader2 className="h-6 w-6 motion-safe:animate-spin text-muted-foreground" aria-hidden="true" />
+        <span className="sr-only">Carregando...</span>
       </div>
     );
   }
@@ -401,6 +402,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
       <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
         <p className="text-destructive font-medium">{loadError}</p>
         <button
+          type="button"
           onClick={() => { loadGroups(); loadItems(currentMonth); }}
           className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
         >
@@ -426,11 +428,11 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           actions={
             <>
               <div className="flex items-center gap-0.5 mr-1">
-                <button onClick={goToPrev} aria-label="Mês anterior" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                <button type="button" onClick={goToPrev} aria-label="Mês anterior" className="flex min-h-11 min-w-11 h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                   <ChevronLeft className="h-4 w-4" />
                 </button>
                 <span className="text-sm font-semibold capitalize tracking-tight min-w-[148px] text-center">{monthLabel}</span>
-                <button onClick={goToNext} aria-label="Próximo mês" className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                <button type="button" onClick={goToNext} aria-label="Próximo mês" className="flex min-h-11 min-w-11 h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
@@ -462,12 +464,12 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
       {/* Mobile: month navigation only — clean, no action clutter */}
       <div className="md:hidden flex items-center px-2 h-14 border-b shrink-0">
-        <button onClick={goToPrev} aria-label="Mês anterior"
+        <button type="button" onClick={goToPrev} aria-label="Mês anterior"
           className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="h-5 w-5" />
         </button>
         <span className="flex-1 text-center text-[15px] font-bold capitalize tracking-tight">{monthLabel}</span>
-        <button onClick={goToNext} aria-label="Próximo mês"
+        <button type="button" onClick={goToNext} aria-label="Próximo mês"
           className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -477,8 +479,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
         {/* ── BUDGET OVERVIEW — full width, mobile + desktop ──────────────────── */}
         <div className="px-4 sm:px-6 pt-3 pb-3 space-y-2.5 border-b bg-muted/10 shrink-0">
-          <div
-            className="flex items-end justify-between cursor-pointer group"
+          <button
+            type="button"
+            className="flex items-end justify-between w-full text-left group"
             onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
           >
             <div>
@@ -491,7 +494,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <Pencil className="h-3 w-3" />
               <span className="text-[11px] font-medium">editar</span>
             </div>
-          </div>
+          </button>
           {salary > 0 && (
             <div className="space-y-1">
               <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
@@ -502,7 +505,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               </div>
               <div className="flex justify-between text-[10px] text-muted-foreground/50">
                 <span>Gasto {fmt(totalActual)}</span>
-                <span className={sobra >= 0 ? "text-green-500/70" : "text-destructive/70"}>
+                <span className={sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive/70"}>
                   {sobra >= 0 ? `Sobra ${fmt(sobra)}` : `Excedeu ${fmt(Math.abs(sobra))}`}
                 </span>
               </div>
@@ -547,8 +550,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(totalVarPlanned)}</p>
             </div>
             <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>Sobra</p>
-              <p className={`text-base font-display font-black tabular-nums leading-none ${sobra >= 0 ? "text-green-500" : "text-destructive"}`}>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>Sobra</p>
+              <p className={`text-base font-display font-black tabular-nums leading-none ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>
                 {salary > 0 ? fmt(sobra) : "—"}
               </p>
               {salary > 0 && <p className="text-[10px] text-muted-foreground/50 tabular-nums">de {fmt(sobraPlanned)}</p>}
@@ -558,7 +561,17 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
         {/* ── DESKTOP: horizontal tab bar ─────────────────────────────────────── */}
         {groups.length > 0 && (
-          <div className="hidden md:flex items-end border-b shrink-0 px-6 overflow-x-auto">
+          <div
+            role="tablist"
+            aria-label="Grupos de despesas"
+            onKeyDown={(e) => {
+              if (!selectedGroup) return;
+              const idx = groups.findIndex(g => g.id === selectedGroup.id);
+              if (e.key === "ArrowRight") { e.preventDefault(); setSelectedGroupId(groups[(idx + 1) % groups.length].id); }
+              if (e.key === "ArrowLeft") { e.preventDefault(); setSelectedGroupId(groups[(idx - 1 + groups.length) % groups.length].id); }
+            }}
+            className="hidden md:flex items-end border-b shrink-0 px-6 overflow-x-auto"
+          >
             {groups.map((group, index) => {
               const gItems   = items.filter(i => i.group_id === group.id);
               const gPlanned = gItems.reduce((s, i) => s + i.planned, 0);
@@ -569,6 +582,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               return (
                 <motion.button
                   key={group.id}
+                  role="tab"
+                  aria-selected={isSelected}
                   initial={{ opacity: 0, y: prefersReduced ? 0 : 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: prefersReduced ? 0 : index * 0.04, duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
@@ -622,6 +637,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               return (
                 <button
                   key={group.id}
+                  type="button"
+                  aria-pressed={isSelected}
                   onClick={() => setSelectedGroupId(group.id)}
                   className={`shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wide transition-all ${
                     isSelected ? "text-white shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted"
@@ -802,6 +819,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                             <Input
                               type="number"
                               inputMode="decimal"
+                              aria-label={`Valor real de ${item.name}`}
                               className="h-8 text-sm text-right w-[4.5rem] sm:w-24 border-border/40 bg-muted/30 focus:bg-background tabular-nums"
                               defaultValue={item.actual || ""}
                               placeholder="0,00"
@@ -865,8 +883,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           </p>
           <div className="space-y-3 pt-1">
             <div className="space-y-1.5">
-              <Label>Valor líquido recebido (R$)</Label>
+              <Label htmlFor="salary-input">Valor líquido recebido (R$)</Label>
               <Input
+                id="salary-input"
                 type="number"
                 placeholder="Ex: 5000,00"
                 value={salaryInput}
@@ -904,11 +923,12 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           <DialogHeader><DialogTitle>{editingGroup ? "Editar grupo" : "Novo grupo"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Nome do grupo</Label>
-              <Input placeholder="Ex: CASA, VEÍCULO, LAZER"
+              <Label htmlFor="group-name-input">Nome do grupo</Label>
+              <Input id="group-name-input" placeholder="Ex: CASA, VEÍCULO, LAZER"
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === "Enter" && submitGroup()} />
+                onKeyDown={(e) => e.key === "Enter" && submitGroup()}
+                autoFocus />
             </div>
             <div className="space-y-1.5">
               <Label>Cor</Label>
@@ -936,9 +956,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           <DialogHeader><DialogTitle>{editingItem ? "Editar item" : "Novo item"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Grupo</Label>
+              <Label htmlFor="item-group-select">Grupo</Label>
               <Select value={itemForm.groupId} onValueChange={(v) => setItemForm({ ...itemForm, groupId: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione um grupo" /></SelectTrigger>
+                <SelectTrigger id="item-group-select"><SelectValue placeholder="Selecione um grupo" /></SelectTrigger>
                 <SelectContent>
                   {groups.map((g) => (
                     <SelectItem key={g.id} value={g.id}>
@@ -952,15 +972,16 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Descrição</Label>
-              <Input placeholder="Ex: Aluguel, Supermercado, Combustível"
+              <Label htmlFor="item-name-input">Descrição</Label>
+              <Input id="item-name-input" placeholder="Ex: Aluguel, Supermercado, Combustível"
                 value={itemForm.name}
+                autoFocus
                 onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label>Tipo</Label>
+              <Label htmlFor="item-type-select">Tipo</Label>
               <Select value={itemForm.type} onValueChange={(v) => setItemForm({ ...itemForm, type: v as "fixo" | "variavel" })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="item-type-select"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="fixo">
                     <div className="flex items-center gap-2">
@@ -979,13 +1000,13 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Valor planejado (R$)</Label>
-                <Input type="number" placeholder="0,00" value={itemForm.planned}
+                <Label htmlFor="item-planned-input">Valor planejado (R$)</Label>
+                <Input id="item-planned-input" type="number" placeholder="0,00" value={itemForm.planned}
                   onChange={(e) => setItemForm({ ...itemForm, planned: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label>Valor real (R$)</Label>
-                <Input type="number" placeholder="0,00" value={itemForm.actual}
+                <Label htmlFor="item-actual-input">Valor real (R$)</Label>
+                <Input id="item-actual-input" type="number" placeholder="0,00" value={itemForm.actual}
                   onChange={(e) => setItemForm({ ...itemForm, actual: e.target.value })} />
               </div>
             </div>
