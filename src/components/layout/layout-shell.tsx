@@ -15,6 +15,7 @@ import { SessionTimeout } from "@/components/session-timeout";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
+import { NavigationSplash } from "@/components/navigation-splash";
 
 const PUBLIC_PATHS = new Set(["/vender", "/comecar", "/politica-privacidade", "/termos-de-uso", "/~offline"]);
 
@@ -88,6 +89,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-[100dvh] overflow-hidden">
+      <NavigationSplash />
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
