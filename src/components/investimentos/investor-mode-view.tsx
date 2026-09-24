@@ -413,7 +413,7 @@ export function InvestorModeView({
                     </h3>
                     <button
                       onClick={onGenerateReport}
-                      className="flex items-center justify-center gap-2 rounded-full bg-white hover:bg-muted/90 px-4 py-2 text-sm font-semibold text-black transition-colors shrink-0 w-fit whitespace-nowrap"
+                      className="flex items-center justify-center gap-2 rounded-full bg-foreground hover:bg-foreground/90 px-4 py-2 text-sm font-semibold text-background transition-colors shrink-0 w-fit whitespace-nowrap"
                     >
                       <FileText className="h-4 w-4" />
                       Gerar PDF

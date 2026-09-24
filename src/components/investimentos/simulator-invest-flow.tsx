@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState, type ElementType } from "react";
+import { useMemo, useState, type CSSProperties, type ElementType } from "react";
 import {
   ChevronLeft,
   Landmark,
@@ -91,8 +91,8 @@ function QuickAmount({
       onClick={onClick}
       className={`rounded-full border px-3.5 py-2 text-xs font-bold tabular-nums transition-colors ${
         active
-          ? "border-violet-400/60 bg-violet-500 text-white"
-          : "border-white/15 bg-white/[0.06] text-white/80 hover:bg-white/[0.12] hover:text-white"
+          ? "border-violet-400/60 bg-violet-500 text-foreground"
+          : "border-border bg-muted/40 text-foreground/80 hover:bg-muted/60 hover:text-foreground"
       }`}
     >
       {label}
@@ -117,25 +117,25 @@ function DestCard({
     violet: {
       border: "border-violet-500/30",
       bg: "bg-violet-500/[0.08] hover:bg-violet-500/[0.14]",
-      icon: "text-violet-300",
+      icon: "text-violet-500 dark:text-violet-300",
       iconBg: "bg-violet-500/20",
     },
     emerald: {
       border: "border-emerald-500/30",
       bg: "bg-emerald-500/[0.08] hover:bg-emerald-500/[0.14]",
-      icon: "text-emerald-300",
+      icon: "text-emerald-500 dark:text-emerald-300",
       iconBg: "bg-emerald-500/20",
     },
     amber: {
       border: "border-amber-500/30",
       bg: "bg-amber-500/[0.08] hover:bg-amber-500/[0.14]",
-      icon: "text-amber-300",
+      icon: "text-amber-500 dark:text-amber-300",
       iconBg: "bg-amber-500/20",
     },
     blue: {
       border: "border-blue-500/30",
       bg: "bg-blue-500/[0.08] hover:bg-blue-500/[0.14]",
-      icon: "text-blue-300",
+      icon: "text-blue-500 dark:text-blue-300",
       iconBg: "bg-blue-500/20",
     },
   }[tone];
@@ -151,8 +151,8 @@ function DestCard({
           <Icon className={`h-5 w-5 ${tones.icon}`} />
         </span>
         <div className="min-w-0">
-          <p className="text-sm font-bold text-white">{title}</p>
-          <p className="text-[11px] text-white/45 mt-0.5 leading-snug">{subtitle}</p>
+          <p className="text-sm font-bold text-foreground">{title}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{subtitle}</p>
         </div>
       </div>
     </button>
@@ -305,30 +305,30 @@ export function SimulatorInvestFlow({
           if (section === "hub") onClose();
           else onSectionChange("hub");
         }}
-        className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/55 hover:text-white/80"
+        className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground/80"
       >
         <ChevronLeft className="h-3.5 w-3.5" />
         {section === "hub" ? "Voltar" : "Mercado"}
       </button>
 
-      <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/15 via-white/[0.03] to-violet-500/10 p-4">
-        <div className="flex items-center gap-2 text-emerald-300/80 mb-1">
+      <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/15 via-transparent to-violet-500/10 p-4">
+        <div className="flex items-center gap-2 text-emerald-500 dark:text-emerald-300/80 mb-1">
           <Wallet className="h-3.5 w-3.5" />
           <p className="text-[10px] font-bold uppercase tracking-[0.2em]">
             Saldo disponível
           </p>
         </div>
-        <p className="text-2xl font-black tabular-nums text-white">
+        <p className="text-2xl font-black tabular-nums text-foreground">
           {formatCurrency(cash)}
         </p>
-        <p className="text-[11px] text-white/40 mt-1">
+        <p className="text-[11px] text-muted-foreground mt-1">
           Use esse valor para comprar ativos no simulador.
         </p>
       </div>
 
       {section === "hub" && (
         <div className="space-y-2.5">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
             Para onde investir?
           </p>
           <DestCard
@@ -364,14 +364,14 @@ export function SimulatorInvestFlow({
 
       {section !== "hub" && (
         <div className="space-y-3">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
             {sectionTitle}
           </p>
 
           {section === "acoes" && (
             <>
               {catalog.length === 0 ? (
-                <p className="text-sm text-white/40 text-center py-8">
+                <p className="text-sm text-muted-foreground text-center py-8">
                   Nenhum ativo disponível.
                 </p>
               ) : (
@@ -380,7 +380,7 @@ export function SimulatorInvestFlow({
                     key={asset.ticker}
                     type="button"
                     onClick={() => openBuy({ kind: "stock", asset })}
-                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-left hover:bg-white/[0.07] transition-colors"
+                    className="w-full rounded-2xl border border-border bg-muted/40 p-3.5 text-left hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -389,16 +389,16 @@ export function SimulatorInvestFlow({
                           style={{ background: asset.color }}
                         />
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-white truncate">
+                          <p className="text-sm font-bold text-foreground truncate">
                             {asset.ticker}
                           </p>
-                          <p className="text-[10px] text-white/40 truncate">
+                          <p className="text-[10px] text-muted-foreground truncate">
                             {asset.name} · {asset.category}
                           </p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-extrabold tabular-nums text-white">
+                        <p className="text-sm font-extrabold tabular-nums text-foreground">
                           {formatCurrency(asset.price)}
                         </p>
                         <p
@@ -422,13 +422,13 @@ export function SimulatorInvestFlow({
               >
                 <div className="flex items-center gap-2.5">
                   <span className="h-9 w-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                    <Plus className="h-4 w-4 text-emerald-300" />
+                    <Plus className="h-4 w-4 text-emerald-500 dark:text-emerald-300" />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-white">
+                    <p className="text-sm font-bold text-foreground">
                       Comprar personalizada
                     </p>
-                    <p className="text-[10px] text-white/45 mt-0.5 leading-snug">
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
                       Digite ticker, cotação e quantidade de qualquer ação ou FII
                     </p>
                   </div>
@@ -443,12 +443,12 @@ export function SimulatorInvestFlow({
                 key={product.id}
                 type="button"
                 onClick={() => openBuy({ kind: "tesouro", product })}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-left hover:bg-white/[0.07] transition-colors"
+                className="w-full rounded-2xl border border-border bg-muted/40 p-3.5 text-left hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-white">{product.nome}</p>
-                    <p className="text-[10px] text-white/40 mt-0.5">
+                    <p className="text-sm font-bold text-foreground">{product.nome}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
                       {product.descricao}
                     </p>
                   </div>
@@ -464,7 +464,7 @@ export function SimulatorInvestFlow({
 
           {section === "turbo" &&
             (turboAccounts.length === 0 ? (
-              <p className="text-sm text-white/40 text-center py-8">
+              <p className="text-sm text-muted-foreground text-center py-8">
                 Nenhuma conta turbo para aportar.
               </p>
             ) : (
@@ -477,16 +477,16 @@ export function SimulatorInvestFlow({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-white truncate">
+                      <p className="text-sm font-bold text-foreground truncate">
                         {account.nome}
                       </p>
-                      <p className="text-[10px] text-white/40">
+                      <p className="text-[10px] text-muted-foreground">
                         {account.cdiPercent != null
                           ? `${account.cdiPercent}% do CDI`
                           : account.instituicao || "Turbo"}
                       </p>
                     </div>
-                    <p className="text-sm font-extrabold tabular-nums text-white shrink-0">
+                    <p className="text-sm font-extrabold tabular-nums text-foreground shrink-0">
                       {formatCurrency(account.valor)}
                     </p>
                   </div>
@@ -496,7 +496,7 @@ export function SimulatorInvestFlow({
 
           {section === "eme" &&
             (emergenciaAccounts.length === 0 ? (
-              <p className="text-sm text-white/40 text-center py-8">
+              <p className="text-sm text-muted-foreground text-center py-8">
                 Nenhuma conta de emergência para aportar.
               </p>
             ) : (
@@ -509,14 +509,14 @@ export function SimulatorInvestFlow({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-white truncate">
+                      <p className="text-sm font-bold text-foreground truncate">
                         {account.nome}
                       </p>
-                      <p className="text-[10px] text-white/40">
+                      <p className="text-[10px] text-muted-foreground">
                         {account.instituicao || "Emergência"}
                       </p>
                     </div>
-                    <p className="text-sm font-extrabold tabular-nums text-white shrink-0">
+                    <p className="text-sm font-extrabold tabular-nums text-foreground shrink-0">
                       {formatCurrency(account.valor)}
                     </p>
                   </div>
@@ -532,11 +532,12 @@ export function SimulatorInvestFlow({
           onClick={() => !justBought && setBuyTarget(null)}
         >
           <div
-            className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-white/10 px-5 pt-3 pb-7 overflow-x-hidden"
+            className="w-full rounded-t-3xl bg-[#0a0a12] border-t border-border px-5 pt-3 pb-7 overflow-x-hidden"
+            style={{ "--foreground": "0 0% 98%", "--muted-foreground": "240 5% 64%", "--border": "240 3.7% 20%" } as CSSProperties}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center mb-5">
-              <div className="h-1 w-10 rounded-full bg-white/20" />
+              <div className="h-1 w-10 rounded-full bg-muted-foreground/20" />
             </div>
 
             {justBought ? (
@@ -544,8 +545,8 @@ export function SimulatorInvestFlow({
                 <span className="mx-auto h-14 w-14 rounded-full bg-emerald-500/20 flex items-center justify-center">
                   <Check className="h-7 w-7 text-emerald-400" />
                 </span>
-                <p className="text-lg font-bold text-white">Investimento feito!</p>
-                <p className="text-sm text-white/50">
+                <p className="text-lg font-bold text-foreground">Investimento feito!</p>
+                <p className="text-sm text-muted-foreground">
                   {formatCurrency(
                     buyTarget.kind === "custom" ? customTotal : amount
                   )}{" "}
@@ -555,26 +556,26 @@ export function SimulatorInvestFlow({
             ) : buyTarget.kind === "custom" ? (
               <>
                 <div className="mb-5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1.5">
                     Comprar personalizada
                   </p>
-                  <p className="text-xl font-bold text-white leading-tight">
+                  <p className="text-xl font-bold text-foreground leading-tight">
                     {customTickerClean || "Outra ação / FII"}
                   </p>
-                  <p className="text-xs text-white/40 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Informe ticker, cotação atual e quantidade
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 mb-4 flex items-center justify-between">
-                  <span className="text-[11px] text-white/45">Saldo</span>
-                  <span className="text-sm font-bold tabular-nums text-white">
+                <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 mb-4 flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">Saldo</span>
+                  <span className="text-sm font-bold tabular-nums text-foreground">
                     {formatCurrency(cash)}
                   </span>
                 </div>
 
                 <label className="block mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     Ticker / nome
                   </span>
                   <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] px-3.5 py-3.5">
@@ -588,17 +589,17 @@ export function SimulatorInvestFlow({
                         )
                       }
                       placeholder="Ex: PETR4"
-                      className="flex-1 bg-transparent text-xl font-black tracking-wide text-white placeholder:text-white/25 focus:outline-none uppercase"
+                      className="flex-1 bg-transparent text-xl font-black tracking-wide text-foreground placeholder:text-foreground/25 focus:outline-none uppercase"
                     />
                   </div>
                 </label>
 
                 <label className="block mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     Cotação atual
                   </span>
                   <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/[0.06] px-3.5 py-3.5">
-                    <span className="text-sm font-bold text-white/50">R$</span>
+                    <span className="text-sm font-bold text-muted-foreground">R$</span>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -609,16 +610,16 @@ export function SimulatorInvestFlow({
                         )
                       }
                       placeholder="0,00"
-                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-white focus:outline-none"
+                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-foreground focus:outline-none"
                     />
                   </div>
                 </label>
 
                 <label className="block mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     Quantidade
                   </span>
-                  <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-3.5 py-3.5">
+                  <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3.5 py-3.5">
                     <input
                       type="text"
                       inputMode="numeric"
@@ -627,16 +628,16 @@ export function SimulatorInvestFlow({
                         setCustomQtyMask(e.target.value.replace(/\D/g, "").slice(0, 8))
                       }
                       placeholder="0"
-                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-white focus:outline-none"
+                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-foreground focus:outline-none"
                     />
-                    <span className="text-xs font-semibold text-white/40">un.</span>
+                    <span className="text-xs font-semibold text-muted-foreground">un.</span>
                   </div>
                 </label>
 
                 {customTotal > 0 && (
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] px-3.5 py-3 mb-4 flex items-center justify-between">
-                    <span className="text-[11px] text-emerald-300/80">Total</span>
-                    <span className="text-base font-black tabular-nums text-white">
+                    <span className="text-[11px] text-emerald-500 dark:text-emerald-300/80">Total</span>
+                    <span className="text-base font-black tabular-nums text-foreground">
                       {formatCurrency(customTotal)}
                     </span>
                   </div>
@@ -663,17 +664,17 @@ export function SimulatorInvestFlow({
             ) : (
               <>
                 <div className="mb-5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1.5">
                     Comprar
                   </p>
-                  <p className="text-xl font-bold text-white leading-tight">
+                  <p className="text-xl font-bold text-foreground leading-tight">
                     {buyTarget.kind === "stock"
                       ? buyTarget.asset.ticker
                       : buyTarget.kind === "tesouro"
                         ? buyTarget.product.nome
                         : buyTarget.account.nome}
                   </p>
-                  <p className="text-xs text-white/40 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {buyTarget.kind === "stock"
                       ? `${buyTarget.asset.name} · ${formatCurrency(buyTarget.asset.price)}`
                       : buyTarget.kind === "tesouro"
@@ -684,19 +685,19 @@ export function SimulatorInvestFlow({
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 mb-4 flex items-center justify-between">
-                  <span className="text-[11px] text-white/45">Saldo</span>
-                  <span className="text-sm font-bold tabular-nums text-white">
+                <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 mb-4 flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">Saldo</span>
+                  <span className="text-sm font-bold tabular-nums text-foreground">
                     {formatCurrency(cash)}
                   </span>
                 </div>
 
                 <label className="block mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     Valor
                   </span>
                   <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/[0.06] px-3.5 py-3.5">
-                    <span className="text-sm font-bold text-white/50">R$</span>
+                    <span className="text-sm font-bold text-muted-foreground">R$</span>
                     <input
                       autoFocus
                       type="text"
@@ -706,7 +707,7 @@ export function SimulatorInvestFlow({
                         setAmountMask(formatBRLMask(e.target.value.replace(/\D/g, "")))
                       }
                       placeholder="0,00"
-                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-white focus:outline-none"
+                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-foreground focus:outline-none"
                     />
                   </div>
                 </label>
@@ -728,10 +729,10 @@ export function SimulatorInvestFlow({
                 </div>
 
                 {buyTarget.kind === "stock" && amount > 0 && (
-                  <p className="text-xs text-white/45 mb-4">
+                  <p className="text-xs text-muted-foreground mb-4">
                     {stockPreviewQty > 0 ? (
                       <>
-                        Você leva <span className="font-bold text-white">{stockPreviewQty} un.</span> de{" "}
+                        Você leva <span className="font-bold text-foreground">{stockPreviewQty} un.</span> de{" "}
                         {buyTarget.asset.ticker} · gasta {formatCurrency(stockPreviewQty * buyTarget.asset.price)}
                       </>
                     ) : (

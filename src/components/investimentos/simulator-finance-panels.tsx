@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState, type ElementType, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, CreditCard, CalendarRange, Layers } from "lucide-react";
@@ -46,13 +46,13 @@ function PanelShell({
       <button
         type="button"
         onClick={onBack}
-        className="flex items-center gap-1 text-xs text-white/50 hover:text-white/80"
+        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground/80"
       >
         <ChevronLeft className="h-3.5 w-3.5" /> Voltar
       </button>
       <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-white/70" />
-        <h2 className="text-sm font-bold text-white">{title}</h2>
+        <Icon className="h-4 w-4 text-foreground/70" />
+        <h2 className="text-sm font-bold text-foreground">{title}</h2>
       </div>
       {children}
     </div>
@@ -60,11 +60,11 @@ function PanelShell({
 }
 
 function Loading() {
-  return <p className="text-sm text-white/40 text-center py-10">Carregando…</p>;
+  return <p className="text-sm text-muted-foreground text-center py-10">Carregando…</p>;
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="text-sm text-white/40 text-center py-8">{text}</p>;
+  return <p className="text-sm text-muted-foreground text-center py-8">{text}</p>;
 }
 
 function shiftMonth(month: string, delta: number): string {
@@ -84,20 +84,20 @@ function MonthNav({
   onChange: (m: string) => void;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-2 py-1.5">
+    <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-2 py-1.5">
       <button
         type="button"
         onClick={() => onChange(shiftMonth(month, -1))}
-        className="h-8 w-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10"
+        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
         aria-label="Mês anterior"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
-      <p className="text-xs font-semibold text-white capitalize">{monthLabel(month)}</p>
+      <p className="text-xs font-semibold text-foreground capitalize">{monthLabel(month)}</p>
       <button
         type="button"
         onClick={() => onChange(shiftMonth(month, 1))}
-        className="h-8 w-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10"
+        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
         aria-label="Próximo mês"
       >
         <ChevronRight className="h-4 w-4" />
@@ -146,16 +146,16 @@ function CartaoPanel({ onBack }: { onBack: () => void }) {
               key={r.name}
               className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.06] p-3.5 space-y-1.5"
             >
-              <p className="text-sm font-semibold text-white">{r.name}</p>
+              <p className="text-sm font-semibold text-foreground">{r.name}</p>
               <div className="flex justify-between text-xs">
-                <span className="text-white/45">Fatura</span>
-                <span className="font-bold tabular-nums text-white">{formatCurrency(r.fatura)}</span>
+                <span className="text-muted-foreground">Fatura</span>
+                <span className="font-bold tabular-nums text-foreground">{formatCurrency(r.fatura)}</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span className="text-white/45">Limite</span>
-                <span className="tabular-nums text-white/70">{formatCurrency(r.limit)}</span>
+                <span className="text-muted-foreground">Limite</span>
+                <span className="tabular-nums text-foreground/70">{formatCurrency(r.limit)}</span>
               </div>
-              <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-rose-400"
                   style={{ width: `${Math.min(100, r.limit > 0 ? (r.fatura / r.limit) * 100 : 0)}%` }}
@@ -205,20 +205,20 @@ function PlanejamentoPanel({ onBack }: { onBack: () => void }) {
       ) : (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-              <p className="text-[10px] uppercase tracking-wider text-white/40">Salário</p>
-              <p className="text-sm font-extrabold tabular-nums text-white mt-1">{formatCurrency(salary)}</p>
+            <div className="rounded-2xl border border-border bg-muted/40 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Salário</p>
+              <p className="text-sm font-extrabold tabular-nums text-foreground mt-1">{formatCurrency(salary)}</p>
             </div>
             <div className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] p-3">
-              <p className="text-[10px] uppercase tracking-wider text-white/40">Sobra plan.</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sobra plan.</p>
               <p className="text-sm font-extrabold tabular-nums text-violet-300 mt-1">
                 {formatCurrency(salary - planned)}
               </p>
             </div>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 flex justify-between text-xs">
-            <span className="text-white/45">Planejado / Real</span>
-            <span className="tabular-nums text-white">
+          <div className="rounded-2xl border border-border bg-muted/40 p-3 flex justify-between text-xs">
+            <span className="text-muted-foreground">Planejado / Real</span>
+            <span className="tabular-nums text-foreground">
               {formatCurrency(planned)} · {formatCurrency(actual)}
             </span>
           </div>
@@ -229,13 +229,13 @@ function PlanejamentoPanel({ onBack }: { onBack: () => void }) {
               {items.slice(0, 30).map((i) => (
                 <div
                   key={i.id}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 flex items-center justify-between gap-2"
+                  className="rounded-xl border border-border bg-muted/30 px-3 py-2 flex items-center justify-between gap-2"
                 >
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-white truncate">{i.name}</p>
-                    <p className="text-[10px] text-white/35">{i.type}</p>
+                    <p className="text-xs font-semibold text-foreground truncate">{i.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{i.type}</p>
                   </div>
-                  <p className="text-xs font-bold tabular-nums text-white shrink-0">
+                  <p className="text-xs font-bold tabular-nums text-foreground shrink-0">
                     {formatCurrency(Number(i.actual || i.planned || 0))}
                   </p>
                 </div>
@@ -286,19 +286,19 @@ function ParcelamentosPanel({ onBack }: { onBack: () => void }) {
                 key={p.id}
                 className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.06] p-3.5 space-y-2"
               >
-                <p className="text-sm font-semibold text-white">{p.description}</p>
+                <p className="text-sm font-semibold text-foreground">{p.description}</p>
                 <div className="flex justify-between text-xs">
-                  <span className="text-white/45">
+                  <span className="text-muted-foreground">
                     {p.paid_installments}/{p.installments} pagas
                   </span>
-                  <span className="tabular-nums text-white">
+                  <span className="tabular-nums text-foreground">
                     {formatCurrency(parcela)}/mês
                   </span>
                 </div>
-                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
                   <div className="h-full rounded-full bg-cyan-400" style={{ width: `${pct}%` }} />
                 </div>
-                <p className="text-[10px] text-white/40">
+                <p className="text-[10px] text-muted-foreground">
                   Em aberto: {formatCurrency(parcela * restantes)}
                 </p>
               </div>

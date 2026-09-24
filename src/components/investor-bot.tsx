@@ -365,7 +365,7 @@ export function InvestorBot({
           "right-[max(1.25rem,var(--safe-right))]",
           "bottom-[calc(var(--bottom-nav-offset)+0.75rem)] md:bottom-5",
           open
-            ? "bg-white/10 text-white border border-white/20 hover:bg-white/15"
+            ? "bg-muted/50 text-foreground border border-border hover:bg-muted/70"
             : "bg-amber-500 text-amber-950 hover:scale-105 hover:bg-amber-400",
         )}
         aria-label={open ? "Fechar bot" : "Abrir MUVO Bot"}
@@ -383,7 +383,7 @@ export function InvestorBot({
       {open && (
         <div
           className={cn(
-            "fixed z-[120] flex w-[min(100vw-1.5rem,380px)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0b14]/95 shadow-2xl backdrop-blur-xl",
+            "fixed z-[120] flex w-[min(100vw-1.5rem,380px)] flex-col overflow-hidden rounded-2xl border border-border bg-[#0b0b14]/95 shadow-2xl backdrop-blur-xl",
             "left-1/2 -translate-x-1/2 md:left-auto md:right-[max(1.25rem,var(--safe-right))] md:translate-x-0",
             "bottom-[calc(var(--bottom-nav-offset)+5rem)] md:bottom-[5.5rem]",
           )}

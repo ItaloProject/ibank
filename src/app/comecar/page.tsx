@@ -170,7 +170,7 @@ export default function ComecarPage() {
     <div className="min-h-[100dvh] bg-background text-foreground flex flex-col md:flex-row">
 
       {/* ── painel esquerdo (desktop) ─────────────────────────────────────── */}
-      <div className="hidden md:flex md:w-1/2 lg:w-[55%] md:sticky md:top-0 md:h-[100dvh] md:overflow-y-auto flex-col px-12 py-12 border-r border-zinc-800 relative">
+      <div className="hidden md:flex md:w-1/2 lg:w-[55%] md:sticky md:top-0 md:h-[100dvh] md:overflow-y-auto flex-col px-12 py-12 border-r border-zinc-800 relative bg-zinc-950 text-zinc-100">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/30 via-transparent to-violet-950/20 pointer-events-none" />
 
         <div className="relative z-10 flex-1 flex flex-col">
