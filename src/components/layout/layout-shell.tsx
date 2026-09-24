@@ -25,6 +25,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [isPwa, setIsPwa] = useState(false);
   const [carteiraSugeridaVista, setCarteiraSugeridaVista] = useState(() => {
     try { return !!localStorage.getItem("ibank_carteira_vista"); } catch { return false; }
   });
@@ -34,6 +35,14 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const saved = localStorage.getItem("ibank_sidebar");
     if (saved === "collapsed") setCollapsed(true);
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(display-mode: standalone)");
+    setIsPwa(mq.matches || !!(navigator as { standalone?: boolean }).standalone);
+    const handler = (e: MediaQueryListEvent) => setIsPwa(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
 
   useEffect(() => {
@@ -90,34 +99,39 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-[100dvh] overflow-hidden">
       <NavigationSplash />
-      {mobileOpen && (
+      {!isPwa && mobileOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
           onClick={() => setMobileOpen(false)}
           aria-hidden
         />
       )}
-      {!collapsed && (
+      {!isPwa && !collapsed && (
         <div
           className="fixed inset-0 z-20 hidden md:block"
           onClick={toggle}
           aria-hidden
         />
       )}
-      <Sidebar
-        collapsed={collapsed}
-        onToggle={toggle}
-        mobileOpen={mobileOpen}
-        onMobileClose={() => setMobileOpen(false)}
-      />
+      {!isPwa && (
+        <Sidebar
+          collapsed={collapsed}
+          onToggle={toggle}
+          mobileOpen={mobileOpen}
+          onMobileClose={() => setMobileOpen(false)}
+        />
+      )}
       <div
         className={cn(
           "flex flex-1 flex-col min-w-0 transition-[margin] duration-150 ease-out",
-          collapsed ? "md:ml-[68px]" : "md:ml-60",
+          !isPwa && (collapsed ? "md:ml-[68px]" : "md:ml-60"),
         )}
       >
         <header
-          className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4 md:hidden safe-pt"
+          className={cn(
+            "sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4 md:hidden safe-pt",
+            isPwa && "hidden",
+          )}
           style={{ height: "calc(3.5rem + var(--safe-top))" }}
         >
           <button

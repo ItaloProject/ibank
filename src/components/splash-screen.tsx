@@ -8,7 +8,7 @@ export function SplashScreen() {
       <img
         src="/loading.gif"
         alt=""
-        className="w-32 h-32 object-contain dark:invert"
+        className="w-32 h-32 object-contain"
       />
       <div className="h-[2px] w-40 rounded-full bg-border overflow-hidden">
         <div className="h-full rounded-full bg-amber-400 animate-[loading-bar_1.8s_ease-in-out_infinite]" />
