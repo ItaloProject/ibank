@@ -146,7 +146,7 @@ export default function UsuariosPage() {
         actions={
           <button
             onClick={() => { setShowForm(true); setError(""); }}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 active:scale-95 transition-all"
+            className="flex items-center gap-2 rounded-xl bg-foreground px-4 py-2.5 text-sm font-semibold text-background hover:bg-foreground/90 active:scale-95 transition-all"
           >
             <UserPlus className="h-4 w-4" />
             <span className="hidden sm:inline">Novo usuário</span>
