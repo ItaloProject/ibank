@@ -67,7 +67,7 @@ function PctBadge({ pct }: { pct: number }) {
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/35 mb-3">{children}</p>
+    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35 mb-3">{children}</p>
   );
 }
 
@@ -161,20 +161,20 @@ export function InvestorLiveViewDesktop({
   /* ── Market catalog (for SimulatorInvestFlow) ─────────────────── */
   const marketCatalog = useMemo(() => {
     const BASE = [
-      { ticker: "PETR4", name: "Petrobras PN",      category: "Ação" as const, price: 38.5,  variation: 0.021,  color: "#22c55e" },
-      { ticker: "VALE3", name: "Vale ON",            category: "Ação" as const, price: 61.2,  variation: -0.014, color: "#f97316" },
-      { ticker: "ITUB4", name: "Itaú Unibanco PN",   category: "Ação" as const, price: 34.1,  variation: 0.008,  color: "#f59e0b" },
-      { ticker: "BBAS3", name: "Banco do Brasil ON", category: "Ação" as const, price: 22.5,  variation: 0.04,   color: "#3b82f6" },
-      { ticker: "WEGE3", name: "WEG ON",             category: "Ação" as const, price: 48.2,  variation: 0.015,  color: "#06b6d4" },
-      { ticker: "MXRF11", name: "Maxi Renda",        category: "FII" as const,  price: 10.15, variation: 0.012,  color: "#a855f7" },
-      { ticker: "HGLG11", name: "CSHG Logística",    category: "FII" as const,  price: 165.4, variation: 0.019,  color: "#8b5cf6" },
-      { ticker: "XPML11", name: "XP Malls",          category: "FII" as const,  price: 98.5,  variation: 0.008,  color: "#ec4899" },
+      { ticker: "PETR4", name: "Petrobras PN",      category: "Ação" as const, price: 38.5,  variation: 0.021,  color: "#e8e8e8" },
+      { ticker: "VALE3", name: "Vale ON",            category: "Ação" as const, price: 61.2,  variation: -0.014, color: "#c4c4c4" },
+      { ticker: "ITUB4", name: "Itaú Unibanco PN",   category: "Ação" as const, price: 34.1,  variation: 0.008,  color: "#a0a0a0" },
+      { ticker: "BBAS3", name: "Banco do Brasil ON", category: "Ação" as const, price: 22.5,  variation: 0.04,   color: "#7c7c7c" },
+      { ticker: "WEGE3", name: "WEG ON",             category: "Ação" as const, price: 48.2,  variation: 0.015,  color: "#5c5c5c" },
+      { ticker: "MXRF11", name: "Maxi Renda",        category: "FII" as const,  price: 10.15, variation: 0.012,  color: "#444444" },
+      { ticker: "HGLG11", name: "CSHG Logística",    category: "FII" as const,  price: 165.4, variation: 0.019,  color: "#303030" },
+      { ticker: "XPML11", name: "XP Malls",          category: "FII" as const,  price: 98.5,  variation: 0.008,  color: "#202020" },
     ];
     const knownTickers = new Set(BASE.map((a) => a.ticker));
     const extras = stockPositions
       .filter((p) => p.quantity > 0 && !knownTickers.has(p.ticker))
       .map((p, i) => {
-        const extraColors = ["#22c55e", "#3b82f6", "#a855f7", "#f59e0b", "#ef4444", "#06b6d4"];
+        const extraColors = ["#e8e8e8", "#a0a0a0", "#6c6c6c", "#484848", "#303030", "#1c1c1c"];
         const kind = detectAssetType(p.ticker);
         return {
           ticker: p.ticker,
@@ -464,8 +464,7 @@ export function InvestorLiveViewDesktop({
   const movements = useMemo(() => {
     const items: { id: string; title: string; sub: string; amount: number; date: string }[] = [];
     for (const t of stockTrades) {
-      if (t.type !== "compra") continue;
-      items.push({ id: `s-${t.id}`, title: `Compra ${t.ticker}`, sub: "Bolsa", amount: t.total_amount, date: t.date });
+      items.push({ id: `s-${t.id}`, title: `${t.type === "venda" ? "Venda" : "Compra"} ${t.ticker}`, sub: "Bolsa", amount: t.total_amount, date: t.date.split("-").reverse().join("/") });
     }
     const lookup = new Map(
       [...turboAccountsReal, ...emergenciaAccountsReal, ...investimentosAccountsReal].map((a) => [a.id, a])
@@ -474,8 +473,8 @@ export function InvestorLiveViewDesktop({
       if (inv.type !== "deposito" || inv.account_id === cashAccountId) continue;
       const acc = lookup.get(inv.account_id);
       if (!acc) continue;
-      const group = acc.isTurbo ? "Turbo" : emergenciaAccountsReal.some((e) => e.id === acc.id) ? "EME" : "Renda Fixa";
-      items.push({ id: `i-${inv.id}`, title: `Aporte · ${acc.nome}`, sub: group, amount: inv.amount, date: inv.date });
+      const group = acc.isTurbo ? "Turbo" : emergenciaAccountsReal.some((e) => e.id === acc.id) ? "Emergência" : "Renda Fixa";
+      items.push({ id: `i-${inv.id}`, title: `Aporte · ${acc.nome}`, sub: group, amount: inv.amount, date: inv.date.split("-").reverse().join("/") });
     }
     return items.sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 10);
   }, [stockTrades, investments, cashAccountId, turboAccountsReal, emergenciaAccountsReal, investimentosAccountsReal]);
@@ -484,11 +483,11 @@ export function InvestorLiveViewDesktop({
   const allocation = useMemo(() => {
     const base = patrimonioTotal || 1;
     return [
-      { label: "TURBO", value: turboTotal, color: "#f59e0b", pct: (turboTotal / base) * 100 },
-      { label: "Emergência", value: emergenciaTotal, color: "#3b82f6", pct: (emergenciaTotal / base) * 100 },
-      { label: "Renda Fixa", value: investimentosTotal, color: "#22c55e", pct: (investimentosTotal / base) * 100 },
-      { label: "Bolsa", value: investedValue, color: "#a855f7", pct: (investedValue / base) * 100 },
-      { label: "Saldo Livre", value: cashBalance, color: "#64748b", pct: (cashBalance / base) * 100 },
+      { label: "TURBO", value: turboTotal, color: "#e8e8e8", pct: (turboTotal / base) * 100 },
+      { label: "Emergência", value: emergenciaTotal, color: "#a0a0a0", pct: (emergenciaTotal / base) * 100 },
+      { label: "Renda Fixa", value: investimentosTotal, color: "#6c6c6c", pct: (investimentosTotal / base) * 100 },
+      { label: "Bolsa", value: investedValue, color: "#404040", pct: (investedValue / base) * 100 },
+      { label: "Saldo Livre", value: cashBalance, color: "#2a2a2a", pct: (cashBalance / base) * 100 },
     ].filter((x) => x.value > 0);
   }, [patrimonioTotal, turboTotal, emergenciaTotal, investimentosTotal, investedValue, cashBalance]);
 
@@ -573,6 +572,7 @@ export function InvestorLiveViewDesktop({
 
           <button
             onClick={onClose}
+            aria-label="Fechar"
             className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:bg-white/14 hover:text-white/80 transition-colors"
           >
             <X className="h-4 w-4" />
@@ -595,15 +595,15 @@ export function InvestorLiveViewDesktop({
           { label: "Ativos em bolsa", value: holdingRows.length.toString(), sub: "posições", accent: false },
         ].map((kpi, i) => (
           <div key={i} className="px-7 py-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/30 mb-1">{kpi.label}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30 mb-1">{kpi.label}</p>
             <p
-              className={`text-xl font-bold font-display tabular-nums ${
+              className={`text-xl font-black font-display tabular-nums ${
                 kpi.accent
                   ? "positive" in kpi
                     ? kpi.positive
                       ? "text-emerald-400"
                       : "text-red-400"
-                    : "text-emerald-400"
+                    : "text-white"
                   : "text-white"
               }`}
             >
@@ -688,7 +688,7 @@ export function InvestorLiveViewDesktop({
                 <SectionHeading>Posições em bolsa</SectionHeading>
                 <button
                   onClick={() => { setMarketSection("acoes"); setMarketOpen(true); }}
-                  className="flex items-center gap-1 text-[10px] font-bold text-emerald-400/70 hover:text-emerald-400 transition-colors uppercase tracking-wider"
+                  className="flex items-center gap-1 text-[10px] font-bold text-white/35 hover:text-white/70 transition-colors uppercase tracking-wider"
                 >
                   <Plus className="h-3 w-3" /> Comprar ação
                 </button>
@@ -698,7 +698,7 @@ export function InvestorLiveViewDesktop({
                   <p className="text-white/25 text-sm">Nenhuma posição em bolsa</p>
                   <button
                     onClick={() => { setMarketSection("acoes"); setMarketOpen(true); }}
-                    className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-400/60 hover:text-emerald-400 transition-colors"
+                    className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-white/35 hover:text-white/70 transition-colors"
                   >
                     <Plus className="h-3 w-3" /> Comprar primeira ação
                   </button>
@@ -721,13 +721,13 @@ export function InvestorLiveViewDesktop({
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-right">
-                          <p className="text-sm font-bold tabular-nums">{formatCurrency(h.value)}</p>
+                          <p className="text-sm font-black font-display tabular-nums">{formatCurrency(h.value)}</p>
                           <PctBadge pct={h.gainPct} />
                         </div>
-                        {/* Sell button — visible on hover */}
                         <button
                           onClick={() => openSell(h.ticker)}
-                          className="opacity-0 group-hover:opacity-100 flex items-center gap-1 h-7 px-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold hover:bg-red-500/20 transition-all"
+                          aria-label={`Vender ${h.ticker}`}
+                          className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400/60 text-[11px] font-semibold hover:bg-red-500/20 hover:text-red-400 transition-all"
                         >
                           Vender
                         </button>
@@ -810,11 +810,11 @@ export function InvestorLiveViewDesktop({
                           <p className="text-sm font-semibold text-white/90 truncate">{acc.nome}</p>
                           <p className="text-[11px] text-white/35 mt-0.5">{acc.instituicao}</p>
                         </div>
-                        <p className="text-sm font-bold tabular-nums text-amber-400 shrink-0">{formatCurrency(acc.valor)}</p>
+                        <p className="text-sm font-bold tabular-nums text-white/80 shrink-0">{formatCurrency(acc.valor)}</p>
                       </div>
                       {acc.cdiPercent && (
                         <div className="mt-2.5 flex flex-wrap gap-1.5">
-                          <span className="text-[10px] bg-amber-400/10 text-amber-400/80 rounded-full px-2 py-0.5 font-semibold">
+                          <span className="text-[10px] bg-white/[0.06] text-white/45 rounded-full px-2 py-0.5 font-semibold">
                             {acc.cdiPercent}% CDI
                           </span>
                           {acc.maxRendimento && (
@@ -867,7 +867,7 @@ export function InvestorLiveViewDesktop({
                           <p className="text-sm font-semibold text-white/90 truncate">{acc.nome}</p>
                           <p className="text-[11px] text-white/35 mt-0.5">{acc.instituicao}</p>
                         </div>
-                        <p className="text-sm font-bold tabular-nums text-blue-400 shrink-0">{formatCurrency(acc.valor)}</p>
+                        <p className="text-sm font-bold tabular-nums text-white/80 shrink-0">{formatCurrency(acc.valor)}</p>
                       </div>
                       <button
                         onClick={() => openWithdraw(acc)}
@@ -1012,7 +1012,8 @@ export function InvestorLiveViewDesktop({
                     step={param.step}
                     value={param.current}
                     onChange={(e) => param.set(Number(e.target.value) as never)}
-                    className="w-full h-1.5 appearance-none rounded-full bg-white/10 accent-emerald-500 cursor-pointer"
+                    aria-label={param.label}
+                    className="w-full h-1.5 appearance-none rounded-full bg-white/10 accent-white cursor-pointer"
                   />
                 </div>
               ))}
@@ -1020,8 +1021,8 @@ export function InvestorLiveViewDesktop({
               {/* Result KPIs */}
               <div className="grid grid-cols-2 gap-2.5 pt-2">
                 {[
-                  { label: "Valor final", value: formatCurrency(simFinal), color: "text-emerald-400" },
-                  { label: "Rendimento", value: formatCurrency(simRendimento), color: "text-blue-400" },
+                  { label: "Valor final", value: formatCurrency(simFinal), color: "text-white" },
+                  { label: "Rendimento", value: formatCurrency(simRendimento), color: "text-white/70" },
                   { label: "Total aportado", value: formatCurrency(simAportado), color: "text-white" },
                   {
                     label: "Retorno %",
@@ -1031,7 +1032,7 @@ export function InvestorLiveViewDesktop({
                 ].map((r) => (
                   <Card key={r.label} className="!p-3.5">
                     <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1">{r.label}</p>
-                    <p className={`text-base font-bold tabular-nums ${r.color}`}>{r.value}</p>
+                    <p className={`text-base font-black font-display tabular-nums ${r.color}`}>{r.value}</p>
                   </Card>
                 ))}
               </div>
@@ -1076,12 +1077,12 @@ export function InvestorLiveViewDesktop({
                   <span>Mês {simMeses}</span>
                 </div>
 
-                <div className="mt-4 flex items-center gap-3 rounded-xl bg-emerald-500/8 border border-emerald-500/15 px-4 py-3">
-                  <div className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                <div className="mt-4 flex items-center gap-3 rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-3">
+                  <div className="h-2 w-2 rounded-full bg-white/50 shrink-0" />
                   <div>
                     <p className="text-xs text-white/50">
                       Em {simMeses} meses, seu patrimônio pode chegar a{" "}
-                      <span className="font-bold text-emerald-400">{formatCurrency(simFinal)}</span>
+                      <span className="font-bold text-white/80">{formatCurrency(simFinal)}</span>
                     </p>
                     <p className="text-[11px] text-white/25 mt-0.5">
                       Rendendo {simTaxa.toFixed(2)}% ao mês · aportando {formatCurrency(simMensal)}/mês
@@ -1108,6 +1109,7 @@ export function InvestorLiveViewDesktop({
             </div>
             <button
               onClick={() => setMarketOpen(false)}
+              aria-label="Fechar"
               className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:bg-white/14 hover:text-white/80 transition-colors"
             >
               <X className="h-4 w-4" />
@@ -1139,7 +1141,7 @@ export function InvestorLiveViewDesktop({
           onClick={() => !sellSubmitting && setSellTicker(null)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
+            className="w-full max-w-sm rounded-2xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
@@ -1152,6 +1154,7 @@ export function InvestorLiveViewDesktop({
               </div>
               <button
                 onClick={() => !sellSubmitting && setSellTicker(null)}
+                aria-label="Fechar"
                 className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
               >
                 <X className="h-4 w-4" />
@@ -1214,7 +1217,7 @@ export function InvestorLiveViewDesktop({
           onClick={() => !withdrawSubmitting && setWithdrawAccount(null)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
+            className="w-full max-w-sm rounded-2xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
@@ -1227,6 +1230,7 @@ export function InvestorLiveViewDesktop({
               </div>
               <button
                 onClick={() => !withdrawSubmitting && setWithdrawAccount(null)}
+                aria-label="Fechar"
                 className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
               >
                 <X className="h-4 w-4" />
@@ -1286,16 +1290,17 @@ export function InvestorLiveViewDesktop({
           onClick={() => !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
+            className="w-full max-w-sm rounded-2xl bg-[#0a0a12] border border-white/10 p-6 mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 mb-0.5">Nova caixinha</p>
-                <p className="text-lg font-bold text-white">Criar conta</p>
+                <p className="text-lg font-bold text-white">Criar caixinha</p>
               </div>
               <button
                 onClick={() => !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
+                aria-label="Fechar"
                 className="h-8 w-8 flex items-center justify-center rounded-full bg-white/7 text-white/40 hover:text-white/80 transition-colors"
               >
                 <X className="h-4 w-4" />
