@@ -21,7 +21,7 @@ export function SplashScreen() {
         playsInline
         loop
         autoPlay
-        className="h-full w-full object-cover"
+        className="max-h-[70vh] max-w-[70vw] object-contain"
       />
     </div>
   );
