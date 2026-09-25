@@ -347,7 +347,8 @@ export type InvestorLiveViewProps = {
   cashAccountId: string | null;
   cashBalance: number;
   onRefresh: () => Promise<void> | void;
-  onClose: () => void;
+  /** Sem onClose, o botão de fechar não aparece. */
+  onClose?: () => void;
 };
 
 export function InvestorLiveView({
@@ -1124,14 +1125,16 @@ export function InvestorLiveView({
             <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
             <span className={LABEL}>MUVO · Live</span>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar MUVO Live"
-            className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground ${FOCUS}`}
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fechar MUVO Live"
+              className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground ${FOCUS}`}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
         </header>
 
         {/* Conteúdo scrollável */}

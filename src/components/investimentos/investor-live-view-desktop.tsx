@@ -601,14 +601,16 @@ export function InvestorLiveViewDesktop({
             <Plus className="h-4 w-4" aria-hidden="true" />
             Investir
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar MUVO Live"
-            className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${FOCUS}`}
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fechar MUVO Live"
+              className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${FOCUS}`}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </header>
 
