@@ -305,7 +305,7 @@ export function InvestorBot({
       id: "welcome",
       role: "bot",
       text: [
-        `Olá! Sou o **MUVO Bot** 🤖`,
+        `Olá! Sou o **Muvo** 🤖`,
         ``,
         `Faço pesquisa de mercado de FIIs, ajudo a equilibrar ações e monto a visão completa da carteira.`,
         `Posso conversar aqui ou gerar um **PDF** com o plano.`,
@@ -380,7 +380,7 @@ export function InvestorBot({
             ? "bg-muted text-foreground hover:bg-muted/70"
             : "bg-background hover:scale-105 active:scale-95 motion-reduce:hover:scale-100",
         )}
-        aria-label={open ? "Fechar bot" : "Abrir MUVO Bot"}
+        aria-label={open ? "Fechar assistente Muvo" : "Abrir assistente Muvo"}
       >
         {open ? <X className="h-6 w-6" /> : <BotAvatar className="h-full w-full" />}
       </button>
@@ -402,8 +402,8 @@ export function InvestorBot({
             <BotAvatar className="h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-white/15" />
 
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-white">MUVO Bot</p>
-              <p className="text-[11px] text-white/45">Pesquisa · carteira · PDF</p>
+              <p className="font-display text-lg font-medium leading-none tracking-tight text-white">Muvo</p>
+              <p className="mt-1 text-[11px] text-white/45">Pesquisa · carteira · PDF</p>
             </div>
           </div>
 
