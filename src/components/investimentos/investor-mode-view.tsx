@@ -1,15 +1,14 @@
 ﻿"use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { toast } from "sonner";
 import { FileText, Target, Radio, Check, CheckCircle2, ArrowRight, CornerDownRight } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { InvestorBot } from "@/components/investor-bot";
-import { InvestorLiveView } from "@/components/investimentos/investor-live-view";
 import { formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
-import { categorizeAccount, isCashAccountName } from "@/lib/account-groups";
 import type { ScoreSnapshot, InvestmentAccount, StockTrade, Investment } from "@/types/database";
 
 type IncomeSource = {
@@ -74,7 +73,6 @@ export type InvestorModeViewProps = {
   incomeGoalInput: string;
   setIncomeGoal: (v: number) => void;
   setIncomeGoalInput: (v: string) => void;
-  setInvestorMode: (v: boolean) => void;
   scoreHistory: ScoreSnapshot[];
   grandTotal: number;
   stockPositions: StockPosition[];
@@ -93,7 +91,6 @@ export function InvestorModeView({
   incomeGoalInput,
   setIncomeGoal,
   setIncomeGoalInput,
-  setInvestorMode,
   scoreHistory,
   grandTotal,
   stockPositions,
@@ -107,60 +104,6 @@ export function InvestorModeView({
   const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
   const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
   const circumference = 2 * Math.PI * 118;
-  const [liveMode, setLiveModeState] = useState(() => {
-    try { return localStorage.getItem("ibank_live_mode") === "1"; } catch { return false; }
-  });
-  function setLiveMode(v: boolean) {
-    setLiveModeState(v);
-    try {
-      if (v) localStorage.setItem("ibank_live_mode", "1");
-      else localStorage.removeItem("ibank_live_mode");
-    } catch { /* ignore */ }
-  }
-
-  if (liveMode) {
-    const toItem = (x: { account: InvestmentAccount; balance: number }) => ({
-      id: x.account.id,
-      nome: x.account.name,
-      instituicao: x.account.institution,
-      valor: x.balance,
-      isTurbo: x.account.is_turbo,
-      cdiPercent: x.account.cdi_percent,
-      maxRendimento: x.account.max_rendimento,
-    });
-    const sortByValor = <T extends { valor: number }>(arr: T[]) => [...arr].sort((a, b) => b.valor - a.valor);
-
-    const cashEntry = accountBalances.find((x) => isCashAccountName(x.account.name));
-    const nonCashBalances = accountBalances.filter((x) => x !== cashEntry);
-
-    const turboAccountsReal = sortByValor(
-      nonCashBalances.filter((x) => categorizeAccount(x.account) === "turbo").map(toItem)
-    );
-    const emergenciaAccountsReal = sortByValor(
-      nonCashBalances.filter((x) => categorizeAccount(x.account) === "emergencia").map(toItem)
-    );
-    const investimentosAccountsReal = sortByValor(
-      nonCashBalances.filter((x) => categorizeAccount(x.account) === "investimentos").map(toItem)
-    );
-
-    return (
-      <InvestorLiveView
-        grandTotal={grandTotal}
-        turboAccountsReal={turboAccountsReal}
-        emergenciaAccountsReal={emergenciaAccountsReal}
-        investimentosAccountsReal={investimentosAccountsReal}
-        stockPositions={stockPositions}
-        quoteMap={quoteMap}
-        stockTrades={stockTrades}
-        investments={investments}
-        cashAccountId={cashEntry?.account.id ?? null}
-        cashBalance={cashEntry?.balance ?? 0}
-        onRefresh={onRefresh}
-        onClose={() => setLiveMode(false)}
-      />
-    );
-  }
-
   return (
         <div className="relative min-h-full bg-background text-foreground overflow-hidden">
           {/* Ambient mesh — MUVO neutral */}
@@ -172,35 +115,22 @@ export function InvestorModeView({
 
           {/* Sticky top bar — anchored to the layout scroll area */}
           <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/85 px-5 py-3 backdrop-blur-xl sm:px-8">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              <span className="text-[11px] font-black uppercase tracking-[0.22em] text-foreground/55">
-                MUVO · BOT
-              </span>
-            </div>
+            <h1 className="text-sm font-black uppercase tracking-[0.2em] text-foreground shrink-0">Metas</h1>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setLiveMode(true)}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground"
+              <Link
+                href="/investimentos?view=live"
+                className="flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 sm:px-4 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <Radio className="h-3.5 w-3.5" />
+                <Radio className="h-3.5 w-3.5" aria-hidden="true" />
                 Live
-              </button>
+              </Link>
               <button
+                type="button"
                 onClick={onGenerateReport}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground"
+                className="flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 sm:px-4 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <FileText className="h-3.5 w-3.5" />
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                 PDF
-              </button>
-              <button
-                onClick={() => setInvestorMode(false)}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground/80"
-              >
-                Sair
               </button>
             </div>
           </div>
@@ -257,6 +187,16 @@ export function InvestorModeView({
                         setIncomeGoal(v);
                         try { localStorage.setItem("ibank_income_goal", String(v)); } catch {}
                         setIncomeGoalInput("");
+                        fetch("/api/goals", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ goal_target: v }),
+                        })
+                          .then((r) => {
+                            if (!r.ok) throw new Error();
+                            toast.success(`Meta de ${formatCurrency(v)} por mês salva`);
+                          })
+                          .catch(() => toast.error("Não foi possível salvar a meta. Tente novamente."));
                       }
                     }
                   }}

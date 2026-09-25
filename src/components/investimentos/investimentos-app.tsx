@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Plus, TrendingUp, LineChart, Info, Zap, Landmark, PlusCircle, ChevronRight, ChevronLeft, Radio,
+  Plus, TrendingUp, LineChart, Info, Zap, Landmark, PlusCircle, ChevronRight, ChevronLeft, Radio, Target,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,38 @@ import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 import { SplashScreen } from "@/components/splash-screen";
 import { InvestimentosSubNav } from "@/components/investimentos/investimentos-sub-nav";
 
-export type InvestimentosSection = "hub" | "contas" | "acoes";
+export type InvestimentosSection = "hub" | "contas" | "acoes" | "metas";
+
+function MetasLocked() {
+  return (
+    <div className="flex min-h-full items-center justify-center bg-background px-5 py-12">
+      <div className="w-full max-w-md text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-foreground/70">
+          <Target className="h-6 w-6" aria-hidden="true" />
+        </div>
+        <h1 className="mt-5 text-2xl font-bold tracking-tight font-display">Metas</h1>
+        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+          Defina sua meta de renda passiva e acompanhe quanto falta, com score da carteira,
+          insights e recomendações de onde investir.
+        </p>
+        <ul className="mt-6 space-y-2 text-left text-sm text-muted-foreground rounded-2xl border border-border bg-card p-5">
+          {["Meta de renda passiva mensal", "Score da carteira com histórico", "Insights, alertas e próximos passos", "Relatório em PDF"].map((f) => (
+            <li key={f} className="flex items-center gap-2.5">
+              <span className="h-1 w-1 rounded-full bg-foreground/40 shrink-0" aria-hidden="true" />
+              {f}
+            </li>
+          ))}
+        </ul>
+        <Link
+          href="/vender"
+          className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-1.5 rounded-xl bg-foreground px-4 text-sm font-bold text-background hover:bg-foreground/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          Ativar Metas <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 function SubPills({
   items, active, onSelect,
@@ -97,6 +128,8 @@ function EmptyCaixinha({
 export function InvestimentosApp({ section }: { section: InvestimentosSection }) {
   const { botEnabled } = useUser();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const isMetas = section === "metas";
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [stockTrades, setStockTrades] = useState<StockTrade[]>([]);
@@ -124,24 +157,10 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [ratesOpen, setRatesOpen] = useState(false);
-  const [investorMode, setInvestorModeState] = useState(() => {
-    try { return localStorage.getItem("ibank_investor_mode") === "1"; } catch { return false; }
-  });
-  function setInvestorMode(v: boolean) {
-    setInvestorModeState(v);
+  const [selectedView, setSelectedView] = useState<null | "live">(() => {
+    if (section === "metas") return null;
     try {
-      if (v) localStorage.setItem("ibank_investor_mode", "1");
-      else { localStorage.removeItem("ibank_investor_mode"); localStorage.removeItem("ibank_live_mode"); }
-    } catch { /* ignore */ }
-  }
-  function goToLiveMode() {
-    try { localStorage.setItem("ibank_live_mode", "1"); } catch { /* ignore */ }
-    setInvestorMode(true);
-  }
-  const [selectedView, setSelectedView] = useState<null | "live" | "bot">(() => {
-    try {
-      const saved = localStorage.getItem("ibank_inv_view");
-      if (saved === "live" || saved === "bot") return saved as "live" | "bot";
+      if (localStorage.getItem("ibank_inv_view") === "live") return "live";
     } catch { /* ignore */ }
     return null;
   });
@@ -150,6 +169,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   });
 
   useEffect(() => {
+    if (isMetas) return;
     try {
       if (selectedView) localStorage.setItem("ibank_inv_view", selectedView);
       else localStorage.removeItem("ibank_inv_view");
@@ -245,13 +265,14 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
 
   useEffect(() => { load(); }, [load]);
 
-  // Abre um modo via link (?view=live | ?view=bot | ?modo=investidor) e sincroniza meta salva
+  // Abre o Live via link (?view=live); links antigos do BOT (?view=bot | ?modo=investidor) viraram a página Metas
   useEffect(() => {
     const view = searchParams.get("view");
-    if (botEnabled && (view === "bot" || searchParams.get("modo") === "investidor")) {
-      setInvestorMode(true);
-      setSelectedView("bot");
-    } else if (view === "live") {
+    if (!isMetas && (view === "bot" || searchParams.get("modo") === "investidor")) {
+      router.replace("/metas");
+      return;
+    }
+    if (!isMetas && view === "live") {
       setSelectedView("live");
     }
     fetch("/api/goals")
@@ -264,7 +285,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         }
       })
       .catch(() => {});
-  }, [searchParams, botEnabled]);
+  }, [searchParams, isMetas, router]);
 
   // Load turbo history when active account changes to a turbo account
   useEffect(() => {
@@ -501,14 +522,12 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   }, [accounts, investments, stockPositions, quoteMap, grandTotal]);
 
   function goToStockDialog(ticker: string, type: "compra" | "venda") {
-    setInvestorMode(false);
     setActiveTab("acoes");
     setStockForm({ ticker, type, quantity: "", price_per_share: "", notes: "", date: format(new Date(), "yyyy-MM-dd") });
     setStockOpen(true);
   }
 
   function goToDepositDialog(accountId: string) {
-    setInvestorMode(false);
     setActiveTab(accountId);
     setInvForm({ account_id: accountId, type: "deposito", amount: "", description: "", date: format(new Date(), "yyyy-MM-dd") });
     setInvOpen(true);
@@ -610,9 +629,9 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     return { insights, nextMoves, score, emerTotal, fiiPctVariavel, commodityPct, totalStockValue };
   }, [accounts, investments, stockPositions, quoteMap]);
 
-  // Salva o score do dia automaticamente quando o Modo Investidor é aberto (1x por dia)
+  // Salva o score do dia automaticamente quando a página Metas é aberta (1x por dia)
   useEffect(() => {
-    if (!investorMode) return;
+    if (!isMetas || !botEnabled || loading) return;
     const today = format(new Date(), "yyyy-MM-dd");
     const existing = scoreHistory.find((s) => s.date === today);
     if (existing && existing.score === portfolioAnalysis.score) return;
@@ -620,7 +639,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       setScoreHistory((prev) => [...prev.filter((s) => s.date !== today), saved].sort((a, b) => a.date.localeCompare(b.date)));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [investorMode, portfolioAnalysis.score]);
+  }, [isMetas, botEnabled, loading, portfolioAnalysis.score]);
 
   async function addInvestment() {
     if (!invForm.account_id || !invForm.amount) return;
@@ -823,11 +842,11 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     );
   }
 
-  const view = selectedView === "bot" && !botEnabled ? null : selectedView;
+  const view = selectedView;
   const modeCard =
     "group flex-1 flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 text-left transition-[border-color,transform] duration-150 ease-out hover:border-foreground/25 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
-  if (view === null) {
+  if (!isMetas && view === null) {
     return (
       <div className="flex flex-col h-full overflow-y-auto bg-background">
         {/* Header */}
@@ -867,56 +886,36 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
             </div>
           </button>
 
-          {/* MUVO BOT */}
-          {botEnabled ? (
-            <button
-              type="button"
-              onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
-              className={modeCard}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/70">
-                  <Zap className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <span className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase pt-1">BOT</span>
+          {/* Metas (antigo MUVO BOT) */}
+          <Link href="/metas" className={botEnabled ? modeCard : `${modeCard} border-dashed bg-transparent`}>
+            <div className="flex items-start justify-between">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/70">
+                <Target className="h-5 w-5" aria-hidden="true" />
               </div>
-              <div>
-                <h2 className="text-xl font-bold tracking-tight font-display">MUVO BOT</h2>
-                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-                  Análise inteligente da sua carteira com insights, simulações e recomendações personalizadas.
-                </p>
-              </div>
-              <ul className="space-y-1.5 text-sm text-muted-foreground">
-                {["Score da carteira", "Insights & alertas", "Simulador de aportes"].map((f) => (
-                  <li key={f} className="flex items-center gap-2.5">
-                    <span className="h-1 w-1 rounded-full bg-foreground/30 shrink-0" aria-hidden="true" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-auto pt-1 flex items-center gap-1.5 text-sm font-semibold text-foreground/70 group-hover:text-foreground transition-colors">
-                Entrar <ChevronRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5" aria-hidden="true" />
-              </div>
-            </button>
-          ) : (
-            <Link href="/vender" className={`${modeCard} border-dashed bg-transparent`}>
-              <div className="flex items-start justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground">
-                  <Zap className="h-5 w-5" aria-hidden="true" />
-                </div>
+              {botEnabled ? (
+                <span className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase pt-1">Metas</span>
+              ) : (
                 <span className="rounded-full border border-border px-2.5 py-0.5 text-[10px] font-bold tracking-[0.18em] text-muted-foreground uppercase">Premium</span>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold tracking-tight font-display text-foreground/80">MUVO BOT</h2>
-                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-                  Análise inteligente da sua carteira com insights, simulações e recomendações personalizadas.
-                </p>
-              </div>
-              <div className="mt-auto pt-1 flex items-center gap-1.5 text-sm font-semibold text-foreground/70 group-hover:text-foreground transition-colors">
-                Ativar acesso <ChevronRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5" aria-hidden="true" />
-              </div>
-            </Link>
-          )}
+              )}
+            </div>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight font-display">Metas</h2>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+                Sua renda passiva rumo à meta, com score da carteira, insights e recomendações personalizadas.
+              </p>
+            </div>
+            <ul className="space-y-1.5 text-sm text-muted-foreground">
+              {["Meta de renda passiva", "Score da carteira", "Insights e recomendações"].map((f) => (
+                <li key={f} className="flex items-center gap-2.5">
+                  <span className="h-1 w-1 rounded-full bg-foreground/30 shrink-0" aria-hidden="true" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-auto pt-1 flex items-center gap-1.5 text-sm font-semibold text-foreground/70 group-hover:text-foreground transition-colors">
+              {botEnabled ? "Abrir metas" : "Ver como ativar"} <ChevronRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5" aria-hidden="true" />
+            </div>
+          </Link>
         </div>
       </div>
     );
@@ -930,7 +929,8 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     });
   }
 
-  if (view === "bot") {
+  if (isMetas) {
+    if (!botEnabled) return <MetasLocked />;
     return (
       <InvestorModeView
         investorData={investorData}
@@ -939,7 +939,6 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         incomeGoalInput={incomeGoalInput}
         setIncomeGoal={setIncomeGoal}
         setIncomeGoalInput={setIncomeGoalInput}
-        setInvestorMode={(v) => { setInvestorMode(v); if (!v) setSelectedView(null); }}
         scoreHistory={scoreHistory}
         grandTotal={grandTotal}
         stockPositions={stockPositions}
@@ -1015,16 +1014,12 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
           <ChevronLeft className="h-5 w-5" />
         </button>
         <span className="flex-1 text-center text-base font-bold tracking-tight">MUVO LIVE</span>
-        {botEnabled ? (
-          <button
-            onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
-            className="flex h-9 items-center gap-1.5 px-3 rounded-full border border-border text-foreground/70 text-xs font-semibold shrink-0 hover:bg-muted transition-colors"
-          >
-            <Zap className="h-3.5 w-3.5" />BOT
-          </button>
-        ) : (
-          <div className="w-10" />
-        )}
+        <Link
+          href="/metas"
+          className="flex h-9 items-center gap-1.5 px-3 rounded-full border border-border text-foreground/70 text-xs font-semibold shrink-0 hover:bg-muted transition-colors"
+        >
+          <Target className="h-3.5 w-3.5" />Metas
+        </Link>
       </div>
       {/* Desktop header */}
       <div className="hidden md:block">
@@ -1055,27 +1050,12 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
           >
             <ChevronLeft className="h-4 w-4" /> Início
           </Button>
-          {botEnabled ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
-                className="min-h-10 w-full sm:w-auto"
-              >
-                <Zap className="h-4 w-4" />
-                MUVO BOT
-              </Button>
-            </>
-          ) : (
-            <a
-              href="/vender"
-              className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground min-h-10 hover:bg-muted transition-colors"
-            >
-              <Zap className="h-4 w-4" />
-              Bot
-            </a>
-          )}
+          <Button variant="outline" size="sm" asChild className="min-h-10 w-full sm:w-auto">
+            <Link href="/metas">
+              <Target className="h-4 w-4" />
+              Metas
+            </Link>
+          </Button>
           {(section === "hub" || section === "contas") && (
           <>
           <Dialog open={accOpen} onOpenChange={setAccOpen}>

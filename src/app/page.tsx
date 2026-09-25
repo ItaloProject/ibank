@@ -314,17 +314,11 @@ export default function DashboardPage() {
             )}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pt-1">
               <p className="text-xs text-muted-foreground">
-                Mesma base da Minha Meta e do Modo Investidor
+                Mesma base da página Metas
               </p>
-              <div className="flex flex-wrap gap-2">
-                <Link href="/metas" className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:underline">
-                  Ver meta <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-                <Link href="/investimentos?modo=investidor" className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 hover:underline">
-                  <Zap className="h-3.5 w-3.5" />
-                  Modo Investidor
-                </Link>
-              </div>
+              <Link href="/metas" className="inline-flex min-h-10 items-center gap-1.5 text-xs font-semibold text-foreground hover:underline">
+                Ver metas <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
           </CardContent>
         </Card>
