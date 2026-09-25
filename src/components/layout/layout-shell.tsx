@@ -151,7 +151,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       <MoreNavSheet
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
-        onOpenFullMenu={() => setMobileOpen(true)}
+        onOpenFullMenu={isPwa ? undefined : () => setMobileOpen(true)}
       />
       <PwaInstallPrompt />
       <SessionTimeout />

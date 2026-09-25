@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Sun, Moon } from "lucide-react";
+import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBottomTabs, isNavItemActive } from "@/lib/nav";
-import { useTheme } from "@/components/theme-provider";
 
 const TABS = getBottomTabs().map((item) => ({
   href: item.href,
@@ -14,8 +13,8 @@ const TABS = getBottomTabs().map((item) => ({
   featured: item.featured ?? false,
 }));
 
-/** Abas de página + Tema + Mais. */
-const COLUMNS = TABS.length + 2;
+/** Abas de página + Mais. */
+const COLUMNS = TABS.length + 1;
 
 const ITEM =
   "relative flex min-w-0 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium leading-none " +
@@ -23,7 +22,6 @@ const ITEM =
 
 export function BottomNav({ onMore }: { onMore: () => void }) {
   const pathname = usePathname();
-  const { theme, toggleTheme } = useTheme();
 
   return (
     <nav
@@ -75,15 +73,6 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
             </Link>
           );
         })}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
-          className={cn(ITEM, "text-muted-foreground hover:text-foreground")}
-        >
-          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          <span className="max-w-full truncate">Tema</span>
-        </button>
         <button
           type="button"
           onClick={onMore}

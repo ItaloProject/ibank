@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Menu, Moon, Sun } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 import { BottomSheet } from "@/components/mobile/bottom-sheet";
 import { cn } from "@/lib/utils";
 import {
@@ -22,6 +23,7 @@ type Props = {
 
 export function MoreNavSheet({ open, onClose, onOpenFullMenu }: Props) {
   const pathname = usePathname();
+  const { theme, toggleTheme } = useTheme();
   const [hiddenPages, setHiddenPages] = useState<Set<string>>(() => readHiddenPages());
 
   useEffect(() => {
@@ -93,6 +95,15 @@ export function MoreNavSheet({ open, onClose, onOpenFullMenu }: Props) {
                 </Link>
               );
             })}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
+              className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-card/40 px-3 py-3 text-left text-foreground hover:bg-muted/50 touch-manipulation min-h-[48px]"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4 shrink-0 opacity-80" /> : <Moon className="h-4 w-4 shrink-0 opacity-80" />}
+              <span className="text-[12px] font-semibold leading-tight">{theme === "dark" ? "Modo claro" : "Modo escuro"}</span>
+            </button>
             {onOpenFullMenu && (
               <button
                 type="button"
