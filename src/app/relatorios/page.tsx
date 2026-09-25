@@ -15,6 +15,7 @@ import { format, subMonths, addMonths, startOfMonth, endOfMonth } from "date-fns
 import { ptBR } from "date-fns/locale";
 import { useTheme } from "@/components/theme-provider";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { SplashScreen } from "@/components/splash-screen";
 
 type Period = 3 | 6 | 12;
 type ViewMode = "periodo" | "mes";
@@ -117,11 +118,7 @@ export default function RelatoriosPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 motion-safe:animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   const tooltipStyle = { background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, color: tooltipText, fontSize: 12 };

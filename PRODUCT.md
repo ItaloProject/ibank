@@ -41,8 +41,8 @@ MUVO é o único app de finanças pessoais onde seus dados ficam no seu próprio
 ## Brand Commitments
 
 - Nome: **MUVO** (marca), codebase: IBANK
-- Mascote: rato busto com óculos e braços cruzados — logotipo principal
-- Tipografia editorial: Playfair Display (display/italic para MUVO) + Sora (corpo)
+- Mascote: rato busto com óculos e braços cruzados — logotipo principal (lockup rato + "Muvo" em `public/brand/`)
+- Tipografia: Funnel Display (fonte principal + texture) + DM Sans (fonte secundária)
 - Paleta: âmbar (`hsl(38 88% 57%)`) como cor primária, fundo escuro quente `hsl(28 15% 5%)`
 - Tom: confiante, direto, premium sem ser bancário corporativo
 - Identidade visual: editorial/magazine com toques de luxo refinado

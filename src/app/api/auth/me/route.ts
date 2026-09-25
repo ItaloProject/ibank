@@ -6,6 +6,7 @@ import {
   hasBotAccess,
   isSubscriptionActive,
 } from "@/lib/subscription";
+import { ensureOnboardingColumns, hasSeenCarteira } from "@/lib/onboarding";
 
 export async function GET() {
   const payload = await getSession();
@@ -13,9 +14,10 @@ export async function GET() {
 
   try {
     await ensureSubscriptionColumns();
+    await ensureOnboardingColumns();
     const rows = await sql`
       SELECT user_id, name, color, is_admin, is_active, investment_profile,
-             bot_enabled, paid_until, plan
+             carteira_vista_profile, bot_enabled, paid_until, plan
       FROM app_users WHERE user_id = ${payload.userId}
     `;
     const user = rows[0];
@@ -30,6 +32,7 @@ export async function GET() {
         color: user.color,
         isAdmin: user.is_admin ?? false,
         investmentProfile: user.investment_profile ?? null,
+        carteiraVista: hasSeenCarteira(user),
         botEnabled: hasBotAccess(user),
         subscriptionActive: isSubscriptionActive(user),
         paidUntil: user.paid_until ? String(user.paid_until).slice(0, 10) : null,
@@ -45,6 +48,7 @@ export async function GET() {
         color: payload.color,
         isAdmin: payload.isAdmin ?? false,
         investmentProfile: payload.investmentProfile ?? null,
+        carteiraVista: true,
         botEnabled: payload.botEnabled ?? false,
         subscriptionActive: true,
         paidUntil: null,

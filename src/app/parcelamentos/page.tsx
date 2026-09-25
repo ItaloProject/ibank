@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, ChevronUp, ChevronDown, Layers, CheckCircle2, Circle, Pencil, Loader2 } from "lucide-react";
+import { useEffect, useState, useCallback, type FormEvent } from "react";
+import { toast } from "sonner";
+import { Plus, Minus, Trash2, Layers, CheckCircle2, Circle, Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useUser } from "@/context/user-context";
 import { UserSelect } from "@/components/user-select";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { SplashScreen } from "@/components/splash-screen";
 
 interface Plan {
   id: string;
@@ -24,44 +26,78 @@ function fmt(v: number | string) {
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function ucFirst(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-async function fetchPlans(userId: string): Promise<Plan[]> {
-  const res = await fetch(`/api/parcelamentos?user=${userId}`);
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-async function updatePaid(id: string, paid_installments: number): Promise<Plan> {
-  const res = await fetch(`/api/parcelamentos/${id}`, {
+async function fetchPlans(userId: string): Promise<Plan[]> {
+  const data = await request<unknown>(`/api/parcelamentos?user=${userId}`);
+  if (!Array.isArray(data)) throw new Error("Resposta inválida");
+  return data as Plan[];
+}
+
+function updatePaid(id: string, paid_installments: number): Promise<Plan> {
+  return request(`/api/parcelamentos/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ paid_installments }),
   });
-  return res.json();
 }
 
-async function editPlan(id: string, body: Partial<Plan>): Promise<Plan> {
-  const res = await fetch(`/api/parcelamentos/${id}`, {
+function editPlan(id: string, body: Partial<Plan>): Promise<Plan> {
+  return request(`/api/parcelamentos/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return res.json();
 }
 
 async function deletePlan(id: string): Promise<void> {
-  await fetch(`/api/parcelamentos/${id}`, { method: "DELETE" });
+  await request(`/api/parcelamentos/${id}`, { method: "DELETE" });
 }
 
-async function createPlan(userId: string, body: Partial<Plan>): Promise<Plan> {
-  const res = await fetch(`/api/parcelamentos?user=${userId}`, {
+function createPlan(userId: string, body: Partial<Plan>): Promise<Plan> {
+  return request(`/api/parcelamentos?user=${userId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return res.json();
+}
+
+type FormState = {
+  description: string;
+  total_amount: string;
+  installments: string;
+  paid_installments: string;
+  start_date: string;
+};
+
+type FormErrors = Partial<Record<keyof FormState, string>>;
+
+const EMPTY_FORM: FormState = { description: "", total_amount: "", installments: "", paid_installments: "0", start_date: "" };
+
+function parseAmount(raw: string): number {
+  const s = raw.trim();
+  return parseFloat(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s);
+}
+
+function validateForm(form: FormState): FormErrors {
+  const errors: FormErrors = {};
+  const amount = parseAmount(form.total_amount);
+  const installments = Number(form.installments);
+  const paid = Number(form.paid_installments || 0);
+
+  if (!form.description.trim()) errors.description = "Informe uma descrição.";
+  if (!form.total_amount) errors.total_amount = "Informe o valor total.";
+  else if (!(amount > 0)) errors.total_amount = "O valor precisa ser maior que zero.";
+  if (!form.installments) errors.installments = "Informe o número de parcelas.";
+  else if (!Number.isInteger(installments) || installments < 1 || installments > 120) errors.installments = "Use de 1 a 120 parcelas.";
+  if (!Number.isInteger(paid) || paid < 0) errors.paid_installments = "Use um número inteiro a partir de 0.";
+  else if (!errors.installments && paid > installments) errors.paid_installments = `No máximo ${installments}.`;
+
+  return errors;
 }
 
 export default function ParcelamentosPage() {
@@ -77,18 +113,15 @@ function ParcelamentosContent({ userId }: { userId: string }) {
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; label: string } | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [form, setForm] = useState({
-    description: "",
-    total_amount: "",
-    installments: "",
-    paid_installments: "0",
-    start_date: "",
-  });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [errors, setErrors] = useState<FormErrors>({});
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const data = await fetchPlans(userId);
-      setPlans(Array.isArray(data) ? data : []);
+      setPlans(await fetchPlans(userId));
       setLoadError(false);
     } catch {
       setLoadError(true);
@@ -97,66 +130,101 @@ function ParcelamentosContent({ userId }: { userId: string }) {
     }
   }, [userId]);
 
+  function setField(field: keyof FormState, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+  }
+
   useEffect(() => { load(); }, [load]);
 
   function openEdit(plan: Plan) {
     setEditingPlan(plan);
     setForm({
       description: plan.description,
-      total_amount: String(plan.total_amount),
+      total_amount: Number(plan.total_amount).toFixed(2).replace(".", ","),
       installments: String(plan.installments),
       paid_installments: String(plan.paid_installments),
       start_date: plan.start_date ? String(plan.start_date).slice(0, 10) : "",
     });
+    setErrors({});
     setOpen(true);
   }
 
   function closeForm() {
     setOpen(false);
     setEditingPlan(null);
-    setForm({ description: "", total_amount: "", installments: "", paid_installments: "0", start_date: "" });
+    setForm(EMPTY_FORM);
+    setErrors({});
   }
 
-  async function handleSave() {
-    if (!form.description || !form.total_amount || !form.installments) return;
-    if (editingPlan) {
-      const updated = await editPlan(editingPlan.id, {
-        description: form.description,
-        total_amount: parseFloat(form.total_amount),
-        installments: parseInt(form.installments),
-        paid_installments: parseInt(form.paid_installments) || 0,
-        start_date: form.start_date || null,
-      });
-      setPlans((prev) => prev.map((p) => (p.id === editingPlan.id ? updated : p)));
-    } else {
-      await createPlan(userId, {
-        description: form.description,
-        total_amount: parseFloat(form.total_amount),
-        installments: parseInt(form.installments),
-        paid_installments: parseInt(form.paid_installments) || 0,
-        start_date: form.start_date || null,
-      });
-      await load();
+  async function handleSave(e: FormEvent) {
+    e.preventDefault();
+    if (saving) return;
+    const found = validateForm(form);
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
+      document.getElementById(`plan-field-${Object.keys(found)[0]}`)?.focus();
+      return;
     }
-    closeForm();
+    const body = {
+      description: form.description.trim(),
+      total_amount: parseAmount(form.total_amount),
+      installments: Number(form.installments),
+      paid_installments: Number(form.paid_installments || 0),
+      start_date: form.start_date || null,
+    };
+    setSaving(true);
+    try {
+      if (editingPlan) {
+        const updated = await editPlan(editingPlan.id, body);
+        setPlans((prev) => prev.map((p) => (p.id === editingPlan.id ? updated : p)));
+        toast.success("Parcelamento atualizado");
+      } else {
+        await createPlan(userId, body);
+        setPlans(await fetchPlans(userId));
+        toast.success("Parcelamento adicionado");
+      }
+      closeForm();
+    } catch {
+      toast.error("Não foi possível salvar. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handlePay(plan: Plan, delta: number) {
     const next = Math.min(plan.installments, Math.max(0, plan.paid_installments + delta));
     if (next === plan.paid_installments) return;
-    const updated = await updatePaid(plan.id, next);
-    setPlans((prev) => prev.map((p) => (p.id === plan.id ? updated : p)));
+    setPlans((prev) => prev.map((p) => (p.id === plan.id ? { ...p, paid_installments: next } : p)));
+    try {
+      const updated = await updatePaid(plan.id, next);
+      setPlans((prev) => prev.map((p) => (p.id === plan.id ? updated : p)));
+    } catch {
+      setPlans((prev) => prev.map((p) => (p.id === plan.id ? plan : p)));
+      toast.error("Não foi possível atualizar a parcela.");
+    }
   }
 
-  function handleDelete(plan: Plan) {
-    setDeleteConfirm({ id: plan.id, label: plan.description });
+  function requestDelete() {
+    if (!editingPlan) return;
+    const target = { id: editingPlan.id, label: editingPlan.description };
+    closeForm();
+    setDeleteConfirm(target);
   }
 
   async function confirmDelete() {
-    if (!deleteConfirm) return;
-    await deletePlan(deleteConfirm.id);
-    setPlans((prev) => prev.filter((p) => p.id !== deleteConfirm.id));
-    setDeleteConfirm(null);
+    if (!deleteConfirm || deleting) return;
+    setDeleting(true);
+    try {
+      await deletePlan(deleteConfirm.id);
+      setPlans((prev) => prev.filter((p) => p.id !== deleteConfirm.id));
+      setDeleteConfirm(null);
+      toast.success("Parcelamento excluído");
+    } catch {
+      toast.error("Não foi possível excluir. Tente novamente.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const active = plans.filter((p) => p.paid_installments < p.installments);
@@ -168,12 +236,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
   const isFormOpen = open || !!editingPlan;
 
   if (loading) {
-    return (
-      <div role="status" className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 motion-safe:animate-spin text-muted-foreground" aria-hidden="true" />
-        <span className="sr-only">Carregando...</span>
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   if (loadError) {
@@ -208,7 +271,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
           type="button"
           aria-label="Novo parcelamento"
           onClick={() => setOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Plus className="h-5 w-5" aria-hidden="true" />
         </button>
@@ -218,18 +281,18 @@ function ParcelamentosContent({ userId }: { userId: string }) {
 
         {/* ── KPI summary ── */}
         {plans.length > 0 && (
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl bg-card border px-3 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/55 mb-1 leading-tight">Em aberto</p>
-              <p className="text-sm font-display font-black text-destructive tabular-nums leading-none">{fmt(totalEmAberto)}</p>
+          <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+            <div className="min-w-0 rounded-xl bg-card border px-3 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 leading-tight">Em aberto</p>
+              <p className="text-sm font-display font-black text-destructive tabular-nums leading-none truncate">{fmt(totalEmAberto)}</p>
+            </div>
+            <div className="min-w-0 rounded-xl bg-card border px-3 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 leading-tight">Por mês</p>
+              <p className="text-sm font-display font-black tabular-nums leading-none truncate">{fmt(parcelasMesAtual)}</p>
             </div>
             <div className="rounded-xl bg-card border px-3 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/55 mb-1 leading-tight">Por mês</p>
-              <p className="text-sm font-display font-black tabular-nums leading-none">{fmt(parcelasMesAtual)}</p>
-            </div>
-            <div className="rounded-xl bg-card border px-3 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/55 mb-1 leading-tight">Ativos</p>
-              <p className="text-sm font-bold tabular-nums leading-none">{active.length}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 leading-tight">Ativos</p>
+              <p className="text-sm font-display font-black tabular-nums leading-none">{active.length}</p>
             </div>
           </div>
         )}
@@ -238,33 +301,49 @@ function ParcelamentosContent({ userId }: { userId: string }) {
         {plans.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
             <Layers className="h-12 w-12 text-muted-foreground/30" aria-hidden="true" />
-            <p className="font-semibold text-muted-foreground">Nenhum parcelamento</p>
-            <p className="text-sm text-muted-foreground/60">Adicione uma compra parcelada para começar</p>
+            <p className="font-semibold">Nenhum parcelamento</p>
+            <p className="text-sm text-muted-foreground max-w-[32ch]">
+              Cadastre uma compra parcelada para acompanhar quanto falta e quando termina.
+            </p>
+            <Button type="button" className="mt-2" onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Novo parcelamento
+            </Button>
           </div>
         )}
 
         {/* ── Em andamento ── */}
-        {active.length > 0 && (
-          <div className="space-y-2.5">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 px-0.5">
+        {plans.length > 0 && (
+          <section className="space-y-2.5" aria-labelledby="plans-active">
+            <h2 id="plans-active" className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground px-0.5">
               Em andamento ({active.length})
             </h2>
-            {active.map((plan) => (
-              <PlanCard key={plan.id} plan={plan} onPay={handlePay} onDelete={handleDelete} onEdit={openEdit} />
-            ))}
-          </div>
+            {active.length > 0 ? (
+              active.map((plan) => (
+                <PlanCard key={plan.id} plan={plan} onPay={handlePay} onEdit={openEdit} />
+              ))
+            ) : (
+              <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-4">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-semibold">Tudo quitado</p>
+                  <p className="text-xs text-muted-foreground">Nenhuma parcela em aberto.</p>
+                </div>
+              </div>
+            )}
+          </section>
         )}
 
         {/* ── Quitados ── */}
         {done.length > 0 && (
-          <div className="space-y-2.5">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-foreground/50 px-0.5">
+          <section className="space-y-2.5" aria-labelledby="plans-done">
+            <h2 id="plans-done" className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground px-0.5">
               Quitados ({done.length})
             </h2>
             {done.map((plan) => (
-              <PlanCard key={plan.id} plan={plan} onPay={handlePay} onDelete={handleDelete} onEdit={openEdit} />
+              <PlanCard key={plan.id} plan={plan} onPay={handlePay} onEdit={openEdit} />
             ))}
-          </div>
+          </section>
         )}
 
       </PageBody>
@@ -275,72 +354,95 @@ function ParcelamentosContent({ userId }: { userId: string }) {
           <DialogHeader>
             <DialogTitle>{editingPlan ? "Editar parcelamento" : "Novo parcelamento"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSave} noValidate>
             <div className="space-y-1.5">
-              <Label htmlFor="plan-desc">Descrição</Label>
+              <Label htmlFor="plan-field-description">Descrição</Label>
               <Input
-                id="plan-desc"
+                id="plan-field-description"
                 autoFocus
                 placeholder="Ex: iPhone 16 Pro"
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) => setField("description", e.target.value)}
+                {...fieldA11y("description", errors)}
               />
+              <FieldError field="description" errors={errors} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="plan-amount">Valor total (R$)</Label>
+                <Label htmlFor="plan-field-total_amount">Valor total (R$)</Label>
                 <Input
-                  id="plan-amount"
-                  type="number"
-                  placeholder="3000"
+                  id="plan-field-total_amount"
+                  inputMode="decimal"
+                  placeholder="3.000,00"
                   value={form.total_amount}
-                  onChange={(e) => setForm({ ...form, total_amount: e.target.value })}
+                  onChange={(e) => setField("total_amount", e.target.value)}
+                  {...fieldA11y("total_amount", errors)}
                 />
+                <FieldError field="total_amount" errors={errors} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="plan-installments">Parcelas</Label>
+                <Label htmlFor="plan-field-installments">Parcelas</Label>
                 <Input
-                  id="plan-installments"
+                  id="plan-field-installments"
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   max={120}
                   placeholder="12"
                   value={form.installments}
-                  onChange={(e) => setForm({ ...form, installments: e.target.value })}
+                  onChange={(e) => setField("installments", e.target.value)}
+                  {...fieldA11y("installments", errors)}
                 />
+                <FieldError field="installments" errors={errors} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="plan-paid">Já pagas</Label>
+                <Label htmlFor="plan-field-paid_installments">Já pagas</Label>
                 <Input
-                  id="plan-paid"
+                  id="plan-field-paid_installments"
                   type="number"
+                  inputMode="numeric"
                   min={0}
                   placeholder="0"
                   value={form.paid_installments}
-                  onChange={(e) => setForm({ ...form, paid_installments: e.target.value })}
+                  onChange={(e) => setField("paid_installments", e.target.value)}
+                  {...fieldA11y("paid_installments", errors)}
                 />
+                <FieldError field="paid_installments" errors={errors} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="plan-start">1ª parcela em</Label>
+                <Label htmlFor="plan-field-start_date">1ª parcela em</Label>
                 <Input
-                  id="plan-start"
+                  id="plan-field-start_date"
                   type="date"
                   value={form.start_date}
-                  onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                  onChange={(e) => setField("start_date", e.target.value)}
                 />
               </div>
             </div>
-            {form.total_amount && form.installments && (
-              <p className="text-sm text-center bg-muted/50 rounded-md py-2 text-muted-foreground">
-                {fmt(parseFloat(form.total_amount) / (parseInt(form.installments) || 1))} / mês
+            {parseAmount(form.total_amount) > 0 && Number(form.installments) >= 1 && (
+              <p className="text-sm text-center bg-muted/50 rounded-md py-2 text-muted-foreground tabular-nums">
+                {fmt(parseAmount(form.total_amount) / Number(form.installments))} / mês
               </p>
             )}
-            <Button className="w-full" onClick={handleSave}>
+            <Button type="submit" className="w-full" disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />}
               {editingPlan ? "Salvar alterações" : "Adicionar"}
             </Button>
-          </div>
+            {editingPlan && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={requestDelete}
+                disabled={saving}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                Excluir parcelamento
+              </Button>
+            )}
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -354,12 +456,30 @@ function ParcelamentosContent({ userId }: { userId: string }) {
             Deseja excluir <span className="font-semibold text-foreground">{deleteConfirm?.label}</span>? Esta ação não pode ser desfeita.
           </p>
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
-            <Button variant="destructive" className="flex-1" onClick={confirmDelete}>Excluir</Button>
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setDeleteConfirm(null)} disabled={deleting}>Cancelar</Button>
+            <Button type="button" variant="destructive" className="flex-1" onClick={confirmDelete} disabled={deleting}>
+              {deleting && <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />}
+              Excluir
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
     </PageShell>
+  );
+}
+
+function fieldA11y(field: keyof FormState, errors: FormErrors) {
+  return errors[field]
+    ? { "aria-invalid": true, "aria-describedby": `plan-field-${field}-error`, className: "border-destructive" }
+    : {};
+}
+
+function FieldError({ field, errors }: { field: keyof FormState; errors: FormErrors }) {
+  if (!errors[field]) return null;
+  return (
+    <p id={`plan-field-${field}-error`} className="text-xs text-destructive">
+      {errors[field]}
+    </p>
   );
 }
 
@@ -384,18 +504,19 @@ function calcEndDate(plan: Plan): string {
     const now = new Date();
     base = new Date(now.getFullYear(), now.getMonth() + remaining - 1, 1);
   }
-  return ucFirst(base.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }));
+  return base.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
+
+const stepButton =
+  "flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border text-foreground/70 hover:bg-muted hover:text-foreground active:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card";
 
 function PlanCard({
   plan,
   onPay,
-  onDelete,
   onEdit,
 }: {
   plan: Plan;
   onPay: (plan: Plan, delta: number) => void;
-  onDelete: (plan: Plan) => void;
   onEdit: (plan: Plan) => void;
 }) {
   const perParcela    = Number(plan.total_amount) / plan.installments;
@@ -406,112 +527,95 @@ function PlanCard({
   const endDate       = calcEndDate(plan);
 
   return (
-    <div className={`rounded-xl border bg-card overflow-hidden ${isDone ? "opacity-60" : ""}`}>
+    <article className={`rounded-xl border overflow-hidden ${isDone ? "bg-card/50" : "bg-card"}`}>
 
-      {/* ── Row 1: name + stepper ── */}
-      <div className="flex items-center gap-2 px-4 pt-3 pb-1.5">
+      {/* ── Row 1: name + edit ── */}
+      <div className="flex items-center gap-2 pl-4 pr-1 pt-1">
         <div className="shrink-0" aria-hidden="true">
           {isDone
-            ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            ? <CheckCircle2 className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
             : <Circle className="h-4 w-4 text-muted-foreground/40" />
           }
         </div>
-        <span className="font-bold text-base flex-1 truncate leading-snug">{plan.description}</span>
-        {/* Stepper */}
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors"
-            disabled={plan.paid_installments <= 0}
-            onClick={() => onPay(plan, -1)}
-            title="Desfazer parcela"
-            aria-label="Desfazer parcela"
-          >
-            <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-          <span className="text-xs font-bold tabular-nums min-w-[2.6rem] text-center">
-            {plan.paid_installments}/{plan.installments}
-          </span>
-          <button
-            type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors"
-            disabled={isDone}
-            onClick={() => onPay(plan, +1)}
-            title="Marcar parcela paga"
-            aria-label="Marcar parcela paga"
-          >
-            <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        </div>
-        {/* Edit / delete */}
-        <div className="flex items-center gap-0 shrink-0">
-          <button
-            type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-foreground/50 hover:text-foreground hover:bg-muted transition-colors"
-            onClick={() => onEdit(plan)}
-            title="Editar"
-            aria-label="Editar parcelamento"
-          >
-            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
-            onClick={() => onDelete(plan)}
-            title="Excluir"
-            aria-label="Excluir parcelamento"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        </div>
+        <h3 className="font-bold text-base flex-1 min-w-0 truncate leading-snug">{plan.description}</h3>
+        <button
+          type="button"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-foreground/60 hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={() => onEdit(plan)}
+          aria-label={`Editar ${plan.description}`}
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+        </button>
       </div>
 
       {/* ── Row 2: subtitle — total + start date ── */}
-      <p className="text-[10px] text-foreground/55 tabular-nums px-4 pb-2 pl-10">
+      <p className="text-[10px] text-muted-foreground tabular-nums pl-10 pr-4 pb-2 -mt-1.5">
         {fmt(plan.total_amount)}{formatStartDate(plan.start_date)}
       </p>
 
-      {/* ── Row 3: progress bar ── */}
-      <div className="px-4 pb-2 space-y-1">
-        <div className="flex items-center justify-between text-[10px] text-foreground/55 tabular-nums">
-          <span>{plan.paid_installments} de {plan.installments} pagas</span>
-          <span>{progress.toFixed(0)}%</span>
+      {/* ── Row 3: stepper around progress ── */}
+      <div className="flex items-center gap-3 px-4 pb-3">
+        <button
+          type="button"
+          className={stepButton}
+          disabled={plan.paid_installments <= 0}
+          onClick={() => onPay(plan, -1)}
+          aria-label={`Desfazer última parcela de ${plan.description}`}
+        >
+          <Minus className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground tabular-nums">
+            <span aria-live="polite">
+              <span className="font-bold text-foreground">{plan.paid_installments}</span> de {plan.installments} pagas
+            </span>
+            <span>{progress.toFixed(0)}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
+            <div
+              className={`h-full rounded-full motion-safe:transition-[width] motion-safe:duration-500 ease-out ${isDone ? "bg-emerald-500" : "bg-primary"}`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${isDone ? "bg-emerald-500" : "bg-primary"}`}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        <button
+          type="button"
+          className={stepButton}
+          disabled={isDone}
+          onClick={() => onPay(plan, +1)}
+          aria-label={`Marcar parcela paga de ${plan.description}`}
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+        </button>
       </div>
 
       {/* ── Row 4: financials + end date ── */}
-      <div className="flex items-center justify-between px-4 pb-3 pt-0.5">
-        <div className="flex items-baseline gap-3">
+      <div className="flex items-end justify-between gap-2 border-t px-4 py-3">
+        <div className="flex items-baseline gap-4 min-w-0">
           <div>
-            <p className="text-[10px] text-foreground/55 leading-none mb-0.5">Por parcela</p>
+            <p className="text-[10px] text-muted-foreground leading-none mb-1">Por parcela</p>
             <p className="text-sm font-display font-black tabular-nums leading-none">{fmt(perParcela)}</p>
           </div>
           {!isDone && (
             <div>
-              <p className="text-[10px] text-foreground/55 leading-none mb-0.5">Restante</p>
+              <p className="text-[10px] text-muted-foreground leading-none mb-1">Restante</p>
               <p className="text-sm font-display font-black text-destructive tabular-nums leading-none">{fmt(valorRestante)}</p>
             </div>
           )}
         </div>
         {!isDone && endDate && (
-          <p className="text-[10px] text-foreground/50 text-right shrink-0 ml-2">
+          <p className="text-[10px] text-muted-foreground text-right shrink-0">
             até {endDate}
           </p>
         )}
         {isDone && (
-          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase tracking-wide">
-            <CheckCircle2 className="h-3 w-3 text-emerald-500" aria-hidden="true" />
+          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-[0.18em] shrink-0">
+            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
             Quitado
           </span>
         )}
       </div>
 
-    </div>
+    </article>
   );
 }

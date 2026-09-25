@@ -7,6 +7,7 @@ import { Target, Calendar, DollarSign, ChevronRight, Calculator, Loader2, Zap } 
 import { cn } from "@/lib/utils";
 import { computeMonthlyPassiveIncome } from "@/lib/passive-income";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { SplashScreen } from "@/components/splash-screen";
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -150,7 +151,7 @@ export default function MetasPage() {
   const percRenda = metaRenda ? Math.min(100, ((Number(rendaAtual) || 0) / Number(metaRenda)) * 100) : 0;
   const faltaRenda = Math.max(0, Number(metaRenda) - (Number(rendaAtual) || 0));
 
-  if (loading) return <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Carregando...</div>;
+  if (loading) return <SplashScreen />;
 
   return (
     <PageShell>

@@ -10,13 +10,14 @@ import {
   type MonthlyTax, type TaxCategory,
 } from "@/lib/tax-ir";
 import {
-  AlertTriangle, CheckCircle2, ChevronDown, Loader2,
+  AlertTriangle, CheckCircle2, ChevronDown,
   TrendingDown, Info, Receipt,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { SplashScreen } from "@/components/splash-screen";
 
 const CAT_COLOR: Record<TaxCategory, string> = {
   acoes: "text-emerald-600 bg-emerald-500/10",
@@ -55,11 +56,7 @@ export default function ImpostosPage() {
   const totalPrejuizo = Object.values(lossPool).reduce((s, v) => s + v, 0);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   return (

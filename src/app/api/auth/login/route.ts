@@ -7,6 +7,7 @@ import {
   hasBotAccess,
   isSubscriptionActive,
 } from "@/lib/subscription";
+import { ensureOnboardingColumns, hasSeenCarteira } from "@/lib/onboarding";
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
     }
 
     await ensureSubscriptionColumns();
+    await ensureOnboardingColumns();
 
     const rows = await sql`
       SELECT * FROM app_users WHERE username = ${username.toLowerCase().trim()}
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
         color: user.color,
         isAdmin: user.is_admin ?? false,
         investmentProfile: user.investment_profile ?? null,
+        carteiraVista: hasSeenCarteira(user),
         botEnabled,
         subscriptionActive,
         paidUntil: user.paid_until ? String(user.paid_until).slice(0, 10) : null,

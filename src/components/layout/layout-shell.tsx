@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Menu } from "lucide-react";
-import Image from "next/image";
+import { BrandLockup } from "@/components/brand-lockup";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { BottomNav } from "./bottom-nav";
@@ -21,14 +21,11 @@ const PUBLIC_PATHS = new Set(["/vender", "/comecar", "/politica-privacidade", "/
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { userId, investmentProfile, subscriptionActive, isAdmin } = useUser();
+  const { userId, investmentProfile, carteiraVista, markCarteiraVista, subscriptionActive, isAdmin } = useUser();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [isPwa, setIsPwa] = useState(false);
-  const [carteiraSugeridaVista, setCarteiraSugeridaVista] = useState(() => {
-    try { return !!localStorage.getItem("ibank_carteira_vista"); } catch { return false; }
-  });
 
   const isPublic = PUBLIC_PATHS.has(pathname);
 
@@ -86,13 +83,10 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   if (!userId) return <LoginScreen />;
   if (!subscriptionActive && !isAdmin) return <SubscriptionGate />;
   if (!investmentProfile) return <ProfileSelectScreen />;
-  if (!carteiraSugeridaVista) return (
+  if (!carteiraVista) return (
     <CarteiraSugeridaScreen
       profile={investmentProfile}
-      onContinuar={(_aporte) => {
-        try { localStorage.setItem("ibank_carteira_vista", "1"); } catch {}
-        setCarteiraSugeridaVista(true);
-      }}
+      onContinuar={() => { void markCarteiraVista(); }}
     />
   );
 
@@ -101,7 +95,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       <NavigationSplash />
       {!isPwa && mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          className="fixed inset-0 bg-black/60 z-[45] md:hidden animate-in fade-in-0 duration-200"
           onClick={() => setMobileOpen(false)}
           aria-hidden
         />
@@ -142,14 +136,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-9 w-9 rounded-lg shrink-0 flex items-center justify-center">
-              <Image src="/logo-dark.png" alt="MUVO" width={200} height={200}
-                className="h-full w-full object-contain dark:hidden" priority />
-              <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
-                className="h-full w-full object-contain hidden dark:block" priority />
-            </div>
-            <span className="font-display font-bold text-base truncate">MUVO</span>
+          <div className="flex items-center min-w-0">
+            <BrandLockup className="h-8" priority />
           </div>
         </header>
         <main

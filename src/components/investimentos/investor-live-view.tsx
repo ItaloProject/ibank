@@ -1,12 +1,17 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ElementType, type FormEvent, type ReactNode } from "react";
+import { toast } from "sonner";
 import {
-  X, Signal, Wifi, BatteryFull, Landmark, Calculator, Zap, Shield,
-  ArrowUpRight, ArrowDownRight, Check, ChevronLeft, Pencil, Home, ChevronRight,
-  CalendarRange, Layers, TrendingUp, Wallet, Receipt, Scale, Plus, Trash2,
+  X, Landmark, Calculator, Zap, Shield,
+  ArrowUpRight, ArrowDownRight, ArrowRight, ArrowRightLeft, Check, Pencil, Home, ChevronRight,
+  CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Undo2,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
+import {
+  FOCUS, LABEL, MONEY, BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, BTN_DANGER_OUTLINE,
+  ROW, INPUT_BOX, GAIN, LOSS, ATTENTION, LiveSheet, StatBox, BackLink,
+} from "@/components/investimentos/live-ui";
 import { detectAssetType } from "@/lib/stock-utils";
 import { CASH_ACCOUNT_NAME, isEmergencyAccountName } from "@/lib/account-groups";
 import type { StockTrade, Investment } from "@/types/database";
@@ -127,26 +132,32 @@ function useCountUp(target: number, durationMs = 900) {
   return value;
 }
 
-function PhoneStatusBar() {
-  const [time, setTime] = useState("");
-  useEffect(() => {
-    function update() {
-      setTime(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
-    }
-    update();
-    const id = setInterval(update, 15000);
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <div className="hidden sm:flex items-center justify-between px-6 pt-3 pb-1 text-foreground text-[13px] font-semibold shrink-0">
-      <span>{time}</span>
-      <div className="flex items-center gap-1.5">
-        <Signal className="h-3.5 w-3.5" />
-        <Wifi className="h-3.5 w-3.5" />
-        <BatteryFull className="h-4 w-4" />
-      </div>
-    </div>
-  );
+function formatPct(value: number, digits = 1) {
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return `${sign}${Math.abs(value).toLocaleString("pt-BR", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}%`;
+}
+
+function formatShortDate(iso: string) {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+/** Máscara de percentual: até 3 dígitos inteiros e 2 decimais, vírgula como separador. */
+function formatPercentMask(raw: string): string {
+  const v = raw.replace(/[^\d,]/g, "");
+  const [int = "", ...rest] = v.split(",");
+  const dec = rest.join("").slice(0, 2);
+  return rest.length > 0 ? `${int.slice(0, 3)},${dec}` : int.slice(0, 3);
+}
+
+function parsePercentMask(masked: string): number {
+  const n = parseFloat(masked.replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
 }
 
 function CaixinhaRow({
@@ -154,72 +165,29 @@ function CaixinhaRow({
   subtitle,
   value,
   icon: Icon,
-  tone,
   onClick,
 }: {
   title: string;
   subtitle: string;
   value: number;
   icon: ElementType;
-  tone: "amber" | "blue" | "emerald" | "rose" | "violet" | "cyan";
   onClick: () => void;
 }) {
-  const tones = {
-    amber: {
-      border: "border-amber-500/25",
-      bg: "bg-amber-500/[0.11] hover:bg-amber-500/[0.17]",
-      iconBg: "bg-amber-500/15",
-      icon: "text-amber-400",
-    },
-    blue: {
-      border: "border-blue-500/25",
-      bg: "bg-blue-500/[0.11] hover:bg-blue-500/[0.17]",
-      iconBg: "bg-blue-500/15",
-      icon: "text-blue-400",
-    },
-    emerald: {
-      border: "border-emerald-500/25",
-      bg: "bg-emerald-500/[0.11] hover:bg-emerald-500/[0.17]",
-      iconBg: "bg-emerald-500/15",
-      icon: "text-emerald-400",
-    },
-    rose: {
-      border: "border-rose-500/25",
-      bg: "bg-rose-500/[0.11] hover:bg-rose-500/[0.17]",
-      iconBg: "bg-rose-500/15",
-      icon: "text-rose-400",
-    },
-    violet: {
-      border: "border-violet-500/25",
-      bg: "bg-violet-500/[0.11] hover:bg-violet-500/[0.17]",
-      iconBg: "bg-violet-500/15",
-      icon: "text-violet-400",
-    },
-    cyan: {
-      border: "border-cyan-500/25",
-      bg: "bg-cyan-500/[0.11] hover:bg-cyan-500/[0.17]",
-      iconBg: "bg-cyan-500/15",
-      icon: "text-cyan-400",
-    },
-  }[tone];
-
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left rounded-xl border ${tones.border} ${tones.bg} p-3 grid grid-cols-[2rem_minmax(0,1fr)_auto_1rem] items-center gap-x-2 transition-colors`}
+      className={`${ROW} min-h-14 px-3 py-2.5 grid grid-cols-[2.25rem_minmax(0,1fr)_auto_1rem] items-center gap-x-2.5`}
     >
-      <span className={`h-8 w-8 rounded-full ${tones.iconBg} flex items-center justify-center`}>
-        <Icon className={`h-3.5 w-3.5 ${tones.icon}`} />
+      <span className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
+        <Icon className="h-4 w-4 text-foreground/70" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <p className="text-[13px] font-bold text-foreground leading-tight truncate">{title}</p>
-        <p className="text-[10px] text-foreground/60 leading-tight mt-0.5 truncate">{subtitle}</p>
+        <p className="text-sm font-bold text-foreground leading-tight truncate">{title}</p>
+        <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">{subtitle}</p>
       </div>
-      <p className="text-[12px] font-extrabold tabular-nums text-foreground text-right whitespace-nowrap">
-        {formatCurrency(value)}
-      </p>
-      <ChevronRight className="h-4 w-4 text-muted-foreground/60 justify-self-end" />
+      <p className={`${MONEY} text-sm text-right whitespace-nowrap`}>{formatCurrency(value)}</p>
+      <ChevronRight className="h-4 w-4 text-muted-foreground justify-self-end" aria-hidden="true" />
     </button>
   );
 }
@@ -228,11 +196,34 @@ function CaixinhaHeader({ label, total }: { label: string; total: number }) {
   const animated = useCountUp(total, 1200);
   return (
     <div className="text-center pt-2 pb-1">
-      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-2">{label}</p>
-      <p className="text-[30px] font-black tabular-nums text-foreground leading-none">
-        {formatCurrency(animated)}
-      </p>
+      <p className={`${LABEL} mb-2`}>{label}</p>
+      <p className={`${MONEY} text-[30px] leading-none tracking-tight`}>{formatCurrency(animated)}</p>
     </div>
+  );
+}
+
+function SubPageHeader({
+  backLabel,
+  onBack,
+  title,
+  subtitle,
+  total,
+}: {
+  backLabel: string;
+  onBack: () => void;
+  title: string;
+  subtitle?: string;
+  total: number;
+}) {
+  return (
+    <>
+      <BackLink label={backLabel} onClick={onBack} />
+      <div className="text-center pb-1">
+        <h2 className={`${LABEL} mb-1`}>{title}</h2>
+        {subtitle && <p className="text-[11px] text-muted-foreground mb-2">{subtitle}</p>}
+        <p className={`${MONEY} text-[28px] leading-none tracking-tight`}>{formatCurrency(total)}</p>
+      </div>
+    </>
   );
 }
 
@@ -261,7 +252,7 @@ function PortfolioSection({
   if (empty) return null;
   return (
     <div className="space-y-2">
-      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground">{title}</p>
+      <h3 className={LABEL}>{title}</h3>
       {children}
     </div>
   );
@@ -281,19 +272,17 @@ function RealAccountList({
           key={item.id}
           type="button"
           onClick={() => onSelect(item)}
-          className="w-full text-left rounded-2xl border border-border bg-muted/50 backdrop-blur-xl p-3.5 flex items-center justify-between gap-3 hover:bg-muted/70 hover:border-border transition-colors"
+          className={`${ROW} min-h-14 p-3.5 flex items-center justify-between gap-3`}
         >
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground truncate">{item.nome}</p>
             {item.instituicao && (
-              <p className="text-[10px] text-muted-foreground truncate">{item.instituicao}</p>
+              <p className="text-[11px] text-muted-foreground truncate">{item.instituicao}</p>
             )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <p className="text-sm font-extrabold tabular-nums text-foreground">
-              {formatCurrency(item.valor)}
-            </p>
-            <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
+            <p className={`${MONEY} text-sm`}>{formatCurrency(item.valor)}</p>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           </div>
         </button>
       ))}
@@ -326,31 +315,18 @@ function HoldingList({
           key={item.ticker}
           type="button"
           onClick={() => onSelect(item.ticker)}
-          className="w-full text-left rounded-2xl border border-border bg-muted/50 backdrop-blur-xl p-3.5 flex items-center justify-between gap-3 hover:bg-muted/70 hover:border-border transition-colors"
+          className={`${ROW} min-h-14 p-3.5 flex items-center justify-between gap-3`}
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span
-              className="h-2.5 w-2.5 rounded-full shrink-0"
-              style={{ background: item.color }}
-            />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">{item.ticker}</p>
-              <p className="text-[10px] text-muted-foreground truncate">
-                {item.typeLabel} · {formatQty(item.quantity)} un.
-              </p>
-            </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate">{item.ticker}</p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {item.typeLabel} · {formatQty(item.quantity)} un.
+            </p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-sm font-extrabold tabular-nums text-foreground">
-              {formatCurrency(item.value)}
-            </p>
-            <p
-              className={`text-[10px] font-semibold tabular-nums ${
-                item.gain >= 0 ? "text-emerald-400" : "text-red-400"
-              }`}
-            >
-              {item.gainPct >= 0 ? "+" : ""}
-              {item.gainPct.toFixed(1)}%
+            <p className={`${MONEY} text-sm`}>{formatCurrency(item.value)}</p>
+            <p className={`text-[11px] font-semibold tabular-nums ${item.gain >= 0 ? GAIN : LOSS}`}>
+              {formatPct(item.gainPct)}
             </p>
           </div>
         </button>
@@ -394,10 +370,10 @@ export function InvestorLiveView({
   const [marketOpen, setMarketOpen] = useState(false);
   const [marketSection, setMarketSection] = useState<MarketSection>("hub");
   const cash = cashBalance;
-  const [editingCash, setEditingCash] = useState(false);
+  const [cashSheetOpen, setCashSheetOpen] = useState(false);
   const [cashInput, setCashInput] = useState("");
   const [financePanel, setFinancePanel] = useState<FinancePanelId | null>(null);
-  const [confirmedFlash, setConfirmedFlash] = useState(false);
+  const [undoTarget, setUndoTarget] = useState<{ id: string; title: string } | null>(null);
   const [selectedFixedIncome, setSelectedFixedIncome] = useState<RealAccountItem | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [sellTicker, setSellTicker] = useState<string | null>(null);
@@ -577,7 +553,7 @@ export function InvestorLiveView({
         date: today(),
       });
       await onRefresh();
-      flashConfirm();
+      toast.success(`Venda de ${formatQty(sellQty)} ${ticker} concluída`);
       setSellTicker(null);
     } catch (err) {
       console.error("Erro ao vender:", err);
@@ -610,7 +586,7 @@ export function InvestorLiveView({
         newCaixinhaTipo === "emergencia" && !isEmergencyAccountName(name)
           ? `${name} (Emergência)`
           : name;
-      const cdi = parseBRLMask(newCaixinhaCdiMask);
+      const cdi = parsePercentMask(newCaixinhaCdiMask);
       const teto = parseBRLMask(newCaixinhaTetoMask);
       await createInvestmentAccountWithTurbo({
         name: finalName,
@@ -620,7 +596,7 @@ export function InvestorLiveView({
         max_rendimento: newCaixinhaTipo === "turbo" && teto > 0 ? teto : null,
       });
       await onRefresh();
-      flashConfirm();
+      toast.success(`Caixinha "${finalName}" criada`);
       setNewCaixinhaOpen(false);
     } catch (err) {
       console.error("Erro ao criar caixinha:", err);
@@ -667,7 +643,6 @@ export function InvestorLiveView({
         label: "FIIs",
         atual: pct(fiiValue),
         ideal: 40,
-        cor: "#a855f7",
         desc: "Renda mensal isenta de IR",
         action: "acoes" as MarketSection,
       },
@@ -676,7 +651,6 @@ export function InvestorLiveView({
         label: "Turbo/CDB",
         atual: pct(turboTotal + investimentosFixedTotal),
         ideal: 30,
-        cor: "#10b981",
         desc: "Segurança + rendimento do CDI",
         action: "turbo" as MarketSection,
       },
@@ -685,7 +659,6 @@ export function InvestorLiveView({
         label: "Ações",
         atual: pct(acoesValue),
         ideal: 30,
-        cor: "#3b82f6",
         desc: "Crescimento + dividendos",
         action: "acoes" as MarketSection,
       },
@@ -708,7 +681,7 @@ export function InvestorLiveView({
       items.push({
         id: `stock-${t.id}`,
         title: `Compra ${t.ticker}`,
-        subtitle: `${formatQty(t.quantity)} un. · Ações/FIIs`,
+        subtitle: `Saldo → Ações/FIIs · ${formatQty(t.quantity)} un.`,
         amount: t.total_amount,
         date: t.date,
       });
@@ -727,12 +700,12 @@ export function InvestorLiveView({
       const group = acc.isTurbo
         ? "Turbo"
         : emergenciaAccountsReal.some((e) => e.id === inv.account_id)
-          ? "EME"
+          ? "Emergência"
           : "Investimentos";
       items.push({
         id: `inv-${inv.id}`,
         title: `Aporte · ${acc.nome}`,
-        subtitle: group,
+        subtitle: `Saldo → ${group}`,
         amount: inv.amount,
         date: inv.date,
       });
@@ -816,7 +789,7 @@ export function InvestorLiveView({
     }
     if (focusGroup === "emergencia") {
       return {
-        title: "EME",
+        title: "Emergência",
         subtitle: `${emergenciaAccountsReal.length} conta${emergenciaAccountsReal.length !== 1 ? "s" : ""}`,
         total: emergenciaTotal,
       };
@@ -843,20 +816,22 @@ export function InvestorLiveView({
   ]);
 
   const animatedCash = useCountUp(cash);
+  const animatedPatrimonio = useCountUp(patrimonioTotal, 1200);
 
   const [savingCash, setSavingCash] = useState(false);
+  const cashInputValue = parseBRLMask(cashInput);
+  const cashDelta = cashInputValue - cash;
+  const cashChanged = Math.abs(cashDelta) >= 0.005;
 
-  function startEditCash() {
+  function openCashSheet() {
     setCashInput(formatBRLMask(cashToMaskDigits(cash)));
-    setEditingCash(true);
+    setCashSheetOpen(true);
   }
 
-  async function commitEditCash() {
-    if (!editingCash) return;
-    setEditingCash(false);
-    const v = parseBRLMask(cashInput);
-    if (isNaN(v) || v < 0 || Math.abs(v - cash) < 0.005) return;
-    const delta = v - cash;
+  async function saveCash(e?: FormEvent) {
+    e?.preventDefault();
+    if (!cashChanged || savingCash) return;
+    const delta = cashDelta;
     setSavingCash(true);
     try {
       let id = cashAccountId;
@@ -872,8 +847,11 @@ export function InvestorLiveView({
         date: today(),
       });
       await onRefresh();
+      setCashSheetOpen(false);
+      toast.success("Saldo em conta atualizado");
     } catch (err) {
       console.error("Erro ao ajustar saldo:", err);
+      toast.error("Não foi possível salvar o saldo. Tente novamente.");
     } finally {
       setSavingCash(false);
     }
@@ -896,11 +874,6 @@ export function InvestorLiveView({
         color: a.color,
       }));
   }, [liveAssets]);
-
-  function flashConfirm() {
-    setConfirmedFlash(true);
-    setTimeout(() => setConfirmedFlash(false), 1600);
-  }
 
   async function handleBuyStock(ticker: string, _name: string, price: number, amount: number) {
     if (!cashAccountId || amount <= 0 || amount > cash + 0.001 || price <= 0) return;
@@ -930,7 +903,7 @@ export function InvestorLiveView({
       throw err;
     }
     await onRefresh();
-    flashConfirm();
+    toast.success(`Compra de ${qty} ${ticker} concluída`);
   }
 
   async function handleBuyTesouro(product: TesouroProduct, amount: number) {
@@ -979,7 +952,7 @@ export function InvestorLiveView({
       throw err;
     }
     await onRefresh();
-    flashConfirm();
+    toast.success(`Compra de ${product.nome} concluída`);
   }
 
   async function handleAporte(accountId: string, amount: number) {
@@ -1011,7 +984,7 @@ export function InvestorLiveView({
       throw err;
     }
     await onRefresh();
-    flashConfirm();
+    toast.success(`Aporte em ${acc.nome} concluído`);
   }
 
   /**
@@ -1021,7 +994,6 @@ export function InvestorLiveView({
    */
   async function undoMovement(mov: { id: string; title: string }) {
     if (!cashAccountId) return;
-    if (!confirm(`Desfazer "${mov.title}"? O valor volta para o saldo disponível.`)) return;
     setUndoingId(mov.id);
     try {
       if (mov.id.startsWith("stock-")) {
@@ -1059,10 +1031,11 @@ export function InvestorLiveView({
         if (cashRetirada) await safeDelete(() => deleteInvestment(cashRetirada.id), "débito do aporte");
       }
       await onRefresh();
-      flashConfirm();
+      setUndoTarget(null);
+      toast.success(`Movimentação desfeita: ${mov.title}. O valor voltou para o saldo em conta.`);
     } catch (err) {
       console.error("Erro ao desfazer movimentação:", err);
-      alert("Não foi possível desfazer essa movimentação. Tente novamente.");
+      toast.error("Não foi possível desfazer essa movimentação. Tente novamente.");
     } finally {
       setUndoingId(null);
     }
@@ -1091,1167 +1064,1032 @@ export function InvestorLiveView({
   const simTotalRendimento = simFinalValue - simTotalAportado;
   const maxSimValue = Math.max(1, ...simProjection.map((p) => p.value));
 
+  const REBALANCE_TOLERANCE = 2;
+  const allocationOutside = Math.max(
+    0,
+    100 - allocationRecommendations.reduce((s, r) => s + r.atual, 0)
+  );
+
+  function goToTab(id: typeof tab) {
+    setTab(id);
+    setFocusGroup("all");
+    setInvestSubPage(null);
+    setMarketOpen(false);
+    setMarketSection("hub");
+    setFinancePanel(null);
+  }
+
+  const caixinhaRows = (onSelect: (group: "turbo" | "emergencia" | "investimentos") => void) => (
+    <>
+      <CaixinhaRow
+        title="Turbo"
+        subtitle={`${turboAccountsLive.length} conta${turboAccountsLive.length !== 1 ? "s" : ""}`}
+        value={turboTotal}
+        icon={Zap}
+        onClick={() => onSelect("turbo")}
+      />
+      <CaixinhaRow
+        title="Emergência"
+        subtitle={`${emergenciaAccountsLive.length} conta${emergenciaAccountsLive.length !== 1 ? "s" : ""}`}
+        value={emergenciaTotal}
+        icon={Shield}
+        onClick={() => onSelect("emergencia")}
+      />
+      <CaixinhaRow
+        title="Investimentos"
+        subtitle={`${investimentosAccountsLive.length + holdings.length} ativo${
+          investimentosAccountsLive.length + holdings.length !== 1 ? "s" : ""
+        }`}
+        value={caixinhaInvestimentos}
+        icon={Landmark}
+        onClick={() => onSelect("investimentos")}
+      />
+    </>
+  );
+
   return (
-    <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center select-none p-0 sm:p-4">
-      <div className="relative w-full h-full sm:h-[min(844px,92dvh)] sm:aspect-[390/844] sm:w-auto sm:max-w-[92vw] sm:rounded-[3rem] sm:border-[8px] sm:border-zinc-800 overflow-hidden bg-background">
-        {/* Mesh de fundo */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-violet-600/25 blur-[90px]" />
-          <div className="absolute top-1/3 -right-24 h-64 w-64 rounded-full bg-blue-500/20 blur-[90px]" />
-          <div className="absolute bottom-0 left-1/4 h-64 w-64 rounded-full bg-emerald-500/15 blur-[100px]" />
-        </div>
-
-        <div className="relative h-full flex flex-col">
-          <PhoneStatusBar />
-
-          {/* Header */}
-          <div
-            className="flex items-center justify-between px-5 pb-3 shrink-0"
-            style={{ paddingTop: "calc(0.5rem + var(--safe-top))" }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-foreground/70">MUVO · Live</span>
-            </div>
-            <button
-              onClick={onClose}
-              className="h-7 w-7 flex items-center justify-center rounded-full bg-muted/10 text-foreground/70 hover:bg-muted/20"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="MUVO Live"
+      className="fixed inset-0 z-[200] bg-background text-foreground select-none"
+    >
+      <div className="relative h-full flex flex-col">
+        {/* Header */}
+        <header
+          className="flex items-center justify-between pl-5 pr-3 pb-2 shrink-0 border-b border-border"
+          style={{ paddingTop: "calc(0.5rem + var(--safe-top))" }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+            <span className={LABEL}>MUVO · Live</span>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar MUVO Live"
+            className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground ${FOCUS}`}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
 
-          {/* Conteúdo scrollável */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pb-4 relative">
-            {!marketOpen && tab === "investimentos" && focusGroup === "all" && (
-              <div className="space-y-4">
-                <CaixinhaHeader label="Total das caixinhas" total={totalCaixinhas} />
+        {/* Conteúdo scrollável */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pt-4 pb-6">
+          {!marketOpen && tab === "investimentos" && focusGroup === "all" && (
+            <div className="space-y-4">
+              <CaixinhaHeader label="Total das caixinhas" total={totalCaixinhas} />
 
+              <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} flex items-center justify-between`}>
+                <span>Investir saldo · {formatCurrency(cash)}</span>
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+
+              <div className="space-y-2">
+                {caixinhaRows((group) => {
+                  setInvestSubPage(null);
+                  setFocusGroup(group);
+                })}
                 <button
                   type="button"
-                  onClick={() => openMarket("hub")}
-                  className="w-full rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] p-5 text-left hover:bg-amber-500/[0.13] transition-colors"
+                  onClick={openNewCaixinha}
+                  className={`w-full min-h-12 rounded-xl border border-dashed border-border flex items-center justify-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors ${FOCUS}`}
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300/80 mb-1">
-                    Aplicar saldo
-                  </p>
-                  <p className="text-xl font-black text-foreground">
-                    Investir agora
-                  </p>
-                  <p className="text-[11px] text-foreground/60 mt-1">
-                    Saldo disponível: <span className="font-bold text-foreground/85">{formatCurrency(cash)}</span> — ações, Tesouro Direto ou caixinhas.
-                  </p>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Nova caixinha
                 </button>
-
-                <div className="space-y-2">
-                  <CaixinhaRow
-                    title="Turbo"
-                    subtitle={`${turboAccountsLive.length} conta${turboAccountsLive.length !== 1 ? "s" : ""}`}
-                    value={turboTotal}
-                    icon={Zap}
-                    tone="amber"
-                    onClick={() => setFocusGroup("turbo")}
-                  />
-                  <CaixinhaRow
-                    title="EME"
-                    subtitle={`${emergenciaAccountsLive.length} conta${emergenciaAccountsLive.length !== 1 ? "s" : ""}`}
-                    value={emergenciaTotal}
-                    icon={Shield}
-                    tone="blue"
-                    onClick={() => setFocusGroup("emergencia")}
-                  />
-                  <CaixinhaRow
-                    title="Investimentos"
-                    subtitle={`${investimentosAccountsLive.length + holdings.length} ativo${
-                      investimentosAccountsLive.length + holdings.length !== 1 ? "s" : ""
-                    }`}
-                    value={caixinhaInvestimentos}
-                    icon={Landmark}
-                    tone="emerald"
-                    onClick={() => {
-                      setInvestSubPage(null);
-                      setFocusGroup("investimentos");
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={openNewCaixinha}
-                    className="w-full rounded-xl border border-dashed border-border py-3 flex items-center justify-center gap-1.5 text-xs font-bold text-foreground/60 hover:text-foreground hover:border-border transition-colors"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Nova Caixinha
-                  </button>
-                </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {!marketOpen && tab === "investimentos" && caixinhaPageMeta && !investSubPage && (
+          {!marketOpen && tab === "investimentos" && caixinhaPageMeta && !investSubPage && (
+            <div className="space-y-5">
+              <SubPageHeader
+                backLabel="Caixinhas"
+                onBack={() => {
+                  setFocusGroup("all");
+                  setInvestSubPage(null);
+                }}
+                title={caixinhaPageMeta.title}
+                subtitle={caixinhaPageMeta.subtitle}
+                total={caixinhaPageMeta.total}
+              />
+
               <div className="space-y-5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFocusGroup("all");
-                    setInvestSubPage(null);
-                  }}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground/55 hover:text-foreground/80"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Caixinhas
-                </button>
-
-                <div className="text-center pt-1 pb-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-1">
-                    {caixinhaPageMeta.title}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mb-2">{caixinhaPageMeta.subtitle}</p>
-                  <p className="text-[28px] font-black tabular-nums text-foreground leading-none">
-                    {formatCurrency(caixinhaPageMeta.total)}
-                  </p>
-                </div>
-
-                <div className="space-y-5">
-                  {focusGroup === "turbo" && (
-                    turboAccountsLive.length > 0 ? (
-                      <PortfolioSection title="Contas">
-                        <RealAccountList
-                          items={turboAccountsLive}
-                          onSelect={setSelectedFixedIncome}
-                        />
-                      </PortfolioSection>
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-8">Nenhuma conta turbo.</p>
-                    )
-                  )}
-
-                  {focusGroup === "emergencia" && (
-                    emergenciaAccountsLive.length > 0 ? (
-                      <PortfolioSection title="Contas">
-                        <RealAccountList
-                          items={emergenciaAccountsLive}
-                          onSelect={setSelectedFixedIncome}
-                        />
-                      </PortfolioSection>
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        Nenhuma conta de emergência.
-                      </p>
-                    )
-                  )}
-
-                  {focusGroup === "investimentos" && (
-                    <div className="space-y-2">
-                      <CaixinhaRow
-                        title="Tesouro Direto"
-                        subtitle={`${tesouroAccounts.length + outrasRendaFixa.length} título${
-                          tesouroAccounts.length + outrasRendaFixa.length !== 1 ? "s" : ""
-                        }`}
-                        value={tesouroTotal}
-                        icon={Landmark}
-                        tone="emerald"
-                        onClick={() => setInvestSubPage("tesouro")}
-                      />
-                      <CaixinhaRow
-                        title="Ações"
-                        subtitle={`${acoesPageHoldings.length} ativo${
-                          acoesPageHoldings.length !== 1 ? "s" : ""
-                        }`}
-                        value={acoesPageTotal}
-                        icon={TrendingUp}
-                        tone="violet"
-                        onClick={() => setInvestSubPage("acoes")}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => openMarket("hub")}
-                        className="w-full rounded-xl border border-dashed border-border py-3 text-xs font-bold text-foreground/60 hover:text-foreground hover:border-border transition-colors"
-                      >
-                        + Aplicar saldo disponível
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {!marketOpen && tab === "investimentos" && focusGroup === "investimentos" && investSubPage === "tesouro" && (
-              <div className="space-y-5">
-                <button
-                  type="button"
-                  onClick={() => setInvestSubPage(null)}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground/55 hover:text-foreground/80"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Investimentos
-                </button>
-
-                <div className="text-center pt-1 pb-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-2">
-                    Tesouro Direto
-                  </p>
-                  <p className="text-[28px] font-black tabular-nums text-foreground leading-none">
-                    {formatCurrency(tesouroTotal)}
-                  </p>
-                </div>
-
-                {tesouroAccounts.length === 0 && outrasRendaFixa.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">Nenhum título cadastrado.</p>
-                ) : (
-                  <div className="space-y-5">
-                    <PortfolioSection title="Títulos" empty={tesouroAccounts.length === 0}>
-                      <RealAccountList
-                        items={tesouroAccounts}
-                        onSelect={setSelectedFixedIncome}
-                      />
+                {focusGroup === "turbo" && (
+                  turboAccountsLive.length > 0 ? (
+                    <PortfolioSection title="Contas">
+                      <RealAccountList items={turboAccountsLive} onSelect={setSelectedFixedIncome} />
                     </PortfolioSection>
-                    <PortfolioSection title="Renda fixa" empty={outrasRendaFixa.length === 0}>
-                      <RealAccountList
-                        items={outrasRendaFixa}
-                        onSelect={setSelectedFixedIncome}
-                      />
-                    </PortfolioSection>
-                  </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">Nenhuma conta Turbo.</p>
+                  )
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => openMarket("tesouro")}
-                  className="w-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 py-3 text-sm font-bold text-foreground"
-                >
-                  Comprar Tesouro com saldo
-                </button>
-              </div>
-            )}
-
-            {!marketOpen && tab === "investimentos" && focusGroup === "investimentos" && investSubPage === "acoes" && (
-              <div className="space-y-5">
-                <button
-                  type="button"
-                  onClick={() => setInvestSubPage(null)}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground/55 hover:text-foreground/80"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Investimentos
-                </button>
-
-                <div className="text-center pt-1 pb-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-2">
-                    Ações
-                  </p>
-                  <p className="text-[28px] font-black tabular-nums text-foreground leading-none">
-                    {formatCurrency(acoesPageTotal)}
-                  </p>
-                </div>
-
-                {acoesPageHoldings.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">Nenhuma ação cadastrada.</p>
-                ) : (
-                  <div className="space-y-5">
-                    <PortfolioSection title="Ações" empty={acoesHoldings.length === 0}>
-                      <HoldingList items={acoesHoldings} onSelect={setSelectedTicker} />
+                {focusGroup === "emergencia" && (
+                  emergenciaAccountsLive.length > 0 ? (
+                    <PortfolioSection title="Contas">
+                      <RealAccountList items={emergenciaAccountsLive} onSelect={setSelectedFixedIncome} />
                     </PortfolioSection>
-                    <PortfolioSection title="FIIs" empty={fiiHoldings.length === 0}>
-                      <HoldingList items={fiiHoldings} onSelect={setSelectedTicker} />
-                    </PortfolioSection>
-                    <PortfolioSection title="ETFs" empty={etfHoldings.length === 0}>
-                      <HoldingList items={etfHoldings} onSelect={setSelectedTicker} />
-                    </PortfolioSection>
-                  </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">Nenhuma conta de emergência.</p>
+                  )
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => openMarket("acoes")}
-                  className="w-full rounded-full bg-amber-500/15 border border-amber-500/30 py-3 text-sm font-bold text-amber-400 hover:bg-amber-500/25 transition-colors"
-                >
-                  Comprar ações com saldo
-                </button>
-              </div>
-            )}
-
-            {tab === "inicio" && financePanel && (
-              <SimulatorFinancePanel panel={financePanel} onBack={() => setFinancePanel(null)} />
-            )}
-
-            {tab === "inicio" && !financePanel && (
-              <div className="space-y-4 pt-1 pb-2">
-                {/* Hero do saldo — alinhado estilo banco */}
-                <div className="pt-1">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-muted-foreground mb-1.5">
-                    Saldo na conta
-                  </p>
-                  <p className="text-[32px] font-black tabular-nums text-foreground leading-none tracking-tight">
-                    {formatCurrency(animatedCash)}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-2">
-                    Patrimônio{" "}
-                    <span className="font-semibold text-foreground/70 tabular-nums">
-                      {formatCurrency(patrimonioTotal)}
-                    </span>
-                  </p>
-                </div>
-
-                {/* CTA primário */}
-                <button
-                  type="button"
-                  onClick={() => openMarket("hub")}
-                  className="w-full rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.10] p-3.5 text-left hover:bg-emerald-500/[0.16] transition-colors"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/80 mb-0.5">
-                        Usar saldo
-                      </p>
-                      <p className="text-[15px] font-black text-foreground">Investir agora</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                        Ações, Tesouro Direto ou caixinhas Turbo/EME.
-                      </p>
-                    </div>
-                    <span className="h-9 w-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                      <TrendingUp className="h-4 w-4 text-emerald-300" />
-                    </span>
-                  </div>
-                </button>
-
-                {/* Atalhos compactos */}
-                <div className="grid grid-cols-3 gap-2">
-                  {(
-                    [
-                      { label: "Plano", icon: CalendarRange, id: "planejamento" as const, tone: "violet" as const },
-                      { label: "Parcelas", icon: Layers, id: "parcelamentos" as const, tone: "cyan" as const },
-                      { label: "Investir", icon: Landmark, id: "investir" as const, tone: "emerald" as const },
-                    ] as const
-                  ).map((item) => {
-                    const tones = {
-                      violet: { bg: "bg-violet-500/15", icon: "text-violet-400", border: "border-violet-500/25" },
-                      cyan: { bg: "bg-cyan-500/15", icon: "text-cyan-400", border: "border-cyan-500/25" },
-                      emerald: { bg: "bg-emerald-500/15", icon: "text-emerald-400", border: "border-emerald-500/25" },
-                    }[item.tone];
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          if (item.id === "investir") {
-                            openMarket("hub");
-                            return;
-                          }
-                          setFinancePanel(item.id);
-                        }}
-                        className={`flex flex-col items-center gap-1.5 rounded-xl border ${tones.border} bg-card px-1 py-2.5 hover:bg-muted/60 transition-colors`}
-                      >
-                        <span className={`h-9 w-9 rounded-full ${tones.bg} flex items-center justify-center`}>
-                          <Icon className={`h-4 w-4 ${tones.icon}`} />
-                        </span>
-                        <span className="text-[9.5px] font-semibold text-foreground/75 text-center leading-tight">
-                          {item.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Meus investimentos */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between px-0.5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-                      Meus investimentos
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFinancePanel(null);
-                        setMarketOpen(false);
-                        setFocusGroup("all");
-                        setInvestSubPage(null);
-                        setTab("investimentos");
-                      }}
-                      className="text-[10px] font-semibold text-violet-300/80 hover:text-violet-200"
-                    >
-                      Ver tudo
-                    </button>
-                  </div>
-
+                {focusGroup === "investimentos" && (
                   <div className="space-y-2">
                     <CaixinhaRow
-                      title="Turbo"
-                      subtitle={`${turboAccountsLive.length} conta${turboAccountsLive.length !== 1 ? "s" : ""}`}
-                      value={turboTotal}
-                      icon={Zap}
-                      tone="amber"
-                      onClick={() => goToInvestGroup("turbo")}
-                    />
-                    <CaixinhaRow
-                      title="EME"
-                      subtitle={`${emergenciaAccountsLive.length} conta${emergenciaAccountsLive.length !== 1 ? "s" : ""}`}
-                      value={emergenciaTotal}
-                      icon={Shield}
-                      tone="blue"
-                      onClick={() => goToInvestGroup("emergencia")}
-                    />
-                    <CaixinhaRow
-                      title="Investimentos"
-                      subtitle={`${investimentosAccountsLive.length + holdings.length} ativo${
-                        investimentosAccountsLive.length + holdings.length !== 1 ? "s" : ""
+                      title="Tesouro Direto"
+                      subtitle={`${tesouroAccounts.length + outrasRendaFixa.length} título${
+                        tesouroAccounts.length + outrasRendaFixa.length !== 1 ? "s" : ""
                       }`}
-                      value={caixinhaInvestimentos}
+                      value={tesouroTotal}
                       icon={Landmark}
-                      tone="emerald"
-                      onClick={() => goToInvestGroup("investimentos")}
+                      onClick={() => setInvestSubPage("tesouro")}
                     />
-                  </div>
-
-                  {homeTopHoldings.length > 0 && (
-                    <div className="space-y-2 pt-1">
-                      <p className="text-[10px] font-semibold text-muted-foreground px-0.5">Principais posições</p>
-                      {homeTopHoldings.map((item) => (
-                        <button
-                          key={item.ticker}
-                          type="button"
-                          onClick={() => {
-                            goToInvestGroup("investimentos");
-                            setInvestSubPage("acoes");
-                            setSelectedTicker(item.ticker);
-                          }}
-                          className="w-full text-left rounded-xl border border-border bg-card px-3 py-2.5 flex items-center justify-between gap-2 hover:bg-muted/60 transition-colors"
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span
-                              className="h-2 w-2 rounded-full shrink-0"
-                              style={{ background: item.color }}
-                            />
-                            <div className="min-w-0">
-                              <p className="text-[13px] font-semibold text-foreground truncate">{item.ticker}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">{item.typeLabel}</p>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-[12px] font-extrabold tabular-nums text-foreground">
-                              {formatCurrency(item.value)}
-                            </p>
-                            <p
-                              className={`text-[10px] font-semibold tabular-nums ${
-                                item.gain >= 0 ? "text-emerald-400" : "text-red-400"
-                              }`}
-                            >
-                              {item.gain >= 0 ? "+" : ""}
-                              {item.gainPct.toFixed(1)}%
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Extrato / últimas movimentações */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-2 px-0.5">
-                    <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-                      Últimas movimentações
-                    </p>
-                  </div>
-
-                  {homeMovements.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
-                      <p className="text-sm font-semibold text-foreground/55">Nenhuma movimentação ainda</p>
-                      <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
-                        Compras e aportes do simulador aparecem aqui.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => openMarket("hub")}
-                        className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3.5 py-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25"
-                      >
-                        Começar a investir
-                        <ArrowUpRight className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
-                      {homeMovements.map((mov) => (
-                        <div
-                          key={mov.id}
-                          className="flex items-center justify-between gap-3 px-3.5 py-3"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="h-8 w-8 rounded-full bg-rose-500/12 flex items-center justify-center shrink-0">
-                              <ArrowDownRight className="h-3.5 w-3.5 text-rose-300" />
-                            </span>
-                            <div className="min-w-0">
-                              <p className="text-[13px] font-semibold text-foreground truncate">{mov.title}</p>
-                              <p className="text-[10px] text-muted-foreground truncate">{mov.subtitle}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <p className="text-[12px] font-extrabold tabular-nums text-red-400">
-                              −{formatCurrency(mov.amount)}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => undoMovement(mov)}
-                              disabled={undoingId === mov.id}
-                              aria-label={`Desfazer ${mov.title}`}
-                              className="h-7 w-7 flex items-center justify-center rounded-full text-muted-foreground/60 hover:text-red-300 hover:bg-red-500/10 transition-colors disabled:opacity-40"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <p className="text-center text-[11px] text-muted-foreground px-2 pt-1">
-                  Para alterar o saldo disponível, use a aba Simular.
-                </p>
-              </div>
-            )}
-
-            {tab === "rebalancear" && !marketOpen && (
-              <div className="space-y-4 pt-1">
-                <div className="text-center pt-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
-                    Alocação atual vs. ideal
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-muted/50 backdrop-blur-xl p-4 space-y-5">
-                  {allocationRecommendations.map((r) => {
-                    const gap = r.ideal - r.atual;
-                    const isBelow = gap > 0.5;
-                    return (
-                      <div key={r.id} className="space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: r.cor }} />
-                            <span className="text-sm font-bold text-foreground truncate">{r.label}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs shrink-0">
-                            <span className="font-extrabold tabular-nums" style={{ color: r.cor }}>
-                              {r.atual.toFixed(0)}%
-                            </span>
-                            <span className="text-muted-foreground">alvo {r.ideal}%</span>
-                            {isBelow ? (
-                              <span className="font-bold text-amber-400">+{gap.toFixed(0)}%</span>
-                            ) : (
-                              <Check className="h-3.5 w-3.5 text-emerald-400" />
-                            )}
-                          </div>
-                        </div>
-                        <div className="relative h-2 rounded-full bg-muted/50 overflow-hidden">
-                          <div
-                            className="absolute inset-y-0 left-0 rounded-full opacity-25"
-                            style={{ width: `${Math.min(r.ideal, 100)}%`, background: r.cor }}
-                          />
-                          <div
-                            className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
-                            style={{ width: `${Math.min(r.atual, 100)}%`, background: r.cor }}
-                          />
-                          <div
-                            className="absolute inset-y-0 w-0.5 bg-muted/50"
-                            style={{ left: `${Math.min(r.ideal, 100)}%` }}
-                          />
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">{r.desc}</p>
-                        {isBelow && (
-                          <button
-                            type="button"
-                            onClick={() => openMarket(r.action)}
-                            className="w-full rounded-full py-2.5 text-xs font-bold text-foreground transition-opacity hover:opacity-90"
-                            style={{ background: `linear-gradient(90deg, ${r.cor}66, ${r.cor}aa)` }}
-                          >
-                            Aplicar saldo em {r.label}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <p className="text-center text-[11px] text-muted-foreground px-2">
-                  Referência de alocação (FIIs 40% · Turbo/CDB 30% · Ações 30%) sobre o seu patrimônio total. Os botões usam o saldo disponível na conta.
-                </p>
-              </div>
-            )}
-
-            {tab === "simular" && (
-              <div className="space-y-5 pt-2">
-                <div className="rounded-2xl border border-border bg-muted/50 backdrop-blur-xl p-4 space-y-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Saldo disponível</p>
-                  {editingCash ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-bold text-muted-foreground">R$</span>
-                      <input
-                        autoFocus
-                        type="text"
-                        inputMode="numeric"
-                        value={cashInput}
-                        onChange={(e) => onCashMaskChange(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") commitEditCash(); if (e.key === "Escape") setEditingCash(false); }}
-                        onBlur={commitEditCash}
-                        className="min-w-[7.5rem] w-auto bg-transparent border-b border-violet-400 text-lg font-extrabold tabular-nums text-foreground focus:outline-none"
-                      />
-                    </div>
-                  ) : (
+                    <CaixinhaRow
+                      title="Ações"
+                      subtitle={`${acoesPageHoldings.length} ativo${acoesPageHoldings.length !== 1 ? "s" : ""}`}
+                      value={acoesPageTotal}
+                      icon={TrendingUp}
+                      onClick={() => setInvestSubPage("acoes")}
+                    />
                     <button
                       type="button"
-                      onClick={startEditCash}
-                      disabled={savingCash}
-                      className="flex items-center gap-1.5 text-lg font-extrabold tabular-nums text-foreground hover:text-violet-300 transition-colors disabled:opacity-60"
+                      onClick={() => openMarket("hub")}
+                      className={`w-full min-h-12 rounded-xl border border-dashed border-border flex items-center justify-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors ${FOCUS}`}
                     >
-                      <span>{formatCurrency(animatedCash)}</span>
-                      {savingCash ? (
-                        <span className="text-[10px] font-semibold text-muted-foreground">salvando…</span>
-                      ) : (
-                        <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
-                      )}
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      Aplicar saldo em conta
                     </button>
-                  )}
-                  <p className="text-[11px] text-muted-foreground">
-                    Esse saldo aparece na aba Início como “Saldo na conta”.
-                  </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!marketOpen && tab === "investimentos" && focusGroup === "investimentos" && investSubPage === "tesouro" && (
+            <div className="space-y-5">
+              <SubPageHeader
+                backLabel="Investimentos"
+                onBack={() => setInvestSubPage(null)}
+                title="Tesouro Direto"
+                total={tesouroTotal}
+              />
+
+              {tesouroAccounts.length === 0 && outrasRendaFixa.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum título cadastrado.</p>
+              ) : (
+                <div className="space-y-5">
+                  <PortfolioSection title="Títulos" empty={tesouroAccounts.length === 0}>
+                    <RealAccountList items={tesouroAccounts} onSelect={setSelectedFixedIncome} />
+                  </PortfolioSection>
+                  <PortfolioSection title="Renda fixa" empty={outrasRendaFixa.length === 0}>
+                    <RealAccountList items={outrasRendaFixa} onSelect={setSelectedFixedIncome} />
+                  </PortfolioSection>
+                </div>
+              )}
+
+              <button type="button" onClick={() => openMarket("tesouro")} className={BTN_PRIMARY}>
+                Comprar Tesouro com saldo
+              </button>
+            </div>
+          )}
+
+          {!marketOpen && tab === "investimentos" && focusGroup === "investimentos" && investSubPage === "acoes" && (
+            <div className="space-y-5">
+              <SubPageHeader
+                backLabel="Investimentos"
+                onBack={() => setInvestSubPage(null)}
+                title="Ações"
+                total={acoesPageTotal}
+              />
+
+              {acoesPageHoldings.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhuma ação cadastrada.</p>
+              ) : (
+                <div className="space-y-5">
+                  <PortfolioSection title="Ações" empty={acoesHoldings.length === 0}>
+                    <HoldingList items={acoesHoldings} onSelect={setSelectedTicker} />
+                  </PortfolioSection>
+                  <PortfolioSection title="FIIs" empty={fiiHoldings.length === 0}>
+                    <HoldingList items={fiiHoldings} onSelect={setSelectedTicker} />
+                  </PortfolioSection>
+                  <PortfolioSection title="ETFs" empty={etfHoldings.length === 0}>
+                    <HoldingList items={etfHoldings} onSelect={setSelectedTicker} />
+                  </PortfolioSection>
+                </div>
+              )}
+
+              <button type="button" onClick={() => openMarket("acoes")} className={BTN_PRIMARY}>
+                Comprar ações com saldo
+              </button>
+            </div>
+          )}
+
+          {tab === "inicio" && financePanel && (
+            <SimulatorFinancePanel panel={financePanel} onBack={() => setFinancePanel(null)} />
+          )}
+
+          {tab === "inicio" && !financePanel && (
+            <div className="space-y-5 pb-2">
+              {/* Patrimônio + saldo em conta */}
+              <section aria-labelledby="live-patrimonio">
+                <h2 id="live-patrimonio" className={LABEL}>Patrimônio</h2>
+                <p className={`${MONEY} text-[34px] leading-none tracking-tight mt-2`}>
+                  {formatCurrency(animatedPatrimonio)}
+                </p>
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-card pl-3.5 pr-1.5 py-1.5">
+                  <div className="min-w-0 py-1">
+                    <p className={LABEL}>Saldo em conta</p>
+                    <p className={`${MONEY} text-base mt-0.5`}>{formatCurrency(animatedCash)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openCashSheet}
+                    disabled={savingCash}
+                    className={`min-h-11 shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-foreground/80 hover:bg-muted disabled:opacity-40 ${FOCUS}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                    Ajustar
+                  </button>
+                </div>
+              </section>
+
+              {/* CTA primário */}
+              <button
+                type="button"
+                onClick={() => openMarket("hub")}
+                className={`w-full min-h-14 rounded-xl bg-foreground text-background px-4 py-3 flex items-center justify-between gap-3 text-left hover:bg-foreground/90 transition-colors ${FOCUS}`}
+              >
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-bold">Investir agora</span>
+                  <span className="block text-[11px] text-background/70 mt-0.5 truncate">
+                    Ações, Tesouro Direto ou caixinhas
+                  </span>
+                </span>
+                <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" />
+              </button>
+
+              {/* Atalhos */}
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    { label: "Planejamento", icon: CalendarRange, id: "planejamento" as const },
+                    { label: "Parcelamentos", icon: Layers, id: "parcelamentos" as const },
+                  ] as const
+                ).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setFinancePanel(item.id)}
+                    className={`${ROW} min-h-12 px-3 flex items-center gap-2.5`}
+                  >
+                    <item.icon className="h-4 w-4 text-foreground/70 shrink-0" aria-hidden="true" />
+                    <span className="text-xs font-semibold text-foreground truncate">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Meus investimentos */}
+              <section className="space-y-2.5" aria-labelledby="live-investimentos">
+                <div className="flex items-center justify-between">
+                  <h2 id="live-investimentos" className={LABEL}>Meus investimentos</h2>
+                  <button
+                    type="button"
+                    onClick={() => goToTab("investimentos")}
+                    className={`-mr-2 min-h-11 rounded-lg px-2 text-xs font-semibold text-foreground/70 hover:text-foreground ${FOCUS}`}
+                  >
+                    Ver tudo
+                  </button>
                 </div>
 
-                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted-foreground">Simulador de rendimentos</p>
+                <div className="space-y-2">{caixinhaRows(goToInvestGroup)}</div>
 
-                <div className="rounded-2xl border border-border bg-muted/50 backdrop-blur-xl p-4 space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                      <span>Valor inicial</span>
-                      <span className="font-bold text-foreground">{formatCurrency(simAporteInicial)}</span>
-                    </div>
-                    <input
-                      type="range" min={0} max={simMax} step={100}
-                      value={simAporteInicial}
-                      onChange={(e) => setSimAporteInicial(Number(e.target.value))}
-                      className="w-full accent-violet-500"
+                {homeTopHoldings.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <h3 className={LABEL}>Principais posições</h3>
+                    <HoldingList
+                      items={homeTopHoldings}
+                      onSelect={(ticker) => {
+                        goToInvestGroup("investimentos");
+                        setInvestSubPage("acoes");
+                        setSelectedTicker(ticker);
+                      }}
                     />
                   </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                      <span>Aporte mensal</span>
-                      <span className="font-bold text-foreground">{formatCurrency(simAporteMensal)}</span>
-                    </div>
-                    <input
-                      type="range" min={0} max={3000} step={50}
-                      value={simAporteMensal}
-                      onChange={(e) => setSimAporteMensal(Number(e.target.value))}
-                      className="w-full accent-violet-500"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                      <span>Prazo</span>
-                      <span className="font-bold text-foreground">{simMeses} meses</span>
-                    </div>
-                    <input
-                      type="range" min={1} max={120} step={1}
-                      value={simMeses}
-                      onChange={(e) => setSimMeses(Number(e.target.value))}
-                      className="w-full accent-violet-500"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                      <span>Rendimento ao mês</span>
-                      <span className="font-bold text-foreground">{simTaxa.toFixed(1)}%</span>
-                    </div>
-                    <input
-                      type="range" min={0.1} max={2} step={0.1}
-                      value={simTaxa}
-                      onChange={(e) => setSimTaxa(Number(e.target.value))}
-                      className="w-full accent-violet-500"
-                    />
-                  </div>
+                )}
+              </section>
+
+              {/* Últimas movimentações */}
+              <section className="space-y-2.5" aria-labelledby="live-movimentacoes">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                  <h2 id="live-movimentacoes" className={LABEL}>Últimas movimentações</h2>
                 </div>
 
-                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-5 text-center">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-300/70 mb-1.5">Patrimônio projetado</p>
-                  <p className="text-3xl font-black tabular-nums text-foreground">{formatCurrency(simFinalValue)}</p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Aportado: <span className="font-semibold text-foreground/70">{formatCurrency(simTotalAportado)}</span>
-                    {" · "}Rendimento: <span className="font-semibold text-emerald-400">+{formatCurrency(simTotalRendimento)}</span>
-                  </p>
-                </div>
+                {homeMovements.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center">
+                    <p className="text-sm font-semibold text-foreground/70">Nenhuma movimentação ainda</p>
+                    <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                      Compras e aportes feitos aqui aparecem nesta lista.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => openMarket("hub")}
+                      className={`mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border px-4 text-xs font-bold text-foreground hover:bg-muted ${FOCUS}`}
+                    >
+                      Começar a investir
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : (
+                  <ul className="rounded-xl border border-border bg-card divide-y divide-border">
+                    {homeMovements.map((mov) => (
+                      <li key={mov.id} className="flex items-center justify-between gap-2 pl-3.5 pr-1 py-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                            <ArrowRightLeft className="h-3.5 w-3.5 text-foreground/70" aria-hidden="true" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-semibold text-foreground truncate">{mov.title}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {formatShortDate(mov.date)} · {mov.subtitle}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <p className={`${MONEY} text-[13px]`}>{formatCurrency(mov.amount)}</p>
+                          <button
+                            type="button"
+                            onClick={() => setUndoTarget({ id: mov.id, title: mov.title })}
+                            disabled={undoingId === mov.id}
+                            aria-label={`Desfazer ${mov.title}`}
+                            className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 ${FOCUS}`}
+                          >
+                            <Undo2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </div>
+          )}
 
-                <div className="rounded-2xl border border-border bg-muted/50 backdrop-blur-xl p-4">
-                  <div className="flex items-end gap-[3px] h-28">
-                    {simProjection.filter((_, i) => i % Math.ceil(simProjection.length / 24 || 1) === 0).map((p, i) => (
+          {tab === "rebalancear" && !marketOpen && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h2 className={LABEL}>Alocação atual vs. referência</h2>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-4 space-y-5">
+                {allocationRecommendations.map((r) => {
+                  const gap = r.ideal - r.atual;
+                  const status =
+                    gap > REBALANCE_TOLERANCE ? "falta" : gap < -REBALANCE_TOLERANCE ? "excede" : "ok";
+                  const gapPts = Math.abs(gap).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+                  return (
+                    <div key={r.id} className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold text-foreground truncate">{r.label}</span>
+                        <div className="flex items-baseline gap-2 text-xs shrink-0">
+                          <span className={`${MONEY} text-sm`}>
+                            {r.atual.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%
+                          </span>
+                          <span className="text-muted-foreground">alvo {r.ideal}%</span>
+                        </div>
+                      </div>
+                      <div
+                        className="relative h-2 rounded-full bg-muted"
+                        role="img"
+                        aria-label={`${r.label}: ${r.atual.toFixed(0)}% atual, alvo ${r.ideal}%`}
+                      >
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full bg-foreground/80 transition-[width] duration-700 motion-reduce:transition-none"
+                          style={{ width: `${Math.min(r.atual, 100)}%` }}
+                        />
+                        <div
+                          className="absolute -top-1 -bottom-1 w-0.5 rounded-full bg-foreground ring-2 ring-card"
+                          style={{ left: `${Math.min(r.ideal, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] text-muted-foreground">{r.desc}</p>
+                        {status === "ok" && (
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${GAIN}`}>
+                            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            No alvo
+                          </span>
+                        )}
+                        {status === "falta" && (
+                          <span className="text-[11px] font-bold text-foreground/80">Faltam {gapPts} pp</span>
+                        )}
+                        {status === "excede" && (
+                          <span className={`text-[11px] font-bold ${ATTENTION}`}>
+                            Excede {gapPts} pp
+                          </span>
+                        )}
+                      </div>
+                      {status === "falta" && (
+                        <button
+                          type="button"
+                          onClick={() => openMarket(r.action)}
+                          disabled={cash <= 0}
+                          className={`${BTN_SECONDARY} min-h-11 text-xs`}
+                        >
+                          {cash > 0 ? `Aplicar saldo em ${r.label}` : "Sem saldo em conta para aplicar"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-center text-[11px] text-muted-foreground px-2 leading-relaxed">
+                Referência: FIIs 40% · Turbo/CDB 30% · Ações 30% do patrimônio.
+                {allocationOutside >= 1 && (
+                  <>
+                    {" "}Saldo em conta e Emergência somam{" "}
+                    {allocationOutside.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% e ficam fora da referência.
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+
+          {tab === "simular" && (
+            <div className="space-y-5">
+              <div>
+                <h2 className={LABEL}>Simulador de rendimentos</h2>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Projeção hipotética. Não altera sua carteira nem seu saldo.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+                {(
+                  [
+                    {
+                      id: "sim-inicial",
+                      label: "Valor inicial",
+                      value: simAporteInicial,
+                      display: formatCurrency(simAporteInicial),
+                      min: 0, max: simMax, step: 100,
+                      set: setSimAporteInicial,
+                    },
+                    {
+                      id: "sim-mensal",
+                      label: "Aporte mensal",
+                      value: simAporteMensal,
+                      display: formatCurrency(simAporteMensal),
+                      min: 0, max: 3000, step: 50,
+                      set: setSimAporteMensal,
+                    },
+                    {
+                      id: "sim-prazo",
+                      label: "Prazo",
+                      value: simMeses,
+                      display: `${simMeses} meses`,
+                      min: 1, max: 120, step: 1,
+                      set: setSimMeses,
+                    },
+                    {
+                      id: "sim-taxa",
+                      label: "Rendimento ao mês",
+                      value: simTaxa,
+                      display: `${simTaxa.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`,
+                      min: 0.1, max: 2, step: 0.1,
+                      set: setSimTaxa,
+                    },
+                  ] as const
+                ).map((s) => (
+                  <div key={s.id}>
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <label htmlFor={s.id} className="text-muted-foreground">{s.label}</label>
+                      <span className="font-bold tabular-nums text-foreground">{s.display}</span>
+                    </div>
+                    <input
+                      id={s.id}
+                      type="range"
+                      min={s.min}
+                      max={s.max}
+                      step={s.step}
+                      value={s.value}
+                      aria-valuetext={s.display}
+                      onChange={(e) => s.set(Number(e.target.value))}
+                      className={cn("w-full h-6 accent-foreground cursor-pointer", FOCUS)}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-5 text-center">
+                <p className={`${LABEL} mb-2`}>Patrimônio projetado</p>
+                <p className={`${MONEY} text-3xl leading-none tracking-tight`}>{formatCurrency(simFinalValue)}</p>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Aportado: <span className="font-semibold text-foreground/80 tabular-nums">{formatCurrency(simTotalAportado)}</span>
+                  {" · "}Rendimento:{" "}
+                  <span className={`font-semibold tabular-nums ${GAIN}`}>+{formatCurrency(simTotalRendimento)}</span>
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-end gap-[3px] h-28" aria-hidden="true">
+                  {simProjection
+                    .filter((_, i) => i % Math.ceil(simProjection.length / 24 || 1) === 0)
+                    .map((p, i) => (
                       <div
                         key={i}
-                        className="flex-1 rounded-t-sm bg-amber-500/70"
+                        className="flex-1 rounded-t-sm bg-foreground/70"
                         style={{ height: `${Math.max(3, (p.value / maxSimValue) * 100)}%` }}
                       />
                     ))}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground text-center mt-2">Evolução simulada ao longo de {simMeses} meses</p>
                 </div>
+                <p className="text-[11px] text-muted-foreground text-center mt-2">
+                  Evolução simulada ao longo de {simMeses} meses
+                </p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </main>
 
-          {/* Bottom tab bar */}
-          <div className="flex items-center justify-center gap-3 border-t border-border bg-black/40 backdrop-blur-xl px-1 pt-2 pb-1 shrink-0">
-            {[
-              { id: "inicio" as const, label: "Início", icon: Home },
-              { id: "investimentos" as const, label: "Investir", icon: Landmark },
-              { id: "rebalancear" as const, label: "Rebalancear", icon: Scale },
-              { id: "simular" as const, label: "Simular", icon: Calculator },
-            ].map((t) => (
+        {/* Barra de abas */}
+        <nav
+          aria-label="Seções do MUVO Live"
+          className="grid grid-cols-4 border-t border-border bg-background px-2 pt-1 shrink-0"
+          style={{ paddingBottom: "calc(0.25rem + var(--safe-bottom))" }}
+        >
+          {[
+            { id: "inicio" as const, label: "Início", icon: Home },
+            { id: "investimentos" as const, label: "Investir", icon: Landmark },
+            { id: "rebalancear" as const, label: "Rebalancear", icon: Scale },
+            { id: "simular" as const, label: "Simular", icon: Calculator },
+          ].map((t) => {
+            const active = tab === t.id;
+            return (
               <button
                 key={t.id}
-                onClick={() => {
-                  setTab(t.id);
-                  setFocusGroup("all");
-                  setInvestSubPage(null);
-                  setMarketOpen(false);
-                  setMarketSection("hub");
-                  setFinancePanel(null);
-                }}
-                className={`flex flex-col items-center gap-1 min-w-[58px] px-2 py-1.5 rounded-xl transition-colors ${
-                  tab === t.id ? "text-foreground bg-muted/10" : "text-muted-foreground"
+                type="button"
+                onClick={() => goToTab(t.id)}
+                aria-current={active ? "page" : undefined}
+                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl transition-colors ${FOCUS} ${
+                  active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <t.icon className="h-5 w-5" />
-                <span className="text-[9.5px] font-semibold">{t.label}</span>
+                <t.icon className="h-5 w-5" aria-hidden="true" />
+                <span className={`text-[11px] ${active ? "font-bold" : "font-medium"}`}>{t.label}</span>
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </nav>
 
-          {/* Home indicator */}
-          <div className="flex justify-center pb-2 pt-1 shrink-0 bg-black/40">
-            <div className="h-1 w-32 rounded-full bg-muted/30" />
-          </div>
-
-          {/* Compra/aporte via Live (overlay sobre o frame inteiro) */}
-          {marketOpen && (
-            <div className="absolute inset-0 z-10 bg-background flex flex-col">
-              <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pt-4 pb-4">
-                <SimulatorInvestFlow
-                  cash={cash}
-                  catalog={marketCatalog}
-                  tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
-                  turboAccounts={turboAccountsLive}
-                  emergenciaAccounts={emergenciaAccountsLive}
-                  section={marketSection}
-                  onSectionChange={setMarketSection}
-                  onClose={() => setMarketOpen(false)}
-                  onBuyStock={handleBuyStock}
-                  onBuyTesouro={handleBuyTesouro}
-                  onAporte={handleAporte}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Flash de confirmação */}
-          {confirmedFlash && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-foreground shadow-xl">
-              <Check className="h-3.5 w-3.5" />
-              Compra confirmada
-            </div>
-          )}
-
-          {/* Detalhe de conta real (turbo/emergência/renda fixa) */}
-          {selectedFixedIncome && (
+        {/* Compra/aporte via Live (sobre a tela inteira) */}
+        {marketOpen && (
+          <div className="absolute inset-0 z-10 bg-background flex flex-col">
             <div
-              className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-end"
-              onClick={() => setSelectedFixedIncome(null)}
+              className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pb-4"
+              style={{ paddingTop: "calc(1rem + var(--safe-top))" }}
             >
-              <div
-                className="w-full rounded-t-3xl bg-card border-t border-border p-5 pb-6"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex justify-center mb-4">
-                  <div className="h-1 w-10 rounded-full bg-muted/20" />
-                </div>
+              <SimulatorInvestFlow
+                cash={cash}
+                catalog={marketCatalog}
+                tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
+                turboAccounts={turboAccountsLive}
+                emergenciaAccounts={emergenciaAccountsLive}
+                section={marketSection}
+                onSectionChange={setMarketSection}
+                onClose={() => setMarketOpen(false)}
+                onBuyStock={handleBuyStock}
+                onBuyTesouro={handleBuyTesouro}
+                onAporte={handleAporte}
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
-                <div className="flex items-start gap-3 mb-5">
-                  <span
-                    className={`h-3 w-3 rounded-full shrink-0 mt-1.5 ${
-                      selectedFixedIncome.isTurbo
-                        ? "bg-amber-400"
-                        : isTesouroAccount(selectedFixedIncome.nome)
-                          ? "bg-emerald-400"
-                          : "bg-blue-400"
-                    }`}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-lg font-bold text-foreground leading-snug">{selectedFixedIncome.nome}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {[
-                        selectedFixedIncome.isTurbo
-                          ? "Turbo"
-                          : isTesouroAccount(selectedFixedIncome.nome)
-                            ? "Tesouro Direto"
-                            : "Renda fixa",
-                        selectedFixedIncome.instituicao,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  </div>
-                </div>
+      {/* Ajuste do saldo em conta */}
+      <LiveSheet
+        open={cashSheetOpen}
+        onOpenChange={setCashSheetOpen}
+        dismissible={!savingCash}
+        title="Ajustar saldo em conta"
+        description="Informe quanto você tem hoje na conta. A diferença é registrada como um lançamento de ajuste."
+      >
+        <form onSubmit={saveCash}>
+          <label htmlFor="live-cash" className={LABEL}>Saldo atual</label>
+          <div className={`${INPUT_BOX} mt-1.5`}>
+            <span className="text-sm font-bold text-muted-foreground">R$</span>
+            <input
+              id="live-cash"
+              autoFocus
+              type="text"
+              inputMode="numeric"
+              value={cashInput}
+              onChange={(e) => onCashMaskChange(e.target.value)}
+              className="flex-1 min-w-0 bg-transparent font-display text-xl font-black tabular-nums text-foreground focus:outline-none"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2 mb-5 min-h-4 tabular-nums" aria-live="polite">
+            {cashChanged
+              ? `Ajuste de ${cashDelta > 0 ? "+" : "−"}${formatCurrency(Math.abs(cashDelta))} em relação ao saldo registrado.`
+              : "Sem alteração."}
+          </p>
+          <div className="space-y-2">
+            <button type="submit" disabled={!cashChanged || savingCash} className={BTN_PRIMARY}>
+              {savingCash ? "Salvando…" : "Salvar saldo"}
+            </button>
+            <button type="button" disabled={savingCash} onClick={() => setCashSheetOpen(false)} className={BTN_SECONDARY}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </LiveSheet>
 
-                <div className="rounded-xl border border-border bg-muted/50 p-3 mb-3">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor investido</p>
-                  <p className="text-lg font-black tabular-nums text-foreground mt-0.5">{formatCurrency(selectedFixedIncome.valor)}</p>
-                </div>
+      {/* Confirmação de desfazer */}
+      <LiveSheet
+        open={!!undoTarget}
+        onOpenChange={(o) => !o && setUndoTarget(null)}
+        dismissible={!undoingId}
+        title={undoTarget ? `Desfazer "${undoTarget.title}"?` : "Desfazer movimentação"}
+        description="O lançamento é apagado e o valor volta para o saldo em conta."
+      >
+        <div className="space-y-2">
+          <button
+            type="button"
+            disabled={!!undoingId}
+            onClick={() => undoTarget && undoMovement(undoTarget)}
+            className={BTN_DANGER}
+          >
+            {undoingId ? "Desfazendo…" : "Desfazer movimentação"}
+          </button>
+          <button type="button" disabled={!!undoingId} onClick={() => setUndoTarget(null)} className={BTN_SECONDARY}>
+            Cancelar
+          </button>
+        </div>
+      </LiveSheet>
 
-                {selectedFixedIncome.isTurbo && (
-                  <div className="grid grid-cols-2 gap-3 mb-5">
+      {/* Detalhe de conta real (turbo/emergência/renda fixa) */}
+      <LiveSheet
+        open={!!selectedFixedIncome}
+        onOpenChange={(o) => !o && setSelectedFixedIncome(null)}
+        title={selectedFixedIncome?.nome ?? "Conta"}
+        description={
+          selectedFixedIncome
+            ? [
+                selectedFixedIncome.isTurbo
+                  ? "Turbo"
+                  : isTesouroAccount(selectedFixedIncome.nome)
+                    ? "Tesouro Direto"
+                    : "Renda fixa",
+                selectedFixedIncome.instituicao,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : undefined
+        }
+      >
+        {selectedFixedIncome && (
+          <>
+            <div className="space-y-3 mb-5">
+              <StatBox label="Valor investido">
+                <p className={`${MONEY} text-xl`}>{formatCurrency(selectedFixedIncome.valor)}</p>
+              </StatBox>
+              {selectedFixedIncome.isTurbo &&
+                (selectedFixedIncome.cdiPercent != null || selectedFixedIncome.maxRendimento != null) && (
+                  <div className="grid grid-cols-2 gap-3">
                     {selectedFixedIncome.cdiPercent != null && (
-                      <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3">
-                        <p className="text-[10px] text-amber-300/70 uppercase tracking-wide">% do CDI</p>
-                        <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">{selectedFixedIncome.cdiPercent}%</p>
-                      </div>
+                      <StatBox label="% do CDI">
+                        <p className={`${MONEY} text-base`}>
+                          {selectedFixedIncome.cdiPercent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%
+                        </p>
+                      </StatBox>
                     )}
                     {selectedFixedIncome.maxRendimento != null && (
-                      <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3">
-                        <p className="text-[10px] text-amber-300/70 uppercase tracking-wide">Teto de rendimento</p>
-                        <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">{formatCurrency(selectedFixedIncome.maxRendimento)}</p>
-                      </div>
+                      <StatBox label="Teto de rendimento">
+                        <p className={`${MONEY} text-base`}>{formatCurrency(selectedFixedIncome.maxRendimento)}</p>
+                      </StatBox>
                     )}
                   </div>
                 )}
-
-                <button
-                  onClick={() => {
-                    const isEme = emergenciaAccountsLive.some(
-                      (a) => a.id === selectedFixedIncome.id
-                    );
-                    setSelectedFixedIncome(null);
-                    openMarket(
-                      selectedFixedIncome.isTurbo
-                        ? "turbo"
-                        : isTesouroAccount(selectedFixedIncome.nome)
-                          ? "tesouro"
-                          : isEme
-                            ? "eme"
-                            : "hub"
-                    );
-                  }}
-                  className="w-full rounded-full bg-amber-500 hover:bg-amber-400 py-3 text-sm font-bold text-amber-950 mb-2 transition-colors"
-                >
-                  Aportar com saldo
-                </button>
-                <button
-                  onClick={() => setSelectedFixedIncome(null)}
-                  className="w-full rounded-full bg-muted/10 hover:bg-muted/15 py-3 text-sm font-bold text-foreground transition-colors"
-                >
-                  Fechar
-                </button>
-              </div>
             </div>
-          )}
-
-          {/* Detalhe de posição em ação/FII */}
-          {selectedHolding && (
-            <div
-              className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-end"
-              onClick={() => setSelectedTicker(null)}
-            >
-              <div
-                className="w-full rounded-t-3xl bg-card border-t border-border p-5 pb-6"
-                onClick={(e) => e.stopPropagation()}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const isEme = emergenciaAccountsLive.some((a) => a.id === selectedFixedIncome.id);
+                  setSelectedFixedIncome(null);
+                  openMarket(
+                    selectedFixedIncome.isTurbo
+                      ? "turbo"
+                      : isTesouroAccount(selectedFixedIncome.nome)
+                        ? "tesouro"
+                        : isEme
+                          ? "eme"
+                          : "hub"
+                  );
+                }}
+                className={BTN_PRIMARY}
               >
-                <div className="flex justify-center mb-4">
-                  <div className="h-1 w-10 rounded-full bg-muted/20" />
-                </div>
+                Aportar com saldo
+              </button>
+              <button type="button" onClick={() => setSelectedFixedIncome(null)} className={BTN_SECONDARY}>
+                Fechar
+              </button>
+            </div>
+          </>
+        )}
+      </LiveSheet>
 
-                <div className="flex items-start gap-3 mb-5">
-                  <span className="h-3 w-3 rounded-full shrink-0 mt-1.5" style={{ background: selectedHolding.asset.color }} />
-                  <div className="min-w-0">
-                    <p className="text-lg font-bold text-foreground leading-snug">{selectedHolding.asset.ticker}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {selectedHolding.asset.name} · {detectAssetType(selectedHolding.asset.ticker)}
-                    </p>
-                  </div>
-                </div>
+      {/* Detalhe de posição em ação/FII */}
+      <LiveSheet
+        open={!!selectedHolding}
+        onOpenChange={(o) => !o && setSelectedTicker(null)}
+        title={selectedHolding?.asset.ticker ?? "Posição"}
+        description={
+          selectedHolding
+            ? `${selectedHolding.asset.name} · ${detectAssetType(selectedHolding.asset.ticker)}`
+            : undefined
+        }
+      >
+        {selectedHolding && (
+          <>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <StatBox label="Quantidade">
+                <p className={`${MONEY} text-base`}>{formatQty(selectedHolding.h.quantity)}</p>
+              </StatBox>
+              <StatBox label="Preço médio">
+                <p className={`${MONEY} text-base`}>{formatCurrency(selectedHolding.h.avgPrice)}</p>
+              </StatBox>
+              <StatBox label={selectedHolding.asset.isReal ? "Cotação atual" : "Preço de referência"}>
+                <p className={`${MONEY} text-base`}>
+                  {formatCurrency(selectedHolding.asset.price * (1 + selectedHolding.asset.variation))}
+                </p>
+              </StatBox>
+              <StatBox label="Valor investido">
+                <p className={`${MONEY} text-base`}>{formatCurrency(selectedHolding.cost)}</p>
+              </StatBox>
+            </div>
+            {!selectedHolding.asset.isReal && (
+              <p className="text-[11px] text-muted-foreground mb-3">
+                Sem cotação ao vivo para este ativo. O valor usa o preço de referência.
+              </p>
+            )}
 
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div className="rounded-xl border border-border bg-muted/50 p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Quantidade</p>
-                    <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">{formatQty(selectedHolding.h.quantity)}</p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-muted/50 p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Preço médio</p>
-                    <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">{formatCurrency(selectedHolding.h.avgPrice)}</p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-muted/50 p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Cotação atual</p>
-                    <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">
-                      {formatCurrency(selectedHolding.asset.price * (1 + selectedHolding.asset.variation))}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border bg-muted/50 p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor investido</p>
-                    <p className="text-base font-extrabold tabular-nums text-foreground mt-0.5">{formatCurrency(selectedHolding.cost)}</p>
-                  </div>
-                </div>
+            <div className="mb-5">
+              <StatBox label="Valor atual · resultado">
+                <p className={`${MONEY} text-xl`}>{formatCurrency(selectedHolding.value)}</p>
+                <p
+                  className={`text-xs font-semibold mt-1 inline-flex items-center gap-1 tabular-nums ${
+                    selectedHolding.gain >= 0 ? GAIN : LOSS
+                  }`}
+                >
+                  {selectedHolding.gain >= 0 ? (
+                    <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <ArrowDownRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  {selectedHolding.gain >= 0 ? "+" : "−"}
+                  {formatCurrency(Math.abs(selectedHolding.gain))} ({formatPct(selectedHolding.gainPct)})
+                </p>
+              </StatBox>
+            </div>
 
-                <div className={`rounded-xl border p-3 mb-5 ${selectedHolding.gain >= 0 ? "border-emerald-500/20 bg-emerald-500/[0.06]" : "border-red-500/20 bg-red-500/[0.06]"}`}>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor atual · rendimento</p>
-                  <p className="text-lg font-black tabular-nums text-foreground mt-0.5">{formatCurrency(selectedHolding.value)}</p>
-                  <p className={`text-xs font-semibold mt-1 inline-flex items-center gap-1 ${selectedHolding.gain >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {selectedHolding.gain >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                    {formatCurrency(Math.abs(selectedHolding.gain))} ({selectedHolding.gainPct >= 0 ? "+" : ""}{selectedHolding.gainPct.toFixed(1)}%)
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTicker(null);
+                  openMarket("acoes");
+                }}
+                className={BTN_PRIMARY}
+              >
+                Comprar mais com saldo
+              </button>
+              <button type="button" onClick={() => openSell(selectedHolding.asset.ticker)} className={BTN_DANGER_OUTLINE}>
+                Vender
+              </button>
+            </div>
+          </>
+        )}
+      </LiveSheet>
+
+      {/* Venda de posição */}
+      <LiveSheet
+        open={!!sellHolding}
+        onOpenChange={(o) => !o && setSellTicker(null)}
+        dismissible={!sellSubmitting}
+        title={sellHolding ? `Vender ${sellHolding.asset.ticker}` : "Vender"}
+        description={
+          sellHolding
+            ? `Você tem ${formatQty(sellHolding.h.quantity)} un. · ${
+                sellHolding.asset.isReal ? "cotação atual" : "preço de referência"
+              } ${formatCurrency(sellHolding.price)}`
+            : undefined
+        }
+      >
+        {sellHolding && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void confirmSell();
+            }}
+          >
+            <label htmlFor="live-sell-qty" className={LABEL}>Quantidade a vender</label>
+            <div className={`${INPUT_BOX} mt-1.5 pr-1.5 mb-3`}>
+              <input
+                id="live-sell-qty"
+                autoFocus
+                type="text"
+                inputMode="decimal"
+                value={sellQtyMask}
+                onChange={(e) => onSellQtyChange(e.target.value)}
+                placeholder="0"
+                aria-invalid={sellQty > sellHolding.h.quantity + 0.0001}
+                aria-describedby="live-sell-feedback"
+                className="flex-1 min-w-0 bg-transparent font-display text-xl font-black tabular-nums text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={setSellAll}
+                className={`shrink-0 min-h-10 rounded-lg border border-border px-3 text-xs font-bold text-foreground/80 hover:bg-muted ${FOCUS}`}
+              >
+                Tudo
+              </button>
+            </div>
+
+            <div id="live-sell-feedback" aria-live="polite">
+              {sellQty > 0 && sellQty <= sellHolding.h.quantity + 0.0001 && (
+                <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Você recebe no saldo</span>
+                    <span className={`${MONEY} text-base`}>{formatCurrency(sellProceeds)}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                    {formatQty(sellQty)} un. × {formatCurrency(sellHolding.price)}
                   </p>
                 </div>
-
-                <button
-                  onClick={() => {
-                    setSelectedTicker(null);
-                    openMarket("acoes");
-                  }}
-                  className="w-full rounded-full bg-amber-500 hover:bg-amber-400 py-3 text-sm font-bold text-amber-950 mb-2 transition-colors"
-                >
-                  Comprar mais com saldo
-                </button>
-                <button
-                  onClick={() => openSell(selectedHolding.asset.ticker)}
-                  className="w-full rounded-full border border-red-500/30 bg-red-500/10 py-3 text-sm font-bold text-red-300 hover:bg-red-500/20 transition-colors mb-2"
-                >
-                  Vender
-                </button>
-                <button
-                  onClick={() => setSelectedTicker(null)}
-                  className="w-full rounded-full bg-muted/10 hover:bg-muted/15 py-3 text-sm font-bold text-foreground transition-colors"
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Venda de posição */}
-          {sellHolding && (
-            <div
-              className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-end"
-              onClick={() => !sellSubmitting && setSellTicker(null)}
-            >
-              <div
-                className="w-full rounded-t-3xl bg-card border-t border-border p-5 pb-6"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex justify-center mb-4">
-                  <div className="h-1 w-10 rounded-full bg-muted/20" />
-                </div>
-
-                <div className="flex items-start gap-3 mb-5">
-                  <span className="h-3 w-3 rounded-full shrink-0 mt-1.5" style={{ background: sellHolding.asset.color }} />
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-300/70">Vender</p>
-                    <p className="text-lg font-bold text-foreground leading-snug">{sellHolding.asset.ticker}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Você tem {formatQty(sellHolding.h.quantity)} un. · cotação atual {formatCurrency(sellHolding.price)}
-                    </p>
-                  </div>
-                </div>
-
-                <label className="block mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Quantidade a vender</span>
-                  <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/[0.06] px-3.5 py-3.5">
-                    <input
-                      autoFocus
-                      type="text"
-                      inputMode="decimal"
-                      value={sellQtyMask}
-                      onChange={(e) => onSellQtyChange(e.target.value)}
-                      placeholder="0"
-                      className="flex-1 bg-transparent text-xl font-black tabular-nums text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={setSellAll}
-                      className="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground/70 hover:bg-muted/60"
-                    >
-                      Tudo
-                    </button>
-                  </div>
-                </label>
-
-                {sellQty > 0 && (
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] px-3.5 py-3 mb-4 flex items-center justify-between">
-                    <span className="text-[11px] text-emerald-300/80">Você recebe no saldo</span>
-                    <span className="text-base font-black tabular-nums text-foreground">{formatCurrency(sellProceeds)}</span>
-                  </div>
-                )}
-
-                {sellQty > sellHolding.h.quantity + 0.0001 && (
-                  <p className="text-xs text-red-400 mb-3">Quantidade maior que a posição atual.</p>
-                )}
-                {sellError && <p className="text-xs text-red-400 mb-3">{sellError}</p>}
-
-                <button
-                  type="button"
-                  disabled={!canConfirmSell}
-                  onClick={confirmSell}
-                  className="w-full rounded-full bg-gradient-to-r from-red-600 to-orange-500 py-3.5 text-sm font-bold text-foreground disabled:opacity-35 disabled:cursor-not-allowed transition-opacity mb-2"
-                >
-                  {sellSubmitting ? "Processando…" : "Confirmar venda"}
-                </button>
-                <button
-                  type="button"
-                  disabled={sellSubmitting}
-                  onClick={() => setSellTicker(null)}
-                  className="w-full rounded-full bg-muted/10 hover:bg-muted/15 py-3 text-sm font-bold text-foreground transition-colors disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Nova caixinha */}
-          {newCaixinhaOpen && (
-            <div
-              className="absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex items-end"
-              onClick={() => !newCaixinhaSubmitting && setNewCaixinhaOpen(false)}
-            >
-              <div
-                className="w-full rounded-t-3xl bg-card border-t border-border p-5 pb-6 max-h-[85%] overflow-y-auto scrollbar-thin-dark"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex justify-center mb-4">
-                  <div className="h-1 w-10 rounded-full bg-muted/20" />
-                </div>
-
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/70 mb-1">
-                  Nova caixinha
+              )}
+              {sellQty > sellHolding.h.quantity + 0.0001 && (
+                <p className={`text-xs mb-3 ${LOSS}`}>
+                  Quantidade maior que a sua posição ({formatQty(sellHolding.h.quantity)} un.).
                 </p>
-                <p className="text-lg font-bold text-foreground leading-snug mb-4">
-                  Criar conta de investimento
-                </p>
+              )}
+              {sellError && <p className={`text-xs mb-3 ${LOSS}`}>{sellError}</p>}
+            </div>
 
-                <label className="block mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Nome</span>
+            <div className="space-y-2">
+              <button type="submit" disabled={!canConfirmSell} className={BTN_DANGER}>
+                {sellSubmitting
+                  ? "Processando…"
+                  : sellQty > 0
+                    ? `Confirmar venda de ${formatQty(sellQty)} un.`
+                    : "Confirmar venda"}
+              </button>
+              <button type="button" disabled={sellSubmitting} onClick={() => setSellTicker(null)} className={BTN_SECONDARY}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
+      </LiveSheet>
+
+      {/* Nova caixinha */}
+      <LiveSheet
+        open={newCaixinhaOpen}
+        onOpenChange={setNewCaixinhaOpen}
+        dismissible={!newCaixinhaSubmitting}
+        title="Nova caixinha"
+        description="Crie uma conta de investimento para organizar seu dinheiro."
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void confirmNewCaixinha();
+          }}
+        >
+          <label htmlFor="live-cx-nome" className={LABEL}>Nome</label>
+          <div className={`${INPUT_BOX} mt-1.5 mb-3`}>
+            <input
+              id="live-cx-nome"
+              autoFocus
+              type="text"
+              value={newCaixinhaName}
+              onChange={(e) => setNewCaixinhaName(e.target.value)}
+              placeholder="Ex: CDB Banco Inter"
+              className="flex-1 min-w-0 bg-transparent text-base font-semibold text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+            />
+          </div>
+
+          <label htmlFor="live-cx-inst" className={LABEL}>Instituição (opcional)</label>
+          <div className={`${INPUT_BOX} mt-1.5 mb-4`}>
+            <input
+              id="live-cx-inst"
+              type="text"
+              value={newCaixinhaInstituicao}
+              onChange={(e) => setNewCaixinhaInstituicao(e.target.value)}
+              placeholder="Ex: Banco Inter"
+              className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+            />
+          </div>
+
+          <p id="live-cx-tipo" className={`${LABEL} mb-2`}>Tipo de caixinha</p>
+          <div role="radiogroup" aria-labelledby="live-cx-tipo" className="grid grid-cols-3 gap-2 mb-4">
+            {(
+              [
+                { id: "turbo" as const, label: "Turbo", icon: Zap },
+                { id: "emergencia" as const, label: "Emergência", icon: Shield },
+                { id: "investimentos" as const, label: "Investimentos", icon: Landmark },
+              ]
+            ).map((opt) => {
+              const active = newCaixinhaTipo === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setNewCaixinhaTipo(opt.id)}
+                  className={`min-h-16 rounded-xl border flex flex-col items-center justify-center gap-1 transition-colors ${FOCUS} ${
+                    active
+                      ? "border-foreground bg-muted text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <opt.icon className="h-4 w-4" aria-hidden="true" />
+                  <span className="text-[11px] font-bold">{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {newCaixinhaTipo === "emergencia" &&
+            newCaixinhaName.trim() &&
+            !isEmergencyAccountName(newCaixinhaName.trim()) && (
+              <p className="text-[11px] text-muted-foreground mb-4">
+                Vai ser salva como{" "}
+                <span className="font-semibold text-foreground/80">
+                  &quot;{newCaixinhaName.trim()} (Emergência)&quot;
+                </span>{" "}
+                para entrar na caixinha Emergência.
+              </p>
+            )}
+
+          {newCaixinhaTipo === "turbo" && (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label htmlFor="live-cx-cdi" className={LABEL}>% do CDI</label>
+                <div className={`${INPUT_BOX} mt-1.5`}>
                   <input
-                    autoFocus
+                    id="live-cx-cdi"
                     type="text"
-                    value={newCaixinhaName}
-                    onChange={(e) => setNewCaixinhaName(e.target.value)}
-                    placeholder="Ex: CDB Banco Inter"
-                    className="mt-1.5 w-full rounded-xl border border-border bg-muted/50 px-3.5 py-3.5 text-base font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-emerald-500/40"
+                    inputMode="decimal"
+                    value={newCaixinhaCdiMask}
+                    onChange={(e) => setNewCaixinhaCdiMask(formatPercentMask(e.target.value))}
+                    placeholder="100"
+                    className="flex-1 min-w-0 bg-transparent text-base font-bold tabular-nums text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
                   />
-                </label>
-
-                <label className="block mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Instituição (opcional)</span>
-                  <input
-                    type="text"
-                    value={newCaixinhaInstituicao}
-                    onChange={(e) => setNewCaixinhaInstituicao(e.target.value)}
-                    placeholder="Ex: Banco Inter"
-                    className="mt-1.5 w-full rounded-xl border border-border bg-muted/50 px-3.5 py-3.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-emerald-500/40"
-                  />
-                </label>
-
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Tipo de caixinha</p>
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  {(
-                    [
-                      { id: "turbo" as const, label: "Turbo", icon: Zap, tone: "amber" as const },
-                      { id: "emergencia" as const, label: "Emergência", icon: Shield, tone: "blue" as const },
-                      { id: "investimentos" as const, label: "Investimentos", icon: Landmark, tone: "emerald" as const },
-                    ]
-                  ).map((opt) => {
-                    const active = newCaixinhaTipo === opt.id;
-                    const toneClasses = {
-                      amber: active ? "border-amber-500/50 bg-amber-500/15 text-amber-300" : "border-border bg-card text-muted-foreground",
-                      blue: active ? "border-blue-500/50 bg-blue-500/15 text-blue-300" : "border-border bg-card text-muted-foreground",
-                      emerald: active ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300" : "border-border bg-card text-muted-foreground",
-                    }[opt.tone];
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setNewCaixinhaTipo(opt.id)}
-                        className={`rounded-xl border py-3 flex flex-col items-center gap-1 transition-colors ${toneClasses}`}
-                      >
-                        <opt.icon className="h-4 w-4" />
-                        <span className="text-[10px] font-bold">{opt.label}</span>
-                      </button>
-                    );
-                  })}
+                  <span className="text-xs font-semibold text-muted-foreground shrink-0">%</span>
                 </div>
-
-                {newCaixinhaTipo === "emergencia" &&
-                  newCaixinhaName.trim() &&
-                  !isEmergencyAccountName(newCaixinhaName.trim()) && (
-                    <p className="text-[11px] text-muted-foreground mb-4">
-                      Vai ser salva como{" "}
-                      <span className="font-semibold text-foreground/70">
-                        &quot;{newCaixinhaName.trim()} (Emergência)&quot;
-                      </span>{" "}
-                      para entrar certinho na caixinha EME.
-                    </p>
-                  )}
-
-                {newCaixinhaTipo === "turbo" && (
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <label className="block">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">% do CDI</span>
-                      <div className="mt-1.5 flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-3.5 py-3.5">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={newCaixinhaCdiMask}
-                          onChange={(e) => setNewCaixinhaCdiMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
-                          placeholder="0,00"
-                          className="flex-1 min-w-0 bg-transparent text-base font-black tabular-nums text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-                        />
-                        <span className="text-xs font-semibold text-muted-foreground shrink-0">%</span>
-                      </div>
-                    </label>
-                    <label className="block">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Teto rendimento</span>
-                      <div className="mt-1.5 flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-3.5 py-3.5">
-                        <span className="text-xs font-semibold text-muted-foreground shrink-0">R$</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={newCaixinhaTetoMask}
-                          onChange={(e) => setNewCaixinhaTetoMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
-                          placeholder="0,00"
-                          className="flex-1 min-w-0 bg-transparent text-base font-black tabular-nums text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-                        />
-                      </div>
-                    </label>
-                  </div>
-                )}
-
-                {newCaixinhaError && (
-                  <p className="text-xs text-red-400 mb-3">{newCaixinhaError}</p>
-                )}
-
-                <button
-                  type="button"
-                  disabled={!newCaixinhaName.trim() || newCaixinhaSubmitting}
-                  onClick={confirmNewCaixinha}
-                  className="w-full rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 py-3.5 text-sm font-bold text-foreground disabled:opacity-35 disabled:cursor-not-allowed transition-opacity mb-2"
-                >
-                  {newCaixinhaSubmitting ? "Criando…" : "Criar caixinha"}
-                </button>
-                <button
-                  type="button"
-                  disabled={newCaixinhaSubmitting}
-                  onClick={() => setNewCaixinhaOpen(false)}
-                  className="w-full rounded-full bg-muted/10 hover:bg-muted/15 py-3 text-sm font-bold text-foreground transition-colors disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
+              </div>
+              <div>
+                <label htmlFor="live-cx-teto" className={LABEL}>Teto rendimento</label>
+                <div className={`${INPUT_BOX} mt-1.5`}>
+                  <span className="text-xs font-semibold text-muted-foreground shrink-0">R$</span>
+                  <input
+                    id="live-cx-teto"
+                    type="text"
+                    inputMode="numeric"
+                    value={newCaixinhaTetoMask}
+                    onChange={(e) => setNewCaixinhaTetoMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
+                    placeholder="0,00"
+                    className="flex-1 min-w-0 bg-transparent text-base font-bold tabular-nums text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
           )}
-        </div>
-      </div>
+
+          {newCaixinhaError && <p className={`text-xs mb-3 ${LOSS}`} role="alert">{newCaixinhaError}</p>}
+
+          <div className="space-y-2">
+            <button type="submit" disabled={!newCaixinhaName.trim() || newCaixinhaSubmitting} className={BTN_PRIMARY}>
+              {newCaixinhaSubmitting ? "Criando…" : "Criar caixinha"}
+            </button>
+            <button
+              type="button"
+              disabled={newCaixinhaSubmitting}
+              onClick={() => setNewCaixinhaOpen(false)}
+              className={BTN_SECONDARY}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </LiveSheet>
     </div>
   );
 }
+

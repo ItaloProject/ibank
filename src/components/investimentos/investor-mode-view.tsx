@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { FileText, Target, Radio } from "lucide-react";
+import { FileText, Target, Radio, Check, CheckCircle2, ArrowRight, CornerDownRight } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -343,8 +343,10 @@ export function InvestorModeView({
                       <div className="flex items-center gap-3 text-xs">
                         <span className="tabular-nums font-bold" style={{ color: r.cor }}>{r.atual.toFixed(1)}%</span>
                         <span className="text-muted-foreground">alvo {r.ideal}%</span>
-                        <span className={`font-bold ${r.atual >= r.ideal ? "text-emerald-400" : "text-amber-400"}`}>
-                          {r.atual >= r.ideal ? "✓" : `+${(r.ideal - r.atual).toFixed(0)}%`}
+                        <span className={`inline-flex items-center font-bold ${r.atual >= r.ideal ? "text-emerald-400" : "text-amber-400"}`}>
+                          {r.atual >= r.ideal
+                            ? <><Check className="h-3.5 w-3.5" aria-hidden="true" /><span className="sr-only">No alvo</span></>
+                            : `+${(r.ideal - r.atual).toFixed(0)}%`}
                         </span>
                       </div>
                     </div>
@@ -370,7 +372,10 @@ export function InvestorModeView({
                   </h3>
                   {goalReached ? (
                     <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-6 text-center">
-                      <p className="text-lg font-bold text-emerald-400">🎉 Meta já atingida!</p>
+                      <p className="flex items-center justify-center gap-2 text-lg font-bold text-emerald-400">
+                        <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                        Meta já atingida!
+                      </p>
                       <p className="text-xs text-muted-foreground mt-1">Sua renda passiva atual já cobre essa meta. Defina uma meta maior para continuar simulando.</p>
                     </div>
                   ) : (
@@ -400,8 +405,8 @@ export function InvestorModeView({
             {/* Diagnóstico da carteira */}
             {(() => {
               const { insights, nextMoves, score } = portfolioAnalysis;
-              const levelColors: Record<string, string> = { critical: "#f87171", warning: "#fbbf24", ok: "#34d399", suggestion: "#818cf8" };
-              const levelBgs: Record<string, string> = { critical: "border-red-500/20 bg-red-500/[0.06]", warning: "border-amber-500/20 bg-amber-500/[0.06]", ok: "border-emerald-500/20 bg-emerald-500/[0.06]", suggestion: "border-amber-500/20 bg-amber-500/[0.06]" };
+              const levelColors: Record<string, string> = { critical: "#f87171", warning: "#fbbf24", ok: "#34d399", suggestion: "#a3a3a3" };
+              const levelBgs: Record<string, string> = { critical: "border-red-500/20 bg-red-500/[0.06]", warning: "border-amber-500/20 bg-amber-500/[0.06]", ok: "border-emerald-500/20 bg-emerald-500/[0.06]", suggestion: "border-border bg-muted/30" };
               const levelLabels: Record<string, string> = { critical: "CRÍTICO", warning: "ATENÇÃO", ok: "OK", suggestion: "SUGESTÃO" };
               const scoreColor = score >= 70 ? "#34d399" : score >= 40 ? "#fbbf24" : "#f87171";
               const circumS = 2 * Math.PI * 28;
@@ -484,7 +489,7 @@ export function InvestorModeView({
                         <div className="flex items-start gap-2.5">
                           <span
                             className="flex-shrink-0 rounded text-[10px] font-black px-1.5 py-0.5 mt-0.5"
-                            style={{ background: levelColors[ins.level], color: "white" }}
+                            style={{ background: levelColors[ins.level], color: "#0D0D0D" }}
                           >
                             {levelLabels[ins.level]}
                           </span>
@@ -493,18 +498,21 @@ export function InvestorModeView({
                               <p className="text-sm font-semibold text-foreground/90 leading-snug">{ins.title}</p>
                               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{ins.detail}</p>
                               {ins.action && (
-                                <p className="text-xs font-semibold mt-1.5 leading-snug" style={{ color: levelColors[ins.level] }}>
-                                  → {ins.action}
+                                <p className="flex items-start gap-1.5 text-xs font-semibold mt-1.5 leading-snug" style={{ color: levelColors[ins.level] }}>
+                                  <CornerDownRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                  {ins.action}
                                 </p>
                               )}
                             </div>
                             {ins.onAction && (
                               <button
+                                type="button"
                                 onClick={ins.onAction}
-                                className="w-full sm:w-auto rounded-full px-3.5 py-2 text-xs font-bold text-foreground transition-opacity hover:opacity-85"
-                                style={{ background: levelColors[ins.level] }}
+                                className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-full px-3.5 py-2 min-h-11 sm:min-h-9 text-xs font-bold transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                style={{ background: levelColors[ins.level], color: "#0D0D0D" }}
                               >
-                                {ins.actionLabel} →
+                                {ins.actionLabel}
+                                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                               </button>
                             )}
                           </div>

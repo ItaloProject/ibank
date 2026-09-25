@@ -10,6 +10,7 @@ interface AuthUser {
   color: string;
   isAdmin?: boolean;
   investmentProfile?: string | null;
+  carteiraVista?: boolean;
   botEnabled?: boolean;
   subscriptionActive?: boolean;
   paidUntil?: string | null;
@@ -21,9 +22,11 @@ interface UserContextType {
   user: AuthUser | null;
   isAdmin: boolean;
   investmentProfile: string | null;
+  carteiraVista: boolean;
   botEnabled: boolean;
   subscriptionActive: boolean;
   setProfile: (profile: string) => void;
+  markCarteiraVista: () => Promise<void>;
   login: (user: AuthUser) => void;
   logout: () => Promise<void>;
   selectUser: (id: string) => void;
@@ -35,9 +38,11 @@ const UserContext = createContext<UserContextType>({
   user: null,
   isAdmin: false,
   investmentProfile: null,
+  carteiraVista: false,
   botEnabled: false,
   subscriptionActive: true,
   setProfile: () => {},
+  markCarteiraVista: async () => {},
   login: () => {},
   logout: async () => {},
   selectUser: () => {},
@@ -85,7 +90,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile }),
     });
-    setUser((prev) => (prev ? { ...prev, investmentProfile: profile } : prev));
+    setUser((prev) =>
+      prev
+        ? { ...prev, investmentProfile: profile, carteiraVista: prev.investmentProfile === profile && prev.carteiraVista }
+        : prev,
+    );
+  }
+
+  async function markCarteiraVista() {
+    setUser((prev) => (prev ? { ...prev, carteiraVista: true } : prev));
+    try {
+      await fetch("/api/auth/carteira-vista", { method: "POST" });
+    } catch {
+      // A tela volta no próximo acesso se a gravação falhar
+    }
   }
 
   if (!ready) return <SplashScreen />;
@@ -97,9 +115,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         user,
         isAdmin: user?.isAdmin ?? false,
         investmentProfile: user?.investmentProfile ?? null,
+        carteiraVista: user?.carteiraVista ?? false,
         botEnabled: user?.botEnabled ?? false,
         subscriptionActive: user?.subscriptionActive !== false,
         setProfile,
+        markCarteiraVista,
         login,
         logout,
         selectUser: (id) => setCurrentUser(id),

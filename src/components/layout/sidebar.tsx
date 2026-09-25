@@ -6,6 +6,7 @@ import {
   LogOut, ChevronLeft, X, Sun, Moon, Users,
 } from "lucide-react";
 import Image from "next/image";
+import { BrandLockup } from "@/components/brand-lockup";
 import { useUser } from "@/context/user-context";
 import { USERS } from "@/lib/user";
 import { cn } from "@/lib/utils";
@@ -101,25 +102,25 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 flex h-[100dvh] flex-col bg-sidebar",
-        "transition-[width,transform] duration-150 ease-out",
-        "w-60 -translate-x-full md:translate-x-0",
+        "fixed left-0 top-0 z-50 md:z-40 flex h-[100dvh] flex-col bg-sidebar",
+        "transition-[width,transform] duration-200 ease-out",
+        "w-[min(18rem,85vw)] md:w-60 -translate-x-full md:translate-x-0",
         "pt-[var(--safe-top)] pb-[var(--safe-bottom)]",
-        mobileOpen && "translate-x-0",
+        mobileOpen && "translate-x-0 shadow-2xl md:shadow-none",
         isCollapsed && "md:w-[68px]",
       )}
     >
       <div className="flex h-16 shrink-0 items-center px-3 border-b border-sidebar-border/50">
-        <div className="h-10 w-10 shrink-0 flex items-center justify-center">
-          <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
-            className="h-full w-full object-contain" priority />
-        </div>
-        <div className={cn("ml-2 overflow-hidden transition-all duration-150 ease-out", isCollapsed ? "w-0 opacity-0" : "w-36 opacity-100")}>
-          <p className="text-[17px] font-bold leading-none text-sidebar-foreground font-display whitespace-nowrap">MUVO</p>
-          <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-primary/60 whitespace-nowrap">Financeiro</p>
-        </div>
+        {isCollapsed ? (
+          <div className="h-10 w-10 shrink-0 flex items-center justify-center">
+            <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
+              className="h-full w-full object-contain" priority />
+          </div>
+        ) : (
+          <BrandLockup tone="onDark" className="h-9 pl-1" priority />
+        )}
         <button type="button" onClick={onMobileClose}
-          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/50 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors duration-100 md:hidden"
+          className="ml-auto flex h-11 w-11 items-center justify-center rounded-lg text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors duration-100 md:hidden"
           aria-label="Fechar menu">
           <X className="h-4 w-4" />
         </button>
@@ -166,7 +167,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                       title={isCollapsed ? item.label : undefined}
                       onClick={onMobileClose}
                       className={cn(
-                        "group relative flex items-center rounded-xl px-2.5 py-2.5 text-[13px] font-medium",
+                        "group relative flex items-center rounded-xl px-2.5 py-3 md:py-2.5 text-sm md:text-[13px] font-medium",
                         "transition-all duration-150 ease-out",
                         isCollapsed ? "justify-center gap-0" : "gap-3",
                         isFeatured && !isCollapsed && "overflow-hidden",
@@ -242,7 +243,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                   title={isCollapsed ? item.label : undefined}
                   onClick={onMobileClose}
                   className={cn(
-                    "group flex items-center rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
+                    "group flex items-center rounded-xl px-2.5 py-3 md:py-2.5 text-sm md:text-[13px] font-medium transition-all duration-100",
                     isCollapsed ? "justify-center gap-0" : "gap-3",
                     isActive
                       ? "bg-sidebar-primary/15 text-sidebar-primary"
@@ -281,7 +282,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
       <div className="shrink-0 border-t border-sidebar-border/50 p-2 space-y-0.5">
         <button type="button" onClick={toggleTheme}
           className={cn(
-            "flex w-full items-center rounded-xl px-2.5 py-2 text-[13px] font-medium text-sidebar-foreground/50 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors",
+            "flex w-full items-center rounded-xl px-2.5 py-3 md:py-2 text-sm md:text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors",
             isCollapsed ? "justify-center gap-0" : "gap-3",
           )}>
           {theme === "dark" ? <Sun className="h-[17px] w-[17px]" /> : <Moon className="h-[17px] w-[17px]" />}
@@ -304,7 +305,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
           {!isCollapsed && (
             <button type="button" onClick={logout}
               title="Sair"
-              className="shrink-0 flex h-7 w-7 items-center justify-center rounded-lg text-sidebar-foreground/30 hover:bg-red-500/15 hover:text-red-400 transition-colors"
+              className="shrink-0 flex h-11 w-11 md:h-7 md:w-7 items-center justify-center rounded-lg text-sidebar-foreground/40 hover:bg-red-500/15 hover:text-red-400 transition-colors"
               aria-label="Sair">
               <LogOut className="h-3.5 w-3.5" />
             </button>

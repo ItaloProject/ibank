@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { BrandLockup } from "@/components/brand-lockup";
 import { ChevronDown, ChevronUp, TrendingUp, Landmark } from "lucide-react";
 import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
@@ -55,13 +55,8 @@ export function ProfileSelectScreen() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="h-16 w-16 rounded-2xl overflow-hidden mb-4 shadow-md">
-            <Image src="/logo-dark.png" alt="MUVO" width={200} height={200}
-              className="h-full w-full object-cover dark:hidden"
-              style={{ objectPosition: "50% 48%" }} priority />
-            <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
-              className="h-full w-full object-cover hidden dark:block"
-              style={{ objectPosition: "50% 48%" }} priority />
+          <div className="mb-6">
+            <BrandLockup className="h-11" priority />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Olá, {user?.name?.split(" ")[0]}</h1>
           <p className="text-muted-foreground text-sm mt-1 text-center">

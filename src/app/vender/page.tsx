@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { BrandLockup } from "@/components/brand-lockup";
 import Link from "next/link";
 import { Check, MessageCircle, Bot, TrendingUp, Wallet, Smartphone } from "lucide-react";
 
@@ -21,17 +21,9 @@ export default function VenderPage() {
     <div className="min-h-[100dvh] bg-background text-foreground safe-pt safe-pb">
       <div className="mx-auto max-w-lg px-5 py-10 space-y-10">
         <header className="flex flex-col items-center text-center gap-3">
-          <div className="h-16 w-16 rounded-2xl overflow-hidden">
-            <Image src="/logo-dark.png" alt="MUVO" width={200} height={200}
-              className="h-full w-full object-cover dark:hidden"
-              style={{ objectPosition: "50% 48%" }} priority />
-            <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
-              className="h-full w-full object-cover hidden dark:block"
-              style={{ objectPosition: "50% 48%" }} priority />
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">MUVO</p>
-            <h1 className="text-2xl sm:text-3xl font-bold mt-1 leading-tight font-display">
+          <BrandLockup className="h-12" priority />
+          <div className="mt-2">
+            <h1 className="text-2xl sm:text-3xl font-bold leading-tight font-display">
               Ferramenta para quem investe
             </h1>
             <p className="text-sm text-muted-foreground mt-2">

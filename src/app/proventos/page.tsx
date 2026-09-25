@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2, CalendarCheck, Loader2 } from "lucide-react";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { SplashScreen } from "@/components/splash-screen";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -140,11 +141,7 @@ export default function ProventosPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   return (

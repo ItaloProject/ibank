@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { SplashScreen } from "@/components/splash-screen";
 
 const MIN_MS = 700; // garante que a animação seja visível antes de sumir
 
@@ -40,20 +41,5 @@ export function NavigationSplash() {
 
   if (!visible) return null;
 
-  return (
-    <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center gap-5">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/loading.gif"
-        alt=""
-        className="w-32 h-32 object-contain invert [mix-blend-mode:multiply] dark:invert-0 dark:[mix-blend-mode:screen]"
-      />
-      <div className="h-[2px] w-40 rounded-full bg-border overflow-hidden">
-        <div
-          className="h-full rounded-full bg-amber-400"
-          style={{ animation: `loading-bar ${MIN_MS}ms ease-in-out forwards` }}
-        />
-      </div>
-    </div>
-  );
+  return <SplashScreen />;
 }

@@ -98,8 +98,6 @@ export default function ConfiguracoesPage() {
     setPerfilLoading(true);
     setPerfilMsg(null);
     await setProfile(p);
-    // Reset carteira vista para mostrar a nova carteira sugerida
-    try { localStorage.removeItem("ibank_carteira_vista"); } catch {}
     setPerfilLoading(false);
     setPerfilMsg({ tipo: "ok", texto: "Perfil atualizado! Você verá sua nova carteira sugerida." });
   }

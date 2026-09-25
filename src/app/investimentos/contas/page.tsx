@@ -2,19 +2,11 @@
 
 import { Suspense } from "react";
 import { InvestimentosApp } from "@/components/investimentos/investimentos-app";
-import { Loader2 } from "lucide-react";
-
-function Fallback() {
-  return (
-    <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-    </div>
-  );
-}
+import { SplashScreen } from "@/components/splash-screen";
 
 export default function InvestimentosContasPage() {
   return (
-    <Suspense fallback={<Fallback />}>
+    <Suspense fallback={<SplashScreen />}>
       <InvestimentosApp section="contas" />
     </Suspense>
   );

@@ -14,6 +14,13 @@ const TABS = getBottomTabs().map((item) => ({
   featured: item.featured ?? false,
 }));
 
+/** Abas de página + Tema + Mais. */
+const COLUMNS = TABS.length + 2;
+
+const ITEM =
+  "relative flex min-w-0 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium leading-none " +
+  "touch-manipulation transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+
 export function BottomNav({ onMore }: { onMore: () => void }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
@@ -25,8 +32,12 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
       aria-label="Navegação principal"
     >
       <div
-        className="grid grid-cols-6 h-[var(--bottom-nav-h)]"
-        style={{ paddingLeft: "var(--safe-left)", paddingRight: "var(--safe-right)" }}
+        className="mx-auto grid h-[var(--bottom-nav-h)] max-w-lg"
+        style={{
+          gridTemplateColumns: `repeat(${COLUMNS}, minmax(0, 1fr))`,
+          paddingLeft: "var(--safe-left)",
+          paddingRight: "var(--safe-right)",
+        }}
       >
         {TABS.map((tab) => {
           const active = isNavItemActive(pathname, tab.href);
@@ -35,30 +46,32 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
             <Link
               key={tab.href}
               href={tab.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-                "touch-manipulation min-h-[44px] overflow-hidden",
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                ITEM,
+                "overflow-hidden",
+                active ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {/* shimmer sweep — apenas featured, inativo */}
+              {active && (
+                <span aria-hidden className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-foreground" />
+              )}
               {tab.featured && !active && (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-0 animate-[sidebar-sweep_4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-foreground/[0.06] to-transparent skew-x-[-15deg]"
+                  className="pointer-events-none absolute inset-0 animate-[sidebar-sweep_4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-foreground/[0.06] to-transparent skew-x-[-15deg] motion-reduce:hidden"
                 />
               )}
-              {/* ícone com amber dot pulsante */}
               <span className="relative">
                 <Icon className={cn("h-5 w-5", active && "stroke-[2.25px]")} />
                 {tab.featured && (
                   <span className="absolute -top-[3px] -right-[3px] flex h-[7px] w-[7px]">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-70" />
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-70 motion-reduce:hidden" />
                     <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-amber-400" />
                   </span>
                 )}
               </span>
-              <span>{tab.label}</span>
+              <span className="max-w-full truncate">{tab.label}</span>
             </Link>
           );
         })}
@@ -66,18 +79,20 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
           type="button"
           onClick={toggleTheme}
           aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
-          className="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] transition-colors"
+          className={cn(ITEM, "text-muted-foreground hover:text-foreground")}
         >
           {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          <span>Tema</span>
+          <span className="max-w-full truncate">Tema</span>
         </button>
         <button
           type="button"
           onClick={onMore}
-          className="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px]"
+          aria-label="Mais páginas"
+          aria-haspopup="dialog"
+          className={cn(ITEM, "text-muted-foreground hover:text-foreground")}
         >
           <Menu className="h-5 w-5" />
-          <span>Mais</span>
+          <span className="max-w-full truncate">Mais</span>
         </button>
       </div>
     </nav>

@@ -17,6 +17,10 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function esc(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function diff(planned: number, actual: number) {
   const d = planned - actual;
   if (d > 0) return `<span style="color:#16a34a">-${fmt(d)}</span>`;
@@ -29,7 +33,8 @@ export function generatePlanReport(
   items: ExpenseItem[],
   monthLabel: string,
   userName: string,
-  salary = 0
+  salary = 0,
+  incomes: { description: string; amount: number }[] = []
 ) {
   const totalFixoPlanned = items.filter(i => i.type === "fixo").reduce((s, i) => s + i.planned, 0);
   const totalFixoActual  = items.filter(i => i.type === "fixo").reduce((s, i) => s + i.actual, 0);
@@ -50,7 +55,7 @@ export function generatePlanReport(
 
     const rows = gItems.map(item => `
       <tr>
-        <td>${item.name}</td>
+        <td>${esc(item.name)}</td>
         <td style="text-align:center">
           <span style="
             display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;
@@ -70,7 +75,7 @@ export function generatePlanReport(
       <div class="group-block">
         <div class="group-header" style="border-left:4px solid ${group.color}">
           <span class="group-dot" style="background:${group.color}"></span>
-          <span class="group-name">${group.name}</span>
+          <span class="group-name">${esc(group.name)}</span>
           <span class="group-count">${gItems.length} ${gItems.length === 1 ? "item" : "itens"}</span>
         </div>
         <table>
@@ -195,8 +200,12 @@ export function generatePlanReport(
     <div class="totals-header">Resumo Geral</div>
     ${hasSalary ? `
     <div class="totals-row" style="background:#f0fdf4">
-      <span style="font-weight:700">Salário recebido</span><span style="font-weight:700;color:#16a34a">${fmt(salary)}</span>
-    </div>` : ""}
+      <span style="font-weight:700">Renda do mês</span><span style="font-weight:700;color:#16a34a">${fmt(salary)}</span>
+    </div>
+    ${incomes.map(inc => `
+    <div class="totals-row">
+      <span style="padding-left:12px;color:#6b7280">${esc(inc.description)}</span><span>${fmt(inc.amount)}</span>
+    </div>`).join("")}` : ""}
     <div class="totals-row">
       <span>Total Fixo — Planejado</span><span>${fmt(totalFixoPlanned)}</span>
     </div>

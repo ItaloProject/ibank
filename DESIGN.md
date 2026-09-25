@@ -154,8 +154,10 @@ Paleta construída sobre dois polos extremos e uma camada funcional semântica. 
 
 ## Typography
 
-**Display Font:** Funnel Display (Google Fonts, `--font-display`, weights 400–800)
-**Body Font:** DM Sans (Google Fonts, `--font-sans`, weights 400–800)
+**Display Font (fonte principal + texture):** Funnel Display (Google Fonts, `--font-display`, weights 400–800)
+**Body Font (fonte secundária):** DM Sans (Google Fonts, `--font-sans`, weights 400–800)
+
+Definição de marca vinda do Figma: Funnel Display é a fonte principal e também a fonte usada como textura tipográfica; DM Sans é a fonte secundária.
 
 **Character:** Funnel Display é moderno sem ser decorativo — suas proporções abertas e variação de espessura criam autoridade editorial sem rigidez. DM Sans é o parceiro funcional: altamente legível em densidades altas, neutro o suficiente para desaparecer na leitura de dados numéricos. O par opera por contraste de propósito: Funnel Display domina momentos de comunicação; DM Sans domina momentos de uso.
 

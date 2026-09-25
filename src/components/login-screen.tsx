@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { BrandLockup } from "@/components/brand-lockup";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useUser } from "@/context/user-context";
 
@@ -41,14 +41,10 @@ export function LoginScreen() {
 
       {/* Logo + marca */}
       <div className="flex flex-col items-center mb-8">
-        <Image src="/logo-dark.png" alt="MUVO" width={120} height={120}
-          className="h-[120px] w-[120px] object-contain dark:hidden" priority />
-        <Image src="/logo-white.png" alt="MUVO" width={120} height={120}
-          className="h-[120px] w-[120px] object-contain hidden dark:block" priority />
-        <h1 className="text-3xl font-bold tracking-tight text-foreground font-display -mt-1">
-          MUVO
+        <h1>
+          <BrandLockup className="h-16" priority />
         </h1>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/70 mt-1">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground mt-3">
           Gestão Financeira Inteligente
         </p>
       </div>

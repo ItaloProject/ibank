@@ -24,13 +24,15 @@ import {
 import {
   Plus, Pencil, Trash2, FolderPlus, TrendingUp, TrendingDown,
   Wallet, ChevronDown, ChevronLeft, ChevronRight,
-  Copy, FileDown, Loader2, DollarSign,
+  Copy, FileDown, DollarSign,
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { generatePlanReport } from "@/lib/generate-plan-report";
 import { USERS } from "@/lib/user";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { SplashScreen } from "@/components/splash-screen";
+import { IncomeDialog, type PlanIncome } from "@/components/planejamento/income-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,10 +105,10 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     warning?: string;
   } | null>(null);
 
-  // Salary
-  const [salary, setSalary] = useState(0);
-  const [salaryInput, setSalaryInput] = useState("");
+  // Renda: receitas detalhadas; o total é a renda do mês
+  const [incomes, setIncomes] = useState<PlanIncome[]>([]);
   const [salaryOpen, setSalaryOpen] = useState(false);
+  const salary = incomes.reduce((s, i) => s + i.amount, 0);
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
@@ -142,15 +144,15 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
   const loadItems = useCallback(async (month: string) => {
     try {
-      const [itemsRes, salaryRes] = await Promise.all([
+      const [itemsRes, incomeRes] = await Promise.all([
         fetch(`/api/plan-items?user=${userId}&month=${month}`),
-        fetch(`/api/plan-salary?user=${userId}&month=${month}`),
+        fetch(`/api/plan-income?month=${month}`),
       ]);
       const data: Record<string, unknown>[] = await itemsRes.json();
-      const salaryData = await salaryRes.json();
+      const incomeData = await incomeRes.json();
+      if (!incomeRes.ok) throw new Error(incomeData?.error);
       setItems(Array.isArray(data) ? data.map(toItem) : []);
-      setSalary(Number(salaryData.salary) || 0);
-      setSalaryInput(salaryData.salary > 0 ? String(salaryData.salary) : "");
+      setIncomes(Array.isArray(incomeData.incomes) ? incomeData.incomes : []);
       setLoadError(null);
     } catch (err) {
       console.error("Erro ao carregar itens de planejamento:", err);
@@ -210,22 +212,6 @@ function PlanejamentoContent({ userId }: { userId: string }) {
       toast.error("Erro ao copiar. Tente novamente.");
     }
     setCopyOpen(false);
-  }
-
-  async function saveSalary() {
-    const value = parseFloat(salaryInput) || 0;
-    try {
-      await fetch("/api/plan-salary", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, month: currentMonth, salary: value }),
-      });
-      setSalary(value);
-      toast.success("Renda atualizada");
-    } catch {
-      toast.error("Erro ao salvar. Tente novamente.");
-    }
-    setSalaryOpen(false);
   }
 
   // ── Group actions ──────────────────────────────────────────────────────────
@@ -389,12 +375,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
-    return (
-      <div role="status" className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 motion-safe:animate-spin text-muted-foreground" aria-hidden="true" />
-        <span className="sr-only">Carregando...</span>
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   if (loadError) {
@@ -446,7 +427,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   generatePlanReport(
                     groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
                     items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
-                    monthLabel, userName, salary,
+                    monthLabel, userName, salary, incomes,
                   );
                 }}>
                   <FileDown className="h-3.5 w-3.5" />
@@ -482,7 +463,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           <button
             type="button"
             className="flex items-end justify-between w-full text-left group"
-            onClick={() => { setSalaryInput(salary > 0 ? String(salary) : ""); setSalaryOpen(true); }}
+            onClick={() => setSalaryOpen(true)}
           >
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/55 mb-0.5">Renda do mês</p>
@@ -490,11 +471,24 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 {salary > 0 ? fmt(salary) : "— informar"}
               </p>
             </div>
-            <div className="flex items-center gap-1 text-foreground/55 group-hover:text-primary transition-colors pb-0.5">
-              <Pencil className="h-3 w-3" />
-              <span className="text-[11px] font-medium">editar</span>
+            <div className="flex items-center gap-1 text-foreground/55 group-hover:text-foreground transition-colors pb-0.5">
+              {incomes.length > 0 ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+              <span className="text-[11px] font-medium">{incomes.length > 0 ? "detalhar" : "adicionar"}</span>
             </div>
           </button>
+          {incomes.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5" aria-label="Receitas do mês">
+              {incomes.map((income) => (
+                <li
+                  key={income.id}
+                  className="inline-flex items-baseline gap-1.5 rounded-full border bg-background px-2.5 py-1 max-w-full"
+                >
+                  <span className="text-[11px] text-muted-foreground truncate">{income.description}</span>
+                  <span className="text-[11px] font-display font-black tabular-nums">{fmt(income.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           {salary > 0 && (
             <div className="space-y-1">
               <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
@@ -676,7 +670,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   generatePlanReport(
                     groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
                     items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
-                    monthLabel, userName, salary,
+                    monthLabel, userName, salary, incomes,
                   );
                 }}
                 className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-all"
@@ -874,33 +868,17 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         </div>
       </PageBody>
 
-      {/* ── Dialog: Salário ──────────────────────────────────────────────────── */}
-      <Dialog open={salaryOpen} onOpenChange={setSalaryOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Salário de {monthLabel}</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Informe o valor líquido recebido neste mês. A &quot;Sobra&quot; será calculada automaticamente.
-          </p>
-          <div className="space-y-3 pt-1">
-            <div className="space-y-1.5">
-              <Label htmlFor="salary-input">Valor líquido recebido (R$)</Label>
-              <Input
-                id="salary-input"
-                type="number"
-                placeholder="Ex: 5000,00"
-                value={salaryInput}
-                onChange={(e) => setSalaryInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && saveSalary()}
-                autoFocus
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setSalaryOpen(false)}>Cancelar</Button>
-              <Button className="flex-1" onClick={saveSalary}>Salvar</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* ── Dialog: Renda do mês ─────────────────────────────────────────────── */}
+      <IncomeDialog
+        open={salaryOpen}
+        onOpenChange={setSalaryOpen}
+        month={currentMonth}
+        monthLabel={monthLabel}
+        prevMonth={prevMonth}
+        prevMonthLabel={prevMonthLabel}
+        incomes={incomes}
+        onChange={setIncomes}
+      />
 
       {/* ── Dialog: Copiar mês anterior ─────────────────────────────────────── */}
       <Dialog open={copyOpen} onOpenChange={setCopyOpen}>

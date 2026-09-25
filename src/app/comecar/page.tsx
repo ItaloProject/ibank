@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Image from "next/image";
+import { BrandLockup } from "@/components/brand-lockup";
 import Link from "next/link";
 import {
   ArrowRight, Check, TrendingUp, Wallet, Bot, Smartphone,
@@ -175,14 +175,8 @@ export default function ComecarPage() {
 
         <div className="relative z-10 flex-1 flex flex-col">
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-10">
-            <div className="h-10 w-10 rounded-xl overflow-hidden">
-              <Image src="/logo-dark.png" alt="MUVO" width={200} height={200}
-                className="h-full w-full object-cover dark:hidden" style={{ objectPosition: "50% 48%" }} priority />
-              <Image src="/logo-white.png" alt="MUVO" width={200} height={200}
-                className="h-full w-full object-cover hidden dark:block" style={{ objectPosition: "50% 48%" }} priority />
-            </div>
-            <span className="font-bold text-lg tracking-tight">MUVO</span>
+          <div className="flex items-center mb-10">
+            <BrandLockup tone="onDark" className="h-10" priority />
           </div>
 
           {/* Headline + features */}
@@ -246,12 +240,8 @@ export default function ComecarPage() {
       <div className="flex-1 flex flex-col px-5 py-8 md:px-10 md:py-12 max-w-lg mx-auto w-full md:max-w-none md:mx-0">
 
         {/* Mobile: logo */}
-        <div className="flex items-center gap-2 mb-8 md:hidden">
-          <div className="h-8 w-8 rounded-lg overflow-hidden">
-            <Image src="/logo.png" alt="MUVO" width={200} height={200}
-              className="h-full w-full object-cover" style={{ objectPosition: "50% 48%" }} />
-          </div>
-          <span className="font-bold text-base tracking-tight">MUVO</span>
+        <div className="flex items-center mb-8 md:hidden">
+          <BrandLockup className="h-8" priority />
         </div>
 
         {/* Barra de progresso */}
@@ -690,13 +680,7 @@ function AppMockup() {
         <div className="bg-zinc-900 rounded-[1.5rem] overflow-hidden px-3 py-3 space-y-3">
           {/* Header do app */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <div className="h-5 w-5 rounded-lg overflow-hidden">
-                <Image src="/logo.png" alt="MUVO" width={40} height={40}
-                  className="h-full w-full object-cover" style={{ objectPosition: "50% 48%" }} />
-              </div>
-              <span className="text-[10px] font-bold text-zinc-100">MUVO</span>
-            </div>
+            <BrandLockup tone="onDark" className="h-5" />
             <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center">
               <span className="text-[7px] font-bold text-white">I</span>
             </div>

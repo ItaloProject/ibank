@@ -38,15 +38,7 @@ export function MoreNavSheet({ open, onClose, onOpenFullMenu }: Props) {
           return (
             <div key={group.id}>
               <div className="mb-1.5 flex items-center gap-1.5 px-0.5">
-                {group.accent && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                )}
-                <p
-                  className={cn(
-                    "text-[10px] font-bold uppercase tracking-widest",
-                    group.accent ? "text-emerald-500" : "text-muted-foreground/60",
-                  )}
-                >
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
                   {group.label}
                 </p>
               </div>
@@ -62,9 +54,7 @@ export function MoreNavSheet({ open, onClose, onOpenFullMenu }: Props) {
                       className={cn(
                         "flex items-center gap-2.5 rounded-xl border px-3 py-3 text-left transition-colors touch-manipulation min-h-[48px]",
                         active
-                          ? group.accent
-                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
-                            : "border-primary/40 bg-primary/10 text-primary"
+                          ? "border-foreground bg-foreground text-background"
                           : "border-border/60 bg-card/40 text-foreground hover:bg-muted/50",
                       )}
                     >
@@ -79,7 +69,7 @@ export function MoreNavSheet({ open, onClose, onOpenFullMenu }: Props) {
         })}
 
         <div>
-          <p className="mb-1.5 px-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+          <p className="mb-1.5 px-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
             Sistema
           </p>
           <div className="grid grid-cols-2 gap-2">
@@ -94,7 +84,7 @@ export function MoreNavSheet({ open, onClose, onOpenFullMenu }: Props) {
                   className={cn(
                     "flex items-center gap-2.5 rounded-xl border px-3 py-3 text-left transition-colors touch-manipulation min-h-[48px]",
                     active
-                      ? "border-primary/40 bg-primary/10 text-primary"
+                      ? "border-foreground bg-foreground text-background"
                       : "border-border/60 bg-card/40 text-foreground hover:bg-muted/50",
                   )}
                 >

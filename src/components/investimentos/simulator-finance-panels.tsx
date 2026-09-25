@@ -5,6 +5,8 @@ import { ChevronLeft, ChevronRight, CalendarRange, Layers } from "lucide-react";
 import { addMonths, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/utils";
+import { SplashScreen } from "@/components/splash-screen";
+import { FOCUS, LABEL, MONEY, BTN_SECONDARY, LOSS, BackLink, StatBox } from "@/components/investimentos/live-ui";
 
 export type FinancePanelId = "planejamento" | "parcelamentos";
 
@@ -41,29 +43,36 @@ function PanelShell({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-4 pt-1">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground/80"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" /> Voltar
-      </button>
+    <div className="space-y-4">
+      <BackLink label="Início" onClick={onBack} />
       <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-foreground/70" />
-        <h2 className="text-sm font-bold text-foreground">{title}</h2>
+        <Icon className="h-4 w-4 text-foreground/70" aria-hidden="true" />
+        <h2 className="text-base font-bold text-foreground">{title}</h2>
       </div>
       {children}
     </div>
   );
 }
 
-function Loading() {
-  return <p className="text-sm text-muted-foreground text-center py-10">Carregando…</p>;
-}
-
 function Empty({ text }: { text: string }) {
   return <p className="text-sm text-muted-foreground text-center py-8">{text}</p>;
+}
+
+function LoadError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="rounded-xl border border-border p-4 text-center space-y-3" role="alert">
+      <p className={`text-sm font-semibold ${LOSS}`}>Não foi possível carregar os dados.</p>
+      <button type="button" onClick={onRetry} className={`${BTN_SECONDARY} min-h-11`}>
+        Tentar de novo
+      </button>
+    </div>
+  );
+}
+
+async function fetchJson(url: string) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
 
 function shiftMonth(month: string, delta: number): string {
@@ -83,20 +92,20 @@ function MonthNav({
   onChange: (m: string) => void;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-2 py-1.5">
+    <div className="flex items-center justify-between rounded-xl border border-border bg-card px-1 py-0.5">
       <button
         type="button"
         onClick={() => onChange(shiftMonth(month, -1))}
-        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        className={`h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted ${FOCUS}`}
         aria-label="Mês anterior"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
-      <p className="text-xs font-semibold text-foreground capitalize">{monthLabel(month)}</p>
+      <p className="text-sm font-semibold text-foreground capitalize" aria-live="polite">{monthLabel(month)}</p>
       <button
         type="button"
         onClick={() => onChange(shiftMonth(month, 1))}
-        className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        className={`h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted ${FOCUS}`}
         aria-label="Próximo mês"
       >
         <ChevronRight className="h-4 w-4" />
@@ -108,6 +117,8 @@ function MonthNav({
 
 function PlanejamentoPanel({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [salary, setSalary] = useState(0);
   const [items, setItems] = useState<PlanItem[]>([]);
@@ -115,69 +126,77 @@ function PlanejamentoPanel({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(false);
     (async () => {
       try {
         const [itemsRes, salaryRes] = await Promise.all([
-          fetch(`/api/plan-items?month=${month}`).then((r) => r.json()),
-          fetch(`/api/plan-salary?month=${month}`).then((r) => r.json()),
+          fetchJson(`/api/plan-items?month=${month}`),
+          fetchJson(`/api/plan-salary?month=${month}`),
         ]);
         if (cancelled) return;
         setItems(Array.isArray(itemsRes) ? itemsRes : []);
         setSalary(Number(salaryRes?.salary ?? 0) || 0);
+      } catch (err) {
+        console.error("Erro ao carregar planejamento:", err);
+        if (!cancelled) setError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [month]);
+  }, [month, reloadKey]);
 
   const planned = items.reduce((s, i) => s + Number(i.planned ?? 0), 0);
   const actual = items.reduce((s, i) => s + Number(i.actual ?? 0), 0);
+  const sobra = salary - planned;
 
   return (
     <PanelShell title="Planejamento" icon={CalendarRange} onBack={onBack}>
       <MonthNav month={month} onChange={setMonth} />
       {loading ? (
-        <Loading />
+        <SplashScreen />
+      ) : error ? (
+        <LoadError onRetry={() => setReloadKey((k) => k + 1)} />
       ) : (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-2xl border border-border bg-muted/40 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Salário</p>
-              <p className="text-sm font-extrabold tabular-nums text-foreground mt-1">{formatCurrency(salary)}</p>
-            </div>
-            <div className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] p-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sobra plan.</p>
-              <p className="text-sm font-extrabold tabular-nums text-violet-300 mt-1">
-                {formatCurrency(salary - planned)}
+            <StatBox label="Renda do mês">
+              <p className={`${MONEY} text-base`}>{formatCurrency(salary)}</p>
+            </StatBox>
+            <StatBox label="Sobra planejada">
+              <p className={`${MONEY} text-base ${sobra < 0 ? LOSS : ""}`}>
+                {sobra < 0 ? "−" : ""}
+                {formatCurrency(Math.abs(sobra))}
               </p>
-            </div>
+            </StatBox>
           </div>
-          <div className="rounded-2xl border border-border bg-muted/40 p-3 flex justify-between text-xs">
-            <span className="text-muted-foreground">Planejado / Real</span>
-            <span className="tabular-nums text-foreground">
+          <div className="rounded-xl border border-border bg-card px-3.5 py-3 flex justify-between gap-3 text-xs">
+            <span className="text-muted-foreground">Planejado · Realizado</span>
+            <span className="tabular-nums font-semibold text-foreground">
               {formatCurrency(planned)} · {formatCurrency(actual)}
             </span>
           </div>
           {items.length === 0 ? (
             <Empty text="Nenhum item neste mês." />
           ) : (
-            <div className="space-y-1.5 max-h-[40vh] overflow-y-auto scrollbar-thin-dark pr-1">
+            <ul className="rounded-xl border border-border bg-card divide-y divide-border">
               {items.slice(0, 30).map((i) => (
-                <div
-                  key={i.id}
-                  className="rounded-xl border border-border bg-muted/30 px-3 py-2 flex items-center justify-between gap-2"
-                >
+                <li key={i.id} className="px-3.5 py-2.5 flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-foreground truncate">{i.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{i.type}</p>
+                    <p className="text-[13px] font-semibold text-foreground truncate">{i.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{i.type}</p>
                   </div>
-                  <p className="text-xs font-bold tabular-nums text-foreground shrink-0">
+                  <p className={`${MONEY} text-[13px] shrink-0`}>
                     {formatCurrency(Number(i.actual || i.planned || 0))}
                   </p>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
+          )}
+          {items.length > 30 && (
+            <p className="text-[11px] text-muted-foreground text-center">
+              Mostrando 30 de {items.length} itens. Veja todos em Planejamento.
+            </p>
           )}
         </div>
       )}
@@ -187,14 +206,18 @@ function PlanejamentoPanel({ onBack }: { onBack: () => void }) {
 
 function ParcelamentosPanel({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [plans, setPlans] = useState<ParcelPlan[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
-      const res = await fetch("/api/parcelamentos");
-      const data = await res.json();
+      const data = await fetchJson("/api/parcelamentos");
       setPlans(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Erro ao carregar parcelamentos:", err);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -209,35 +232,53 @@ function ParcelamentosPanel({ onBack }: { onBack: () => void }) {
   return (
     <PanelShell title="Parcelamentos" icon={Layers} onBack={onBack}>
       {loading ? (
-        <Loading />
+        <SplashScreen />
+      ) : error ? (
+        <LoadError onRetry={load} />
       ) : active.length === 0 ? (
         <Empty text="Nenhum parcelamento ativo." />
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-2">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className={LABEL}>Em aberto no total</p>
+            <p className={`${MONEY} text-2xl mt-1.5 leading-none`}>
+              {formatCurrency(
+                active.reduce(
+                  (s, p) => s + (p.total_amount / p.installments) * (p.installments - p.paid_installments),
+                  0
+                )
+              )}
+            </p>
+          </div>
           {active.map((p) => {
             const parcela = p.total_amount / p.installments;
             const restantes = p.installments - p.paid_installments;
             const pct = (p.paid_installments / p.installments) * 100;
             return (
-              <div
-                key={p.id}
-                className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.06] p-3.5 space-y-2"
-              >
-                <p className="text-sm font-semibold text-foreground">{p.description}</p>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">
-                    {p.paid_installments}/{p.installments} pagas
-                  </span>
-                  <span className="tabular-nums text-foreground">
-                    {formatCurrency(parcela)}/mês
-                  </span>
+              <div key={p.id} className="rounded-xl border border-border bg-card p-3.5 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground min-w-0">{p.description}</p>
+                  <p className={`${MONEY} text-sm shrink-0`}>
+                    {formatCurrency(parcela)}
+                    <span className="font-sans text-[11px] font-medium text-muted-foreground">/mês</span>
+                  </p>
                 </div>
-                <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
-                  <div className="h-full rounded-full bg-cyan-400" style={{ width: `${pct}%` }} />
+                <div
+                  className="h-1.5 rounded-full bg-muted overflow-hidden"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={p.installments}
+                  aria-valuenow={p.paid_installments}
+                  aria-label={`${p.paid_installments} de ${p.installments} parcelas pagas`}
+                >
+                  <div className="h-full rounded-full bg-foreground/80" style={{ width: `${pct}%` }} />
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Em aberto: {formatCurrency(parcela * restantes)}
-                </p>
+                <div className="flex justify-between text-[11px] text-muted-foreground tabular-nums">
+                  <span>
+                    {p.paid_installments} de {p.installments} pagas
+                  </span>
+                  <span>Em aberto: {formatCurrency(parcela * restantes)}</span>
+                </div>
               </div>
             );
           })}

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Plus, TrendingUp, LineChart, Info, Zap, Landmark, PlusCircle, ChevronRight, ChevronLeft, Radio, Loader2,
+  Plus, TrendingUp, LineChart, Info, Zap, Landmark, PlusCircle, ChevronRight, ChevronLeft, Radio,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ import { AccountTab } from "@/components/investimentos/account-tab";
 import { AcoesTab } from "@/components/investimentos/acoes-tab";
 import { useUser } from "@/context/user-context";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { SplashScreen } from "@/components/splash-screen";
 import { InvestimentosSubNav } from "@/components/investimentos/investimentos-sub-nav";
 
 export type InvestimentosSection = "hub" | "contas" | "acoes";
@@ -244,11 +245,14 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
 
   useEffect(() => { load(); }, [load]);
 
-  // Abre Modo Investidor via link (?modo=investidor) e sincroniza meta salva
+  // Abre um modo via link (?view=live | ?view=bot | ?modo=investidor) e sincroniza meta salva
   useEffect(() => {
-    if (botEnabled && searchParams.get("modo") === "investidor") {
+    const view = searchParams.get("view");
+    if (botEnabled && (view === "bot" || searchParams.get("modo") === "investidor")) {
       setInvestorMode(true);
       setSelectedView("bot");
+    } else if (view === "live") {
+      setSelectedView("live");
     }
     fetch("/api/goals")
       .then((r) => r.json())
@@ -805,59 +809,44 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   }
 
   if (loading) {
-    return (
-      <div role="status" className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 motion-safe:animate-spin text-muted-foreground" aria-hidden="true" />
-        <span className="sr-only">Carregando...</span>
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   if (loadError) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
         <p className="text-destructive font-medium">{loadError}</p>
-        <button
-          type="button"
-          onClick={load}
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
-        >
+        <Button type="button" variant="outline" onClick={load}>
           Tentar de novo
-        </button>
+        </Button>
       </div>
     );
   }
 
-  if (selectedView === null) {
+  const view = selectedView === "bot" && !botEnabled ? null : selectedView;
+  const modeCard =
+    "group flex-1 flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 text-left transition-[border-color,transform] duration-150 ease-out hover:border-foreground/25 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+  if (view === null) {
     return (
-      <div className="flex flex-col h-full select-none overflow-y-auto bg-background">
+      <div className="flex flex-col h-full overflow-y-auto bg-background">
         {/* Header */}
         <div className="px-5 pt-7 pb-6 md:px-8 md:pt-9 border-b border-border/50">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary/80" />
-            </span>
-            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground/50">Smart Control Finances</span>
-          </div>
           <h1 className="text-2xl font-bold tracking-tight font-display">Investimentos</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Escolha sua experiência</p>
-          <p className="mt-3 text-3xl font-display font-black tabular-nums tracking-tight">{formatCurrency(grandTotal)}</p>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/40 mt-0.5">Patrimônio total</p>
+          <p className="mt-5 text-3xl md:text-4xl font-display font-black tabular-nums tracking-tight">{formatCurrency(grandTotal)}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mt-1">Patrimônio total</p>
         </div>
 
         {/* Selector cards */}
         <div className="flex flex-col md:flex-row gap-3 p-5 md:p-8 flex-1">
           {/* MUVO LIVE */}
-          <button
-            onClick={() => setSelectedView("live")}
-            className="group flex-1 flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 text-left transition-all hover:border-foreground/20 hover:shadow-lg active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
+          <button type="button" onClick={() => setSelectedView("live")} className={modeCard}>
             <div className="flex items-start justify-between">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary/70">
-                <Radio className="h-5 w-5" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/70">
+                <Radio className="h-5 w-5" aria-hidden="true" />
               </div>
-              <span className="text-[10px] font-black tracking-[0.2em] text-muted-foreground/40 uppercase pt-1">LIVE</span>
+              <span className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase pt-1">LIVE</span>
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-tight font-display">MUVO LIVE</h2>
@@ -865,30 +854,31 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                 Gerencie sua carteira em tempo real. Contas, ações, FIIs e histórico de movimentações.
               </p>
             </div>
-            <ul className="space-y-1.5 text-sm text-muted-foreground/70">
+            <ul className="space-y-1.5 text-sm text-muted-foreground">
               {["Contas de investimento", "Ações, FIIs & ETFs", "Distribuição da carteira"].map((f) => (
                 <li key={f} className="flex items-center gap-2.5">
-                  <span className="h-1 w-1 rounded-full bg-foreground/30 shrink-0" />
+                  <span className="h-1 w-1 rounded-full bg-foreground/30 shrink-0" aria-hidden="true" />
                   {f}
                 </li>
               ))}
             </ul>
             <div className="mt-auto pt-1 flex items-center gap-1.5 text-sm font-semibold text-foreground/70 group-hover:text-foreground transition-colors">
-              Entrar <ChevronRight className="h-4 w-4" />
+              Entrar <ChevronRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5" aria-hidden="true" />
             </div>
           </button>
 
           {/* MUVO BOT */}
           {botEnabled ? (
             <button
+              type="button"
               onClick={() => { setSelectedView("bot"); setInvestorMode(true); }}
-              className="group flex-1 flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 text-left transition-all hover:border-foreground/20 hover:shadow-lg active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={modeCard}
             >
               <div className="flex items-start justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/8 text-primary/70">
-                  <Zap className="h-5 w-5" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground/70">
+                  <Zap className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <span className="text-[10px] font-black tracking-[0.2em] text-muted-foreground/40 uppercase pt-1">BOT</span>
+                <span className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase pt-1">BOT</span>
               </div>
               <div>
                 <h2 className="text-xl font-bold tracking-tight font-display">MUVO BOT</h2>
@@ -896,38 +886,36 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
                   Análise inteligente da sua carteira com insights, simulações e recomendações personalizadas.
                 </p>
               </div>
-              <ul className="space-y-1.5 text-sm text-muted-foreground/70">
+              <ul className="space-y-1.5 text-sm text-muted-foreground">
                 {["Score da carteira", "Insights & alertas", "Simulador de aportes"].map((f) => (
                   <li key={f} className="flex items-center gap-2.5">
-                    <span className="h-1 w-1 rounded-full bg-foreground/30 shrink-0" />
+                    <span className="h-1 w-1 rounded-full bg-foreground/30 shrink-0" aria-hidden="true" />
                     {f}
                   </li>
                 ))}
               </ul>
               <div className="mt-auto pt-1 flex items-center gap-1.5 text-sm font-semibold text-foreground/70 group-hover:text-foreground transition-colors">
-                Entrar <ChevronRight className="h-4 w-4" />
+                Entrar <ChevronRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5" aria-hidden="true" />
               </div>
             </button>
           ) : (
-            <div className="flex-1 flex flex-col gap-5 rounded-2xl border border-dashed border-border/50 bg-muted/20 p-6 text-left opacity-60">
+            <Link href="/vender" className={`${modeCard} border-dashed bg-transparent`}>
               <div className="flex items-start justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted/50 text-muted-foreground/40">
-                  <Zap className="h-5 w-5" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground">
+                  <Zap className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <span className="rounded-full border border-border/50 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-muted-foreground/50 uppercase">Premium</span>
+                <span className="rounded-full border border-border px-2.5 py-0.5 text-[10px] font-bold tracking-[0.18em] text-muted-foreground uppercase">Premium</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold tracking-tight font-display text-muted-foreground/60">MUVO BOT</h2>
-                <p className="mt-1.5 text-sm text-muted-foreground/60 leading-relaxed">
+                <h2 className="text-xl font-bold tracking-tight font-display text-foreground/80">MUVO BOT</h2>
+                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
                   Análise inteligente da sua carteira com insights, simulações e recomendações personalizadas.
                 </p>
               </div>
-              <div className="mt-auto pt-1">
-                <a href="/vender" className="text-sm font-semibold text-foreground/40 hover:text-foreground/70 transition-colors">
-                  Ativar acesso →
-                </a>
+              <div className="mt-auto pt-1 flex items-center gap-1.5 text-sm font-semibold text-foreground/70 group-hover:text-foreground transition-colors">
+                Ativar acesso <ChevronRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5" aria-hidden="true" />
               </div>
-            </div>
+            </Link>
           )}
         </div>
       </div>
@@ -942,7 +930,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     });
   }
 
-  if (selectedView === "bot" && botEnabled) {
+  if (view === "bot") {
     return (
       <InvestorModeView
         investorData={investorData}
@@ -964,7 +952,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       />
     );
   }
-  if (selectedView === "live") {
+  if (view === "live") {
     const toItem = (x: { account: InvestmentAccount; balance: number }) => ({
       id: x.account.id,
       nome: x.account.name,

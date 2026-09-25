@@ -24,6 +24,7 @@ import { ptBR } from "date-fns/locale";
 import { useTheme } from "@/components/theme-provider";
 import { useUser } from "@/context/user-context";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { SplashScreen } from "@/components/splash-screen";
 import { ChartFrame } from "@/components/mobile/chart-frame";
 
 const FII_SET = new Set([
@@ -159,11 +160,7 @@ export default function DashboardPage() {
   );
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Carregando...</p>
-      </div>
-    );
+    return <SplashScreen />;
   }
   if (error) {
     return (
