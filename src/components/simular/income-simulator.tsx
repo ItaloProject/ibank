@@ -1,37 +1,38 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { ChevronDown, Target, Wallet } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
-import { getInvestmentAccounts, getInvestments, getStockQuotes, getStockTrades, type StockQuote } from "@/lib/api";
+import { getInvestmentAccounts, getInvestments, getStockQuotes, getStockTrades, refreshStockQuotes, type StockQuote } from "@/lib/api";
 import type { Investment, InvestmentAccount, StockTrade } from "@/types/database";
-import { computePortfolioReturn } from "@/lib/portfolio-return";
-import { PortfolioRateCard } from "./portfolio-rate-card";
-import {
-  INFLATION_ANNUAL, formatCompactBRL, formatDuration, monthsToReach, requiredMonthly, simulate, turningPoint,
-  type SimInput,
-} from "@/lib/simulator";
+import { EQUITY_REAL_RETURN, buildPortfolio, scalePositions } from "@/lib/portfolio-return";
+import { buildCurve, type Curve } from "@/lib/market-curve";
+import { project, solveAporte, type MonthPoint, type Position, type Rule, type TaxMode } from "@/lib/projection";
+import { PortfolioRateCard, type CurveInfo } from "./portfolio-rate-card";
+import { INFLATION_ANNUAL, formatCompactBRL, formatDuration } from "@/lib/simulator";
 
 type Mode = "futuro" | "meta";
+type PresetId = "poupanca" | "selic" | "cdb" | "acoes";
 type State = {
   mode: Mode;
   inicial: number;
   aporte: number;
+  /** Taxa bruta (% a.a.) usada quando `fonte` é "manual". */
   taxa: number;
   anos: number;
   reais: boolean;
   renda: number;
-  /** "carteira": taxa calculada da carteira real; "manual": slider/presets. */
-  fonte: "carteira" | "manual";
+  /** "carteira": posições reais do usuário; preset: produto de referência; "manual": taxa fixa do controle. */
+  fonte: "carteira" | "manual" | PresetId;
   liquida: boolean;
 };
 
 const DEFAULTS: State = {
-  mode: "futuro", inicial: 0, aporte: 1000, taxa: 12, anos: 15, reais: false, renda: 5000, fonte: "carteira", liquida: false,
+  mode: "futuro", inicial: 0, aporte: 1000, taxa: 12, anos: 15, reais: false, renda: 5000, fonte: "carteira", liquida: true,
 };
 
 type PortfolioData = {
@@ -40,27 +41,37 @@ type PortfolioData = {
   trades: StockTrade[];
   quotes: StockQuote[];
 };
-const STORAGE_KEY = "muvo_simular_v1";
+const STORAGE_KEY = "muvo_simular_v2";
+const LEGACY_STORAGE_KEY = "muvo_simular_v1";
 const MILESTONES = [100_000, 250_000, 500_000, 1_000_000];
+/** Horizonte das buscas de marcos e ponto de virada. */
+const HORIZON = 80 * 12;
 
 const LABEL = "text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground";
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
-type RatePreset = { id: string; label: string; taxa: number };
+const PRESETS: { id: PresetId; label: string; rule: Rule; tax: TaxMode }[] = [
+  { id: "poupanca", label: "Poupança", rule: { k: "poupanca" }, tax: "isento" },
+  { id: "selic", label: "Tesouro Selic", rule: { k: "selic", spread: 0 }, tax: "regressivo" },
+  { id: "cdb", label: "CDB 110% CDI", rule: { k: "cdi", pct: 110 }, tax: "regressivo" },
+  { id: "acoes", label: "Ações", rule: { k: "ipca", spread: EQUITY_REAL_RETURN }, tax: "acoes" },
+];
 
-function presetsFrom(rates?: MarketResearchPayload["rates"] | null): { presets: RatePreset[]; live: boolean } {
-  const selic = rates?.selicAnual ?? 15;
-  const cdi = rates?.cdiAnual ?? 14.9;
-  const round = (n: number) => Math.round(n * 10) / 10;
-  return {
-    live: rates?.source === "bcb",
-    presets: [
-      { id: "poupanca", label: "Poupança", taxa: selic > 8.5 ? 6.2 : round(selic * 0.7) },
-      { id: "selic", label: "Tesouro Selic", taxa: round(selic) },
-      { id: "cdb", label: "CDB 110% CDI", taxa: round(cdi * 1.1) },
-      { id: "acoes", label: "Ações (histórico)", taxa: 12 },
-    ],
-  };
+function single(rule: Rule, tax: TaxMode, valor: number): Position {
+  return { id: "sim", valor, custo: valor, idadeMeses: 0, rule, vencimento: null, tax, pesoAporte: 1 };
+}
+
+/** Rentabilidade média anual (bruta e líquida) de manter as posições por `meses`, sem aportes. */
+function averageReturn(positions: Position[], meses: number, curve: Curve): { bruta: number; liquida: number } {
+  const r = project({ positions, aporte: 0, meses, curve });
+  const a = r[0];
+  const b = r[r.length - 1];
+  const anual = (from: number, to: number) => (from > 0 && to > 0 ? (Math.pow(to / from, 12 / meses) - 1) * 100 : 0);
+  return { bruta: anual(a.bruto, b.bruto), liquida: anual(a.liquido, b.liquido) };
+}
+
+function monthlyFromAnnual(a: number) {
+  return Math.pow(1 + a / 100, 1 / 12) - 1;
 }
 
 function pct(n: number, digits = 1) {
@@ -206,15 +217,41 @@ export function IncomeSimulator() {
   const [s, setS] = useState<State>(DEFAULTS);
   const [hydrated, setHydrated] = useState(false);
   const [rates, setRates] = useState<MarketResearchPayload["rates"] | null>(null);
-  const [fiiDy, setFiiDy] = useState<Record<string, number>>({});
+  const [brapiDy, setBrapiDy] = useState<Record<string, number>>({});
+  const [marketDy, setMarketDy] = useState<Record<string, number>>({});
   const [data, setData] = useState<PortfolioData | null>(null);
   const [goal, setGoal] = useState<number | null>(null);
   const [tableOpen, setTableOpen] = useState(false);
+  const autoInicial = useRef(false);
+
+  const loadPortfolio = useCallback(() => {
+    Promise.all([getInvestmentAccounts(), getInvestments(), getStockTrades(), getStockQuotes()])
+      .then(([accounts, investments, trades, quotes]) => {
+        setData({ accounts, investments, trades, quotes });
+        refreshStockQuotes(trades, quotes)
+          .then(({ quotes: fresh, market }) => {
+            setData((prev) => (prev ? { ...prev, quotes: fresh } : prev));
+            const dy: Record<string, number> = {};
+            for (const q of market) if (q.dy12m > 0) dy[q.ticker] = q.dy12m;
+            setMarketDy(dy);
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setS({ ...DEFAULTS, ...(JSON.parse(saved) as Partial<State>) });
+      if (saved) {
+        setS({ ...DEFAULTS, ...(JSON.parse(saved) as Partial<State>) });
+      } else {
+        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacy) {
+          const { liquida: _liquida, ...rest } = JSON.parse(legacy) as Partial<State>;
+          setS({ ...DEFAULTS, ...rest });
+        }
+      }
     } catch { /* padrão */ }
     setHydrated(true);
     fetch("/api/market-research").then((r) => (r.ok ? r.json() : null)).then((d: MarketResearchPayload | null) => {
@@ -223,16 +260,14 @@ export function IncomeSimulator() {
       for (const f of d?.fiis ?? []) {
         if (f.source === "brapi" && f.dy12mPct != null && f.dy12mPct > 0) dy[f.ticker] = f.dy12mPct;
       }
-      setFiiDy(dy);
+      setBrapiDy(dy);
     }).catch(() => {});
-    Promise.all([getInvestmentAccounts(), getInvestments(), getStockTrades(), getStockQuotes()])
-      .then(([accounts, investments, trades, quotes]) => setData({ accounts, investments, trades, quotes }))
-      .catch(() => {});
+    loadPortfolio();
     fetch("/api/goals").then((r) => (r.ok ? r.json() : null)).then((d: { goal_target?: number | string } | null) => {
       const g = Number(d?.goal_target) || 0;
       if (g > 0) setGoal(g);
     }).catch(() => {});
-  }, []);
+  }, [loadPortfolio]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -240,43 +275,141 @@ export function IncomeSimulator() {
   }, [s, hydrated]);
 
   const set = <K extends keyof State>(k: K, v: State[K]) => setS((prev) => ({ ...prev, [k]: v }));
-  const { presets, live } = useMemo(() => presetsFrom(rates), [rates]);
+  const live = rates?.source === "bcb";
 
-  const cdiHoje = rates?.cdiAnual ?? 14.9;
-  const ipca = rates?.ipca12m ?? INFLATION_ANNUAL * 100;
-  const portfolio = useMemo(
-    () => data
-      ? computePortfolioReturn(data.accounts, data.investments, data.trades, data.quotes, {
-        cdi: cdiHoje, selic: rates?.selicAnual ?? 15, ipca, fiiDy,
-      })
-      : null,
-    [data, cdiHoje, rates?.selicAnual, ipca, fiiDy],
+  const curve = useMemo(
+    () => buildCurve({
+      selic: rates?.selicAnual ?? 15,
+      cdi: rates?.cdiAnual ?? 14.9,
+      ipca12m: rates?.ipca12m ?? INFLATION_ANNUAL * 100,
+      focus: rates?.focus,
+    }, HORIZON + 12),
+    [rates],
   );
-  const taxaCarteira = portfolio ? Math.round(portfolio.media(s.anos, s.liquida) * 100) / 100 : null;
-  const usandoCarteira = s.fonte === "carteira" && taxaCarteira != null;
-  const taxa = usandoCarteira ? taxaCarteira : s.taxa;
+  const fiiDy = useMemo(() => ({ ...brapiDy, ...marketDy }), [brapiDy, marketDy]);
+  const portfolio = useMemo(
+    () => (data ? buildPortfolio(data.accounts, data.investments, data.trades, data.quotes, curve, fiiDy) : null),
+    [data, curve, fiiDy],
+  );
+
+  useEffect(() => {
+    if (!hydrated || !portfolio || autoInicial.current) return;
+    autoInicial.current = true;
+    if (s.fonte === "carteira" && s.inicial === 0) set("inicial", Math.round(portfolio.total));
+  }, [hydrated, portfolio]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const N = s.anos * 12;
+  const usandoCarteira = s.fonte === "carteira" && portfolio != null;
+  const preset = PRESETS.find((p) => p.id === s.fonte) ?? null;
   const setManual = (v: number) => setS((prev) => ({ ...prev, taxa: v, fonte: "manual" }));
 
-  const base: Omit<SimInput, "aporte"> = { inicial: s.inicial, taxaAnual: taxa / 100, anos: s.anos, reais: s.reais };
-  const rate = simulate({ ...base, aporte: 0, anos: 0 }).rate;
-  const alvo = rate > 0 ? s.renda / rate : 0;
-  const needed = s.mode === "meta" ? requiredMonthly(base, alvo) : 0;
-  const aporteSim = s.mode === "meta" ? needed : s.aporte;
-  const input: SimInput = { ...base, aporte: aporteSim };
+  const positions = useMemo<Position[]>(() => {
+    if (usandoCarteira) return scalePositions(portfolio.positions, portfolio.total > 0 ? s.inicial / portfolio.total : 0);
+    if (preset) return [single(preset.rule, preset.tax, s.inicial)];
+    return [single({ k: "fixa", taxa: s.taxa }, "regressivo", s.inicial)];
+  }, [usandoCarteira, portfolio, preset, s.inicial, s.taxa]);
 
-  const { points } = useMemo(() => simulate(input), [input.inicial, input.aporte, input.taxaAnual, input.anos, input.reais]); // eslint-disable-line react-hooks/exhaustive-deps
-  const final = points[points.length - 1];
-  const virada = useMemo(() => turningPoint(input), [input.inicial, input.aporte, input.taxaAnual, input.reais]); // eslint-disable-line react-hooks/exhaustive-deps
-  const ritmoAtual = s.mode === "meta" ? monthsToReach({ ...base, aporte: s.aporte }, alvo) : null;
-  const milestones = useMemo(
-    () => MILESTONES.map((v) => ({ v, m: monthsToReach(input, v) })),
-    [input.inicial, input.aporte, input.taxaAnual, input.reais], // eslint-disable-line react-hooks/exhaustive-deps
+  const mediaCarteira = useMemo(
+    () => (portfolio ? averageReturn(portfolio.positions, N, curve) : null),
+    [portfolio, N, curve],
+  );
+  const mediaPresets = useMemo(
+    () => Object.fromEntries(PRESETS.map((p) => [p.id, averageReturn([single(p.rule, p.tax, 1000)], N, curve)])) as Record<PresetId, { bruta: number; liquida: number }>,
+    [N, curve],
+  );
+  const mediaManual = useMemo(() => averageReturn([single({ k: "fixa", taxa: s.taxa }, "regressivo", 1000)], N, curve), [s.taxa, N, curve]);
+  const media = usandoCarteira && mediaCarteira ? mediaCarteira : preset ? mediaPresets[preset.id] : mediaManual;
+  const taxaBruta = s.fonte === "manual" || (!usandoCarteira && !preset) ? s.taxa : media.bruta;
+
+  const unit = useCallback(
+    (m: MonthPoint) => (s.liquida ? m.liquido : m.bruto) / (s.reais ? m.deflator : 1),
+    [s.liquida, s.reais],
+  );
+  /** Taxa mensal que pode ser sacada como renda no mês `t`, sem reduzir o patrimônio (real quando `reais`). */
+  const rendaTaxa = useCallback((arr: MonthPoint[], t: number) => {
+    const i = Math.min(Math.max(1, t), arr.length - 1);
+    let r = s.liquida ? arr[i].taxaMesLiquida : arr[i].taxaMes;
+    if (s.reais) r = (1 + r) / (1 + monthlyFromAnnual(curve.ipca[Math.min(i - 1, curve.ipca.length - 1)])) - 1;
+    return Math.max(0, r);
+  }, [s.liquida, s.reais, curve]);
+
+  const probe = useMemo(
+    () => (s.mode === "meta"
+      ? project({ positions, aporte: s.aporte > 0 ? s.aporte : 1000, meses: s.aporte > 0 ? HORIZON : N, curve, aporteCorrigido: s.reais })
+      : null),
+    [s.mode, positions, s.aporte, N, curve, s.reais],
+  );
+  const alvo = probe ? (rendaTaxa(probe, N) > 0 ? s.renda / rendaTaxa(probe, N) : 0) : 0;
+  const neededRaw = useMemo(
+    () => (s.mode === "meta" ? solveAporte({ positions, meses: N, curve, aporteCorrigido: s.reais }, alvo, unit) : 0),
+    [s.mode, positions, N, curve, s.reais, alvo, unit],
+  );
+  const alcancavel = Number.isFinite(neededRaw);
+  const needed = alcancavel ? Math.max(0, neededRaw) : 0;
+  const aporteSim = s.mode === "meta" ? needed : s.aporte;
+
+  const long = useMemo(
+    () => project({ positions, aporte: aporteSim, meses: HORIZON, curve, aporteCorrigido: s.reais }),
+    [positions, aporteSim, curve, s.reais],
   );
 
+  const points = useMemo(() => {
+    const inicial = long[0].aportado;
+    const out: { ano: number; saldo: number; aportado: number; juros: number; jurosNoAno: number; rendaMensal: number; chartAportado: number; chartJuros: number }[] = [];
+    for (let ano = 0; ano <= s.anos; ano++) {
+      const t = ano * 12;
+      const saldo = unit(long[t]);
+      const aportado = s.reais ? inicial + aporteSim * t : long[t].aportado;
+      const prev = out[ano - 1];
+      const chartAportado = Math.min(aportado, saldo);
+      out.push({
+        ano,
+        saldo,
+        aportado,
+        juros: saldo - aportado,
+        jurosNoAno: prev ? saldo - prev.saldo - (aportado - prev.aportado) : 0,
+        rendaMensal: saldo * rendaTaxa(long, t),
+        chartAportado,
+        chartJuros: saldo - chartAportado,
+      });
+    }
+    return out;
+  }, [long, s.anos, s.reais, aporteSim, unit, rendaTaxa]);
+  const final = points[points.length - 1];
+
+  const virada = useMemo(() => {
+    if (!(aporteSim > 0)) return null;
+    for (let t = 1; t < long.length; t++) if (long[t].jurosMes >= long[t].aporteMes) return t === 1 ? 0 : t;
+    return null;
+  }, [long, aporteSim]);
+  const firstReach = (arr: MonthPoint[], v: number) => {
+    for (let t = 0; t < arr.length; t++) if (unit(arr[t]) >= v) return t;
+    return null;
+  };
+  const ritmoAtual = s.mode === "meta" && probe && s.aporte > 0 ? firstReach(probe, alvo) : null;
+  const milestones = useMemo(
+    () => MILESTONES.map((v) => ({ v, m: firstReach(long, v) })),
+    [long, unit], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const hoje12m = portfolio
+    ? portfolio.rows.reduce((acc, r) => acc + r.peso * r.taxa12m * (s.liquida ? 1 - r.irLongo : 1), 0)
+    : 0;
+  const curveInfo: CurveInfo = {
+    source: curve.source,
+    focusDate: rates?.focus?.data,
+    selicHoje: curve.selic[0],
+    cdiHoje: curve.cdi[0],
+    selicLonga: curve.selic[curve.selic.length - 1],
+    ipcaAno: curve.ipca[0],
+    ipcaLongo: curve.ipca[curve.ipca.length - 1],
+    live,
+  };
+
   const heroValue = useTween(s.mode === "meta" ? needed : final.saldo);
-  const jurosPct = final.saldo > 0 ? (final.juros / final.saldo) * 100 : 0;
+  const jurosPct = final.saldo > 0 ? (Math.max(0, final.juros) / final.saldo) * 100 : 0;
   const viradaAno = virada != null ? Math.ceil(virada / 12) : null;
-  const moneyWord = s.reais ? "em dinheiro de hoje" : "em valores nominais";
+  const moneyWord = `${s.reais ? "em dinheiro de hoje" : "nominais"}${s.liquida ? ", já sem o imposto de renda" : ", antes do imposto de renda"}`;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
@@ -337,19 +470,25 @@ export function IncomeSimulator() {
         <div>
           <div className="flex items-baseline justify-between">
             <label htmlFor="sim-taxa" className={LABEL}>Rentabilidade ao ano</label>
-            <span className="font-display text-xl font-black tabular-nums tracking-tight">{pct(taxa, 2)}</span>
+            <span className="font-display text-xl font-black tabular-nums tracking-tight">{pct(taxaBruta, 2)}</span>
           </div>
           <input
             id="sim-taxa"
             type="range"
-            min={2}
+            min={0}
             max={20}
             step={0.1}
-            value={taxa}
+            value={Math.min(20, Math.max(0, Math.round(taxaBruta * 10) / 10))}
             onChange={(e) => setManual(Number(e.target.value))}
+            aria-valuetext={`${pct(taxaBruta, 2)} ao ano, antes do imposto`}
             className="mt-3 h-2 w-full cursor-pointer accent-foreground"
           />
-          {taxaCarteira != null && (
+          {s.liquida && (
+            <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
+              Antes do IR. Líquida: <strong className="font-semibold text-foreground">{pct(media.liquida, 2)} ao ano</strong> em média no prazo.
+            </p>
+          )}
+          {mediaCarteira != null && (
             <button
               type="button"
               onClick={() => set("fonte", "carteira")}
@@ -367,21 +506,21 @@ export function IncomeSimulator() {
                 <span className="min-w-0">
                   <span className="block text-xs font-semibold">Minha carteira</span>
                   <span className={cn("block truncate text-[11px]", usandoCarteira ? "opacity-70" : "text-muted-foreground")}>
-                    Média em {s.anos} {s.anos === 1 ? "ano" : "anos"}{s.liquida ? ", líquida de IR" : ""}
+                    Média em {s.anos} {s.anos === 1 ? "ano" : "anos"}, posição por posição
                   </span>
                 </span>
               </span>
-              <span className="font-display text-base font-black tabular-nums">{pct(taxaCarteira, 2)}</span>
+              <span className="font-display text-base font-black tabular-nums">{pct(mediaCarteira.bruta, 2)}</span>
             </button>
           )}
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {presets.map((p) => {
-              const on = !usandoCarteira && Math.abs(s.taxa - p.taxa) < 0.05;
+            {PRESETS.map((p) => {
+              const on = s.fonte === p.id;
               return (
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setManual(p.taxa)}
+                  onClick={() => set("fonte", p.id)}
                   aria-pressed={on}
                   className={cn(
                     "min-h-9 rounded-md border px-2.5 text-[11px] font-semibold transition-colors",
@@ -391,7 +530,7 @@ export function IncomeSimulator() {
                     FOCUS,
                   )}
                 >
-                  {p.label} <span className="tabular-nums opacity-70">{pct(p.taxa)}</span>
+                  {p.label} <span className="tabular-nums opacity-70">{pct(mediaPresets[p.id].bruta)}</span>
                 </button>
               );
             })}
@@ -411,7 +550,9 @@ export function IncomeSimulator() {
             ) : data ? (
               "Registre seus investimentos no MUVO LIVE para simular com a rentabilidade da sua carteira. "
             ) : null}
-            {!portfolio && (live ? "Selic e CDI de hoje, pelo Banco Central. Ações: média histórica, sem garantia." : "Referências aproximadas.")}
+            {!portfolio && (live
+              ? `Juros e inflação futuros pelo ${curve.source === "focus" ? "Boletim Focus" : "Banco Central"}. Ações: IPCA + ${EQUITY_REAL_RETURN}%, sem garantia.`
+              : "Referências aproximadas.")}
           </p>
         </div>
 
@@ -442,7 +583,22 @@ export function IncomeSimulator() {
           <span>
             <span className="block text-sm font-medium">Em dinheiro de hoje</span>
             <span className="block text-[11px] text-muted-foreground">
-              Desconta inflação de {pct(INFLATION_ANNUAL * 100)} ao ano, para comparar com o que R$ 1 compra hoje.
+              Desconta a inflação projetada ({pct(curveInfo.ipcaAno)} este ano, {pct(curveInfo.ipcaLongo)} no longo prazo) e reajusta o aporte por ela.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={s.liquida}
+            onChange={(e) => set("liquida", e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-foreground"
+          />
+          <span>
+            <span className="block text-sm font-medium">Descontar imposto de renda</span>
+            <span className="block text-[11px] text-muted-foreground">
+              Valor que sobraria no resgate: tabela regressiva de 22,5% a 15% por aporte; ações 15%; poupança, LCI, LCA e FIIs isentos.
             </span>
           </span>
         </label>
@@ -488,11 +644,13 @@ export function IncomeSimulator() {
                 Para viver de {formatCurrency(s.renda)} por mês em {s.anos} {s.anos === 1 ? "ano" : "anos"}, aporte
               </h2>
               <p className="mt-2 font-display text-4xl font-black leading-none tabular-nums tracking-tight sm:text-6xl">
-                {needed > 0 ? formatCurrency(heroValue) : "R$ 0,00"}
-                <span className="ml-1 text-lg font-bold text-muted-foreground sm:text-2xl">/mês</span>
+                {!alcancavel ? "Fora de alcance" : needed > 0 ? formatCurrency(heroValue) : "R$ 0,00"}
+                {alcancavel && <span className="ml-1 text-lg font-bold text-muted-foreground sm:text-2xl">/mês</span>}
               </p>
               <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-                {needed > 0 ? (
+                {!alcancavel ? (
+                  <>Com essa rentabilidade, nenhum aporte chega lá no prazo. Aumente o prazo ou escolha outra rentabilidade. </>
+                ) : needed > 0 ? (
                   <>Você precisa juntar <strong className="font-semibold text-foreground">{formatCurrency(alvo)}</strong>. </>
                 ) : (
                   <>O que você já tem investido chega lá sozinho. </>
@@ -501,7 +659,8 @@ export function IncomeSimulator() {
                   ritmoAtual != null
                     ? <>No ritmo de hoje ({formatCurrency(s.aporte)}/mês), você chega lá em <strong className="font-semibold text-foreground">{formatDuration(ritmoAtual)}</strong>.</>
                     : <>No ritmo de hoje ({formatCurrency(s.aporte)}/mês), a meta fica fora de alcance.</>
-                )}
+                )}{" "}
+                Valores {moneyWord}.
               </p>
             </>
           )}
@@ -539,13 +698,12 @@ export function IncomeSimulator() {
             portfolio={portfolio}
             anos={s.anos}
             liquida={s.liquida}
-            onLiquida={(v) => set("liquida", v)}
+            media={mediaCarteira ? (s.liquida ? mediaCarteira.liquida : mediaCarteira.bruta) : 0}
+            hoje={hoje12m}
             active={usandoCarteira}
             onUse={() => set("fonte", "carteira")}
-            cdi={cdiHoje}
-            ipca={ipca}
-            updatedAt={rates?.updatedAt}
-            live={live}
+            curve={curveInfo}
+            onRatesChanged={loadPortfolio}
           />
         )}
 
@@ -576,8 +734,8 @@ export function IncomeSimulator() {
                   tickFormatter={axisBRL}
                 />
                 <Tooltip content={<ChartTooltip />} cursor={{ stroke: "hsl(var(--foreground) / 0.3)" }} />
-                <Area type="monotone" dataKey="aportado" stackId="1" stroke="hsl(var(--foreground) / 0.35)" fill="hsl(var(--foreground) / 0.12)" strokeWidth={1.5} isAnimationActive={false} />
-                <Area type="monotone" dataKey="juros" stackId="1" stroke="hsl(var(--foreground))" fill="hsl(var(--foreground) / 0.45)" strokeWidth={2} isAnimationActive={false} />
+                <Area type="monotone" dataKey="chartAportado" stackId="1" stroke="hsl(var(--foreground) / 0.35)" fill="hsl(var(--foreground) / 0.12)" strokeWidth={1.5} isAnimationActive={false} />
+                <Area type="monotone" dataKey="chartJuros" stackId="1" stroke="hsl(var(--foreground))" fill="hsl(var(--foreground) / 0.45)" strokeWidth={2} isAnimationActive={false} />
                 {viradaAno != null && viradaAno > 0 && viradaAno <= s.anos && (
                   <ReferenceLine
                     x={viradaAno}
@@ -659,7 +817,7 @@ export function IncomeSimulator() {
                     <tr key={p.ano} className={cn("border-b border-border/50", p.ano === viradaAno && "bg-muted/60")}>
                       <th scope="row" className="py-2 pr-2 text-left font-medium">{p.ano}</th>
                       <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{formatCurrency(p.aportado)}</td>
-                      <td className="py-2 px-2 text-right tabular-nums">+{formatCurrency(p.jurosNoAno)}</td>
+                      <td className="py-2 px-2 text-right tabular-nums">{p.jurosNoAno >= 0 ? "+" : "−"}{formatCurrency(Math.abs(p.jurosNoAno))}</td>
                       <td className="py-2 px-2 text-right font-semibold tabular-nums">{formatCurrency(p.saldo)}</td>
                       <td className="py-2 pl-2 text-right tabular-nums">{formatCurrency(p.rendaMensal)}</td>
                     </tr>
@@ -671,10 +829,11 @@ export function IncomeSimulator() {
         </section>
 
         <p className="text-[11px] text-muted-foreground">
-          Simulação ilustrativa com aporte no início de cada mês e rentabilidade de {pct(taxa, 2)} ao ano
-          {usandoCarteira ? " (média esperada da sua carteira no prazo)" : ""}
-          {s.reais ? `, descontada a inflação de ${pct(INFLATION_ANNUAL * 100)}` : ""}.{" "}
-          {usandoCarteira && s.liquida ? "Já desconta o IR estimado; não considera taxas." : "Não considera impostos nem taxas."} Não é recomendação de investimento.
+          Simulação mês a mês{usandoCarteira ? ", posição por posição da sua carteira" : ""}, com aporte no início de cada mês
+          {s.reais ? " reajustado pela inflação" : ""}. Juros e inflação futuros{" "}
+          {curve.source === "focus" ? "seguem as expectativas do Boletim Focus (Banco Central)" : "convergem ao juro neutro em 3 anos"}.{" "}
+          {s.liquida ? "Valores líquidos de IR, como se tudo fosse resgatado na data; " : "Valores antes do IR; "}
+          não considera taxas de administração ou custódia. Não é recomendação de investimento.
         </p>
       </div>
     </div>

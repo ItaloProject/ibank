@@ -16,7 +16,7 @@ import {
   updateAccountBalance, deleteInvestmentAccount, renameInvestmentAccount, updateTurboSettings,
   getInvestments, createInvestment, deleteInvestment,
   getStockTrades, createStockTrade, deleteStockTrade,
-  getStockQuotes, upsertStockQuote, type StockQuote,
+  getStockQuotes, upsertStockQuote, refreshStockQuotes, type StockQuote,
   getPortfolioSnapshots, savePortfolioSnapshot,
   getTurboHistory, saveTurboMonth, deleteTurboRecord,
   getScoreHistory, saveScoreSnapshot,
@@ -228,6 +228,11 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       setAccounts(accs);
       setInvestments(Array.isArray(loadedInvestments) ? loadedInvestments : []);
       setStockTrades(Array.isArray(loadedStocks) ? loadedStocks : []);
+      if (Array.isArray(loadedStocks) && loadedStocks.length > 0) {
+        refreshStockQuotes(loadedStocks, Array.isArray(loadedQuotes) ? loadedQuotes : [])
+          .then(({ quotes }) => setStockQuotes(quotes))
+          .catch(() => {});
+      }
       setInvForm((prev) => ({
         ...prev,
         account_id: prev.account_id || (accs[0]?.id ?? ""),

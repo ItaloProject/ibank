@@ -1,276 +1,260 @@
 /**
- * Rentabilidade esperada da carteira real do usuário.
+ * Converte a carteira real do usuário em posições para o motor de projeção.
  *
- * Cada posição rende pela sua própria regra (% do CDI, Selic + spread, prefixado
- * até o vencimento, IPCA + spread, poupança, dividendos de FII, premissa de ações).
- * Os juros pós-fixados partem do CDI de hoje e convergem ao juro neutro em
- * YEARS_TO_NEUTRAL anos, então a taxa média depende do prazo simulado.
+ * Taxa de cada conta, por ordem de confiança: campos cadastrados (rate_index…),
+ * regra lida no nome/instituição (contas antigas), média dos rendimentos
+ * registrados e, por último, 100% do CDI sinalizado como estimativa.
+ * Custo e idade (para o IR) vêm das datas reais de aportes e compras.
  */
 import type { Investment, InvestmentAccount, StockTrade } from "@/types/database";
-import { accountBalance, computeStockPositions, detectAssetType } from "@/lib/stock-utils";
+import { computeStockPositions, detectAssetType } from "@/lib/stock-utils";
 import { isCashAccountName, isEmergencyAccountName } from "@/lib/account-groups";
+import { accountRateFromText, describeRate, type AccountRate } from "@/lib/account-rate";
+import type { Curve } from "@/lib/market-curve";
+import { longTermRate, ruleAnnual, type Position, type Rule, type TaxMode } from "@/lib/projection";
 
-/** Juro real neutro estimado pelo Banco Central (% a.a.). */
-export const NEUTRAL_REAL_RATE = 5;
-/** Anos até o CDI de hoje convergir ao juro neutro. */
-export const YEARS_TO_NEUTRAL = 3;
 /** Retorno real de longo prazo assumido para ações (% a.a. acima do IPCA). */
 export const EQUITY_REAL_RETURN = 7;
 /** DY usado para FIIs sem dado de mercado: ~0,85% ao mês. */
 export const FII_DEFAULT_DY = (Math.pow(1.0085, 12) - 1) * 100;
-/** Alíquota de IR de longo prazo sobre ganhos (renda fixa > 2 anos e ações). */
-export const LONG_TERM_TAX = 0.15;
 
 export type AssetClass = "turbo" | "emergencia" | "renda_fixa" | "acoes" | "fiis" | "caixa";
-
-type Rule =
-  | { k: "cdi"; pct: number }
-  | { k: "selic"; spread: number }
-  | { k: "pre"; taxa: number; ate: number | null }
-  | { k: "ipca"; spread: number }
-  | { k: "poupanca" }
-  | { k: "fixa"; taxa: number };
+export type RateOrigin = "cadastrada" | "nome" | "media" | "estimada" | "mercado";
 
 export type PortfolioRow = {
   id: string;
+  /** Conta editável (id da investment_account) ou null para ações/FIIs agregados. */
+  accountId: string | null;
   nome: string;
   classe: AssetClass;
   valor: number;
   peso: number;
-  /** Taxa bruta esperada no primeiro ano (% a.a.). */
-  taxaHoje: number;
-  /** Alíquota de IR aplicada ao rendimento (0–1). */
-  ir: number;
+  /** Taxa bruta esperada nos próximos 12 meses (% a.a.). */
+  taxa12m: number;
+  /** Alíquota de longo prazo aplicada na visão líquida (0–1). */
+  irLongo: number;
   fonte: string;
-  presumida: boolean;
-  rule: Rule;
+  origem: RateOrigin;
+  rate: AccountRate | null;
 };
 
-export type PortfolioMarket = {
-  cdi: number;
-  selic: number;
-  ipca: number;
-  /** DY 12 meses por ticker de FII (%), quando disponível. */
-  fiiDy?: Record<string, number>;
-};
-
-export type PortfolioReturn = {
+export type Portfolio = {
   total: number;
-  rows: PortfolioRow[];
-  /** Taxa bruta ponderada do primeiro ano (% a.a.). */
-  hoje: number;
-  hojeLiquida: number;
-  neutro: number;
   caixa: number;
-  /** Taxa média anual equivalente para `anos` (% a.a.). */
-  media: (anos: number, liquida: boolean) => number;
+  rows: PortfolioRow[];
+  positions: Position[];
 };
 
-function num(raw: string): number {
-  return raw.includes(",") ? Number(raw.replace(/\./g, "").replace(",", ".")) : Number(raw);
-}
+type Quote = { ticker: string; current_price: number };
 
-function plain(s: string): string {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const MONTH_MS = (365.25 / 12) * 24 * 3600 * 1000;
+
+function monthsBetween(fromIso: string, to: Date): number {
+  const d = new Date(`${fromIso.slice(0, 10)}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? 0 : Math.max(0, (to.getTime() - d.getTime()) / MONTH_MS);
 }
 
 function fmtPct(n: number, digits = 2): string {
   return `${n.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: digits })}%`;
 }
 
-/** Lê a regra de rentabilidade no nome/instituição da conta ("IPCA + 6,92%", "110% CDI", "13,85% a.a."…). */
-export function parseRule(text: string): { rule: Rule; fonte: string; isento: boolean } | null {
-  const t = plain(text);
-  const isento = /\b(lci|lca|poup)/.test(t);
-  const year = t.match(/\b(20[2-9]\d)\b/);
-  const ate = year ? Number(year[1]) : null;
-
-  const ipca = t.match(/ipca\s*\+\s*([\d.,]+)\s*%/);
-  if (ipca) {
-    const spread = num(ipca[1]);
-    return { rule: { k: "ipca", spread }, fonte: `IPCA + ${fmtPct(spread)}`, isento };
-  }
-  const selicPlus = t.match(/selic\s*\+\s*([\d.,]+)\s*%/);
-  if (selicPlus) {
-    const spread = num(selicPlus[1]);
-    return { rule: { k: "selic", spread }, fonte: `Selic + ${fmtPct(spread, 4)}`, isento };
-  }
-  const cdi = t.match(/([\d.,]+)\s*%\s*(do\s+)?cdi/);
-  if (cdi) {
-    const pct = num(cdi[1]);
-    return { rule: { k: "cdi", pct }, fonte: `${fmtPct(pct, 1)} do CDI`, isento };
-  }
-  const pre = t.match(/([\d.,]+)\s*%\s*(a\.?\s*a|ao ano)/);
-  if (pre) {
-    const taxa = num(pre[1]);
-    return {
-      rule: { k: "pre", taxa, ate },
-      fonte: `Prefixado ${fmtPct(taxa)}${ate ? ` até ${ate}` : ""}`,
-      isento,
-    };
-  }
-  if (/selic/.test(t)) return { rule: { k: "selic", spread: 0 }, fonte: "Selic", isento };
-  if (/poup/.test(t)) return { rule: { k: "poupanca" }, fonte: "Regra da poupança", isento: true };
-  if (/\b(lci|lca)\b/.test(t)) return { rule: { k: "cdi", pct: 90 }, fonte: "90% do CDI (típico de LCI/LCA)", isento: true };
-  return null;
-}
-
-export function neutralRate(ipca: number): number {
-  return ((1 + ipca / 100) * (1 + NEUTRAL_REAL_RATE / 100) - 1) * 100;
-}
-
-function cdiAt(m: PortfolioMarket, y: number): number {
-  const neutro = neutralRate(m.ipca);
-  if (y > YEARS_TO_NEUTRAL) return neutro;
-  return m.cdi + ((neutro - m.cdi) * (y - 1)) / YEARS_TO_NEUTRAL;
-}
-
-/** Taxa bruta (% a.a.) de uma regra no ano `y` da simulação (1 = próximos 12 meses). */
-export function rateAt(rule: Rule, m: PortfolioMarket, y: number, startYear: number): number {
-  const cdi = cdiAt(m, y);
-  const selic = cdi + (m.selic - m.cdi);
-  switch (rule.k) {
-    case "cdi":
-      return (cdi * rule.pct) / 100;
-    case "selic":
-      return selic + rule.spread;
-    case "pre":
-      return rule.ate != null && startYear + y - 1 >= rule.ate ? cdi : rule.taxa;
-    case "ipca":
-      return ((1 + m.ipca / 100) * (1 + rule.spread / 100) - 1) * 100;
-    case "poupanca":
-      return selic > 8.5 ? (Math.pow(1.005, 12) - 1) * 100 : selic * 0.7;
-    case "fixa":
-      return rule.taxa;
+function ruleFromRate(r: AccountRate): Rule {
+  switch (r.rate_index) {
+    case "cdi": return { k: "cdi", pct: r.rate_value };
+    case "selic": return { k: "selic", spread: r.rate_value };
+    case "ipca": return { k: "ipca", spread: r.rate_value };
+    case "pre": return { k: "pre", taxa: r.rate_value };
+    case "poupanca": return { k: "poupanca" };
   }
 }
 
-type Quote = { ticker: string; current_price: number };
+function maturityMonths(iso: string | null, start: Date): number | null {
+  if (!iso) return null;
+  const d = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.max(0, Math.ceil((d.getTime() - start.getTime()) / MONTH_MS));
+}
 
-export function computePortfolioReturn(
+/** Custo (aportes líquidos) e idade média ponderada dos aportes de uma conta. */
+function costAndAge(investments: Investment[], accountId: string, valor: number, createdAt: string, start: Date) {
+  let custo = 0;
+  let pesoIdade = 0;
+  let somaIdade = 0;
+  for (const i of investments) {
+    if (i.account_id !== accountId) continue;
+    if (i.type === "deposito") {
+      custo += i.amount;
+      somaIdade += i.amount * monthsBetween(i.date, start);
+      pesoIdade += i.amount;
+    } else if (i.type === "retirada") {
+      custo -= i.amount;
+    }
+  }
+  const idade = pesoIdade > 0 ? somaIdade / pesoIdade : createdAt ? monthsBetween(createdAt, start) : 0;
+  return { custo: Math.min(Math.max(0, custo), valor) || valor, idade };
+}
+
+function avgRendimentoRate(investments: Investment[], accountId: string, valor: number): { taxa: number; meses: number } | null {
+  const byMonth = new Map<string, number>();
+  for (const r of investments) {
+    if (r.account_id !== accountId || r.type !== "rendimento") continue;
+    const k = r.date.slice(0, 7);
+    byMonth.set(k, (byMonth.get(k) ?? 0) + r.amount);
+  }
+  if (byMonth.size < 2) return null;
+  const avg = [...byMonth.values()].reduce((s, v) => s + v, 0) / byMonth.size;
+  const taxa = (Math.pow(1 + avg / valor, 12) - 1) * 100;
+  return Number.isFinite(taxa) && taxa > 0 && taxa < 40 ? { taxa, meses: byMonth.size } : null;
+}
+
+function balanceOf(investments: Investment[], accountId: string): number {
+  let s = 0;
+  for (const i of investments) if (i.account_id === accountId) s += i.type === "retirada" ? -i.amount : i.amount;
+  return s;
+}
+
+export function buildPortfolio(
   accounts: InvestmentAccount[],
   investments: Investment[],
   trades: StockTrade[],
   quotes: Quote[],
-  market: PortfolioMarket,
-  startYear = new Date().getFullYear(),
-): PortfolioReturn | null {
-  const rows: Omit<PortfolioRow, "peso" | "taxaHoje">[] = [];
+  curve: Curve,
+  fiiDy: Record<string, number> = {},
+  start: Date = new Date(),
+): Portfolio | null {
+  type Draft = Omit<PortfolioRow, "peso" | "taxa12m" | "irLongo"> & { pos: Omit<Position, "pesoAporte"> };
+  const drafts: Draft[] = [];
 
   for (const a of accounts) {
-    const valor = a.is_turbo ? a.current_balance : accountBalance(investments, a.id);
+    const valor = a.is_turbo ? a.current_balance : balanceOf(investments, a.id);
     if (!(valor > 0.005)) continue;
+    const { custo, idade } = costAndAge(investments, a.id, valor, a.created_at, start);
+    const base = { id: a.id, valor, custo, idadeMeses: idade };
 
     if (isCashAccountName(a.name)) {
-      rows.push({ id: a.id, nome: a.name, classe: "caixa", valor, ir: 0, fonte: "Parado, sem render", presumida: false, rule: { k: "fixa", taxa: 0 } });
+      drafts.push({
+        id: a.id, accountId: null, nome: a.name, classe: "caixa", valor, fonte: "Parado, sem render", origem: "cadastrada", rate: null,
+        pos: { ...base, rule: { k: "fixa", taxa: 0 }, vencimento: null, tax: "isento" },
+      });
       continue;
     }
     if (a.is_turbo) {
       const pct = a.cdi_percent ?? 115;
-      const teto = a.max_rendimento ?? 0;
-      const acimaDoTeto = teto > 0 && valor > teto;
-      const efetivo = acimaDoTeto ? (teto * pct + (valor - teto) * 100) / valor : pct;
-      const fonte = acimaDoTeto
-        ? `${fmtPct(pct, 1)} do CDI até ${teto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}; o excedente, 100%`
+      const teto = a.max_rendimento && a.max_rendimento > 0 ? a.max_rendimento : null;
+      const fonte = teto
+        ? `${fmtPct(pct, 1)} do CDI até ${teto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}; acima disso, 100%`
         : `${fmtPct(pct, 1)} do CDI`;
-      rows.push({ id: a.id, nome: a.name, classe: "turbo", valor, ir: LONG_TERM_TAX, fonte, presumida: a.cdi_percent == null, rule: { k: "cdi", pct: efetivo } });
+      drafts.push({
+        id: a.id, accountId: null, nome: a.name, classe: "turbo", valor, fonte, origem: a.cdi_percent == null ? "estimada" : "cadastrada", rate: null,
+        pos: { ...base, rule: { k: "cdi", pct }, teto, vencimento: null, tax: "regressivo" },
+      });
       continue;
     }
 
     const classe: AssetClass = isEmergencyAccountName(a.name) ? "emergencia" : "renda_fixa";
-    const parsed = parseRule(`${a.name} ${a.institution ?? ""}`);
-    if (parsed) {
-      rows.push({ id: a.id, nome: a.name, classe, valor, ir: parsed.isento ? 0 : LONG_TERM_TAX, fonte: parsed.fonte, presumida: false, rule: parsed.rule });
+    const stored: AccountRate | null = a.rate_index
+      ? { rate_index: a.rate_index, rate_value: a.rate_value ?? 0, maturity: a.maturity ?? null, tax_exempt: Boolean(a.tax_exempt) }
+      : null;
+    const rate = stored ?? accountRateFromText(`${a.name} ${a.institution ?? ""}`);
+    if (rate) {
+      const tax: TaxMode = rate.tax_exempt || rate.rate_index === "poupanca" ? "isento" : "regressivo";
+      drafts.push({
+        id: a.id, accountId: a.id, nome: a.name, classe, valor, fonte: describeRate(rate), origem: stored ? "cadastrada" : "nome", rate,
+        pos: { ...base, rule: ruleFromRate(rate), vencimento: maturityMonths(rate.maturity, start), tax },
+      });
       continue;
     }
-
-    const rends = investments.filter((i) => i.account_id === a.id && i.type === "rendimento");
-    const byMonth = new Map<string, number>();
-    for (const r of rends) byMonth.set(r.date.slice(0, 7), (byMonth.get(r.date.slice(0, 7)) ?? 0) + r.amount);
-    if (byMonth.size >= 2) {
-      const avg = [...byMonth.values()].reduce((s, v) => s + v, 0) / byMonth.size;
-      const taxa = (Math.pow(1 + avg / valor, 12) - 1) * 100;
-      if (Number.isFinite(taxa) && taxa > 0 && taxa < 40) {
-        rows.push({
-          id: a.id, nome: a.name, classe, valor, ir: LONG_TERM_TAX,
-          fonte: `Média dos rendimentos registrados (${byMonth.size} meses)`,
-          presumida: false, rule: { k: "fixa", taxa },
-        });
-        continue;
-      }
+    const media = avgRendimentoRate(investments, a.id, valor);
+    if (media) {
+      drafts.push({
+        id: a.id, accountId: a.id, nome: a.name, classe, valor, fonte: `Média dos rendimentos registrados (${media.meses} meses)`, origem: "media", rate: null,
+        pos: { ...base, rule: { k: "fixa", taxa: media.taxa }, vencimento: null, tax: "regressivo" },
+      });
+      continue;
     }
-    rows.push({ id: a.id, nome: a.name, classe, valor, ir: LONG_TERM_TAX, fonte: "100% do CDI (taxa não informada)", presumida: true, rule: { k: "cdi", pct: 100 } });
+    drafts.push({
+      id: a.id, accountId: a.id, nome: a.name, classe, valor, fonte: "100% do CDI (taxa não cadastrada)", origem: "estimada", rate: null,
+      pos: { ...base, rule: { k: "cdi", pct: 100 }, vencimento: null, tax: "regressivo" },
+    });
   }
 
   const priceOf = new Map(quotes.map((q) => [q.ticker, q.current_price]));
-  let acoes = 0;
-  const acoesTickers: string[] = [];
-  let fiis = 0;
-  let fiiDyWeighted = 0;
-  let fiiLive = 0;
-  const fiiTickers: string[] = [];
+  const tradeAge = new Map<string, { soma: number; peso: number }>();
+  for (const t of trades) {
+    if (t.type !== "compra") continue;
+    const cur = tradeAge.get(t.ticker) ?? { soma: 0, peso: 0 };
+    cur.soma += t.total_amount * monthsBetween(t.date, start);
+    cur.peso += t.total_amount;
+    tradeAge.set(t.ticker, cur);
+  }
+  const acc = { acoes: { valor: 0, custo: 0, idade: 0, tickers: [] as string[] }, fiis: { valor: 0, custo: 0, idade: 0, dy: 0, live: 0, tickers: [] as string[] } };
   for (const p of computeStockPositions(trades)) {
     const price = priceOf.get(p.ticker);
     const valor = price != null && price > 0 ? price * p.quantity : p.totalInvested;
     if (!(valor > 0)) continue;
+    const age = tradeAge.get(p.ticker);
+    const idade = age && age.peso > 0 ? age.soma / age.peso : 0;
     if (detectAssetType(p.ticker) === "FII") {
-      const live = market.fiiDy?.[p.ticker];
+      const live = fiiDy[p.ticker];
       const dy = live != null && live > 0 ? live : FII_DEFAULT_DY;
-      if (live != null && live > 0) fiiLive += valor;
-      fiis += valor;
-      fiiDyWeighted += valor * dy;
-      fiiTickers.push(p.ticker);
+      acc.fiis.valor += valor;
+      acc.fiis.custo += p.totalInvested;
+      acc.fiis.idade += valor * idade;
+      acc.fiis.dy += valor * dy;
+      if (live != null && live > 0) acc.fiis.live += valor;
+      acc.fiis.tickers.push(p.ticker);
     } else {
-      acoes += valor;
-      acoesTickers.push(p.ticker);
+      acc.acoes.valor += valor;
+      acc.acoes.custo += p.totalInvested;
+      acc.acoes.idade += valor * idade;
+      acc.acoes.tickers.push(p.ticker);
     }
   }
-  if (acoes > 0) {
-    const taxa = ((1 + market.ipca / 100) * (1 + EQUITY_REAL_RETURN / 100) - 1) * 100;
-    rows.push({
-      id: "acoes", nome: `Ações · ${acoesTickers.join(", ")}`, classe: "acoes", valor: acoes, ir: LONG_TERM_TAX,
-      fonte: `IPCA + ${EQUITY_REAL_RETURN}% (longo prazo)`, presumida: false, rule: { k: "fixa", taxa },
+  if (acc.acoes.valor > 0) {
+    const a = acc.acoes;
+    drafts.push({
+      id: "acoes", accountId: null, nome: `Ações · ${a.tickers.join(", ")}`, classe: "acoes", valor: a.valor,
+      fonte: `IPCA + ${EQUITY_REAL_RETURN}% (retorno real de longo prazo)`, origem: "mercado", rate: null,
+      pos: { id: "acoes", valor: a.valor, custo: a.custo, idadeMeses: a.idade / a.valor, rule: { k: "ipca", spread: EQUITY_REAL_RETURN }, vencimento: null, tax: "acoes" },
     });
   }
-  if (fiis > 0) {
-    const taxa = fiiDyWeighted / fiis;
-    rows.push({
-      id: "fiis", nome: `FIIs · ${fiiTickers.join(", ")}`, classe: "fiis", valor: fiis, ir: 0,
-      fonte: fiiLive >= fiis * 0.5 ? "Dividendos dos últimos 12 meses" : "Dividendos estimados (~0,85% ao mês)",
-      presumida: fiiLive < fiis * 0.5, rule: { k: "fixa", taxa },
+  if (acc.fiis.valor > 0) {
+    const f = acc.fiis;
+    const aoVivo = f.live >= f.valor * 0.5;
+    drafts.push({
+      id: "fiis", accountId: null, nome: `FIIs · ${f.tickers.join(", ")}`, classe: "fiis", valor: f.valor,
+      fonte: aoVivo ? "Dividendos pagos nos últimos 12 meses" : "Dividendos estimados (~0,85% ao mês)", origem: aoVivo ? "mercado" : "estimada", rate: null,
+      pos: { id: "fiis", valor: f.valor, custo: f.custo, idadeMeses: f.idade / f.valor, rule: { k: "fixa", taxa: f.dy / f.valor }, vencimento: null, tax: "isento" },
     });
   }
 
-  const total = rows.reduce((s, r) => s + r.valor, 0);
+  const total = drafts.reduce((s, d) => s + d.valor, 0);
   if (!(total > 0)) return null;
 
-  const full: PortfolioRow[] = rows
-    .map((r) => ({ ...r, peso: r.valor / total, taxaHoje: rateAt(r.rule, market, 1, startYear) }))
+  const investido = drafts.filter((d) => d.classe !== "caixa").reduce((s, d) => s + d.valor, 0);
+  const positions: Position[] = drafts.map((d) => ({
+    ...d.pos,
+    pesoAporte: d.classe === "caixa" || investido <= 0 ? 0 : d.valor / investido,
+  }));
+  if (investido <= 0) {
+    positions.push({ id: "novos", valor: 0, custo: 0, idadeMeses: 0, rule: { k: "cdi", pct: 100 }, vencimento: null, tax: "regressivo", pesoAporte: 1 });
+  }
+
+  const rows: PortfolioRow[] = drafts
+    .map((d) => ({
+      ...d,
+      peso: d.valor / total,
+      taxa12m: ruleAnnual(d.pos.rule, curve, 0, d.pos.vencimento),
+      irLongo: longTermRate(d.pos.tax),
+    }))
+    .map(({ pos: _pos, ...row }) => row)
     .sort((a, b) => b.valor - a.valor);
 
-  const yearRate = (y: number, liquida: boolean) =>
-    full.reduce((s, r) => s + r.peso * rateAt(r.rule, market, y, startYear) * (liquida ? 1 - r.ir : 1), 0);
+  return { total, caixa: drafts.filter((d) => d.classe === "caixa").reduce((s, d) => s + d.valor, 0), rows, positions };
+}
 
-  const cache = new Map<string, number>();
-  const media = (anos: number, liquida: boolean) => {
-    const n = Math.max(1, Math.round(anos));
-    const key = `${n}:${liquida}`;
-    const hit = cache.get(key);
-    if (hit != null) return hit;
-    let growth = 1;
-    for (let y = 1; y <= n; y++) growth *= 1 + yearRate(y, liquida) / 100;
-    const v = (Math.pow(growth, 1 / n) - 1) * 100;
-    cache.set(key, v);
-    return v;
-  };
-
-  return {
-    total,
-    rows: full,
-    hoje: yearRate(1, false),
-    hojeLiquida: yearRate(1, true),
-    neutro: neutralRate(market.ipca),
-    caixa: full.filter((r) => r.classe === "caixa").reduce((s, r) => s + r.valor, 0),
-    media,
-  };
+/** Escala as posições para outro valor inicial, mantendo a mesma composição. */
+export function scalePositions(positions: Position[], factor: number): Position[] {
+  if (factor === 1) return positions;
+  return positions.map((p) => ({ ...p, valor: p.valor * factor, custo: p.custo * factor }));
 }

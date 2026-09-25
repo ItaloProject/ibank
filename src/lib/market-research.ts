@@ -3,9 +3,14 @@ export type MarketRates = {
   cdiAnual: number;
   /** IPCA acumulado em 12 meses (% a.a.). */
   ipca12m?: number;
+  /** Mediana do Boletim Focus: Selic no fim de cada ano e IPCA de cada ano (% a.a.). */
+  focus?: FocusExpectations;
   updatedAt: string;
   source: "bcb" | "fallback";
 };
+
+export type FocusYear = { ano: number; valor: number };
+export type FocusExpectations = { data: string; selic: FocusYear[]; ipca: FocusYear[] };
 
 export type FiiResearchItem = {
   ticker: string;
@@ -71,17 +76,53 @@ async function fetchBcbSerie(url: string): Promise<{ data: string; valor: number
   }
 }
 
+const FOCUS_URL =
+  "https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/ExpectativasMercadoAnuais" +
+  "?$top=60&$filter=(Indicador%20eq%20'Selic'%20or%20Indicador%20eq%20'IPCA')%20and%20baseCalculo%20eq%200" +
+  "&$orderby=Data%20desc&$format=json&$select=Indicador,Data,DataReferencia,Mediana";
+
+type FocusRow = { Indicador: string; Data: string; DataReferencia: string; Mediana: number };
+
+/** Última divulgação do Focus para cada indicador (mediana por ano de referência). */
+export async function fetchFocus(): Promise<FocusExpectations | undefined> {
+  try {
+    const res = await fetch(FOCUS_URL, { next: { revalidate: 21600 } });
+    if (!res.ok) return undefined;
+    const json = (await res.json()) as { value?: FocusRow[] };
+    const rows = Array.isArray(json.value) ? json.value : [];
+    const pick = (indicador: string): FocusYear[] => {
+      const own = rows.filter((r) => r.Indicador === indicador && Number.isFinite(Number(r.Mediana)));
+      if (own.length === 0) return [];
+      const latest = own[0].Data;
+      return own
+        .filter((r) => r.Data === latest)
+        .map((r) => ({ ano: Number(r.DataReferencia), valor: Number(r.Mediana) }))
+        .filter((r) => Number.isInteger(r.ano))
+        .sort((a, b) => a.ano - b.ano);
+    };
+    const selic = pick("Selic");
+    const ipca = pick("IPCA");
+    if (selic.length === 0 && ipca.length === 0) return undefined;
+    const data = rows.find((r) => r.Indicador === "Selic")?.Data ?? rows[0]?.Data ?? "";
+    return { data, selic, ipca };
+  } catch {
+    return undefined;
+  }
+}
+
 export async function fetchMarketRates(): Promise<MarketRates> {
-  const [selic, cdi, ipca] = await Promise.all([
+  const [selic, cdi, ipca, focus] = await Promise.all([
     fetchBcbSerie(SELIC_URL),
     fetchBcbSerie(CDI_URL),
     fetchBcbSerie(IPCA_12M_URL),
+    fetchFocus(),
   ]);
   if (selic) {
     return {
       selicAnual: selic.valor,
       cdiAnual: cdi?.valor ?? Math.max(selic.valor - 0.1, 0),
       ipca12m: ipca && Number.isFinite(ipca.valor) ? ipca.valor : undefined,
+      focus,
       updatedAt: selic.data,
       source: "bcb",
     };
@@ -89,6 +130,7 @@ export async function fetchMarketRates(): Promise<MarketRates> {
   return {
     selicAnual: 15.0,
     cdiAnual: 14.9,
+    focus,
     updatedAt: new Date().toLocaleDateString("pt-BR"),
     source: "fallback",
   };

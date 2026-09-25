@@ -23,6 +23,7 @@ import {
   type TesouroProduct,
 } from "@/components/investimentos/simulator-invest-flow";
 import type { InvestorLiveViewProps } from "./investor-live-view";
+import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 import {
   FOCUS,
   LABEL,
@@ -144,6 +145,7 @@ export function InvestorLiveViewDesktop({
   const [newCaixinhaName, setNewCaixinhaName] = useState("");
   const [newCaixinhaInstituicao, setNewCaixinhaInstituicao] = useState("");
   const [newCaixinhaCdiMask, setNewCaixinhaCdiMask] = useState("");
+  const [newCaixinhaRate, setNewCaixinhaRate] = useState<RateDraft>(EMPTY_RATE_DRAFT);
   const [newCaixinhaTetoMask, setNewCaixinhaTetoMask] = useState("");
   const [newCaixinhaSubmitting, setNewCaixinhaSubmitting] = useState(false);
   const [newCaixinhaError, setNewCaixinhaError] = useState<string | null>(null);
@@ -278,7 +280,7 @@ export function InvestorLiveViewDesktop({
     if (existing) {
       accountId = existing.id;
     } else {
-      const acc = await createInvestmentAccount({ name: product.nome, institution: product.taxa });
+      const acc = await createInvestmentAccount({ name: product.nome, institution: product.taxa, ...product.rate });
       accountId = acc.id;
       createdAccount = true;
     }
@@ -444,6 +446,7 @@ export function InvestorLiveViewDesktop({
     setNewCaixinhaInstituicao("");
     setNewCaixinhaCdiMask("");
     setNewCaixinhaTetoMask("");
+    setNewCaixinhaRate(tipo === "emergencia" ? { ...EMPTY_RATE_DRAFT, index: "cdi", value: "100" } : EMPTY_RATE_DRAFT);
     setNewCaixinhaError(null);
     setNewCaixinhaOpen(true);
   }
@@ -451,6 +454,11 @@ export function InvestorLiveViewDesktop({
   async function confirmNewCaixinha() {
     const name = newCaixinhaName.trim();
     if (!name || newCaixinhaSubmitting) return;
+    const rate = newCaixinhaTipo === "turbo" ? null : rateFromDraft(newCaixinhaRate);
+    if (typeof rate === "string") {
+      setNewCaixinhaError(rate);
+      return;
+    }
     setNewCaixinhaSubmitting(true);
     setNewCaixinhaError(null);
     try {
@@ -466,6 +474,7 @@ export function InvestorLiveViewDesktop({
         is_turbo: newCaixinhaTipo === "turbo",
         cdi_percent: newCaixinhaTipo === "turbo" && cdi > 0 ? cdi : null,
         max_rendimento: newCaixinhaTipo === "turbo" && teto > 0 ? teto : null,
+        ...(rate ?? {}),
       });
       await onRefresh();
       toast.success(`Caixinha "${finalName}" criada`);
@@ -1228,6 +1237,8 @@ export function InvestorLiveViewDesktop({
               </div>
             </div>
           )}
+
+          {newCaixinhaTipo !== "turbo" && <RateFields value={newCaixinhaRate} onChange={setNewCaixinhaRate} />}
 
           {newCaixinhaError && <p role="alert" className={`text-xs ${LOSS} rounded-xl bg-red-500/10 px-3 py-2`}>{newCaixinhaError}</p>}
 

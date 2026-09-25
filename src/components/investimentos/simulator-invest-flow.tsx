@@ -3,6 +3,7 @@
 import { useMemo, useState, type ElementType, type FormEvent } from "react";
 import { ChevronRight, Landmark, TrendingUp, Zap, Shield, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import type { AccountRate } from "@/lib/account-rate";
 import {
   FOCUS, LABEL, MONEY, BTN_PRIMARY, BTN_SECONDARY, ROW, INPUT_BOX, LOSS, ATTENTION,
   LiveSheet, BackLink,
@@ -23,6 +24,7 @@ export type TesouroProduct = {
   taxa: string;
   descricao: string;
   color: string;
+  rate: AccountRate;
 };
 
 export type AporteAccount = {
@@ -152,6 +154,7 @@ export const DEFAULT_TESOURO_PRODUCTS: TesouroProduct[] = [
     taxa: "Selic + 0,0463%",
     descricao: "Liquidez diária · ideal para reserva",
     color: "#3b82f6",
+    rate: { rate_index: "selic", rate_value: 0.0463, maturity: "2029-03-01", tax_exempt: false },
   },
   {
     id: "prefix-2029",
@@ -159,6 +162,7 @@ export const DEFAULT_TESOURO_PRODUCTS: TesouroProduct[] = [
     taxa: "13,85% a.a.",
     descricao: "Taxa travada até o vencimento",
     color: "#10b981",
+    rate: { rate_index: "pre", rate_value: 13.85, maturity: "2029-01-01", tax_exempt: false },
   },
   {
     id: "ipca-2035",
@@ -166,6 +170,7 @@ export const DEFAULT_TESOURO_PRODUCTS: TesouroProduct[] = [
     taxa: "IPCA + 6,92%",
     descricao: "Proteção contra inflação",
     color: "#8b5cf6",
+    rate: { rate_index: "ipca", rate_value: 6.92, maturity: "2035-05-15", tax_exempt: false },
   },
 ];
 

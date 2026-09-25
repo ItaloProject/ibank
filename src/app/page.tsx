@@ -12,7 +12,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
-import { getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes } from "@/lib/api";
+import { getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes, refreshStockQuotes } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { accountBalance } from "@/lib/stock-utils";
 import { INVESTMENT_TYPE_COLORS } from "@/lib/investment-colors";
@@ -94,6 +94,11 @@ export default function DashboardPage() {
       setInvestments(Array.isArray(i) ? (i as Investment[]) : []);
       setStockTrades(Array.isArray(st) ? (st as StockTrade[]) : []);
       setStockQuotes(Array.isArray(sq) ? (sq as StockQuote[]) : []);
+      if (Array.isArray(st) && st.length > 0) {
+        refreshStockQuotes(st as StockTrade[], Array.isArray(sq) ? (sq as StockQuote[]) : [])
+          .then(({ quotes }) => setStockQuotes(quotes))
+          .catch(() => {});
+      }
       setPlanSalary(Number((salaryData as { salary?: number })?.salary) || 0);
       setPlanGroups(Array.isArray(groupsData) ? (groupsData as PlanGroup[]) : []);
       setPlanItems(Array.isArray(itemsData)

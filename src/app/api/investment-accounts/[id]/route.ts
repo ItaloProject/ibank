@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
+import { ensureAccountColumns } from "@/lib/account-schema";
+import { validateAccountRate } from "@/lib/account-rate";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -9,6 +11,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { userId } = auth;
     const { id } = await params;
     const body = await request.json();
+
+    // Rentabilidade contratada (indexador, taxa, vencimento, isenção)
+    if (body.rate_index !== undefined) {
+      await ensureAccountColumns();
+      if (body.rate_index === null) {
+        const rows = await sql`
+          UPDATE investment_accounts
+          SET rate_index = NULL, rate_value = NULL, maturity = NULL, tax_exempt = NULL
+          WHERE id = ${id} AND user_id = ${userId} RETURNING *
+        `;
+        return rows[0] ? NextResponse.json(rows[0]) : NextResponse.json({ error: "Conta não encontrada" }, { status: 404 });
+      }
+      const rate = validateAccountRate(body);
+      if ("error" in rate) return NextResponse.json({ error: rate.error }, { status: 400 });
+      const rows = await sql`
+        UPDATE investment_accounts
+        SET rate_index = ${rate.rate_index}, rate_value = ${rate.rate_value},
+            maturity = ${rate.maturity}, tax_exempt = ${rate.tax_exempt}
+        WHERE id = ${id} AND user_id = ${userId} RETURNING *
+      `;
+      return rows[0] ? NextResponse.json(rows[0]) : NextResponse.json({ error: "Conta não encontrada" }, { status: 404 });
+    }
 
     // Rename + optional TURBO settings
     if (body.name !== undefined) {

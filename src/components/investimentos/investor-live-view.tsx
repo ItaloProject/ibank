@@ -35,6 +35,7 @@ import {
   type MarketSection,
   type TesouroProduct,
 } from "@/components/investimentos/simulator-invest-flow";
+import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -387,6 +388,7 @@ export function InvestorLiveView({
   const [newCaixinhaInstituicao, setNewCaixinhaInstituicao] = useState("");
   const [newCaixinhaTipo, setNewCaixinhaTipo] = useState<"turbo" | "emergencia" | "investimentos">("investimentos");
   const [newCaixinhaCdiMask, setNewCaixinhaCdiMask] = useState("");
+  const [newCaixinhaRate, setNewCaixinhaRate] = useState<RateDraft>(EMPTY_RATE_DRAFT);
   const [newCaixinhaTetoMask, setNewCaixinhaTetoMask] = useState("");
   const [newCaixinhaSubmitting, setNewCaixinhaSubmitting] = useState(false);
   const [newCaixinhaError, setNewCaixinhaError] = useState<string | null>(null);
@@ -573,6 +575,7 @@ export function InvestorLiveView({
     setNewCaixinhaTipo("investimentos");
     setNewCaixinhaCdiMask("");
     setNewCaixinhaTetoMask("");
+    setNewCaixinhaRate(EMPTY_RATE_DRAFT);
     setNewCaixinhaError(null);
     setNewCaixinhaOpen(true);
   }
@@ -580,6 +583,11 @@ export function InvestorLiveView({
   async function confirmNewCaixinha() {
     const name = newCaixinhaName.trim();
     if (!name || newCaixinhaSubmitting) return;
+    const rate = newCaixinhaTipo === "turbo" ? null : rateFromDraft(newCaixinhaRate);
+    if (typeof rate === "string") {
+      setNewCaixinhaError(rate);
+      return;
+    }
     setNewCaixinhaSubmitting(true);
     setNewCaixinhaError(null);
     try {
@@ -595,6 +603,7 @@ export function InvestorLiveView({
         is_turbo: newCaixinhaTipo === "turbo",
         cdi_percent: newCaixinhaTipo === "turbo" && cdi > 0 ? cdi : null,
         max_rendimento: newCaixinhaTipo === "turbo" && teto > 0 ? teto : null,
+        ...(rate ?? {}),
       });
       await onRefresh();
       toast.success(`Caixinha "${finalName}" criada`);
@@ -917,7 +926,7 @@ export function InvestorLiveView({
     if (existing) {
       accountId = existing.id;
     } else {
-      const acc = await createInvestmentAccount({ name: product.nome, institution: product.taxa });
+      const acc = await createInvestmentAccount({ name: product.nome, institution: product.taxa, ...product.rate });
       accountId = acc.id;
       createdAccount = true;
     }
@@ -2072,6 +2081,12 @@ export function InvestorLiveView({
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {newCaixinhaTipo !== "turbo" && (
+            <div className="mb-4">
+              <RateFields value={newCaixinhaRate} onChange={setNewCaixinhaRate} />
             </div>
           )}
 

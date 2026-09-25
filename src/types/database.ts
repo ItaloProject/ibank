@@ -12,6 +12,11 @@ export interface InvestmentAccount {
   cdi_percent: number | null;
   max_rendimento: number | null;
   valor_liquido: number | null;
+  // Rentabilidade contratada (ver lib/account-rate)
+  rate_index?: "cdi" | "selic" | "ipca" | "pre" | "poupanca" | null;
+  rate_value?: number | null;
+  maturity?: string | null;
+  tax_exempt?: boolean | null;
 }
 
 export interface Investment {

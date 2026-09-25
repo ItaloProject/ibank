@@ -8,6 +8,8 @@ import type {
   ScoreSnapshot,
 } from "@/types/database";
 import { getCurrentUser } from "@/lib/user";
+import { isRateIndex, type AccountRate } from "@/lib/account-rate";
+import type { MarketQuote } from "@/lib/market-quotes";
 
 function uid() { return getCurrentUser(); }
 
@@ -46,6 +48,10 @@ function toAccount(r: any): InvestmentAccount {
     cdi_percent: r.cdi_percent != null ? Number(r.cdi_percent) : null,
     max_rendimento: r.max_rendimento != null ? Number(r.max_rendimento) : null,
     valor_liquido: r.valor_liquido != null ? Number(r.valor_liquido) : null,
+    rate_index: isRateIndex(r.rate_index) ? r.rate_index : null,
+    rate_value: r.rate_value != null ? Number(r.rate_value) : null,
+    maturity: r.maturity ? normalizeDate(r.maturity) : null,
+    tax_exempt: r.tax_exempt != null ? Boolean(r.tax_exempt) : null,
   };
 }
 
@@ -75,8 +81,12 @@ export async function getInvestmentAccounts(): Promise<InvestmentAccount[]> {
 
 export async function createInvestmentAccount(data: {
   name: string; institution: string;
-}): Promise<InvestmentAccount> {
+} & Partial<AccountRate>): Promise<InvestmentAccount> {
   return sendJson("/api/investment-accounts", "POST", { ...data, user_id: uid() }, toAccount);
+}
+
+export async function updateAccountRate(id: string, rate: AccountRate | null): Promise<InvestmentAccount> {
+  return sendJson(`/api/investment-accounts/${id}`, "PATCH", rate ?? { rate_index: null }, toAccount);
 }
 
 export async function updateAccountBalance(id: string, current_balance: number): Promise<InvestmentAccount> {
@@ -111,7 +121,7 @@ export async function updateTurboSettings(
 export async function createInvestmentAccountWithTurbo(data: {
   name: string; institution: string;
   is_turbo?: boolean; cdi_percent?: number | null; max_rendimento?: number | null; valor_liquido?: number | null;
-}): Promise<InvestmentAccount> {
+} & Partial<AccountRate>): Promise<InvestmentAccount> {
   return sendJson("/api/investment-accounts", "POST", { ...data, user_id: uid() }, toAccount);
 }
 
@@ -171,6 +181,38 @@ export async function getStockQuotes(): Promise<StockQuote[]> {
   const res = await fetch(`/api/stock-quotes?user=${uid()}`);
   const data = await res.json();
   return Array.isArray(data) ? data.map((r) => ({ ...r, current_price: Number(r.current_price) })) : [];
+}
+
+export async function getMarketQuotes(tickers: string[]): Promise<MarketQuote[]> {
+  if (tickers.length === 0) return [];
+  try {
+    const res = await fetch(`/api/market-quotes?tickers=${encodeURIComponent(tickers.join(","))}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Atualiza as cotações salvas dos tickers em carteira com o preço de mercado
+ * e devolve a lista já atualizada. Falhas de rede mantêm as cotações salvas.
+ */
+export async function refreshStockQuotes(trades: StockTrade[], stored: StockQuote[]): Promise<{ quotes: StockQuote[]; market: MarketQuote[] }> {
+  const held = new Map<string, number>();
+  for (const t of trades) held.set(t.ticker, (held.get(t.ticker) ?? 0) + (t.type === "compra" ? t.quantity : -t.quantity));
+  const tickers = [...held].filter(([, q]) => q > 0.0001).map(([t]) => t);
+  const market = await getMarketQuotes(tickers);
+  if (market.length === 0) return { quotes: stored, market };
+  const byTicker = new Map(stored.map((q) => [q.ticker, q]));
+  const changed = market.filter((m) => {
+    const cur = byTicker.get(m.ticker);
+    return !cur || Math.abs(cur.current_price - m.price) >= 0.005;
+  });
+  await Promise.all(changed.map((m) => upsertStockQuote(m.ticker, m.price).catch(() => null)));
+  const now = new Date().toISOString();
+  for (const m of changed) byTicker.set(m.ticker, { ticker: m.ticker, current_price: m.price, updated_at: now });
+  return { quotes: [...byTicker.values()], market };
 }
 
 export async function upsertStockQuote(ticker: string, current_price: number): Promise<StockQuote> {
