@@ -7,19 +7,13 @@ import {
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
 
-/** Mascote do MUVO Bot. "auto" acompanha o tema; "dark" é para superfícies sempre escuras. */
-function BotAvatar({ className, tone = "auto" }: { className?: string; tone?: "auto" | "dark" }) {
-  const img = "h-full w-full object-cover select-none";
+/** Mascote do MUVO Bot; o desenho tem fundo claro próprio, então serve nos dois temas. */
+function BotAvatar({ className }: { className?: string }) {
   return (
-    <span className={cn("block", className)} aria-hidden="true">
+    <span className={cn("block bg-white", className)} aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/bot/muvo-bot-dark.webp" alt="" width={192} height={192} draggable={false}
-        className={cn(img, tone === "auto" && "hidden dark:block")} />
-      {tone === "auto" && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src="/bot/muvo-bot-light.webp" alt="" width={192} height={192} draggable={false}
-          className={cn(img, "dark:hidden")} />
-      )}
+      <img src="/bot/muvo-bot.webp" alt="" width={192} height={192} draggable={false}
+        className="h-full w-full object-cover select-none" />
     </span>
   );
 }
@@ -405,7 +399,7 @@ export function InvestorBot({
           }}
         >
           <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
-            <BotAvatar tone="dark" className="h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-white/15" />
+            <BotAvatar className="h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-white/15" />
 
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-white">MUVO Bot</p>
