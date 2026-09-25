@@ -100,13 +100,6 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           aria-hidden
         />
       )}
-      {!isPwa && !collapsed && (
-        <div
-          className="fixed inset-0 z-20 hidden md:block"
-          onClick={toggle}
-          aria-hidden
-        />
-      )}
       {!isPwa && (
         <Sidebar
           collapsed={collapsed}
