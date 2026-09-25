@@ -9,6 +9,7 @@ import {
   Target,
   Landmark,
   PlayCircle,
+  Calculator,
   Settings,
 } from "lucide-react";
 
@@ -62,8 +63,11 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: "aprenda",
-    label: "Aprenda",
-    items: [{ href: "/videos", label: "Vídeos", icon: PlayCircle }],
+    label: "Aprenda e simule",
+    items: [
+      { href: "/videos", label: "Vídeos", icon: PlayCircle },
+      { href: "/simular", label: "Simular", icon: Calculator },
+    ],
   },
 ];
 

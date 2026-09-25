@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { PlayCircle, GraduationCap, Lightbulb, X } from "lucide-react";
-import { ContributionSimulator } from "@/components/videos/contribution-simulator";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 type Video = {
@@ -142,9 +141,6 @@ export default function VideosPage() {
       <PageBody width="wide" className="space-y-8">
       <VideoSection icon={GraduationCap} title="Iniciantes" videos={INICIANTES} onPlay={setPlaying} />
       <VideoSection icon={Lightbulb} title="Dicas" videos={DICAS} onPlay={setPlaying} />
-
-      <ContributionSimulator />
-
       {playing && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
