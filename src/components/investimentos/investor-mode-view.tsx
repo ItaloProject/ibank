@@ -1,9 +1,8 @@
 ﻿"use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
-import { FileText, Target, Radio, Check, CheckCircle2, ArrowRight, CornerDownRight, Pencil, X } from "lucide-react";
+import { FileText, Target, Check, CheckCircle2, ArrowRight, CornerDownRight, Pencil, X } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -166,13 +165,6 @@ export function InvestorModeView({
           <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/85 px-5 py-3 backdrop-blur-xl sm:px-8">
             <h1 className="text-sm font-black uppercase tracking-[0.2em] text-foreground shrink-0">Metas</h1>
             <div className="flex items-center gap-2">
-              <Link
-                href="/investimentos?view=live"
-                className="flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 sm:px-4 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Radio className="h-3.5 w-3.5" aria-hidden="true" />
-                Live
-              </Link>
               <button
                 type="button"
                 onClick={onGenerateReport}

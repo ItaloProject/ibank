@@ -55,9 +55,9 @@ export const NAV_GROUPS: NavGroup[] = [
     accent: true,
     items: [
       { href: "/investimentos", label: "Investimentos", icon: TrendingUp, bottomTab: true, featured: true },
+      { href: "/metas", label: "Metas", icon: Target, bottomTab: true },
       { href: "/proventos", label: "Proventos", icon: CalendarCheck },
       { href: "/impostos", label: "Imposto de Renda", icon: Landmark },
-      { href: "/metas", label: "Metas", icon: Target, bottomTab: true },
     ],
   },
   {
