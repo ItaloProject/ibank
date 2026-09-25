@@ -70,6 +70,21 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (isPwa || collapsed) return;
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const onPointerDown = (e: PointerEvent) => {
+      if (!desktop.matches) return;
+      const target = e.target as Element | null;
+      if (!target?.closest) return;
+      if (target.closest("[data-app-sidebar], [data-radix-popper-content-wrapper], [role='dialog'], [role='menu']")) return;
+      setCollapsed(true);
+      localStorage.setItem("ibank_sidebar", "collapsed");
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [isPwa, collapsed]);
+
   function toggle() {
     setCollapsed((prev) => {
       const next = !prev;
