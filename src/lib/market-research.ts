@@ -1,6 +1,8 @@
 export type MarketRates = {
   selicAnual: number;
   cdiAnual: number;
+  /** IPCA acumulado em 12 meses (% a.a.). */
+  ipca12m?: number;
   updatedAt: string;
   source: "bcb" | "fallback";
 };
@@ -27,6 +29,8 @@ const SELIC_URL =
   "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json";
 const CDI_URL =
   "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1?formato=json";
+const IPCA_12M_URL =
+  "https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json";
 
 /** Metadados curados + DY mensal estimado quando a API não cobrir o ticker. */
 const FII_BASE: Omit<FiiResearchItem, "price" | "dyMensalPct" | "dy12mPct" | "pvp" | "source">[] = [
@@ -68,11 +72,16 @@ async function fetchBcbSerie(url: string): Promise<{ data: string; valor: number
 }
 
 export async function fetchMarketRates(): Promise<MarketRates> {
-  const [selic, cdi] = await Promise.all([fetchBcbSerie(SELIC_URL), fetchBcbSerie(CDI_URL)]);
+  const [selic, cdi, ipca] = await Promise.all([
+    fetchBcbSerie(SELIC_URL),
+    fetchBcbSerie(CDI_URL),
+    fetchBcbSerie(IPCA_12M_URL),
+  ]);
   if (selic) {
     return {
       selicAnual: selic.valor,
       cdiAnual: cdi?.valor ?? Math.max(selic.valor - 0.1, 0),
+      ipca12m: ipca && Number.isFinite(ipca.valor) ? ipca.valor : undefined,
       updatedAt: selic.data,
       source: "bcb",
     };

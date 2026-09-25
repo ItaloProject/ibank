@@ -4,9 +4,13 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { ChevronDown, Target } from "lucide-react";
+import { ChevronDown, Target, Wallet } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
+import { getInvestmentAccounts, getInvestments, getStockQuotes, getStockTrades, type StockQuote } from "@/lib/api";
+import type { Investment, InvestmentAccount, StockTrade } from "@/types/database";
+import { computePortfolioReturn } from "@/lib/portfolio-return";
+import { PortfolioRateCard } from "./portfolio-rate-card";
 import {
   INFLATION_ANNUAL, formatCompactBRL, formatDuration, monthsToReach, requiredMonthly, simulate, turningPoint,
   type SimInput,
@@ -21,9 +25,21 @@ type State = {
   anos: number;
   reais: boolean;
   renda: number;
+  /** "carteira": taxa calculada da carteira real; "manual": slider/presets. */
+  fonte: "carteira" | "manual";
+  liquida: boolean;
 };
 
-const DEFAULTS: State = { mode: "futuro", inicial: 0, aporte: 1000, taxa: 12, anos: 15, reais: false, renda: 5000 };
+const DEFAULTS: State = {
+  mode: "futuro", inicial: 0, aporte: 1000, taxa: 12, anos: 15, reais: false, renda: 5000, fonte: "carteira", liquida: false,
+};
+
+type PortfolioData = {
+  accounts: InvestmentAccount[];
+  investments: Investment[];
+  trades: StockTrade[];
+  quotes: StockQuote[];
+};
 const STORAGE_KEY = "muvo_simular_v1";
 const MILESTONES = [100_000, 250_000, 500_000, 1_000_000];
 
@@ -190,6 +206,8 @@ export function IncomeSimulator() {
   const [s, setS] = useState<State>(DEFAULTS);
   const [hydrated, setHydrated] = useState(false);
   const [rates, setRates] = useState<MarketResearchPayload["rates"] | null>(null);
+  const [fiiDy, setFiiDy] = useState<Record<string, number>>({});
+  const [data, setData] = useState<PortfolioData | null>(null);
   const [goal, setGoal] = useState<number | null>(null);
   const [tableOpen, setTableOpen] = useState(false);
 
@@ -201,7 +219,15 @@ export function IncomeSimulator() {
     setHydrated(true);
     fetch("/api/market-research").then((r) => (r.ok ? r.json() : null)).then((d: MarketResearchPayload | null) => {
       if (d?.rates) setRates(d.rates);
+      const dy: Record<string, number> = {};
+      for (const f of d?.fiis ?? []) {
+        if (f.source === "brapi" && f.dy12mPct != null && f.dy12mPct > 0) dy[f.ticker] = f.dy12mPct;
+      }
+      setFiiDy(dy);
     }).catch(() => {});
+    Promise.all([getInvestmentAccounts(), getInvestments(), getStockTrades(), getStockQuotes()])
+      .then(([accounts, investments, trades, quotes]) => setData({ accounts, investments, trades, quotes }))
+      .catch(() => {});
     fetch("/api/goals").then((r) => (r.ok ? r.json() : null)).then((d: { goal_target?: number | string } | null) => {
       const g = Number(d?.goal_target) || 0;
       if (g > 0) setGoal(g);
@@ -216,7 +242,22 @@ export function IncomeSimulator() {
   const set = <K extends keyof State>(k: K, v: State[K]) => setS((prev) => ({ ...prev, [k]: v }));
   const { presets, live } = useMemo(() => presetsFrom(rates), [rates]);
 
-  const base: Omit<SimInput, "aporte"> = { inicial: s.inicial, taxaAnual: s.taxa / 100, anos: s.anos, reais: s.reais };
+  const cdiHoje = rates?.cdiAnual ?? 14.9;
+  const ipca = rates?.ipca12m ?? INFLATION_ANNUAL * 100;
+  const portfolio = useMemo(
+    () => data
+      ? computePortfolioReturn(data.accounts, data.investments, data.trades, data.quotes, {
+        cdi: cdiHoje, selic: rates?.selicAnual ?? 15, ipca, fiiDy,
+      })
+      : null,
+    [data, cdiHoje, rates?.selicAnual, ipca, fiiDy],
+  );
+  const taxaCarteira = portfolio ? Math.round(portfolio.media(s.anos, s.liquida) * 100) / 100 : null;
+  const usandoCarteira = s.fonte === "carteira" && taxaCarteira != null;
+  const taxa = usandoCarteira ? taxaCarteira : s.taxa;
+  const setManual = (v: number) => setS((prev) => ({ ...prev, taxa: v, fonte: "manual" }));
+
+  const base: Omit<SimInput, "aporte"> = { inicial: s.inicial, taxaAnual: taxa / 100, anos: s.anos, reais: s.reais };
   const rate = simulate({ ...base, aporte: 0, anos: 0 }).rate;
   const alvo = rate > 0 ? s.renda / rate : 0;
   const needed = s.mode === "meta" ? requiredMonthly(base, alvo) : 0;
@@ -281,12 +322,22 @@ export function IncomeSimulator() {
           max={100_000_000}
           sliderMax={500_000}
           step={1000}
+          action={portfolio && Math.abs(portfolio.total - s.inicial) >= 1 ? (
+            <button
+              type="button"
+              onClick={() => set("inicial", Math.round(portfolio.total))}
+              className={cn("inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground", FOCUS)}
+            >
+              <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+              Usar minha carteira ({formatCompactBRL(portfolio.total)})
+            </button>
+          ) : null}
         />
 
         <div>
           <div className="flex items-baseline justify-between">
             <label htmlFor="sim-taxa" className={LABEL}>Rentabilidade ao ano</label>
-            <span className="font-display text-xl font-black tabular-nums tracking-tight">{pct(s.taxa)}</span>
+            <span className="font-display text-xl font-black tabular-nums tracking-tight">{pct(taxa, 2)}</span>
           </div>
           <input
             id="sim-taxa"
@@ -294,31 +345,73 @@ export function IncomeSimulator() {
             min={2}
             max={20}
             step={0.1}
-            value={s.taxa}
-            onChange={(e) => set("taxa", Number(e.target.value))}
+            value={taxa}
+            onChange={(e) => setManual(Number(e.target.value))}
             className="mt-3 h-2 w-full cursor-pointer accent-foreground"
           />
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {presets.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => set("taxa", p.taxa)}
-                aria-pressed={Math.abs(s.taxa - p.taxa) < 0.05}
-                className={cn(
-                  "min-h-9 rounded-md border px-2.5 text-[11px] font-semibold transition-colors",
-                  Math.abs(s.taxa - p.taxa) < 0.05
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-                  FOCUS,
-                )}
-              >
-                {p.label} <span className="tabular-nums opacity-70">{pct(p.taxa)}</span>
-              </button>
-            ))}
+          {taxaCarteira != null && (
+            <button
+              type="button"
+              onClick={() => set("fonte", "carteira")}
+              aria-pressed={usandoCarteira}
+              className={cn(
+                "mt-3 flex w-full min-h-12 items-center justify-between gap-3 rounded-md border px-3 text-left transition-colors",
+                usandoCarteira
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border hover:bg-muted",
+                FOCUS,
+              )}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <Wallet className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold">Minha carteira</span>
+                  <span className={cn("block truncate text-[11px]", usandoCarteira ? "opacity-70" : "text-muted-foreground")}>
+                    Média em {s.anos} {s.anos === 1 ? "ano" : "anos"}{s.liquida ? ", líquida de IR" : ""}
+                  </span>
+                </span>
+              </span>
+              <span className="font-display text-base font-black tabular-nums">{pct(taxaCarteira, 2)}</span>
+            </button>
+          )}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {presets.map((p) => {
+              const on = !usandoCarteira && Math.abs(s.taxa - p.taxa) < 0.05;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setManual(p.taxa)}
+                  aria-pressed={on}
+                  className={cn(
+                    "min-h-9 rounded-md border px-2.5 text-[11px] font-semibold transition-colors",
+                    on
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                    FOCUS,
+                  )}
+                >
+                  {p.label} <span className="tabular-nums opacity-70">{pct(p.taxa)}</span>
+                </button>
+              );
+            })}
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            {live ? "Selic e CDI de hoje, pelo Banco Central." : "Referências aproximadas."} Ações: média histórica, sem garantia.
+            {portfolio ? (
+              <>
+                {usandoCarteira ? "Calculada com o que você tem investido hoje. " : ""}
+                <button
+                  type="button"
+                  onClick={() => document.getElementById("sim-carteira")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                  className="font-semibold text-foreground underline underline-offset-2"
+                >
+                  Ver o cálculo
+                </button>
+              </>
+            ) : data ? (
+              "Registre seus investimentos no MUVO LIVE para simular com a rentabilidade da sua carteira. "
+            ) : null}
+            {!portfolio && (live ? "Selic e CDI de hoje, pelo Banco Central. Ações: média histórica, sem garantia." : "Referências aproximadas.")}
           </p>
         </div>
 
@@ -440,6 +533,21 @@ export function IncomeSimulator() {
             </dl>
           </div>
         </section>
+
+        {portfolio && (
+          <PortfolioRateCard
+            portfolio={portfolio}
+            anos={s.anos}
+            liquida={s.liquida}
+            onLiquida={(v) => set("liquida", v)}
+            active={usandoCarteira}
+            onUse={() => set("fonte", "carteira")}
+            cdi={cdiHoje}
+            ipca={ipca}
+            updatedAt={rates?.updatedAt}
+            live={live}
+          />
+        )}
 
         {/* Curva */}
         <section aria-label="Evolução do patrimônio" className="rounded-xl border bg-card p-5">
@@ -563,8 +671,10 @@ export function IncomeSimulator() {
         </section>
 
         <p className="text-[11px] text-muted-foreground">
-          Simulação ilustrativa com aporte no início de cada mês e rentabilidade constante de {pct(s.taxa)} ao ano
-          {s.reais ? `, descontada a inflação de ${pct(INFLATION_ANNUAL * 100)}` : ""}. Não considera impostos nem taxas e não é recomendação de investimento.
+          Simulação ilustrativa com aporte no início de cada mês e rentabilidade de {pct(taxa, 2)} ao ano
+          {usandoCarteira ? " (média esperada da sua carteira no prazo)" : ""}
+          {s.reais ? `, descontada a inflação de ${pct(INFLATION_ANNUAL * 100)}` : ""}.{" "}
+          {usandoCarteira && s.liquida ? "Já desconta o IR estimado; não considera taxas." : "Não considera impostos nem taxas."} Não é recomendação de investimento.
         </p>
       </div>
     </div>
