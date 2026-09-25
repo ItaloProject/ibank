@@ -1,8 +1,9 @@
 ﻿"use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { FileText, Target, Radio, Check, CheckCircle2, ArrowRight, CornerDownRight } from "lucide-react";
+import { FileText, Target, Radio, Check, CheckCircle2, ArrowRight, CornerDownRight, Pencil, X } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -44,6 +45,17 @@ type NextMove = {
   valor: string;
   razao: string;
 };
+
+/** Aceita "1.500,50", "1.500", "1500,5" ou "1500.50". */
+function parseGoal(raw: string): number {
+  const s = raw.trim();
+  if (!s) return 0;
+  const normalized = s.includes(",")
+    ? s.replace(/\./g, "").replace(",", ".")
+    : /^\d{1,3}(\.\d{3})+$/.test(s) ? s.replace(/\./g, "") : s;
+  const v = Number(normalized);
+  return Number.isFinite(v) && v < 1e10 ? Math.round(v * 100) / 100 : 0;
+}
 
 type StockPosition = {
   ticker: string;
@@ -104,6 +116,43 @@ export function InvestorModeView({
   const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
   const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
   const circumference = 2 * Math.PI * 118;
+
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [savingGoal, setSavingGoal] = useState(false);
+
+  function startGoalEdit() {
+    setIncomeGoalInput(incomeGoal > 0 ? incomeGoal.toFixed(2).replace(".", ",") : "");
+    setEditingGoal(true);
+  }
+
+  function cancelGoalEdit() {
+    setIncomeGoalInput("");
+    setEditingGoal(false);
+  }
+
+  async function saveGoal() {
+    const v = parseGoal(incomeGoalInput);
+    if (!(v > 0) || savingGoal) return;
+    setSavingGoal(true);
+    try {
+      const r = await fetch("/api/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal_target: v }),
+      });
+      if (!r.ok) throw new Error();
+      setIncomeGoal(v);
+      try { localStorage.setItem("ibank_income_goal", String(v)); } catch {}
+      setIncomeGoalInput("");
+      setEditingGoal(false);
+      toast.success(`Meta de ${formatCurrency(v)} por mês salva`);
+    } catch {
+      toast.error("Não foi possível salvar a meta. Tente novamente.");
+    } finally {
+      setSavingGoal(false);
+    }
+  }
+
   return (
         <div className="relative min-h-full bg-background text-foreground overflow-hidden">
           {/* Ambient mesh — MUVO neutral */}
@@ -172,36 +221,62 @@ export function InvestorModeView({
                 </p>
               )}
 
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-muted-foreground" />
-                <input
-                  type="number"
-                  placeholder="Definir meta mensal (R$)..."
-                  className="bg-muted/40 border border-border rounded-full px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground w-56 text-center focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-border transition-all"
-                  value={incomeGoalInput}
-                  onChange={(e) => setIncomeGoalInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && incomeGoalInput) {
-                      const v = parseFloat(incomeGoalInput);
-                      if (v > 0) {
-                        setIncomeGoal(v);
-                        try { localStorage.setItem("ibank_income_goal", String(v)); } catch {}
-                        setIncomeGoalInput("");
-                        fetch("/api/goals", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ goal_target: v }),
-                        })
-                          .then((r) => {
-                            if (!r.ok) throw new Error();
-                            toast.success(`Meta de ${formatCurrency(v)} por mês salva`);
-                          })
-                          .catch(() => toast.error("Não foi possível salvar a meta. Tente novamente."));
-                      }
-                    }
-                  }}
-                />
-              </div>
+              {editingGoal ? (
+                <form
+                  className="flex items-center gap-2"
+                  onSubmit={(e) => { e.preventDefault(); saveGoal(); }}
+                  onKeyDown={(e) => { if (e.key === "Escape") cancelGoalEdit(); }}
+                >
+                  <Target className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <label htmlFor="income-goal-input" className="sr-only">Meta de renda passiva mensal (R$)</label>
+                  <input
+                    id="income-goal-input"
+                    type="text"
+                    inputMode="decimal"
+                    autoFocus
+                    autoComplete="off"
+                    placeholder="Definir meta"
+                    disabled={savingGoal}
+                    className="bg-muted/40 border border-border rounded-full px-4 min-h-10 text-sm text-foreground tabular-nums placeholder:text-muted-foreground w-44 text-center focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-shadow disabled:opacity-60"
+                    value={incomeGoalInput}
+                    onChange={(e) => setIncomeGoalInput(e.target.value.replace(/[^\d.,]/g, ""))}
+                  />
+                  <button
+                    type="submit"
+                    disabled={savingGoal || !(parseGoal(incomeGoalInput) > 0)}
+                    aria-label="Confirmar meta"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition-opacity hover:bg-foreground/90 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelGoalEdit}
+                    disabled={savingGoal}
+                    aria-label="Cancelar edição da meta"
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startGoalEdit}
+                  className="flex min-h-10 items-center gap-2 rounded-full border border-border bg-muted/40 px-4 text-sm font-medium text-foreground/80 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Target className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  {incomeGoal > 0 ? (
+                    <>
+                      Meta: <span className="font-bold tabular-nums text-foreground">{formatCurrency(incomeGoal)}</span>
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                      <span className="sr-only">Editar meta</span>
+                    </>
+                  ) : (
+                    "Definir meta"
+                  )}
+                </button>
+              )}
             </div>
 
             {/* Fontes de renda */}
