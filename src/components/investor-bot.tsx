@@ -2,10 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Bot, X, Send, Sparkles, PieChart, Building2, Scale, FileDown, Loader2,
+  X, Send, PieChart, Building2, Scale, FileDown, Loader2,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
+
+/** Mascote do MUVO Bot. "auto" acompanha o tema; "dark" é para superfícies sempre escuras. */
+function BotAvatar({ className, tone = "auto" }: { className?: string; tone?: "auto" | "dark" }) {
+  const img = "h-full w-full object-cover select-none";
+  return (
+    <span className={cn("block", className)} aria-hidden="true">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/bot/muvo-bot-dark.webp" alt="" width={192} height={192} draggable={false}
+        className={cn(img, tone === "auto" && "hidden dark:block")} />
+      {tone === "auto" && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/bot/muvo-bot-light.webp" alt="" width={192} height={192} draggable={false}
+          className={cn(img, "dark:hidden")} />
+      )}
+    </span>
+  );
+}
 
 export type BotPortfolioContext = {
   score: number;
@@ -361,22 +378,17 @@ export function InvestorBot({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "fixed z-[120] flex h-14 w-14 items-center justify-center rounded-full shadow-2xl transition-all touch-manipulation",
+          "fixed z-[120] flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-border shadow-2xl transition-[transform,background-color] duration-150 ease-out touch-manipulation",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "right-[max(1.25rem,var(--safe-right))]",
           "bottom-[calc(var(--bottom-nav-offset)+0.75rem)] md:bottom-5",
           open
-            ? "bg-muted/50 text-foreground border border-border hover:bg-muted/70"
-            : "bg-amber-500 text-amber-950 hover:scale-105 hover:bg-amber-400",
+            ? "bg-muted text-foreground hover:bg-muted/70"
+            : "bg-background hover:scale-105 active:scale-95 motion-reduce:hover:scale-100",
         )}
         aria-label={open ? "Fechar bot" : "Abrir MUVO Bot"}
       >
-        {open ? <X className="h-6 w-6" /> : <Bot className="h-7 w-7" />}
-        {!open && (
-          <span className="absolute -top-1 -right-1 flex h-4 w-4">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-4 w-4 rounded-full bg-emerald-400" />
-          </span>
-        )}
+        {open ? <X className="h-6 w-6" /> : <BotAvatar className="h-full w-full" />}
       </button>
 
       {/* Painel */}
@@ -393,9 +405,8 @@ export function InvestorBot({
           }}
         >
           <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20 ring-1 ring-amber-500/40">
-              <Sparkles className="h-4 w-4 text-amber-400" />
-            </div>
+            <BotAvatar tone="dark" className="h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-white/15" />
+
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-white">MUVO Bot</p>
               <p className="text-[11px] text-white/45">Pesquisa · carteira · PDF</p>
