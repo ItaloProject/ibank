@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { useState, useEffect, useCallback } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { useUser } from "@/context/user-context";
@@ -22,9 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Pencil, Trash2, FolderPlus, TrendingUp, TrendingDown,
-  Wallet, ChevronDown, ChevronLeft, ChevronRight,
-  Copy, FileDown, DollarSign,
+  Plus, Pencil, FolderPlus, TrendingUp, TrendingDown,
+  ChevronLeft, ChevronRight, Copy, FileDown,
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,14 +32,7 @@ import { USERS } from "@/lib/user";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 import { SplashScreen } from "@/components/splash-screen";
 import { IncomeDialog, type PlanIncome } from "@/components/planejamento/income-dialog";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface ExpenseGroup { id: string; user_id: string; name: string; color: string; }
-interface ExpenseItem {
-  id: string; group_id: string; user_id: string; month: string;
-  name: string; type: "fixo" | "variavel"; planned: number; actual: number;
-}
+import { GroupSection, type ExpenseGroup, type ExpenseItem } from "@/components/planejamento/group-section";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -63,6 +55,8 @@ function toItem(r: Record<string, unknown>): ExpenseItem {
   return { ...r, planned: Number(r.planned), actual: Number(r.actual) } as ExpenseItem;
 }
 
+const COLLAPSED_KEY = "muvo_plan_collapsed";
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PlanejamentoPage() {
@@ -79,7 +73,23 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   const [items, setItems] = useState<ExpenseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(COLLAPSED_KEY);
+      if (saved) setCollapsed(new Set(JSON.parse(saved) as string[]));
+    } catch { /* todos abertos */ }
+  }, []);
+
+  function toggleGroup(id: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }
 
   // Group form
   const [groupOpen, setGroupOpen] = useState(false);
@@ -393,11 +403,21 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     );
   }
 
-  const selectedGroup = groups.find(g => g.id === selectedGroupId) ?? groups[0] ?? null;
-  const selectedGroupItems = selectedGroup ? items.filter(i => i.group_id === selectedGroup.id) : [];
-  const sgPlanned = selectedGroupItems.reduce((s, i) => s + i.planned, 0);
-  const sgActual  = selectedGroupItems.reduce((s, i) => s + i.actual,  0);
-  const sgOver    = sgPlanned > 0 && sgActual > sgPlanned;
+  function exportPdf() {
+    const userName = USERS.find(u => u.id === userId)?.name ?? userId;
+    generatePlanReport(
+      groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
+      items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
+      monthLabel, userName, salary, incomes,
+    );
+  }
+  const allCollapsed = groups.length > 0 && groups.every(g => collapsed.has(g.id));
+
+  function setAllCollapsed(value: boolean) {
+    const next = value ? new Set(groups.map(g => g.id)) : new Set<string>();
+    setCollapsed(next);
+    try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+  }
 
   return (
     <PageShell>
@@ -422,14 +442,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 Copiar mês anterior
               </Button>
               {items.length > 0 && (
-                <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => {
-                  const userName = USERS.find(u => u.id === userId)?.name ?? userId;
-                  generatePlanReport(
-                    groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
-                    items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
-                    monthLabel, userName, salary, incomes,
-                  );
-                }}>
+                <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={exportPdf}>
                   <FileDown className="h-3.5 w-3.5" />
                   Gerar PDF
                 </Button>
@@ -553,136 +566,36 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           </div>
         </div>
 
-        {/* ── DESKTOP: horizontal tab bar ─────────────────────────────────────── */}
-        {groups.length > 0 && (
-          <div
-            role="tablist"
-            aria-label="Grupos de despesas"
-            onKeyDown={(e) => {
-              if (!selectedGroup) return;
-              const idx = groups.findIndex(g => g.id === selectedGroup.id);
-              if (e.key === "ArrowRight") { e.preventDefault(); setSelectedGroupId(groups[(idx + 1) % groups.length].id); }
-              if (e.key === "ArrowLeft") { e.preventDefault(); setSelectedGroupId(groups[(idx - 1 + groups.length) % groups.length].id); }
-            }}
-            className="hidden md:flex items-end border-b shrink-0 px-6 overflow-x-auto"
+        {/* ── MOBILE: ações do mês ─────────────────────────────────────────────── */}
+        <div className="md:hidden grid grid-cols-3 gap-1 border-b px-2 py-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={openNewGroup}
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-foreground hover:bg-muted transition-colors"
           >
-            {groups.map((group, index) => {
-              const gItems   = items.filter(i => i.group_id === group.id);
-              const gPlanned = gItems.reduce((s, i) => s + i.planned, 0);
-              const gActual  = gItems.reduce((s, i) => s + i.actual,  0);
-              const gOver    = gPlanned > 0 && gActual > gPlanned;
-              const gPct     = gPlanned > 0 ? Math.min(100, (gActual / gPlanned) * 100) : 0;
-              const isSelected = selectedGroup?.id === group.id;
-              return (
-                <motion.button
-                  key={group.id}
-                  role="tab"
-                  aria-selected={isSelected}
-                  initial={{ opacity: 0, y: prefersReduced ? 0 : 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: prefersReduced ? 0 : index * 0.04, duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                  onClick={() => setSelectedGroupId(group.id)}
-                  className={`relative flex flex-col items-start px-5 pt-3 pb-2.5 min-w-[160px] shrink-0 transition-colors ${
-                    isSelected ? "bg-muted/20" : "hover:bg-muted/10"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 w-full mb-1">
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
-                    <span className={`text-[10px] font-bold uppercase tracking-widest truncate ${
-                      isSelected ? "text-foreground" : "text-foreground/50"
-                    }`}>{group.name}</span>
-                  </div>
-                  <span className={`text-lg font-display font-black tabular-nums leading-none ${
-                    gOver ? "text-destructive" : isSelected ? "text-foreground" : "text-foreground/55"
-                  }`}>{fmt(gActual)}</span>
-                  {gPlanned > 0 && (
-                    <>
-                      <div className="w-full mt-2 h-0.5 rounded-full" style={{ backgroundColor: `${group.color}30` }}>
-                        <div className="h-full rounded-full transition-all duration-300"
-                          style={{ width: `${gPct}%`, backgroundColor: gOver ? "hsl(var(--destructive))" : group.color }} />
-                      </div>
-                      <p className="text-[10px] text-foreground/50 tabular-nums mt-0.5">de {fmt(gPlanned)}</p>
-                    </>
-                  )}
-                  {/* Active indicator */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-0.5 transition-all duration-200"
-                    style={{ backgroundColor: isSelected ? group.color : "transparent" }}
-                  />
-                </motion.button>
-              );
-            })}
-            <div className="flex-1 min-w-4" />
-            <button
-              onClick={openNewGroup}
-              className="flex items-center gap-1.5 px-3 py-2 self-center shrink-0 text-xs font-medium text-foreground/55 hover:text-primary hover:bg-primary/5 rounded-md transition-colors"
-            >
-              <FolderPlus className="h-3.5 w-3.5" />
-              Novo grupo
-            </button>
-          </div>
-        )}
-
-        {/* ── MOBILE: horizontal chip row + actions at end ──────────────────────── */}
-        <div className="md:hidden border-b shrink-0">
-          <div className="flex gap-2 overflow-x-auto px-4 py-2.5" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
-            {groups.map(group => {
-              const isSelected = selectedGroup?.id === group.id;
-              return (
-                <button
-                  key={group.id}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedGroupId(group.id)}
-                  className={`shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wide transition-all ${
-                    isSelected ? "text-white shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted"
-                  }`}
-                  style={isSelected ? { backgroundColor: group.color } : {}}
-                >
-                  <span
-                    className="h-1.5 w-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.6)" : group.color }}
-                  />
-                  {group.name}
-                </button>
-              );
-            })}
-            {/* Separator + New Group at end of chip row */}
-            {groups.length > 0 && <div className="w-px bg-border/40 shrink-0 self-stretch my-2" />}
-            <button
-              onClick={openNewGroup}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-all"
-            >
-              <FolderPlus className="h-3.5 w-3.5" />
-              Novo grupo
-            </button>
-            <button
-              onClick={() => setCopyOpen(true)}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-all"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              Copiar mês
-            </button>
-            {items.length > 0 && (
-              <button
-                onClick={() => {
-                  const userName = USERS.find(u => u.id === userId)?.name ?? userId;
-                  generatePlanReport(
-                    groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
-                    items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
-                    monthLabel, userName, salary, incomes,
-                  );
-                }}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-all"
-              >
-                <FileDown className="h-3.5 w-3.5" />
-                PDF
-              </button>
-            )}
-          </div>
+            <FolderPlus className="h-3.5 w-3.5" />
+            Novo grupo
+          </button>
+          <button
+            type="button"
+            onClick={() => setCopyOpen(true)}
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copiar mês
+          </button>
+          <button
+            type="button"
+            onClick={exportPdf}
+            disabled={items.length === 0}
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
+          >
+            <FileDown className="h-3.5 w-3.5" />
+            PDF
+          </button>
         </div>
 
-        {/* ── CONTENT AREA: full width ─────────────────────────────────────────── */}
+        {/* ── GRUPOS: lista vertical, todos visíveis ─────────────────────────────── */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           {groups.length === 0 ? (
             <motion.div
@@ -696,175 +609,47 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <p className="font-semibold text-foreground/70">Nenhum grupo criado</p>
               <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
             </motion.div>
-          ) : selectedGroup ? (
-            <div>
-              {/* Group header — mobile: progress + add button in one compact row */}
-              <div className="md:hidden flex items-center gap-3 px-4 py-2.5 border-b">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedGroup.color }} />
-                {sgPlanned > 0 ? (
-                  <div className="flex-1 min-w-0 space-y-0.5">
-                    <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: `${selectedGroup.color}20` }}>
-                      <div className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${Math.min(100, (sgActual / sgPlanned) * 100)}%`,
-                          backgroundColor: sgOver ? "hsl(var(--destructive))" : selectedGroup.color,
-                        }} />
-                    </div>
-                    <div className="flex justify-between text-[10px] text-muted-foreground/70 tabular-nums">
-                      <span>{fmt(sgActual)}</span>
-                      <span className={sgOver ? "text-destructive/70" : ""}>de {fmt(sgPlanned)}</span>
-                    </div>
-                  </div>
-                ) : (
-                  <span className="flex-1 text-[11px] text-muted-foreground/65 font-medium">
-                    {selectedGroupItems.length} {selectedGroupItems.length === 1 ? "item" : "itens"}
-                  </span>
-                )}
+          ) : (
+            <div className="space-y-3 p-4 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-foreground/55">
+                  {groups.length} {groups.length === 1 ? "grupo" : "grupos"}
+                </p>
                 <button
-                  className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
-                  onClick={() => openNewItem(selectedGroup.id)}
+                  type="button"
+                  onClick={() => setAllCollapsed(!allCollapsed)}
+                  className="min-h-9 rounded-lg px-2.5 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                  Novo
+                  {allCollapsed ? "Expandir todos" : "Recolher todos"}
                 </button>
               </div>
-
-              {/* Group header — desktop: full name + edit/delete + add */}
-              <div className="hidden md:flex items-center justify-between px-6 py-3 border-b">
-                <div className="flex items-center gap-2.5">
-                  <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: selectedGroup.color }} />
-                  <h2 className="font-bold text-sm uppercase tracking-wide">{selectedGroup.name}</h2>
-                  <span className="text-[10px] text-muted-foreground/65 font-medium">
-                    {selectedGroupItems.length} {selectedGroupItems.length === 1 ? "item" : "itens"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-muted text-foreground/50 hover:text-foreground transition-colors"
-                    onClick={() => openEditGroup(selectedGroup)}
-                    aria-label={`Editar grupo ${selectedGroup.name}`}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    className="flex min-h-9 min-w-9 items-center justify-center rounded-lg hover:bg-destructive/10 text-foreground/50 hover:text-destructive transition-colors"
-                    onClick={() => openDeleteGroup(selectedGroup)}
-                    aria-label={`Excluir grupo ${selectedGroup.name}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    className="flex items-center gap-1.5 px-3 py-1.5 min-h-9 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                    onClick={() => openNewItem(selectedGroup.id)}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Adicionar item
-                  </button>
-                </div>
-              </div>
-
-              {/* Group progress bar — desktop only */}
-              {sgPlanned > 0 && (
-                <div className="hidden md:block px-6 py-2.5 border-b bg-muted/5 space-y-1">
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: `${selectedGroup.color}20` }}>
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${Math.min(100, (sgActual / sgPlanned) * 100)}%`,
-                        backgroundColor: sgOver ? "hsl(var(--destructive))" : selectedGroup.color,
-                      }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground/70">
-                    <span>Gasto {fmt(sgActual)}</span>
-                    <span className={sgOver ? "text-destructive/70" : ""}>de {fmt(sgPlanned)}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Items */}
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={selectedGroup.id}
-                  initial={{ opacity: 0, y: prefersReduced ? 0 : 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  {selectedGroupItems.length === 0 ? (
-                    <p className="px-6 py-10 text-sm text-muted-foreground/60 italic text-center">
-                      Sem itens em {monthLabel}.
-                    </p>
-                  ) : (
-                    <div className="divide-y divide-border/40">
-                      {selectedGroupItems.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between px-4 sm:px-6 py-2.5 gap-2 hover:bg-muted/10 transition-colors">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${item.type === "fixo" ? "bg-blue-500" : "bg-orange-400"}`} />
-                            <div className="min-w-0">
-                              <span className="text-sm font-medium truncate block leading-snug">{item.name}</span>
-                              {item.planned > 0 && (
-                                <span className="text-[10px] text-muted-foreground/70 tabular-nums">plan. {fmt(item.planned)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-0.5 shrink-0">
-                            <Input
-                              type="number"
-                              inputMode="decimal"
-                              aria-label={`Valor real de ${item.name}`}
-                              className="h-8 text-sm text-right w-[4.5rem] sm:w-24 border-border/40 bg-muted/30 focus:bg-background tabular-nums"
-                              defaultValue={item.actual || ""}
-                              placeholder="0,00"
-                              onBlur={(e) => updateActual(item, e.target.value)}
-                            />
-                            <button type="button"
-                              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground/60 hover:text-foreground transition-colors touch-manipulation"
-                              onClick={() => openEditItem(item)}
-                              aria-label={`Editar ${item.name}`}>
-                              <Pencil className="h-3 w-3" />
-                            </button>
-                            <button type="button"
-                              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive transition-colors touch-manipulation"
-                              onClick={() => openDeleteItem(item)}
-                              aria-label={`Excluir ${item.name}`}>
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 bg-muted/20">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/65">Subtotal</span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-[10px] text-muted-foreground/70 tabular-nums">plan. {fmt(sgPlanned)}</span>
-                          <span className={`text-sm font-display font-black tabular-nums ${sgOver ? "text-destructive" : ""}`}>{fmt(sgActual)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Mobile: group edit/delete */}
-              <div className="md:hidden flex items-center gap-2 px-4 py-3 border-t border-dashed border-border/30 mt-1">
+              <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+                {groups.map((group) => (
+                  <GroupSection
+                    key={group.id}
+                    group={group}
+                    items={items.filter((i) => i.group_id === group.id)}
+                    collapsed={collapsed.has(group.id)}
+                    onToggle={() => toggleGroup(group.id)}
+                    onAddItem={() => openNewItem(group.id)}
+                    onEditGroup={() => openEditGroup(group)}
+                    onDeleteGroup={() => openDeleteGroup(group)}
+                    onEditItem={openEditItem}
+                    onDeleteItem={openDeleteItem}
+                    onActual={updateActual}
+                  />
+                ))}
                 <button
-                  className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  onClick={() => openEditGroup(selectedGroup)}
+                  type="button"
+                  onClick={openNewGroup}
+                  className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-dashed text-xs font-medium text-muted-foreground hover:border-foreground/30 hover:bg-muted/20 hover:text-foreground transition-colors"
                 >
-                  <Pencil className="h-3 w-3" />
-                  Editar grupo
-                </button>
-                <button
-                  className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-lg text-xs font-medium text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  onClick={() => openDeleteGroup(selectedGroup)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Excluir grupo
+                  <FolderPlus className="h-4 w-4" />
+                  Novo grupo
                 </button>
               </div>
             </div>
-          ) : null}
+          )}
         </div>
       </PageBody>
 
