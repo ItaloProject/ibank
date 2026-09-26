@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
+import { clearUpcomingInstallmentItems, ensureInstallmentSchema } from "@/lib/installments";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -9,10 +10,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { userId } = auth;
     const { id } = await params;
     const body = await request.json();
-    const { paid_installments, description, total_amount, installments, start_date } = body;
+    const { paid_installments, description, total_amount, installments, start_date, plan_group_id } = body;
 
     // Full edit
     if (description !== undefined) {
+      await ensureInstallmentSchema();
       const [row] = await sql`
         UPDATE installment_plans
         SET
@@ -20,11 +22,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           total_amount     = ${total_amount},
           installments     = ${installments},
           paid_installments = ${paid_installments ?? 0},
-          start_date       = ${start_date ?? null}
+          start_date       = ${start_date ?? null},
+          plan_group_id    = ${plan_group_id ?? null}
         WHERE id = ${id} AND user_id = ${userId}
         RETURNING *
       `;
       if (!row) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+      await clearUpcomingInstallmentItems(userId, id);
       return NextResponse.json(row);
     }
 
@@ -52,6 +56,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     if (auth instanceof NextResponse) return auth;
     const { userId } = auth;
     const { id } = await params;
+    await clearUpcomingInstallmentItems(userId, id);
     await sql`DELETE FROM installment_plans WHERE id = ${id} AND user_id = ${userId}`;
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -1,12 +1,14 @@
 "use client";
 
-import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, Layers, Pencil, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export interface ExpenseGroup { id: string; user_id: string; name: string; color: string; }
 export interface ExpenseItem {
   id: string; group_id: string; user_id: string; month: string;
   name: string; type: "fixo" | "variavel"; planned: number; actual: number;
+  installment_id?: string | null;
 }
 
 function fmt(v: number) {
@@ -112,7 +114,9 @@ export function GroupSection({
                     />
                     <div className="min-w-0">
                       <span className="block truncate text-sm font-medium leading-snug">{item.name}</span>
-                      {item.planned > 0 && (
+                      {item.installment_id ? (
+                        <span className="text-[10px] text-muted-foreground/70">Parcelamento · lançado automaticamente</span>
+                      ) : item.planned > 0 && (
                         <span className="text-[10px] tabular-nums text-muted-foreground/70">plan. {fmt(item.planned)}</span>
                       )}
                     </div>
@@ -130,14 +134,25 @@ export function GroupSection({
                     <button type="button" className={ICON_BTN} onClick={() => onEditItem(item)} aria-label={`Editar ${item.name}`}>
                       <Pencil className="h-3 w-3" />
                     </button>
-                    <button
-                      type="button"
-                      className={`${ICON_BTN} hover:bg-destructive/10 hover:text-destructive`}
-                      onClick={() => onDeleteItem(item)}
-                      aria-label={`Excluir ${item.name}`}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    {item.installment_id ? (
+                      <Link
+                        href="/parcelamentos"
+                        className={ICON_BTN}
+                        aria-label={`Gerenciar ${item.name} em Parcelamentos`}
+                        title="Gerenciar em Parcelamentos"
+                      >
+                        <Layers className="h-3 w-3" />
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className={`${ICON_BTN} hover:bg-destructive/10 hover:text-destructive`}
+                        onClick={() => onDeleteItem(item)}
+                        aria-label={`Excluir ${item.name}`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}

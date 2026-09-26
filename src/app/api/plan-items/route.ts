@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
+import { syncInstallmentItems } from "@/lib/installments";
+import { MONTH_RE } from "@/lib/plan-income";
 
 export async function GET(request: Request) {
   try {
@@ -9,7 +11,8 @@ export async function GET(request: Request) {
     const { userId } = auth;
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month");
-    if (!month) return NextResponse.json({ error: "month obrigatório" }, { status: 400 });
+    if (!month || !MONTH_RE.test(month)) return NextResponse.json({ error: "month obrigatório" }, { status: 400 });
+    await syncInstallmentItems(userId, month);
     const rows = await sql`
       SELECT * FROM plan_items WHERE user_id = ${userId} AND month = ${month} ORDER BY created_at
     `;

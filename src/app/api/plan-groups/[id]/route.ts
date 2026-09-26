@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
+import { ensureInstallmentSchema } from "@/lib/installments";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -26,6 +27,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     if (auth instanceof NextResponse) return auth;
     const { userId } = auth;
     const { id } = await params;
+    await ensureInstallmentSchema();
+    await sql`UPDATE installment_plans SET plan_group_id = NULL WHERE plan_group_id = ${id} AND user_id = ${userId}`;
     await sql`DELETE FROM plan_items WHERE group_id = ${id} AND user_id = ${userId}`;
     await sql`DELETE FROM plan_groups WHERE id = ${id} AND user_id = ${userId}`;
     return NextResponse.json({ ok: true });

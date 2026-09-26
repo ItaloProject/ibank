@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUser } from "@/context/user-context";
 import { UserSelect } from "@/components/user-select";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
@@ -19,7 +20,25 @@ interface Plan {
   installments: number;
   paid_installments: number;
   start_date: string | null;
+  plan_group_id: string | null;
   created_at: string;
+}
+
+interface PlanGroup {
+  id: string;
+  name: string;
+  color: string;
+}
+
+const NO_GROUP = "none";
+
+/** Grupo sugerido para parcelas novas: um de parcelas/fixos, se existir. */
+function suggestGroup(groups: PlanGroup[]): string {
+  for (const re of [/parcel/i, /fix/i, /compra/i]) {
+    const g = groups.find((x) => re.test(x.name));
+    if (g) return g.id;
+  }
+  return groups[0]?.id ?? NO_GROUP;
 }
 
 function fmt(v: number | string) {
@@ -36,6 +55,11 @@ async function fetchPlans(userId: string): Promise<Plan[]> {
   const data = await request<unknown>(`/api/parcelamentos?user=${userId}`);
   if (!Array.isArray(data)) throw new Error("Resposta inválida");
   return data as Plan[];
+}
+
+async function fetchGroups(): Promise<PlanGroup[]> {
+  const data = await request<unknown>("/api/plan-groups");
+  return Array.isArray(data) ? (data as PlanGroup[]) : [];
 }
 
 function updatePaid(id: string, paid_installments: number): Promise<Plan> {
@@ -72,11 +96,12 @@ type FormState = {
   installments: string;
   paid_installments: string;
   start_date: string;
+  plan_group_id: string;
 };
 
 type FormErrors = Partial<Record<keyof FormState, string>>;
 
-const EMPTY_FORM: FormState = { description: "", total_amount: "", installments: "", paid_installments: "0", start_date: "" };
+const EMPTY_FORM: FormState = { description: "", total_amount: "", installments: "", paid_installments: "0", start_date: "", plan_group_id: NO_GROUP };
 
 function parseAmount(raw: string): number {
   const s = raw.trim();
@@ -96,6 +121,7 @@ function validateForm(form: FormState): FormErrors {
   else if (!Number.isInteger(installments) || installments < 1 || installments > 120) errors.installments = "Use de 1 a 120 parcelas.";
   if (!Number.isInteger(paid) || paid < 0) errors.paid_installments = "Use um número inteiro a partir de 0.";
   else if (!errors.installments && paid > installments) errors.paid_installments = `No máximo ${installments}.`;
+  if (form.plan_group_id !== NO_GROUP && !form.start_date) errors.start_date = "Informe a 1ª parcela para lançar no planejamento.";
 
   return errors;
 }
@@ -108,6 +134,7 @@ export default function ParcelamentosPage() {
 
 function ParcelamentosContent({ userId }: { userId: string }) {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [groups, setGroups] = useState<PlanGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
@@ -121,7 +148,9 @@ function ParcelamentosContent({ userId }: { userId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setPlans(await fetchPlans(userId));
+      const [loadedPlans, loadedGroups] = await Promise.all([fetchPlans(userId), fetchGroups().catch(() => [])]);
+      setPlans(loadedPlans);
+      setGroups(loadedGroups);
       setLoadError(false);
     } catch {
       setLoadError(true);
@@ -137,6 +166,13 @@ function ParcelamentosContent({ userId }: { userId: string }) {
 
   useEffect(() => { load(); }, [load]);
 
+  function openNew() {
+    setEditingPlan(null);
+    setForm({ ...EMPTY_FORM, plan_group_id: suggestGroup(groups) });
+    setErrors({});
+    setOpen(true);
+  }
+
   function openEdit(plan: Plan) {
     setEditingPlan(plan);
     setForm({
@@ -145,6 +181,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
       installments: String(plan.installments),
       paid_installments: String(plan.paid_installments),
       start_date: plan.start_date ? String(plan.start_date).slice(0, 10) : "",
+      plan_group_id: plan.plan_group_id && groups.some((g) => g.id === plan.plan_group_id) ? plan.plan_group_id : NO_GROUP,
     });
     setErrors({});
     setOpen(true);
@@ -172,6 +209,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
       installments: Number(form.installments),
       paid_installments: Number(form.paid_installments || 0),
       start_date: form.start_date || null,
+      plan_group_id: form.plan_group_id === NO_GROUP ? null : form.plan_group_id,
     };
     setSaving(true);
     try {
@@ -256,7 +294,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
           title="Parcelamentos"
           description="Compras parceladas em andamento"
           actions={
-            <Button size="sm" className="min-h-11" onClick={() => setOpen(true)}>
+            <Button size="sm" className="min-h-11" onClick={openNew}>
               <Plus className="h-4 w-4" aria-hidden="true" />
               Novo parcelamento
             </Button>
@@ -270,7 +308,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
         <button
           type="button"
           aria-label="Novo parcelamento"
-          onClick={() => setOpen(true)}
+          onClick={openNew}
           className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Plus className="h-5 w-5" aria-hidden="true" />
@@ -305,7 +343,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
             <p className="text-sm text-muted-foreground max-w-[32ch]">
               Cadastre uma compra parcelada para acompanhar quanto falta e quando termina.
             </p>
-            <Button type="button" className="mt-2" onClick={() => setOpen(true)}>
+            <Button type="button" className="mt-2" onClick={openNew}>
               <Plus className="h-4 w-4" aria-hidden="true" />
               Novo parcelamento
             </Button>
@@ -320,7 +358,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
             </h2>
             {active.length > 0 ? (
               active.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} onPay={handlePay} onEdit={openEdit} />
+                <PlanCard key={plan.id} plan={plan} group={groups.find((g) => g.id === plan.plan_group_id)} onPay={handlePay} onEdit={openEdit} />
               ))
             ) : (
               <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-4">
@@ -418,8 +456,34 @@ function ParcelamentosContent({ userId }: { userId: string }) {
                   type="date"
                   value={form.start_date}
                   onChange={(e) => setField("start_date", e.target.value)}
+                  {...fieldA11y("start_date", errors)}
                 />
               </div>
+            </div>
+            <FieldError field="start_date" errors={errors} />
+            <div className="space-y-1.5">
+              <Label htmlFor="plan-field-plan_group_id">Lançar no planejamento</Label>
+              <Select value={form.plan_group_id} onValueChange={(v) => setField("plan_group_id", v)}>
+                <SelectTrigger id="plan-field-plan_group_id">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} aria-hidden="true" />
+                        {g.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NO_GROUP}>Não lançar</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {form.plan_group_id === NO_GROUP
+                  ? "A parcela não aparece no planejamento."
+                  : "Cada parcela entra como gasto fixo no mês em que vence."}
+              </p>
             </div>
             {parseAmount(form.total_amount) > 0 && Number(form.installments) >= 1 && (
               <p className="text-sm text-center bg-muted/50 rounded-md py-2 text-muted-foreground tabular-nums">
@@ -512,10 +576,12 @@ const stepButton =
 
 function PlanCard({
   plan,
+  group,
   onPay,
   onEdit,
 }: {
   plan: Plan;
+  group?: PlanGroup;
   onPay: (plan: Plan, delta: number) => void;
   onEdit: (plan: Plan) => void;
 }) {
@@ -551,6 +617,13 @@ function PlanCard({
       {/* ── Row 2: subtitle — total + start date ── */}
       <p className="text-[10px] text-muted-foreground tabular-nums pl-10 pr-4 pb-2 -mt-1.5">
         {fmt(plan.total_amount)}{formatStartDate(plan.start_date)}
+        {group && plan.start_date && (
+          <span className="inline-flex items-center gap-1 whitespace-nowrap">
+            {" · "}
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: group.color }} aria-hidden="true" />
+            no planejamento em {group.name}
+          </span>
+        )}
       </p>
 
       {/* ── Row 3: stepper around progress ── */}

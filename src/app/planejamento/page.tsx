@@ -193,8 +193,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   async function copyFromPrevious() {
     try {
       const res = await fetch(`/api/plan-items?user=${userId}&month=${prevMonth}`);
-      const prev: Record<string, unknown>[] = await res.json();
-      if (!Array.isArray(prev) || prev.length === 0) {
+      const data: Record<string, unknown>[] = await res.json();
+      const prev = Array.isArray(data) ? data.filter((item) => !item.installment_id) : [];
+      if (prev.length === 0) {
         toast.error("Nenhum item encontrado no mês anterior.");
         setCopyOpen(false);
         return;

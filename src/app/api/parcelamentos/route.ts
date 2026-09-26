@@ -1,28 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
-
-async function ensureTable() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS installment_plans (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id TEXT NOT NULL DEFAULT 'italo',
-      description TEXT NOT NULL,
-      total_amount NUMERIC(12,2) NOT NULL,
-      installments INTEGER NOT NULL,
-      paid_installments INTEGER NOT NULL DEFAULT 0,
-      start_date DATE,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `;
-}
+import { ensureInstallmentSchema } from "@/lib/installments";
 
 export async function GET() {
   try {
     const auth = await requireUserId();
     if (auth instanceof NextResponse) return auth;
     const { userId } = auth;
-    await ensureTable();
+    await ensureInstallmentSchema();
     const rows = await sql`
       SELECT * FROM installment_plans
       WHERE user_id = ${userId}
@@ -42,17 +28,17 @@ export async function POST(request: Request) {
     const auth = await requireUserId();
     if (auth instanceof NextResponse) return auth;
     const { userId } = auth;
-    await ensureTable();
+    await ensureInstallmentSchema();
     const body = await request.json();
-    const { description, total_amount, installments, paid_installments = 0, start_date } = body;
+    const { description, total_amount, installments, paid_installments = 0, start_date, plan_group_id } = body;
 
     if (!description || !total_amount || !installments) {
       return NextResponse.json({ error: "Campos obrigatórios: description, total_amount, installments" }, { status: 400 });
     }
 
     const [row] = await sql`
-      INSERT INTO installment_plans (user_id, description, total_amount, installments, paid_installments, start_date)
-      VALUES (${userId}, ${description}, ${total_amount}, ${installments}, ${paid_installments}, ${start_date ?? null})
+      INSERT INTO installment_plans (user_id, description, total_amount, installments, paid_installments, start_date, plan_group_id)
+      VALUES (${userId}, ${description}, ${total_amount}, ${installments}, ${paid_installments}, ${start_date ?? null}, ${plan_group_id ?? null})
       RETURNING *
     `;
     return NextResponse.json(row, { status: 201 });
