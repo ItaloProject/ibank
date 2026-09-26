@@ -130,29 +130,6 @@ export default function RelatoriosPage() {
         description={viewMode === "mes" ? `Visão mensal — ${monthLabel}` : `Análise dos últimos ${period} meses`}
         actions={
           <div className="flex gap-2 flex-wrap items-center" data-no-print>
-            <div className="flex rounded-lg border border-border overflow-hidden text-sm">
-              <button
-                type="button"
-                onClick={() => setViewMode("mes")}
-                className={`px-3 py-2.5 min-h-11 transition-colors touch-manipulation ${viewMode === "mes" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-              >
-                Mês a mês
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("periodo")}
-                className={`px-3 py-2.5 min-h-11 transition-colors touch-manipulation ${viewMode === "periodo" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-              >
-                Período
-              </button>
-            </div>
-
-            {viewMode === "periodo" && ([3, 6, 12] as Period[]).map((p) => (
-              <Button key={p} variant={period === p ? "default" : "outline"} size="sm"
-                onClick={() => setPeriod(p)}>{p} meses</Button>
-            ))}
-
-            <div className="w-px bg-border mx-1 h-6" />
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4" />
               Exportar PDF
@@ -166,24 +143,58 @@ export default function RelatoriosPage() {
       />
 
       <PageBody>
-        {viewMode === "mes" && (
-          <div className="flex items-center gap-3" data-no-print>
-            <button
-              onClick={() => setSelectedMonth((m) => subMonths(m, 1))}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="text-base font-semibold capitalize min-w-[160px] text-center">{monthLabel}</span>
-            <button
-              onClick={() => setSelectedMonth((m) => addMonths(m, 1))}
-              disabled={isCurrentMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+        <div className="flex flex-wrap items-center justify-between gap-3" data-no-print>
+          <div role="group" aria-label="Tipo de análise" className="flex rounded-lg border border-border p-0.5 text-sm">
+            {([["mes", "Mês a mês"], ["periodo", "Período"]] as [ViewMode, string][]).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={viewMode === mode}
+                onClick={() => setViewMode(mode)}
+                className={`rounded-md px-3 min-h-10 font-medium transition-colors touch-manipulation ${viewMode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-        )}
+
+          {viewMode === "mes" ? (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setSelectedMonth((m) => subMonths(m, 1))}
+                aria-label="Mês anterior"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-sm font-semibold capitalize min-w-[150px] text-center">{monthLabel}</span>
+              <button
+                type="button"
+                onClick={() => setSelectedMonth((m) => addMonths(m, 1))}
+                disabled={isCurrentMonth}
+                aria-label="Próximo mês"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div role="group" aria-label="Período" className="flex rounded-lg border border-border p-0.5 text-sm">
+              {([3, 6, 12] as Period[]).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  aria-pressed={period === p}
+                  onClick={() => setPeriod(p)}
+                  className={`rounded-md px-3 min-h-10 font-medium tabular-nums transition-colors touch-manipulation ${period === p ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                >
+                  {p} meses
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div ref={reportRef} className="space-y-4 sm:space-y-6">
           <div className="hidden print:block mb-4">
