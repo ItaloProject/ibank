@@ -101,7 +101,6 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
 
   return (
     <aside
-      data-app-sidebar
       className={cn(
         "fixed left-0 top-0 z-50 md:z-40 flex h-[100dvh] flex-col bg-sidebar",
         "transition-[width,transform] duration-200 ease-out",
