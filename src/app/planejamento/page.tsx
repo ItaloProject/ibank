@@ -422,7 +422,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   return (
     <PageShell>
       {/* Desktop: full page header */}
-      <div className="hidden md:block">
+      <div className="hidden md:block sticky top-0 z-20 bg-background">
         <PageHeader
           title="Planejamento"
           description={undefined}
