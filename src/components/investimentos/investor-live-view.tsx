@@ -8,6 +8,7 @@ import {
   CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Undo2, Trash2,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
+import { CdiHelp, TetoHelp, TipoCaixinhaHelp } from "./help-texts";
 import {
   FOCUS, LABEL, MONEY, BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, BTN_DANGER_OUTLINE,
   ROW, INPUT_BOX, GAIN, LOSS, ATTENTION, LiveSheet, StatBox, BackLink,
@@ -2060,7 +2061,7 @@ export function InvestorLiveView({
             />
           </div>
 
-          <p id="live-cx-tipo" className={`${LABEL} mb-2`}>Tipo de caixinha</p>
+          <p id="live-cx-tipo" className={`${LABEL} mb-2 flex items-center gap-1.5`}>Tipo de caixinha <TipoCaixinhaHelp /></p>
           <div role="radiogroup" aria-labelledby="live-cx-tipo" className="grid grid-cols-3 gap-2 mb-4">
             {(
               [
@@ -2105,7 +2106,10 @@ export function InvestorLiveView({
           {newCaixinhaTipo === "turbo" && (
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label htmlFor="live-cx-cdi" className={LABEL}>% do CDI</label>
+                <div className="flex items-center gap-1.5">
+                  <label htmlFor="live-cx-cdi" className={LABEL}>% do CDI</label>
+                  <CdiHelp />
+                </div>
                 <div className={`${INPUT_BOX} mt-1.5`}>
                   <input
                     id="live-cx-cdi"
@@ -2120,7 +2124,10 @@ export function InvestorLiveView({
                 </div>
               </div>
               <div>
-                <label htmlFor="live-cx-teto" className={LABEL}>Teto rendimento</label>
+                <div className="flex items-center gap-1.5">
+                  <label htmlFor="live-cx-teto" className={LABEL}>Teto rendimento</label>
+                  <TetoHelp />
+                </div>
                 <div className={`${INPUT_BOX} mt-1.5`}>
                   <span className="text-xs font-semibold text-muted-foreground shrink-0">R$</span>
                   <input

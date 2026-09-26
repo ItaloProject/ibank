@@ -36,6 +36,7 @@ import {
   LOSS,
   LiveSheet,
 } from "./live-ui";
+import { CdiHelp, SaldoEmContaHelp, TetoHelp, TipoCaixinhaHelp } from "./help-texts";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -700,7 +701,7 @@ export function InvestorLiveViewDesktop({
           <dd className={`${MONEY} mt-1 text-2xl leading-none`}>{formatCurrency(patrimonioTotal)}</dd>
         </div>
         <div className="px-6 py-4">
-          <dt className={LABEL}>Saldo em conta</dt>
+          <dt className={`${LABEL} flex items-center gap-1.5`}>Saldo em conta <SaldoEmContaHelp /></dt>
           <dd className={`${MONEY} mt-1 text-xl leading-none`}>{formatCurrency(cashBalance)}</dd>
         </div>
         <div className="px-6 py-4">
@@ -1245,7 +1246,10 @@ export function InvestorLiveViewDesktop({
         title="Nova caixinha"
       >
         <form onSubmit={(e) => { e.preventDefault(); void confirmNewCaixinha(); }} className="space-y-4">
-          <div role="radiogroup" aria-label="Tipo de caixinha" className="grid grid-cols-3 gap-1.5">
+          <p id="caixinha-tipo" className={`${LABEL} -mb-2 flex items-center gap-1.5`}>
+            Tipo de caixinha <TipoCaixinhaHelp />
+          </p>
+          <div role="radiogroup" aria-labelledby="caixinha-tipo" className="grid grid-cols-3 gap-1.5">
             {(["turbo", "emergencia", "investimentos"] as const).map((t) => {
               const labels = { turbo: "TURBO", emergencia: "Emergência", investimentos: "Renda fixa" };
               const active = newCaixinhaTipo === t;
@@ -1305,7 +1309,10 @@ export function InvestorLiveViewDesktop({
           {newCaixinhaTipo === "turbo" && (
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label htmlFor="caixinha-cdi" className={`${LABEL} block mb-1.5`}>% do CDI</label>
+                <div className="mb-1.5 flex items-center gap-1.5">
+                  <label htmlFor="caixinha-cdi" className={LABEL}>% do CDI</label>
+                  <CdiHelp />
+                </div>
                 <div className={INPUT_BOX}>
                   <input
                     id="caixinha-cdi"
@@ -1320,7 +1327,10 @@ export function InvestorLiveViewDesktop({
                 </div>
               </div>
               <div>
-                <label htmlFor="caixinha-teto" className={`${LABEL} block mb-1.5`}>Teto de rendimento</label>
+                <div className="mb-1.5 flex items-center gap-1.5">
+                  <label htmlFor="caixinha-teto" className={LABEL}>Teto de rendimento</label>
+                  <TetoHelp />
+                </div>
                 <div className={INPUT_BOX}>
                   <span className="text-muted-foreground text-sm shrink-0">R$</span>
                   <input

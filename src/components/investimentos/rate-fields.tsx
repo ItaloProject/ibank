@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import { FOCUS, INPUT_BOX, LABEL } from "@/components/investimentos/live-ui";
+import { HelpTip } from "@/components/ui/help-tip";
 import { RATE_INDEXES, type AccountRate, type RateIndex } from "@/lib/account-rate";
 
 export type RateDraft = { index: RateIndex | ""; value: string; maturity: string; exempt: boolean };
@@ -42,7 +43,14 @@ export function RateFields({ value, onChange }: { value: RateDraft; onChange: (d
 
   return (
     <fieldset className="space-y-3">
-      <legend className={`${LABEL} mb-1.5`}>Rentabilidade contratada</legend>
+      <legend className={`${LABEL} mb-1.5 flex items-center gap-1.5`}>
+        Rentabilidade contratada
+        <HelpTip label="rentabilidade contratada">
+          Como a aplicação rende, conforme o contrato ou o app do banco. <strong>% do CDI</strong>: acompanha o CDI (ex.: CDB 110% do CDI).{" "}
+          <strong>Selic +</strong> e <strong>IPCA +</strong>: o índice mais uma taxa fixa (ex.: IPCA + 6,5%).{" "}
+          <strong>Prefixado</strong>: taxa travada ao ano. Com isso o app calcula o rendimento e a projeção da carteira.
+        </HelpTip>
+      </legend>
       <div role="radiogroup" aria-label="Indexador" className="grid grid-cols-3 gap-1.5">
         {RATE_INDEXES.map((r) => (
           <button
@@ -80,7 +88,12 @@ export function RateFields({ value, onChange }: { value: RateDraft; onChange: (d
             </div>
           </div>
           <div>
-            <label htmlFor={`${id}-venc`} className={`${LABEL} block mb-1.5`}>Vencimento</label>
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <label htmlFor={`${id}-venc`} className={LABEL}>Vencimento</label>
+              <HelpTip label="vencimento">
+                Data em que a aplicação termina e o dinheiro volta para você. É opcional. Depois dela, o app considera o valor reaplicado a 100% do CDI.
+              </HelpTip>
+            </div>
             <div className={INPUT_BOX}>
               <input
                 id={`${id}-venc`}

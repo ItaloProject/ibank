@@ -31,6 +31,7 @@ import { generatePlanReport } from "@/lib/generate-plan-report";
 import { USERS } from "@/lib/user";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 import { SplashScreen } from "@/components/splash-screen";
+import { HelpTip } from "@/components/ui/help-tip";
 import { IncomeDialog, type PlanIncome } from "@/components/planejamento/income-dialog";
 import { GroupSection, type ExpenseGroup, type ExpenseItem } from "@/components/planejamento/group-section";
 
@@ -548,17 +549,32 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           {/* Desktop: 3-card grid */}
           <div className="hidden md:grid grid-cols-3 gap-2">
             <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">Fixos</p>
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-500">
+                Fixos
+                <HelpTip label="fixos">
+                  Soma do que você já gastou (valor real) nos itens fixos. O &quot;de R$&quot; abaixo é o total planejado para eles.
+                </HelpTip>
+              </p>
               <p className="text-base font-display font-black tabular-nums leading-none">{fmt(totalFixoActual)}</p>
               <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(totalFixoPlanned)}</p>
             </div>
             <div className="rounded-xl bg-background border border-orange-400/20 px-3 py-3 space-y-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400">Variáveis</p>
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-orange-400">
+                Variáveis
+                <HelpTip label="variáveis">
+                  Soma do que você já gastou (valor real) nos itens variáveis. O &quot;de R$&quot; abaixo é o total planejado para eles.
+                </HelpTip>
+              </p>
               <p className="text-base font-display font-black tabular-nums leading-none">{fmt(totalVarActual)}</p>
               <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(totalVarPlanned)}</p>
             </div>
             <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>Sobra</p>
+              <p className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>
+                Sobra
+                <HelpTip label="sobra">
+                  Renda do mês menos tudo o que você já gastou (valor real). O &quot;de R$&quot; abaixo é quanto sobraria se você gastasse exatamente o planejado. É o que fica livre para investir.
+                </HelpTip>
+              </p>
               <p className={`text-base font-display font-black tabular-nums leading-none ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>
                 {salary > 0 ? fmt(sobra) : "—"}
               </p>
@@ -743,7 +759,13 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="item-type-select">Tipo</Label>
+              <Label htmlFor="item-type-select" className="flex items-center gap-1.5">
+                Tipo
+                <HelpTip label="tipo do gasto">
+                  <strong>Fixo</strong> é o que se repete com o mesmo valor todo mês, como aluguel, internet e assinaturas.{" "}
+                  <strong>Variável</strong> muda de um mês para outro, como mercado, combustível e lazer. A separação mostra onde dá para economizar.
+                </HelpTip>
+              </Label>
               <Select value={itemForm.type} onValueChange={(v) => setItemForm({ ...itemForm, type: v as "fixo" | "variavel" })}>
                 <SelectTrigger id="item-type-select"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -764,12 +786,22 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="item-planned-input">Valor planejado (R$)</Label>
+                <Label htmlFor="item-planned-input" className="flex items-center gap-1.5">
+                  Valor planejado (R$)
+                  <HelpTip label="valor planejado">
+                    Quanto você <strong>pretende</strong> gastar com este item no mês: é o seu orçamento. Serve de meta: a barra do grupo mostra quanto do planejado você já usou e fica vermelha se passar.
+                  </HelpTip>
+                </Label>
                 <Input id="item-planned-input" type="number" placeholder="0,00" value={itemForm.planned}
                   onChange={(e) => setItemForm({ ...itemForm, planned: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="item-actual-input">Valor real (R$)</Label>
+                <Label htmlFor="item-actual-input" className="flex items-center gap-1.5">
+                  Valor real (R$)
+                  <HelpTip label="valor real">
+                    Quanto você <strong>de fato gastou</strong>. É o valor usado no &quot;Gasto&quot; e na &quot;Sobra&quot; do mês. Você pode preencher depois, direto na lista, conforme as contas chegam.
+                  </HelpTip>
+                </Label>
                 <Input id="item-actual-input" type="number" placeholder="0,00" value={itemForm.actual}
                   onChange={(e) => setItemForm({ ...itemForm, actual: e.target.value })} />
               </div>

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { HelpTip } from "@/components/ui/help-tip";
 import { useUser } from "@/context/user-context";
 import { UserSelect } from "@/components/user-select";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
@@ -436,7 +437,12 @@ function ParcelamentosContent({ userId }: { userId: string }) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="plan-field-paid_installments">Já pagas</Label>
+                <Label htmlFor="plan-field-paid_installments" className="flex items-center gap-1.5">
+                  Já pagas
+                  <HelpTip label="parcelas já pagas">
+                    Quantas parcelas você já quitou. Serve para calcular quanto ainda falta pagar. Depois é só usar o + no card a cada parcela paga.
+                  </HelpTip>
+                </Label>
                 <Input
                   id="plan-field-paid_installments"
                   type="number"
@@ -450,7 +456,12 @@ function ParcelamentosContent({ userId }: { userId: string }) {
                 <FieldError field="paid_installments" errors={errors} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="plan-field-start_date">1ª parcela em</Label>
+                <Label htmlFor="plan-field-start_date" className="flex items-center gap-1.5">
+                  1ª parcela em
+                  <HelpTip label="data da primeira parcela">
+                    Mês em que vence a primeira parcela (na fatura do cartão, geralmente o mês seguinte à compra). Define quando o parcelamento termina e em quais meses a parcela entra no planejamento.
+                  </HelpTip>
+                </Label>
                 <Input
                   id="plan-field-start_date"
                   type="date"
@@ -462,7 +473,12 @@ function ParcelamentosContent({ userId }: { userId: string }) {
             </div>
             <FieldError field="start_date" errors={errors} />
             <div className="space-y-1.5">
-              <Label htmlFor="plan-field-plan_group_id">Lançar no planejamento</Label>
+              <Label htmlFor="plan-field-plan_group_id" className="flex items-center gap-1.5">
+                Lançar no planejamento
+                <HelpTip label="lançar no planejamento">
+                  Escolha o grupo do Planejamento onde a parcela deve aparecer. Em cada mês do parcelamento, ela entra sozinha como gasto fixo, com o número da parcela (ex.: 3/10). Assim você não precisa digitar todo mês.
+                </HelpTip>
+              </Label>
               <Select value={form.plan_group_id} onValueChange={(v) => setField("plan_group_id", v)}>
                 <SelectTrigger id="plan-field-plan_group_id">
                   <SelectValue />
