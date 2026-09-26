@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { X, Plus, ArrowRightLeft, Wallet } from "lucide-react";
+import { X, Plus, ArrowRightLeft, Wallet, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
 import { CASH_ACCOUNT_NAME, isEmergencyAccountName } from "@/lib/account-groups";
@@ -30,6 +30,7 @@ import {
   MONEY,
   BTN_PRIMARY,
   BTN_SECONDARY,
+  BTN_DANGER,
   INPUT_BOX,
   GAIN,
   LOSS,
@@ -149,6 +150,15 @@ export function InvestorLiveViewDesktop({
   const [newCaixinhaTetoMask, setNewCaixinhaTetoMask] = useState("");
   const [newCaixinhaSubmitting, setNewCaixinhaSubmitting] = useState(false);
   const [newCaixinhaError, setNewCaixinhaError] = useState<string | null>(null);
+
+  /* ── Delete caixinha ──────────────────────────────────────────── */
+  const [deleteAccount, setDeleteAccount] = useState<AccountRef | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+  /* ── Cash adjust ──────────────────────────────────────────────── */
+  const [cashSheetOpen, setCashSheetOpen] = useState(false);
+  const [cashMask, setCashMask] = useState("");
+  const [cashSaving, setCashSaving] = useState(false);
 
   /* ── Derived: holdings ────────────────────────────────────────── */
   const holdingRows = useMemo(() => {
@@ -487,6 +497,58 @@ export function InvestorLiveViewDesktop({
     }
   }
 
+  async function confirmDeleteAccount() {
+    if (!deleteAccount || deleteSubmitting) return;
+    setDeleteSubmitting(true);
+    try {
+      await deleteInvestmentAccount(deleteAccount.id);
+      await onRefresh();
+      toast.success(`Caixinha "${deleteAccount.nome}" excluída`);
+      setDeleteAccount(null);
+    } catch (err) {
+      console.error("Erro ao excluir caixinha:", err);
+      toast.error("Não foi possível excluir a caixinha. Tente novamente.");
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  }
+
+  const cashInputValue = parseBRLMask(cashMask);
+  const cashDelta = cashInputValue - cashBalance;
+  const cashChanged = Math.abs(cashDelta) >= 0.005;
+
+  function openCashSheet() {
+    setCashMask(formatBRLMask(Math.round(Math.max(0, cashBalance) * 100).toString()));
+    setCashSheetOpen(true);
+  }
+
+  async function saveCash() {
+    if (!cashChanged || cashSaving) return;
+    setCashSaving(true);
+    try {
+      let id = cashAccountId;
+      if (!id) {
+        const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
+        id = acc.id;
+      }
+      await createInvestment({
+        account_id: id,
+        type: cashDelta > 0 ? "deposito" : "retirada",
+        amount: Math.abs(cashDelta),
+        description: "Ajuste de saldo via Live",
+        date: today(),
+      });
+      await onRefresh();
+      setCashSheetOpen(false);
+      toast.success("Saldo em conta atualizado");
+    } catch (err) {
+      console.error("Erro ao ajustar saldo:", err);
+      toast.error("Não foi possível salvar o saldo. Tente novamente.");
+    } finally {
+      setCashSaving(false);
+    }
+  }
+
   /* ── Derived: movements ───────────────────────────────────────── */
   const movements = useMemo(() => {
     const items: { id: string; title: string; sub: string; amount: number; date: string; iso: string }[] = [];
@@ -604,6 +666,14 @@ export function InvestorLiveViewDesktop({
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
+            onClick={() => openNewCaixinha("investimentos")}
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-bold text-foreground hover:bg-muted transition-colors ${FOCUS}`}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Nova caixinha
+          </button>
+          <button
+            type="button"
             onClick={() => openMarket("hub")}
             className={`inline-flex min-h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-sm font-bold text-background hover:bg-foreground/90 transition-colors ${FOCUS}`}
           >
@@ -695,6 +765,9 @@ export function InvestorLiveViewDesktop({
                 <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} mt-3 inline-flex items-center justify-center gap-2`}>
                   <Wallet className="h-4 w-4" aria-hidden="true" />
                   Investir agora
+                </button>
+                <button type="button" onClick={openCashSheet} className={`${BTN_SECONDARY} mt-2`}>
+                  {cashBalance > 0 ? "Ajustar saldo" : "Informar saldo"}
                 </button>
               </div>
             </section>
@@ -814,14 +887,26 @@ export function InvestorLiveViewDesktop({
                             {acc.maxRendimento ? ` · teto ${formatCurrency(acc.maxRendimento)}` : ""}
                           </p>
                         ) : null}
-                        <button
-                          type="button"
-                          onClick={() => openWithdraw(acc)}
-                          aria-label={`Retirar de ${acc.nome}`}
-                          className={`${SMALL_BTN} mt-3 w-full justify-center`}
-                        >
-                          Retirar
-                        </button>
+                        <div className="mt-3 flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openWithdraw(acc)}
+                            disabled={acc.valor <= 0}
+                            aria-label={`Retirar de ${acc.nome}`}
+                            className={`${SMALL_BTN} flex-1 justify-center disabled:opacity-40 disabled:pointer-events-none`}
+                          >
+                            Retirar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteAccount(acc)}
+                            aria-label={`Excluir ${acc.nome}`}
+                            title="Excluir caixinha"
+                            className={`${SMALL_BTN} justify-center hover:bg-red-500/10 hover:text-red-500`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -858,14 +943,26 @@ export function InvestorLiveViewDesktop({
                       </div>
                       <p className={`${MONEY} text-sm shrink-0`}>{formatCurrency(acc.valor)}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openWithdraw(acc)}
-                      aria-label={`Retirar de ${acc.nome}`}
-                      className={`${SMALL_BTN} mt-3 w-full justify-center`}
-                    >
-                      Retirar
-                    </button>
+                    <div className="mt-3 flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openWithdraw(acc)}
+                        disabled={acc.valor <= 0}
+                        aria-label={`Retirar de ${acc.nome}`}
+                        className={`${SMALL_BTN} flex-1 justify-center disabled:opacity-40 disabled:pointer-events-none`}
+                      >
+                        Retirar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteAccount(acc)}
+                        aria-label={`Excluir ${acc.nome}`}
+                        title="Excluir caixinha"
+                        className={`${SMALL_BTN} justify-center hover:bg-red-500/10 hover:text-red-500`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -1036,6 +1133,8 @@ export function InvestorLiveViewDesktop({
                 onBuyStock={handleBuyStock}
                 onBuyTesouro={handleBuyTesouro}
                 onAporte={handleAporte}
+                onCreateAccount={openNewCaixinha}
+                onAdjustCash={openCashSheet}
               />
             </div>
           </div>
@@ -1250,6 +1349,64 @@ export function InvestorLiveViewDesktop({
               {newCaixinhaSubmitting ? "Criando…" : "Criar caixinha"}
             </button>
           </div>
+        </form>
+      </LiveSheet>
+
+      {/* ── Excluir caixinha ──────────────────────────────────────── */}
+      <LiveSheet
+        open={!!deleteAccount}
+        onOpenChange={(o) => { if (!o) setDeleteAccount(null); }}
+        dismissible={!deleteSubmitting}
+        title={deleteAccount ? `Excluir "${deleteAccount.nome}"?` : "Excluir caixinha"}
+        description={
+          deleteAccount && deleteAccount.valor > 0
+            ? `O saldo de ${formatCurrency(deleteAccount.valor)} e todo o histórico desta caixinha serão apagados. Para manter o dinheiro, retire antes para o saldo em conta.`
+            : "A caixinha e o histórico dela serão apagados. Esta ação não pode ser desfeita."
+        }
+      >
+        <div className="space-y-2">
+          <button type="button" onClick={() => void confirmDeleteAccount()} disabled={deleteSubmitting} className={BTN_DANGER}>
+            {deleteSubmitting ? "Excluindo…" : "Excluir caixinha"}
+          </button>
+          <button type="button" onClick={() => setDeleteAccount(null)} disabled={deleteSubmitting} className={BTN_SECONDARY}>
+            Cancelar
+          </button>
+        </div>
+      </LiveSheet>
+
+      {/* ── Saldo em conta ────────────────────────────────────────── */}
+      <LiveSheet
+        open={cashSheetOpen}
+        onOpenChange={setCashSheetOpen}
+        dismissible={!cashSaving}
+        title="Saldo em conta"
+        description="Informe quanto você tem hoje disponível para investir. A diferença é registrada como um lançamento de ajuste."
+      >
+        <form onSubmit={(e) => { e.preventDefault(); void saveCash(); }} className="space-y-4">
+          <div>
+            <label htmlFor="live-cash-desktop" className={`${LABEL} block mb-2`}>Saldo atual</label>
+            <div className={INPUT_BOX}>
+              <span className="text-muted-foreground text-sm shrink-0">R$</span>
+              <input
+                id="live-cash-desktop"
+                type="text"
+                inputMode="numeric"
+                autoFocus
+                value={cashMask}
+                onChange={(e) => setCashMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
+                placeholder="0,00"
+                className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none text-base font-semibold tabular-nums"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 tabular-nums" aria-live="polite">
+              {cashChanged
+                ? `Ajuste de ${cashDelta > 0 ? "+" : "−"}${formatCurrency(Math.abs(cashDelta))} em relação ao saldo registrado.`
+                : "Sem alteração."}
+            </p>
+          </div>
+          <button type="submit" disabled={!cashChanged || cashSaving} className={BTN_PRIMARY}>
+            {cashSaving ? "Salvando…" : "Salvar saldo"}
+          </button>
         </form>
       </LiveSheet>
     </div>

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   X, Landmark, Calculator, Zap, Shield,
   ArrowUpRight, ArrowDownRight, ArrowRight, ArrowRightLeft, Check, Pencil, Home, ChevronRight,
-  CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Undo2,
+  CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Undo2, Trash2,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
@@ -377,6 +377,8 @@ export function InvestorLiveView({
   const [financePanel, setFinancePanel] = useState<FinancePanelId | null>(null);
   const [undoTarget, setUndoTarget] = useState<{ id: string; title: string } | null>(null);
   const [selectedFixedIncome, setSelectedFixedIncome] = useState<RealAccountItem | null>(null);
+  const [deleteAccount, setDeleteAccount] = useState<RealAccountItem | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [sellTicker, setSellTicker] = useState<string | null>(null);
   const [sellQtyMask, setSellQtyMask] = useState("");
@@ -569,13 +571,13 @@ export function InvestorLiveView({
     }
   }
 
-  function openNewCaixinha() {
+  function openNewCaixinha(tipo: "turbo" | "emergencia" | "investimentos" = "investimentos") {
     setNewCaixinhaName("");
     setNewCaixinhaInstituicao("");
-    setNewCaixinhaTipo("investimentos");
+    setNewCaixinhaTipo(tipo);
     setNewCaixinhaCdiMask("");
     setNewCaixinhaTetoMask("");
-    setNewCaixinhaRate(EMPTY_RATE_DRAFT);
+    setNewCaixinhaRate(tipo === "emergencia" ? { ...EMPTY_RATE_DRAFT, index: "cdi", value: "100" } : EMPTY_RATE_DRAFT);
     setNewCaixinhaError(null);
     setNewCaixinhaOpen(true);
   }
@@ -613,6 +615,22 @@ export function InvestorLiveView({
       setNewCaixinhaError("Não foi possível criar a caixinha. Tente novamente.");
     } finally {
       setNewCaixinhaSubmitting(false);
+    }
+  }
+
+  async function confirmDeleteAccount() {
+    if (!deleteAccount || deleteSubmitting) return;
+    setDeleteSubmitting(true);
+    try {
+      await deleteInvestmentAccount(deleteAccount.id);
+      await onRefresh();
+      toast.success(`Caixinha "${deleteAccount.nome}" excluída`);
+      setDeleteAccount(null);
+    } catch (err) {
+      console.error("Erro ao excluir caixinha:", err);
+      toast.error("Não foi possível excluir a caixinha. Tente novamente.");
+    } finally {
+      setDeleteSubmitting(false);
     }
   }
 
@@ -1164,7 +1182,7 @@ export function InvestorLiveView({
                 })}
                 <button
                   type="button"
-                  onClick={openNewCaixinha}
+                  onClick={() => openNewCaixinha()}
                   className={`w-full min-h-12 rounded-xl border border-dashed border-border flex items-center justify-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors ${FOCUS}`}
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
@@ -1676,6 +1694,8 @@ export function InvestorLiveView({
                 onBuyStock={handleBuyStock}
                 onBuyTesouro={handleBuyTesouro}
                 onAporte={handleAporte}
+                onCreateAccount={openNewCaixinha}
+                onAdjustCash={openCashSheet}
               />
             </div>
           </div>
@@ -1810,9 +1830,42 @@ export function InvestorLiveView({
               <button type="button" onClick={() => setSelectedFixedIncome(null)} className={BTN_SECONDARY}>
                 Fechar
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteAccount(selectedFixedIncome);
+                  setSelectedFixedIncome(null);
+                }}
+                className={`${BTN_DANGER_OUTLINE} inline-flex items-center justify-center gap-2`}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                Excluir caixinha
+              </button>
             </div>
           </>
         )}
+      </LiveSheet>
+
+      {/* Excluir caixinha */}
+      <LiveSheet
+        open={!!deleteAccount}
+        onOpenChange={(o) => !o && setDeleteAccount(null)}
+        dismissible={!deleteSubmitting}
+        title={deleteAccount ? `Excluir "${deleteAccount.nome}"?` : "Excluir caixinha"}
+        description={
+          deleteAccount && deleteAccount.valor > 0
+            ? `O saldo de ${formatCurrency(deleteAccount.valor)} e todo o histórico desta caixinha serão apagados. Para manter o dinheiro, retire antes para o saldo em conta.`
+            : "A caixinha e o histórico dela serão apagados. Esta ação não pode ser desfeita."
+        }
+      >
+        <div className="space-y-2">
+          <button type="button" disabled={deleteSubmitting} onClick={() => void confirmDeleteAccount()} className={BTN_DANGER}>
+            {deleteSubmitting ? "Excluindo…" : "Excluir caixinha"}
+          </button>
+          <button type="button" disabled={deleteSubmitting} onClick={() => setDeleteAccount(null)} className={BTN_SECONDARY}>
+            Cancelar
+          </button>
+        </div>
       </LiveSheet>
 
       {/* Detalhe de posição em ação/FII */}

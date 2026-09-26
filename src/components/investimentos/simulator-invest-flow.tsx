@@ -56,7 +56,24 @@ type Props = {
   onBuyStock: (ticker: string, name: string, price: number, amount: number) => Promise<void> | void;
   onBuyTesouro: (product: TesouroProduct, amount: number) => Promise<void> | void;
   onAporte: (accountId: string, amount: number) => Promise<void> | void;
+  onCreateAccount?: (tipo: "turbo" | "emergencia") => void;
+  onAdjustCash?: () => void;
 };
+
+function CreateAccountButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full min-h-14 rounded-xl border border-dashed border-border p-3.5 text-left flex items-center gap-2.5 hover:bg-muted/60 hover:border-foreground/30 transition-colors ${FOCUS}`}
+    >
+      <span className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+        <Plus className="h-4 w-4 text-foreground/70" aria-hidden="true" />
+      </span>
+      <span className="text-sm font-bold text-foreground">{label}</span>
+    </button>
+  );
+}
 
 function formatBRLMask(digits: string): string {
   const cleaned = digits.replace(/\D/g, "").slice(0, 12);
@@ -186,6 +203,8 @@ export function SimulatorInvestFlow({
   onBuyStock,
   onBuyTesouro,
   onAporte,
+  onCreateAccount,
+  onAdjustCash,
 }: Props) {
   const [buyTarget, setBuyTarget] = useState<BuyTarget | null>(null);
   const [amountMask, setAmountMask] = useState("");
@@ -323,8 +342,17 @@ export function SimulatorInvestFlow({
         <p className="text-[11px] text-muted-foreground mt-2">
           {cash > 0
             ? "Valor disponível na sua conta para investir."
-            : "Sem saldo em conta. Ajuste o saldo no Início para investir."}
+            : "Sem saldo em conta. Informe quanto você tem na conta para investir."}
         </p>
+        {onAdjustCash && (
+          <button
+            type="button"
+            onClick={onAdjustCash}
+            className={`mt-3 inline-flex min-h-9 items-center rounded-lg border border-border px-3 text-xs font-bold text-foreground hover:bg-muted transition-colors ${FOCUS}`}
+          >
+            {cash > 0 ? "Ajustar saldo" : "Informar saldo"}
+          </button>
+        )}
       </div>
 
       {section === "hub" && (
@@ -418,11 +446,13 @@ export function SimulatorInvestFlow({
               </button>
             ))}
 
+          {section === "turbo" && turboAccounts.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Você ainda não tem caixinha Turbo. Crie uma para poder aportar.
+            </p>
+          )}
           {section === "turbo" &&
-            (turboAccounts.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma conta Turbo para aportar.</p>
-            ) : (
-              turboAccounts.map((account) => (
+            turboAccounts.map((account) => (
                 <AccountButton
                   key={account.id}
                   title={account.nome}
@@ -434,25 +464,29 @@ export function SimulatorInvestFlow({
                   value={account.valor}
                   onClick={() => openBuy({ kind: "aporte", account, group: "turbo" })}
                 />
-              ))
             ))}
+          {section === "turbo" && onCreateAccount && (
+            <CreateAccountButton label="Criar caixinha Turbo" onClick={() => onCreateAccount("turbo")} />
+          )}
 
+          {section === "eme" && emergenciaAccounts.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Você ainda não tem reserva de emergência. Crie uma para poder aportar.
+            </p>
+          )}
           {section === "eme" &&
-            (emergenciaAccounts.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhuma conta de emergência para aportar.
-              </p>
-            ) : (
-              emergenciaAccounts.map((account) => (
-                <AccountButton
-                  key={account.id}
-                  title={account.nome}
-                  subtitle={account.instituicao || "Emergência"}
-                  value={account.valor}
-                  onClick={() => openBuy({ kind: "aporte", account, group: "eme" })}
-                />
-              ))
+            emergenciaAccounts.map((account) => (
+              <AccountButton
+                key={account.id}
+                title={account.nome}
+                subtitle={account.instituicao || "Emergência"}
+                value={account.valor}
+                onClick={() => openBuy({ kind: "aporte", account, group: "eme" })}
+              />
             ))}
+          {section === "eme" && onCreateAccount && (
+            <CreateAccountButton label="Criar reserva de emergência" onClick={() => onCreateAccount("emergencia")} />
+          )}
         </div>
       )}
 

@@ -54,7 +54,8 @@ export async function updateAccountBalance(id: string, current_balance: number):
 }
 
 export async function deleteInvestmentAccount(id: string): Promise<void> {
-  await fetch(`/api/investment-accounts/${id}`, { method: "DELETE" });
+  const res = await fetch(`/api/investment-accounts/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
 export async function renameInvestmentAccount(id: string, name: string, institution: string): Promise<InvestmentAccount> {
