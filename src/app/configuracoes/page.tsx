@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useUser } from "@/context/user-context";
 import {
   Eye, EyeOff, CheckCircle2, User, Lock, LayoutList, Home,
-  Landmark, TrendingUp,
+  Landmark, TrendingUp, Scale, MessageCircle,
 } from "lucide-react";
+import { RiskProfilePicker } from "@/components/bot/risk-profile-picker";
+import { WhatsappPanel } from "@/components/bot/whatsapp-panel";
 import { cn } from "@/lib/utils";
 import {
   ALWAYS_VISIBLE_HREFS,
@@ -44,7 +46,7 @@ function saveHidden(set: Set<string>) {
 }
 
 export default function ConfiguracoesPage() {
-  const { user, investmentProfile, setProfile } = useUser();
+  const { user, investmentProfile, setProfile, botEnabled } = useUser();
 
   // Senha
   const [senhaAtual, setSenhaAtual] = useState("");
@@ -163,6 +165,28 @@ export default function ConfiguracoesPage() {
           </p>
         )}
       </section>
+
+      {/* Perfil de risco */}
+      <section>
+        <div className="flex items-center gap-2 mb-1">
+          <Scale className="h-4 w-4 text-muted-foreground" />
+          <h2 className="font-semibold text-sm">Perfil de Risco</h2>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Define a alocação-alvo usada no rebalanceamento do assistente Muvo e no relatório.
+        </p>
+        <RiskProfilePicker />
+      </section>
+
+      {botEnabled && (
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <MessageCircle className="h-4 w-4 text-muted-foreground" />
+            <h2 className="font-semibold text-sm">WhatsApp</h2>
+          </div>
+          <WhatsappPanel variant="app" />
+        </section>
+      )}
 
       {/* Visibilidade do menu */}
       <section>

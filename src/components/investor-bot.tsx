@@ -3,11 +3,14 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   X, ArrowUp, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
-  Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, CornerDownRight,
+  Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
+import { RISK_PROFILES, type RebalancePlan, type RiskProfile } from "@/lib/rebalance";
+import { WhatsappPanel } from "@/components/bot/whatsapp-panel";
+import { RiskProfilePicker } from "@/components/bot/risk-profile-picker";
 
 /** Mascote do Muvo; o desenho tem fundo claro próprio, então serve nos dois temas. */
 function BotAvatar({ className }: { className?: string }) {
@@ -38,31 +41,47 @@ export type BotPortfolioContext = {
 
 /* ── Modelo da conversa ─────────────────────────────────────────── */
 
-type Intent = "visao" | "fiis" | "acoes" | "meta" | "pdf" | "help";
+type Intent = "visao" | "rebal" | "fiis" | "meta" | "whatsapp" | "perfil" | "pdf" | "help";
 type Tone = "pos" | "warn" | "neg";
 
 type Block =
   | { kind: "heading"; text: string }
   | { kind: "text"; text: string; muted?: boolean }
+  | { kind: "md"; text: string }
   | { kind: "stats"; items: { label: string; value: string; hint?: string; tone?: Tone }[] }
   | { kind: "bars"; title: string; items: { label: string; atual: number; ideal: number }[] }
   | { kind: "list"; title?: string; ordered?: boolean; items: { title: string; meta?: string; detail?: string; value?: string }[] }
   | { kind: "alert"; tone: Tone; text: string }
-  | { kind: "pdf" };
+  | { kind: "pdf" }
+  | { kind: "whatsapp" }
+  | { kind: "profile" };
 
 type Msg =
   | { id: string; role: "user"; text: string }
-  | { id: string; role: "bot"; blocks: Block[]; followups?: Intent[] };
+  | { id: string; role: "bot"; blocks: Block[]; followups?: Intent[]; ai?: string };
 
 const INTENTS: Record<Exclude<Intent, "help">, { label: string; ask: string; icon: LucideIcon }> = {
   visao: { label: "Visão da carteira", ask: "Quero a visão completa da carteira", icon: PieChart },
+  rebal: { label: "Rebalancear carteira", ask: "Como rebalancear minha carteira?", icon: Scale },
+  whatsapp: { label: "Enviar no WhatsApp", ask: "Envia o relatório no meu WhatsApp", icon: MessageCircle },
+  perfil: { label: "Perfil de risco", ask: "Quero ajustar meu perfil de risco", icon: SlidersHorizontal },
   fiis: { label: "FIIs rentáveis", ask: "Quais FIIs estão mais rentáveis?", icon: Building2 },
-  acoes: { label: "Equilibrar ações", ask: "Como equilibrar minha carteira de ações?", icon: Scale },
   meta: { label: "Quanto falta para a meta", ask: "Quanto falta para a minha meta?", icon: Target },
   pdf: { label: "Baixar PDF", ask: "Gera o PDF do relatório", icon: FileDown },
 };
 
-const STORAGE_CHAT = "muvo_bot_chat_v2";
+type AnalysisPayload = {
+  nome: string;
+  profile: RiskProfile;
+  profileDefinido: boolean;
+  aporte: number;
+  aporteOrigem: "meta" | "media" | "padrao";
+  gastoMensal: number | null;
+  plan: RebalancePlan | null;
+  rates: { selic: number; cdi: number; ipca12m: number | null; source: string; focusData: string | null };
+};
+
+const STORAGE_CHAT = "muvo_bot_chat_v3";
 const STORAGE_EXPANDED = "muvo_bot_expanded";
 const MAX_STORED = 60;
 const THINK_MS = 650;
@@ -76,15 +95,6 @@ const FII_FALLBACK = [
   { ticker: "BTLG11", tipo: "Logística", dyMensalPct: 0.75, price: null, perfil: "Crescimento setorial", risco: "Baixo", source: "estimado" },
   { ticker: "TRXF11", tipo: "Híbrido", dyMensalPct: 0.9, price: null, perfil: "Diversificado", risco: "Médio", source: "estimado" },
   { ticker: "IRDM11", tipo: "Papel", dyMensalPct: 1.05, price: null, perfil: "Alto DY, mais volatilidade", risco: "Médio-alto", source: "estimado" },
-];
-
-const STOCK_PICKS = [
-  { ticker: "BBAS3", setor: "Bancos", motivo: "Dividendos sólidos + diversificação vs commodities" },
-  { ticker: "ITUB4", setor: "Bancos", motivo: "Liquidez e histórico de proventos" },
-  { ticker: "TAEE11", setor: "Energia", motivo: "Utilities com rendimento previsível" },
-  { ticker: "EGIE3", setor: "Energia", motivo: "Geração + dividendos estáveis" },
-  { ticker: "WEGE3", setor: "Industrial", motivo: "Crescimento de longo prazo" },
-  { ticker: "BBSE3", setor: "Seguros", motivo: "Payout elevado e baixa correlação com VALE/PETR" },
 ];
 
 function pct(n: number, digits = 0) {
@@ -106,10 +116,74 @@ function welcome(): Msg {
     role: "bot",
     blocks: [
       { kind: "heading", text: "Olá, eu sou o Muvo." },
-      { kind: "text", text: "Leio a sua carteira, pesquiso FIIs, sugiro como equilibrar as ações e monto um **PDF** com o plano. Por onde começamos?" },
+      { kind: "text", text: "Leio a sua carteira, mostro como **rebalancear** pelo seu perfil, respondo suas dúvidas e mando o relatório no seu **WhatsApp**. Por onde começamos?" },
     ],
-    followups: ["visao", "fiis", "acoes", "meta"],
+    followups: ["visao", "rebal", "whatsapp", "meta"],
   };
+}
+
+const APORTE_ORIGEM: Record<AnalysisPayload["aporteOrigem"], string> = {
+  meta: "definido na sua meta",
+  media: "sua média dos últimos 6 meses",
+  padrao: "valor de referência; defina o seu em Metas",
+};
+const PRIORIDADE: Record<"alta" | "media" | "baixa", string> = { alta: "Prioridade alta", media: "Prioridade média", baixa: "Quando puder" };
+
+function rebalReply(a: AnalysisPayload): Msg {
+  const plan = a.plan;
+  const id = uid();
+  if (!plan) {
+    return {
+      id, role: "bot", followups: ["perfil", "visao"],
+      blocks: [
+        { kind: "heading", text: "Rebalanceamento" },
+        { kind: "text", text: "Ainda não encontrei investimentos cadastrados. Registre suas contas e ativos no MUVO LIVE e eu monto o plano." },
+      ],
+    };
+  }
+  const perfil = RISK_PROFILES[a.profile].label;
+  const reservaOk = plan.reserva.atual >= plan.reserva.alvo - 1;
+  const blocks: Block[] = [
+    { kind: "heading", text: `Rebalanceamento · perfil ${perfil.toLowerCase()}` },
+    {
+      kind: "stats",
+      items: [
+        { label: "Patrimônio", value: formatCurrency(plan.total) },
+        { label: "Rende em 12 meses", value: pct(plan.retorno12m, 2), hint: "esperado, já sem IR" },
+        { label: "Fora do alvo", value: pct(plan.desvio), hint: "da parte investida", tone: plan.desvio < 5 ? "pos" : plan.desvio < 15 ? "warn" : "neg" },
+        {
+          label: "Reserva",
+          value: formatCurrency(plan.reserva.atual),
+          hint: `de ${formatCurrency(plan.reserva.alvo)}${plan.reserva.baseadaEmGastos ? ` · ${plan.reserva.meses} meses de gastos` : ""}`,
+          tone: reservaOk ? "pos" : "warn",
+        },
+      ],
+    },
+    { kind: "bars", title: "Alocação · atual e alvo", items: plan.buckets.map((b) => ({ label: b.label, atual: b.pct, ideal: b.alvoPct })) },
+  ];
+  if (plan.plano.length > 0) {
+    blocks.push({
+      kind: "list",
+      title: `Onde aportar ${formatCurrency(plan.aporte)} este mês`,
+      ordered: true,
+      items: plan.plano.map((p) => ({ title: p.label, value: formatCurrency(p.valor) })),
+    });
+    blocks.push({ kind: "text", muted: true, text: `Aporte ${APORTE_ORIGEM[a.aporteOrigem]}. Sem vender nada: o dinheiro novo corrige a carteira aos poucos.` });
+  }
+  blocks.push(
+    plan.sugestoes.length > 0
+      ? { kind: "list", title: "Sugestões", items: plan.sugestoes.slice(0, 6).map((s) => ({ title: s.titulo, meta: PRIORIDADE[s.prioridade], detail: s.detalhe })) }
+      : { kind: "alert", tone: "pos", text: "Carteira alinhada ao seu perfil. Continue aportando conforme o plano." },
+  );
+  if (!a.profileDefinido) {
+    blocks.push({ kind: "text", text: "Usei o perfil **moderado** como padrão. Escolha o seu e eu refaço o plano:" }, { kind: "profile" });
+  }
+  blocks.push({
+    kind: "text",
+    muted: true,
+    text: `Selic ${pct(a.rates.selic, 2)} · CDI ${pct(a.rates.cdi, 2)}${a.rates.focusData ? ` · Focus de ${a.rates.focusData.split("-").reverse().join("/")}` : ""}. Análise educativa, não é recomendação de investimento.`,
+  });
+  return { id, role: "bot", blocks, followups: a.profileDefinido ? ["whatsapp", "perfil", "visao"] : ["whatsapp", "visao"] };
 }
 
 function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketResearchPayload | null): Msg {
@@ -143,11 +217,6 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
         ],
       },
       market ? { kind: "text", text: market, muted: true } : null,
-      ctx.recommendations.length > 0 && {
-        kind: "bars",
-        title: "Alocação · atual e ideal",
-        items: ctx.recommendations.map((r) => ({ label: r.label, atual: r.atual, ideal: r.ideal })),
-      },
       ctx.sources.length > 0
         ? {
             kind: "list",
@@ -158,7 +227,7 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
       ...(alerts.length
         ? alerts.map((a): Block => ({ kind: "alert", tone: a.level === "critical" ? "neg" : "warn", text: a.title }))
         : [{ kind: "alert", tone: "pos", text: "Nenhum alerta crítico no momento." } as Block]),
-    ], ["fiis", "acoes", "pdf"]);
+    ], ["rebal", "whatsapp", "fiis"]);
   }
 
   if (intent === "fiis") {
@@ -195,41 +264,23 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
         items: [{ label: "Capital para fechar a meta via FIIs", value: formatCurrency(gap / 0.0085), hint: `rendendo ~0,85%/mês para cobrir ${formatCurrency(gap)}` }],
       },
       { kind: "text", muted: true, text: "Ordenado por rendimento; não é recomendação de investimento. Fontes: BCB, Brapi/Yahoo quando disponíveis e estimativas curadas." },
-    ], ["acoes", "meta", "pdf"]);
+    ], ["rebal", "meta", "whatsapp"]);
   }
 
-  if (intent === "acoes") {
-    const owned = new Set(ctx.holdings.map((h) => h.ticker.toUpperCase()));
-    const picks = STOCK_PICKS.filter((s) => !owned.has(s.ticker)).slice(0, 4);
-    const fiiOff = ctx.fiiPctVariavel < 50 || ctx.fiiPctVariavel > 60;
+  if (intent === "whatsapp") {
     return bot([
-      { kind: "heading", text: "Equilíbrio das ações" },
-      {
-        kind: "stats",
-        items: [
-          { label: "FIIs na variável", value: pct(ctx.fiiPctVariavel), hint: "ideal 50–60%", tone: fiiOff ? "warn" : "pos" },
-          { label: "Commodities", value: pct(ctx.commodityPct), hint: "da renda variável", tone: ctx.commodityPct > 40 ? "warn" : undefined },
-        ],
-      },
-      ctx.commodityPct > 40 && {
-        kind: "alert",
-        tone: "warn",
-        text: "Commodities concentram a renda variável. Priorize bancos, energia e seguros para reduzir a correlação.",
-      },
-      ctx.nextMoves.length
-        ? {
-            kind: "list",
-            title: "Próximos movimentos",
-            ordered: true,
-            items: ctx.nextMoves.map((m) => ({ title: m.label, detail: m.razao, value: m.valor })),
-          }
-        : { kind: "text", text: "Carteira estável. Continue aportando conforme a meta." },
-      picks.length > 0 && {
-        kind: "list",
-        title: "Fora da sua carteira",
-        items: picks.map((s) => ({ title: s.ticker, meta: s.setor, detail: s.motivo })),
-      },
-    ], ["fiis", "visao", "pdf"]);
+      { kind: "heading", text: "Relatório no WhatsApp" },
+      { kind: "text", text: "Mando uma **imagem** com a sua carteira e o plano de aporte, e um **texto** com todas as sugestões de rebalanceamento." },
+      { kind: "whatsapp" },
+    ], ["rebal", "perfil"]);
+  }
+
+  if (intent === "perfil") {
+    return bot([
+      { kind: "heading", text: "Perfil de risco" },
+      { kind: "text", text: "O perfil define a alocação-alvo e o tamanho da reserva de emergência usados no rebalanceamento." },
+      { kind: "profile" },
+    ], ["rebal"]);
   }
 
   if (intent === "meta") {
@@ -240,7 +291,8 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
         { kind: "text", text: "Você ainda não definiu uma meta. Use **Definir meta**, no topo desta página, e eu calculo quanto falta." },
       ], ["visao", "fiis"]);
     }
-    const cdiMensal = 1.15 * (0.1065 / 12);
+    const cdiAnual = (research?.rates?.cdiAnual ?? 14.9) / 100;
+    const cdiMensal = Math.pow(1 + cdiAnual * 1.15, 1 / 12) - 1;
     return bot([
       { kind: "heading", text: "Sua meta de renda" },
       {
@@ -262,7 +314,7 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
             ],
           }
         : { kind: "alert", tone: "pos", text: "A meta já está coberta pela renda estimada." },
-    ], ["fiis", "acoes"]);
+    ], ["rebal", "fiis"]);
   }
 
   if (intent === "pdf") {
@@ -279,21 +331,26 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
       kind: "list",
       items: [
         { title: "Visão da carteira", detail: "Score, fontes de renda e alertas" },
-        { title: "FIIs rentáveis", detail: "Pesquisa e sugestões por rendimento" },
-        { title: "Equilibrar ações", detail: "Diversificação e próximos aportes" },
+        { title: "Rebalancear carteira", detail: "Alocação pelo seu perfil e onde aportar" },
+        { title: "Relatório no WhatsApp", detail: "Imagem e texto com as sugestões" },
         { title: "Meta de renda", detail: "Quanto falta e como fechar" },
       ],
     },
-  ], ["visao", "fiis", "acoes", "meta"]);
+  ], ["visao", "rebal", "whatsapp", "meta"]);
 }
 
+/**
+ * Atalhos para mensagens curtas e diretas; perguntas abertas vão para a IA ("help").
+ */
 function detectIntent(raw: string): Intent {
-  const t = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/pdf|relator|baixar|download|imprim/.test(t)) return "pdf";
-  if (/fii|fundo|imobili/.test(t)) return "fiis";
-  if (/equilibr|diversif|acoes|acao|rebalanc|comprar ac/.test(t)) return "acoes";
-  if (/visao|carteira|resumo|diagnost|score|completo/.test(t)) return "visao";
-  if (/meta|renda|passiva|quanto falta/.test(t)) return "meta";
+  const t = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  if (t.split(/\s+/).length > 7) return "help";
+  if (/whats|zap|relator/.test(t)) return "whatsapp";
+  if (/pdf|baixar|download|imprim/.test(t)) return "pdf";
+  if (/perfil|conservador|moderado|arrojado/.test(t)) return "perfil";
+  if (/rebalanc|equilibr|onde aportar|aloca/.test(t)) return "rebal";
+  if (/^(visao|resumo|diagnostico|score|minha carteira)/.test(t)) return "visao";
+  if (/quanto falta|minha meta/.test(t)) return "meta";
   return "help";
 }
 
@@ -316,8 +373,46 @@ function Inline({ text }: { text: string }) {
   );
 }
 
-function BlockView({ block, onPdf }: { block: Block; onPdf: () => void }) {
+/** Texto da IA: parágrafos, listas com "- " ou "1. " e **negrito**. */
+function Markdown({ text }: { text: string }) {
+  const groups: { type: "p" | "ul" | "ol"; lines: string[] }[] = [];
+  for (const raw of text.split(/\n/)) {
+    const line = raw.trim();
+    if (!line) {
+      groups.push({ type: "p", lines: [] });
+      continue;
+    }
+    const ul = /^[-•*]\s+(.*)$/.exec(line);
+    const ol = /^\d+[.)]\s+(.*)$/.exec(line);
+    const type = ul ? "ul" : ol ? "ol" : "p";
+    const content = ul?.[1] ?? ol?.[1] ?? line.replace(/^#+\s*/, "");
+    const last = groups[groups.length - 1];
+    if (last && last.type === type && (type !== "p" || last.lines.length > 0)) last.lines.push(content);
+    else groups.push({ type, lines: [content] });
+  }
+  return (
+    <div className="space-y-2 text-sm leading-relaxed text-white/80">
+      {groups.filter((g) => g.lines.length > 0).map((g, i) => {
+        if (g.type === "p") return <p key={i}><Inline text={g.lines.join(" ")} /></p>;
+        const Tag = g.type;
+        return (
+          <Tag key={i} className={cn("space-y-1 pl-5", g.type === "ul" ? "list-disc" : "list-decimal", "marker:text-white/35")}>
+            {g.lines.map((l, j) => <li key={j}><Inline text={l} /></li>)}
+          </Tag>
+        );
+      })}
+    </div>
+  );
+}
+
+function BlockView({ block, onPdf, onProfile }: { block: Block; onPdf: () => void; onProfile: () => void }) {
   switch (block.kind) {
+    case "md":
+      return <Markdown text={block.text} />;
+    case "whatsapp":
+      return <WhatsappPanel variant="bot" />;
+    case "profile":
+      return <RiskProfilePicker variant="bot" onChange={onProfile} />;
     case "heading":
       return <h3 className="font-display text-[17px] font-semibold leading-tight tracking-tight text-white">{block.text}</h3>;
     case "text":
@@ -507,17 +602,61 @@ export function InvestorBot({
     return null;
   }
 
+  function errorReply(text: string, followups: Intent[] = ["visao", "rebal", "whatsapp"]): Msg {
+    return { id: uid(), role: "bot", blocks: [{ kind: "alert", tone: "warn", text }], followups };
+  }
+
+  async function rebalance(): Promise<Msg> {
+    const res = await fetch("/api/bot/analysis", { cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return errorReply(data?.error ?? "Não consegui analisar a carteira agora. Tente de novo em instantes.");
+    return rebalReply(data as AnalysisPayload);
+  }
+
+  /** Pergunta aberta: IA com os dados da carteira; sem IA configurada, cai no menu de ajuda. */
+  async function askAi(history: Msg[], userText: string): Promise<Msg> {
+    const turns: { role: "user" | "assistant"; content: string }[] = [];
+    for (let i = 0; i < history.length - 1; i++) {
+      const u = history[i];
+      const b = history[i + 1];
+      if (u.role === "user" && b.role === "bot" && b.ai) turns.push({ role: "user", content: u.text }, { role: "assistant", content: b.ai });
+    }
+    turns.push({ role: "user", content: userText });
+    const res = await fetch("/api/bot/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: turns.slice(-12) }),
+    });
+    const data = await res.json().catch(() => null);
+    if (res.status === 503 && data?.code === "no_llm") return replyFor("help", context, researchCache.current);
+    if (!res.ok) return errorReply(data?.error ?? "Não consegui responder agora. Tente de novo em instantes.");
+    const reply = String(data?.reply ?? "");
+    return { id: uid(), role: "bot", blocks: [{ kind: "md", text: reply }], ai: reply, followups: ["rebal", "whatsapp"] };
+  }
+
   async function ask(userText: string, intent: Intent) {
     if (busy) return;
+    const history = messages;
     setMessages((prev) => [...prev, { id: uid(), role: "user", text: userText }]);
     setBusy(true);
     try {
-      const needsMarket = intent === "fiis" || intent === "visao";
-      const [research] = await Promise.all([
-        needsMarket ? loadResearch() : Promise.resolve(researchCache.current),
-        new Promise((r) => setTimeout(r, THINK_MS)),
-      ]);
-      const reply = replyFor(intent, context, research);
+      let reply: Msg;
+      if (intent === "rebal") {
+        reply = await rebalance();
+      } else if (intent === "help") {
+        reply = await askAi(history, userText);
+      } else {
+        const needsMarket = intent === "fiis" || intent === "visao" || intent === "meta";
+        const [research] = await Promise.all([
+          needsMarket ? loadResearch() : Promise.resolve(researchCache.current),
+          new Promise((r) => setTimeout(r, THINK_MS)),
+        ]);
+        reply = replyFor(intent, context, research);
+      }
+      setRevealId(reply.id);
+      setMessages((prev) => [...prev, reply]);
+    } catch {
+      const reply = errorReply("Sem conexão com o servidor. Verifique a internet e tente de novo.");
       setRevealId(reply.id);
       setMessages((prev) => [...prev, reply]);
     } finally {
@@ -589,7 +728,7 @@ export function InvestorBot({
             <div className="min-w-0 flex-1">
               <h2 className="font-display text-lg font-medium leading-none tracking-tight">Muvo</h2>
               <p className="mt-1 truncate text-[11px] text-white/45" aria-live="polite">
-                {busy ? "Analisando sua carteira…" : "Carteira · FIIs · ações · PDF"}
+                {busy ? "Analisando sua carteira…" : "Carteira · rebalanceamento · WhatsApp"}
               </p>
             </div>
             <IconButton label="Nova conversa" onClick={resetChat}>
@@ -620,7 +759,7 @@ export function InvestorBot({
                           className={cn(m.id === revealId && "muvo-reveal")}
                           style={m.id === revealId ? { animationDelay: `${i * 90}ms` } : undefined}
                         >
-                          <BlockView block={b} onPdf={onGeneratePdf} />
+                          <BlockView block={b} onPdf={onGeneratePdf} onProfile={() => void ask("Refaz o plano com o novo perfil", "rebal")} />
                         </div>
                       ))}
                       {m === lastBot && !busy && m.followups && m.followups.length > 0 && (
@@ -631,6 +770,7 @@ export function InvestorBot({
                           {m.followups.map((f) => {
                             if (f === "help") return null;
                             const it = INTENTS[f];
+                            if (!it) return null;
                             const Icon = it.icon;
                             return (
                               <button
@@ -677,7 +817,7 @@ export function InvestorBot({
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Pergunte sobre FIIs, ações ou sua meta"
+                placeholder="Pergunte qualquer coisa sobre sua carteira"
                 autoComplete="off"
                 enterKeyHint="send"
                 className="min-h-10 flex-1 bg-transparent text-sm text-white caret-white placeholder:text-white/35 focus:outline-none"
