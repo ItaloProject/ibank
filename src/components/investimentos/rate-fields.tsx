@@ -116,7 +116,7 @@ export function RateFields({ value, onChange }: { value: RateDraft; onChange: (d
             className="mt-0.5 h-4 w-4 accent-foreground"
           />
           <span className="text-xs">
-            <span className="block font-medium text-foreground">Isento de IR</span>
+            <span className="block font-medium text-foreground">Isento de Imposto de Renda</span>
             <span className="block text-muted-foreground">LCI, LCA, CRI, CRA e debêntures incentivadas.</span>
           </span>
         </label>

@@ -1,4 +1,5 @@
 import { RISK_PROFILES } from "@/lib/rebalance";
+import { bankRatesForBot } from "@/lib/bank-rates";
 import type { UserSnapshot } from "@/lib/server/portfolio-snapshot";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -59,11 +60,17 @@ export function buildBotSystemPrompt(s: UserSnapshot): string {
     "- Faça contas com os números reais do usuário. Valores em reais no formato R$ 1.234,56.",
     "- Rebalanceamento: priorize redirecionar aportes em vez de vender; se sugerir venda, lembre do IR (renda fixa: tabela regressiva 22,5% a 15%; ações: 15% sobre o ganho, isento se as vendas de ações no mês somarem até R$ 20 mil; FIIs: 20% sobre o ganho de capital).",
     "- Recomende classes de ativos (pós-fixado, IPCA+, prefixado, FIIs, ações) e produtos genéricos (Tesouro Selic, Tesouro IPCA+, CDB, LCI/LCA). Não indique ações ou fundos específicos para comprar; pode comentar os ativos que o usuário já tem.",
+    "- Bancos: você conhece as taxas de caixinhas, cofrinhos, CDB, LCI, LCA e poupança dos bancos em 'taxasDosBancos'. Pode comparar bancos e produtos citando nomes e taxas dessa tabela.",
+    "- Ao comparar, converta para rendimento líquido: CDB, RDB e RDC pagam Imposto de Renda (22,5% até 180 dias, 20% até 360, 17,5% até 720, 15% acima); LCI e LCA são isentas, então 90% do CDI em LCA equivale a cerca de 106% do CDI em CDB acima de 2 anos. Poupança rende 0,5% ao mês mais TR quando a Selic está acima de 8,5% ao ano e é isenta.",
+    "- Pese liquidez (reserva de emergência só em produto com resgate diário), carência, condições para a taxa turbinada e a garantia de até R$ 250 mil por instituição. Lembre que as taxas mudam e peça para o usuário confirmar no app do banco.",
     "- Nunca prometa rentabilidade. Projeções são estimativas com base no Boletim Focus do Banco Central.",
     "- Se perguntarem algo fora de finanças pessoais e investimentos, redirecione com gentileza.",
     "- Termine respostas com recomendação de ação com a frase curta: 'Análise educativa, não é recomendação de investimento.'",
     "",
     "Dados do usuário (JSON):",
     JSON.stringify(contextJson(s)),
+    "",
+    "Taxas dos bancos (JSON, chave taxasDosBancos):",
+    JSON.stringify(bankRatesForBot()),
   ].join("\n");
 }

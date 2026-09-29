@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { X, Plus, Wallet, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -23,6 +23,8 @@ import {
   type StockOrder,
 } from "./live-money-sheets";
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
+import { BankPicker } from "@/components/investimentos/bank-picker";
+import type { Bank, BankProduct } from "@/lib/bank-rates";
 import {
   FOCUS,
   LABEL,
@@ -260,6 +262,16 @@ export function InvestorLiveViewDesktop({
     setNewCaixinhaRate(tipo === "emergencia" ? { ...EMPTY_RATE_DRAFT, index: "cdi", value: "100" } : EMPTY_RATE_DRAFT);
     setNewCaixinhaError(null);
     setNewCaixinhaOpen(true);
+  }
+
+  const autoCaixinhaName = useRef("");
+  function applyBankProduct(bank: Bank, prod: BankProduct) {
+    const auto = `${prod.nome} · ${bank.nome}`;
+    setNewCaixinhaName((cur) => (!cur.trim() || cur === autoCaixinhaName.current ? auto : cur));
+    autoCaixinhaName.current = auto;
+    const value = prod.rate_index === "poupanca" ? "" : String(prod.rate_value).replace(".", ",");
+    if (newCaixinhaTipo === "turbo") setNewCaixinhaCdiMask(formatPercentMask(value));
+    else setNewCaixinhaRate({ index: prod.rate_index, value, maturity: "", exempt: prod.tax_exempt });
   }
 
   async function confirmNewCaixinha() {
@@ -929,19 +941,13 @@ export function InvestorLiveViewDesktop({
             )}
           </div>
 
-          <div>
-            <label htmlFor="caixinha-instituicao" className={`${LABEL} block mb-1.5`}>Instituição</label>
-            <div className={INPUT_BOX}>
-              <input
-                id="caixinha-instituicao"
-                type="text"
-                value={newCaixinhaInstituicao}
-                onChange={(e) => setNewCaixinhaInstituicao(e.target.value)}
-                placeholder="Ex: Nubank, XP, BTG"
-                className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none text-sm"
-              />
-            </div>
-          </div>
+          <BankPicker
+            id="caixinha"
+            tipo={newCaixinhaTipo}
+            institution={newCaixinhaInstituicao}
+            onInstitutionChange={setNewCaixinhaInstituicao}
+            onApply={applyBankProduct}
+          />
 
           {newCaixinhaTipo === "turbo" && (
             <div className="grid grid-cols-2 gap-2">

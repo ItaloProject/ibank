@@ -27,6 +27,8 @@ import {
   type MarketSection,
 } from "@/components/investimentos/simulator-invest-flow";
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
+import { BankPicker } from "@/components/investimentos/bank-picker";
+import type { Bank, BankProduct } from "@/lib/bank-rates";
 import { useLiveActions, type LiveAccount, type LiveMovement } from "@/components/investimentos/live-actions";
 import {
   StockOrderSheet,
@@ -515,6 +517,16 @@ export function InvestorLiveView({
     setNewCaixinhaRate(tipo === "emergencia" ? { ...EMPTY_RATE_DRAFT, index: "cdi", value: "100" } : EMPTY_RATE_DRAFT);
     setNewCaixinhaError(null);
     setNewCaixinhaOpen(true);
+  }
+
+  const autoCaixinhaName = useRef("");
+  function applyBankProduct(bank: Bank, prod: BankProduct) {
+    const auto = `${prod.nome} · ${bank.nome}`;
+    setNewCaixinhaName((cur) => (!cur.trim() || cur === autoCaixinhaName.current ? auto : cur));
+    autoCaixinhaName.current = auto;
+    const value = prod.rate_index === "poupanca" ? "" : String(prod.rate_value).replace(".", ",");
+    if (newCaixinhaTipo === "turbo") setNewCaixinhaCdiMask(formatPercentMask(value));
+    else setNewCaixinhaRate({ index: prod.rate_index, value, maturity: "", exempt: prod.tax_exempt });
   }
 
   async function confirmNewCaixinha() {
@@ -1656,18 +1668,6 @@ export function InvestorLiveView({
             />
           </div>
 
-          <label htmlFor="live-cx-inst" className={LABEL}>Instituição (opcional)</label>
-          <div className={`${INPUT_BOX} mt-1.5 mb-4`}>
-            <input
-              id="live-cx-inst"
-              type="text"
-              value={newCaixinhaInstituicao}
-              onChange={(e) => setNewCaixinhaInstituicao(e.target.value)}
-              placeholder="Ex: Banco Inter"
-              className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-            />
-          </div>
-
           <p id="live-cx-tipo" className={`${LABEL} mb-2 flex items-center gap-1.5`}>Tipo de caixinha <TipoCaixinhaHelp /></p>
           <div role="radiogroup" aria-labelledby="live-cx-tipo" className="grid grid-cols-3 gap-2 mb-4">
             {(
@@ -1696,6 +1696,16 @@ export function InvestorLiveView({
                 </button>
               );
             })}
+          </div>
+
+          <div className="mb-4">
+            <BankPicker
+              id="live-cx"
+              tipo={newCaixinhaTipo}
+              institution={newCaixinhaInstituicao}
+              onInstitutionChange={setNewCaixinhaInstituicao}
+              onApply={applyBankProduct}
+            />
           </div>
 
           {newCaixinhaTipo === "emergencia" &&
