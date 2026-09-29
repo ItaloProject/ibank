@@ -1,13 +1,12 @@
 ﻿"use client";
 
-import { useMemo, useState, type ElementType, type FormEvent } from "react";
+import { useState, type ElementType } from "react";
 import { ChevronRight, Landmark, TrendingUp, Zap, Shield, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { AccountRate } from "@/lib/account-rate";
-import {
-  FOCUS, LABEL, MONEY, BTN_PRIMARY, BTN_SECONDARY, ROW, INPUT_BOX, LOSS, ATTENTION,
-  LiveSheet, BackLink,
-} from "@/components/investimentos/live-ui";
+import { FOCUS, LABEL, MONEY, ROW, BackLink } from "@/components/investimentos/live-ui";
+import { AmountSheet, StockOrderSheet, type StockOrder } from "@/components/investimentos/live-money-sheets";
+import type { MoneySource } from "@/components/investimentos/live-actions";
 
 export type MarketCatalogAsset = {
   ticker: string;
@@ -38,11 +37,9 @@ export type AporteAccount = {
 
 export type MarketSection = "hub" | "acoes" | "tesouro" | "turbo" | "eme";
 
-type BuyTarget =
-  | { kind: "stock"; asset: MarketCatalogAsset }
-  | { kind: "custom" }
+type AmountTarget =
   | { kind: "tesouro"; product: TesouroProduct }
-  | { kind: "aporte"; account: AporteAccount; group: "turbo" | "eme" };
+  | { kind: "aporte"; account: AporteAccount; group: string };
 
 type Props = {
   cash: number;
@@ -50,13 +47,15 @@ type Props = {
   tesouroProducts: TesouroProduct[];
   turboAccounts: AporteAccount[];
   emergenciaAccounts: AporteAccount[];
+  /** Caixinhas de renda fixa que já existem (Tesouro, CDB, prefixado…), para aportar de novo. */
+  rendaFixaAccounts?: AporteAccount[];
   section: MarketSection;
   onSectionChange: (section: MarketSection) => void;
   onClose: () => void;
-  onBuyStock: (ticker: string, name: string, price: number, amount: number) => Promise<void> | void;
-  onBuyTesouro: (product: TesouroProduct, amount: number) => Promise<void> | void;
-  onAporte: (accountId: string, amount: number) => Promise<void> | void;
-  onCreateAccount?: (tipo: "turbo" | "emergencia") => void;
+  onBuyStock: (ticker: string, price: number, quantity: number, source: MoneySource) => Promise<void>;
+  onBuyTesouro: (product: TesouroProduct, amount: number, source: MoneySource) => Promise<void>;
+  onAporte: (accountId: string, amount: number, source: MoneySource) => Promise<void>;
+  onCreateAccount?: (tipo: "turbo" | "emergencia" | "investimentos") => void;
   onAdjustCash?: () => void;
 };
 
@@ -71,48 +70,6 @@ function CreateAccountButton({ label, onClick }: { label: string; onClick: () =>
         <Plus className="h-4 w-4 text-foreground/70" aria-hidden="true" />
       </span>
       <span className="text-sm font-bold text-foreground">{label}</span>
-    </button>
-  );
-}
-
-function formatBRLMask(digits: string): string {
-  const cleaned = digits.replace(/\D/g, "").slice(0, 12);
-  const cents = parseInt(cleaned || "0", 10);
-  return (cents / 100).toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function parseBRLMask(masked: string): number {
-  const cents = parseInt(masked.replace(/\D/g, "") || "0", 10);
-  return cents / 100;
-}
-
-function QuickAmount({
-  label,
-  onClick,
-  active,
-  disabled,
-}: {
-  label: string;
-  onClick: () => void;
-  active?: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={active}
-      className={`min-h-11 rounded-lg border px-3.5 text-xs font-bold tabular-nums transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS} ${
-        active
-          ? "border-foreground bg-foreground text-background"
-          : "border-border text-foreground/80 hover:bg-muted hover:text-foreground"
-      }`}
-    >
-      {label}
     </button>
   );
 }
@@ -169,14 +126,14 @@ export const DEFAULT_TESOURO_PRODUCTS: TesouroProduct[] = [
     id: "selic-2029",
     nome: "Tesouro Selic 2029",
     taxa: "Selic + 0,0463%",
-    descricao: "Liquidez diária · ideal para reserva",
+    descricao: "Pode resgatar a qualquer dia · bom para reserva",
     color: "#3b82f6",
     rate: { rate_index: "selic", rate_value: 0.0463, maturity: "2029-03-01", tax_exempt: false },
   },
   {
     id: "prefix-2029",
     nome: "Tesouro Prefixado 2029",
-    taxa: "13,85% a.a.",
+    taxa: "13,85% ao ano",
     descricao: "Taxa travada até o vencimento",
     color: "#10b981",
     rate: { rate_index: "pre", rate_value: 13.85, maturity: "2029-01-01", tax_exempt: false },
@@ -184,12 +141,25 @@ export const DEFAULT_TESOURO_PRODUCTS: TesouroProduct[] = [
   {
     id: "ipca-2035",
     nome: "Tesouro IPCA+ 2035",
-    taxa: "IPCA + 6,92%",
-    descricao: "Proteção contra inflação",
+    taxa: "Inflação + 6,92%",
+    descricao: "Protege contra a inflação",
     color: "#8b5cf6",
     rate: { rate_index: "ipca", rate_value: 6.92, maturity: "2035-05-15", tax_exempt: false },
   },
 ];
+
+const SECTION_TITLE: Record<Exclude<MarketSection, "hub">, string> = {
+  acoes: "Ações e fundos imobiliários",
+  tesouro: "Tesouro Direto e renda fixa",
+  turbo: "Caixinha Turbo",
+  eme: "Reserva de emergência",
+};
+
+const CATEGORY_LABEL: Record<MarketCatalogAsset["category"], string> = {
+  "Ação": "Ação",
+  FII: "Fundo imobiliário",
+  ETF: "ETF",
+};
 
 export function SimulatorInvestFlow({
   cash,
@@ -197,6 +167,7 @@ export function SimulatorInvestFlow({
   tesouroProducts,
   turboAccounts,
   emergenciaAccounts,
+  rendaFixaAccounts = [],
   section,
   onSectionChange,
   onClose,
@@ -206,149 +177,45 @@ export function SimulatorInvestFlow({
   onCreateAccount,
   onAdjustCash,
 }: Props) {
-  const [buyTarget, setBuyTarget] = useState<BuyTarget | null>(null);
-  const [amountMask, setAmountMask] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [customTicker, setCustomTicker] = useState("");
-  const [customPriceMask, setCustomPriceMask] = useState("");
-  const [customQtyMask, setCustomQtyMask] = useState("");
+  const [order, setOrder] = useState<StockOrder | null>(null);
+  const [amountTarget, setAmountTarget] = useState<AmountTarget | null>(null);
 
-  const amount = parseBRLMask(amountMask);
-  const isCustom = buyTarget?.kind === "custom";
-  const customPrice = parseBRLMask(customPriceMask);
-  const customQty = (() => {
-    const n = parseInt(customQtyMask.replace(/\D/g, "") || "0", 10);
-    return Number.isFinite(n) ? n : 0;
-  })();
-  const customTotal = customPrice > 0 && customQty > 0 ? customPrice * customQty : 0;
-  const customTickerClean = customTicker.trim().toUpperCase();
-
-  const canConfirmCustom =
-    isCustom &&
-    customTickerClean.length >= 2 &&
-    customPrice > 0 &&
-    customQty > 0 &&
-    customTotal <= cash + 0.001 &&
-    !submitting;
-
-  const canConfirmPreset =
-    !isCustom && amount > 0 && amount <= cash + 0.001 && !submitting &&
-    (buyTarget?.kind !== "stock" || amount >= buyTarget.asset.price);
-
-  const canConfirm = isCustom ? canConfirmCustom : canConfirmPreset;
-
-  const stockPreviewQty = useMemo(() => {
-    if (!buyTarget || buyTarget.kind !== "stock") return 0;
-    if (buyTarget.asset.price <= 0) return 0;
-    return Math.floor(amount / buyTarget.asset.price);
-  }, [buyTarget, amount]);
-
-  function resetCustomFields() {
-    setCustomTicker("");
-    setCustomPriceMask("");
-    setCustomQtyMask("");
-  }
-
-  function openBuy(target: BuyTarget) {
-    setBuyTarget(target);
-    setAmountMask("");
-    setSubmitError(null);
-    resetCustomFields();
-  }
-
-  function setQuick(value: number) {
-    const capped = Math.min(value, cash);
-    setAmountMask(formatBRLMask(String(Math.round(Math.max(0, capped) * 100))));
-  }
-
-  async function confirm(e?: FormEvent) {
-    e?.preventDefault();
-    if (!buyTarget || !canConfirm) return;
-    setSubmitting(true);
-    setSubmitError(null);
-    try {
-      if (buyTarget.kind === "custom") {
-        await onBuyStock(customTickerClean, customTickerClean, customPrice, customTotal);
-      } else if (buyTarget.kind === "stock") {
-        await onBuyStock(buyTarget.asset.ticker, buyTarget.asset.name, buyTarget.asset.price, amount);
-      } else if (buyTarget.kind === "tesouro") {
-        await onBuyTesouro(buyTarget.product, amount);
-      } else {
-        await onAporte(buyTarget.account.id, amount);
-      }
-      setBuyTarget(null);
-      setAmountMask("");
-      resetCustomFields();
-    } catch (err) {
-      console.error("Erro ao confirmar investimento:", err);
-      setSubmitError(err instanceof Error ? err.message : "Não foi possível concluir. Tente novamente.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  const sectionTitle =
-    section === "acoes"
-      ? "Ações e FIIs"
-      : section === "tesouro"
-        ? "Tesouro Direto"
-        : section === "turbo"
-          ? "Caixinha Turbo"
-          : section === "eme"
-            ? "Caixinha Emergência"
-            : "Aplicar saldo";
-
-  const presetTitle =
-    buyTarget?.kind === "stock"
-      ? `Comprar ${buyTarget.asset.ticker}`
-      : buyTarget?.kind === "tesouro"
-        ? `Comprar ${buyTarget.product.nome}`
-        : buyTarget?.kind === "aporte"
-          ? `Aportar em ${buyTarget.account.nome}`
-          : "Investir";
-
-  const presetDescription =
-    buyTarget?.kind === "stock"
-      ? `${buyTarget.asset.name} · ${formatCurrency(buyTarget.asset.price)} por ação`
-      : buyTarget?.kind === "tesouro"
-        ? `${buyTarget.product.taxa} · ${buyTarget.product.descricao}`
-        : buyTarget?.kind === "aporte"
-          ? buyTarget.group === "turbo"
-            ? "Caixinha Turbo"
-            : "Caixinha Emergência"
-          : undefined;
-
-  const cashLine = (
-    <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 mb-4 flex items-center justify-between">
-      <span className="text-xs text-muted-foreground">Saldo em conta</span>
-      <span className={`${MONEY} text-sm`}>{formatCurrency(cash)}</span>
-    </div>
-  );
+  const amountTitle =
+    amountTarget?.kind === "tesouro"
+      ? `Comprar ${amountTarget.product.nome}`
+      : amountTarget
+        ? `Aplicar em ${amountTarget.account.nome}`
+        : "";
+  const amountDescription =
+    amountTarget?.kind === "tesouro"
+      ? `${amountTarget.product.taxa} · ${amountTarget.product.descricao}`
+      : amountTarget?.group;
 
   return (
     <div className="space-y-5">
       <BackLink
-        label={section === "hub" ? "Voltar" : "Aplicar saldo"}
+        label={section === "hub" ? "Voltar" : "Outras opções"}
         onClick={() => {
           if (section === "hub") onClose();
           else onSectionChange("hub");
         }}
       />
 
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className={LABEL}>Saldo em conta</p>
-        <p className={`${MONEY} text-2xl mt-1.5 leading-none tracking-tight`}>{formatCurrency(cash)}</p>
-        <p className="text-[11px] text-muted-foreground mt-2">
-          {cash > 0
-            ? "Valor disponível na sua conta para investir."
-            : "Sem saldo em conta. Informe quanto você tem na conta para investir."}
-        </p>
+      <div className="rounded-xl border border-border bg-card p-4 flex items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className={LABEL}>Saldo em conta</p>
+          <p className={`${MONEY} text-2xl mt-1.5 leading-none tracking-tight`}>{formatCurrency(cash)}</p>
+          <p className="text-[11px] text-muted-foreground mt-2 leading-snug">
+            {cash > 0
+              ? "Use o saldo ou dinheiro de fora. Você escolhe na hora de confirmar."
+              : "Sem saldo em conta. Você pode investir com dinheiro de fora e escolher isso na hora de confirmar."}
+          </p>
+        </div>
         {onAdjustCash && (
           <button
             type="button"
             onClick={onAdjustCash}
-            className={`mt-3 inline-flex min-h-9 items-center rounded-lg border border-border px-3 text-xs font-bold text-foreground hover:bg-muted transition-colors ${FOCUS}`}
+            className={`shrink-0 inline-flex min-h-10 items-center rounded-lg border border-border px-3 text-xs font-bold text-foreground hover:bg-muted transition-colors ${FOCUS}`}
           >
             {cash > 0 ? "Ajustar saldo" : "Informar saldo"}
           </button>
@@ -357,28 +224,28 @@ export function SimulatorInvestFlow({
 
       {section === "hub" && (
         <div className="space-y-2.5">
-          <h2 className={LABEL}>Para onde investir?</h2>
+          <h2 className={LABEL}>Onde você quer investir?</h2>
           <DestCard
-            title="Ações e FIIs"
-            subtitle="Compre papéis da bolsa com o saldo em conta"
+            title="Ações e fundos imobiliários"
+            subtitle="Registre uma compra na bolsa com o preço que você pagou"
             icon={TrendingUp}
             onClick={() => onSectionChange("acoes")}
           />
           <DestCard
-            title="Tesouro Direto"
-            subtitle="Selic, Prefixado e IPCA+ com aporte flexível"
+            title="Tesouro Direto e renda fixa"
+            subtitle="Títulos do Tesouro e suas caixinhas de renda fixa"
             icon={Landmark}
             onClick={() => onSectionChange("tesouro")}
           />
           <DestCard
             title="Caixinha Turbo"
-            subtitle="Aporte nas contas de alta liquidez"
+            subtitle="Contas que rendem acima do CDI até um teto"
             icon={Zap}
             onClick={() => onSectionChange("turbo")}
           />
           <DestCard
-            title="Caixinha Emergência"
-            subtitle="Reforce a reserva de emergência"
+            title="Reserva de emergência"
+            subtitle="Dinheiro guardado para imprevistos"
             icon={Shield}
             onClick={() => onSectionChange("eme")}
           />
@@ -387,83 +254,100 @@ export function SimulatorInvestFlow({
 
       {section !== "hub" && (
         <div className="space-y-2">
-          <h2 className={`${LABEL} mb-1`}>{sectionTitle}</h2>
+          <h2 className={`${LABEL} mb-1`}>{SECTION_TITLE[section]}</h2>
 
           {section === "acoes" && (
             <>
-              {catalog.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum ativo disponível.</p>
-              ) : (
-                catalog.map((asset) => (
-                  <button
-                    key={asset.ticker}
-                    type="button"
-                    onClick={() => openBuy({ kind: "stock", asset })}
-                    className={`${ROW} min-h-14 p-3.5 flex items-center justify-between gap-3`}
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-sm font-bold text-foreground truncate">{asset.ticker}</span>
-                      <span className="block text-[11px] text-muted-foreground truncate">
-                        {asset.name} · {asset.category}
-                      </span>
-                    </span>
-                    <span className={`${MONEY} text-sm shrink-0`}>{formatCurrency(asset.price)}</span>
-                  </button>
-                ))
-              )}
-
               <button
                 type="button"
-                onClick={() => openBuy({ kind: "custom" })}
+                onClick={() => setOrder({ mode: "compra" })}
                 className={`w-full min-h-14 rounded-xl border border-dashed border-border p-3.5 text-left flex items-center gap-2.5 hover:bg-muted/60 hover:border-foreground/30 transition-colors ${FOCUS}`}
               >
                 <span className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
                   <Plus className="h-4 w-4 text-foreground/70" aria-hidden="true" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-bold text-foreground">Outra ação ou FII</span>
+                  <span className="block text-sm font-bold text-foreground">Digitar o código</span>
                   <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                    Digite ticker, cotação e quantidade
+                    Qualquer ação ou fundo imobiliário, com quantidade e preço
                   </span>
                 </span>
               </button>
+              <p className={`${LABEL} pt-3`}>Populares</p>
+              {catalog.map((asset) => (
+                <button
+                  key={asset.ticker}
+                  type="button"
+                  onClick={() => setOrder({ mode: "compra", ticker: asset.ticker, name: asset.name, price: asset.price })}
+                  className={`${ROW} min-h-14 p-3.5 flex items-center justify-between gap-3`}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-foreground truncate">{asset.ticker}</span>
+                    <span className="block text-[11px] text-muted-foreground truncate">
+                      {asset.name} · {CATEGORY_LABEL[asset.category]}
+                    </span>
+                  </span>
+                  <span className={`${MONEY} text-sm shrink-0`}>{formatCurrency(asset.price)}</span>
+                </button>
+              ))}
             </>
           )}
 
-          {section === "tesouro" &&
-            tesouroProducts.map((product) => (
-              <button
-                key={product.id}
-                type="button"
-                onClick={() => openBuy({ kind: "tesouro", product })}
-                className={`${ROW} min-h-14 p-3.5 flex items-start justify-between gap-3`}
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-bold text-foreground">{product.nome}</span>
-                  <span className="block text-[11px] text-muted-foreground mt-0.5">{product.descricao}</span>
-                </span>
-                <span className="text-xs font-bold tabular-nums text-foreground shrink-0">{product.taxa}</span>
-              </button>
-            ))}
+          {section === "tesouro" && (
+            <>
+              {rendaFixaAccounts.length > 0 && (
+                <>
+                  <p className={`${LABEL} pt-1`}>Suas caixinhas</p>
+                  {rendaFixaAccounts.map((account) => (
+                    <AccountButton
+                      key={account.id}
+                      title={account.nome}
+                      subtitle={account.instituicao || "Renda fixa"}
+                      value={account.valor}
+                      onClick={() => setAmountTarget({ kind: "aporte", account, group: "Renda fixa" })}
+                    />
+                  ))}
+                  <p className={`${LABEL} pt-3`}>Novo título do Tesouro</p>
+                </>
+              )}
+              {tesouroProducts.map((product) => (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => setAmountTarget({ kind: "tesouro", product })}
+                  className={`${ROW} min-h-14 p-3.5 flex items-start justify-between gap-3`}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-foreground">{product.nome}</span>
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">{product.descricao}</span>
+                  </span>
+                  <span className="text-xs font-bold tabular-nums text-foreground shrink-0">{product.taxa}</span>
+                </button>
+              ))}
+              {onCreateAccount && (
+                <CreateAccountButton label="Outra renda fixa (CDB, LCI, prefixado…)" onClick={() => onCreateAccount("investimentos")} />
+              )}
+            </>
+          )}
 
           {section === "turbo" && turboAccounts.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-6">
-              Você ainda não tem caixinha Turbo. Crie uma para poder aportar.
+              Você ainda não tem caixinha Turbo. Crie uma para poder aplicar.
             </p>
           )}
           {section === "turbo" &&
             turboAccounts.map((account) => (
-                <AccountButton
-                  key={account.id}
-                  title={account.nome}
-                  subtitle={
-                    account.cdiPercent != null
-                      ? `${account.cdiPercent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% do CDI`
-                      : account.instituicao || "Turbo"
-                  }
-                  value={account.valor}
-                  onClick={() => openBuy({ kind: "aporte", account, group: "turbo" })}
-                />
+              <AccountButton
+                key={account.id}
+                title={account.nome}
+                subtitle={
+                  account.cdiPercent != null
+                    ? `${account.cdiPercent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% do CDI`
+                    : account.instituicao || "Turbo"
+                }
+                value={account.valor}
+                onClick={() => setAmountTarget({ kind: "aporte", account, group: "Caixinha Turbo" })}
+              />
             ))}
           {section === "turbo" && onCreateAccount && (
             <CreateAccountButton label="Criar caixinha Turbo" onClick={() => onCreateAccount("turbo")} />
@@ -471,7 +355,7 @@ export function SimulatorInvestFlow({
 
           {section === "eme" && emergenciaAccounts.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-6">
-              Você ainda não tem reserva de emergência. Crie uma para poder aportar.
+              Você ainda não tem reserva de emergência. Crie uma para poder aplicar.
             </p>
           )}
           {section === "eme" &&
@@ -479,9 +363,9 @@ export function SimulatorInvestFlow({
               <AccountButton
                 key={account.id}
                 title={account.nome}
-                subtitle={account.instituicao || "Emergência"}
+                subtitle={account.instituicao || "Reserva de emergência"}
                 value={account.valor}
-                onClick={() => openBuy({ kind: "aporte", account, group: "eme" })}
+                onClick={() => setAmountTarget({ kind: "aporte", account, group: "Reserva de emergência" })}
               />
             ))}
           {section === "eme" && onCreateAccount && (
@@ -490,180 +374,27 @@ export function SimulatorInvestFlow({
         </div>
       )}
 
-      {/* Compra personalizada */}
-      <LiveSheet
-        open={buyTarget?.kind === "custom"}
-        onOpenChange={(o) => !o && setBuyTarget(null)}
-        dismissible={!submitting}
-        title={customTickerClean ? `Comprar ${customTickerClean}` : "Outra ação ou FII"}
-        description="Informe ticker, cotação atual e quantidade."
-      >
-        <form onSubmit={confirm}>
-          {cashLine}
+      <StockOrderSheet
+        order={order}
+        onClose={() => setOrder(null)}
+        cash={cash}
+        onBuy={onBuyStock}
+        onSell={async () => {}}
+      />
 
-          <label htmlFor="flow-ticker" className={LABEL}>Ticker</label>
-          <div className={`${INPUT_BOX} mt-1.5 mb-3`}>
-            <input
-              id="flow-ticker"
-              autoFocus
-              type="text"
-              autoCapitalize="characters"
-              value={customTicker}
-              onChange={(e) =>
-                setCustomTicker(e.target.value.toUpperCase().replace(/[^A-Z0-9.-]/g, "").slice(0, 12))
-              }
-              placeholder="Ex: PETR4"
-              className="flex-1 min-w-0 bg-transparent font-display text-xl font-black tracking-wide text-foreground placeholder:text-muted-foreground/50 focus:outline-none uppercase"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div>
-              <label htmlFor="flow-price" className={LABEL}>Cotação atual</label>
-              <div className={`${INPUT_BOX} mt-1.5`}>
-                <span className="text-xs font-bold text-muted-foreground">R$</span>
-                <input
-                  id="flow-price"
-                  type="text"
-                  inputMode="numeric"
-                  value={customPriceMask}
-                  onChange={(e) => setCustomPriceMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
-                  placeholder="0,00"
-                  className="flex-1 min-w-0 bg-transparent text-base font-bold tabular-nums text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
-                />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="flow-qty" className={LABEL}>Quantidade</label>
-              <div className={`${INPUT_BOX} mt-1.5`}>
-                <input
-                  id="flow-qty"
-                  type="text"
-                  inputMode="numeric"
-                  value={customQtyMask}
-                  onChange={(e) => setCustomQtyMask(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                  placeholder="0"
-                  className="flex-1 min-w-0 bg-transparent text-base font-bold tabular-nums text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
-                />
-                <span className="text-xs font-semibold text-muted-foreground">un.</span>
-              </div>
-            </div>
-          </div>
-
-          <div aria-live="polite">
-            {customTotal > 0 && (
-              <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 mb-4 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Total</span>
-                <span className={`${MONEY} text-base`}>{formatCurrency(customTotal)}</span>
-              </div>
-            )}
-            {customTotal > cash + 0.001 && (
-              <p className={`text-xs mb-3 ${LOSS}`}>Saldo em conta insuficiente para esse total.</p>
-            )}
-            {submitError && <p className={`text-xs mb-3 ${LOSS}`} role="alert">{submitError}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <button type="submit" disabled={!canConfirm} className={BTN_PRIMARY}>
-              {submitting
-                ? "Processando…"
-                : customTotal > 0
-                  ? `Confirmar compra · ${formatCurrency(customTotal)}`
-                  : "Confirmar compra"}
-            </button>
-            <button type="button" disabled={submitting} onClick={() => setBuyTarget(null)} className={BTN_SECONDARY}>
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </LiveSheet>
-
-      {/* Compra de ativo do catálogo, Tesouro ou aporte em caixinha */}
-      <LiveSheet
-        open={!!buyTarget && buyTarget.kind !== "custom"}
-        onOpenChange={(o) => !o && setBuyTarget(null)}
-        dismissible={!submitting}
-        title={presetTitle}
-        description={presetDescription}
-      >
-        {buyTarget && buyTarget.kind !== "custom" && (
-          <form onSubmit={confirm}>
-            {cashLine}
-
-            <label htmlFor="flow-amount" className={LABEL}>Valor</label>
-            <div className={`${INPUT_BOX} mt-1.5 mb-3`}>
-              <span className="text-sm font-bold text-muted-foreground">R$</span>
-              <input
-                id="flow-amount"
-                autoFocus
-                type="text"
-                inputMode="numeric"
-                value={amountMask}
-                onChange={(e) => setAmountMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
-                placeholder="0,00"
-                aria-describedby="flow-amount-feedback"
-                className="flex-1 min-w-0 bg-transparent font-display text-xl font-black tabular-nums text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-4">
-              {[100, 250, 500, 1000].map((v) => (
-                <QuickAmount
-                  key={v}
-                  label={formatCurrency(v)}
-                  active={Math.abs(amount - v) < 0.001}
-                  disabled={cash <= 0}
-                  onClick={() => setQuick(v)}
-                />
-              ))}
-              <QuickAmount
-                label="Tudo"
-                active={cash > 0 && Math.abs(amount - cash) < 0.01}
-                disabled={cash <= 0}
-                onClick={() => setQuick(cash)}
-              />
-            </div>
-
-            <div id="flow-amount-feedback" aria-live="polite">
-              {buyTarget.kind === "stock" && amount > 0 && (
-                <p className="text-xs text-muted-foreground mb-4">
-                  {stockPreviewQty > 0 ? (
-                    <>
-                      Você leva <span className="font-bold text-foreground">{stockPreviewQty} un.</span> de{" "}
-                      {buyTarget.asset.ticker} por{" "}
-                      <span className="font-bold text-foreground tabular-nums">
-                        {formatCurrency(stockPreviewQty * buyTarget.asset.price)}
-                      </span>
-                      .
-                    </>
-                  ) : (
-                    <span className={ATTENTION}>
-                      Valor insuficiente para 1 ação ({formatCurrency(buyTarget.asset.price)}).
-                    </span>
-                  )}
-                </p>
-              )}
-              {amount > cash + 0.001 && (
-                <p className={`text-xs mb-3 ${LOSS}`}>Saldo em conta insuficiente para esse valor.</p>
-              )}
-              {submitError && <p className={`text-xs mb-3 ${LOSS}`} role="alert">{submitError}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <button type="submit" disabled={!canConfirm} className={BTN_PRIMARY}>
-                {submitting
-                  ? "Processando…"
-                  : buyTarget.kind === "aporte"
-                    ? "Confirmar aporte"
-                    : "Confirmar compra"}
-              </button>
-              <button type="button" disabled={submitting} onClick={() => setBuyTarget(null)} className={BTN_SECONDARY}>
-                Cancelar
-              </button>
-            </div>
-          </form>
-        )}
-      </LiveSheet>
+      <AmountSheet
+        open={!!amountTarget}
+        onOpenChange={(o) => !o && setAmountTarget(null)}
+        title={amountTitle}
+        description={amountDescription}
+        cash={cash}
+        verb={amountTarget?.kind === "tesouro" ? "Comprar" : "Aplicar"}
+        onConfirm={async (amount, source) => {
+          if (!amountTarget) return;
+          if (amountTarget.kind === "tesouro") await onBuyTesouro(amountTarget.product, amount, source);
+          else await onAporte(amountTarget.account.id, amount, source);
+        }}
+      />
     </div>
   );
 }

@@ -2,27 +2,27 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { X, Plus, ArrowRightLeft, Wallet, Trash2 } from "lucide-react";
+import { X, Plus, Wallet, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
-import { CASH_ACCOUNT_NAME, isEmergencyAccountName } from "@/lib/account-groups";
-import {
-  createStockTrade,
-  createInvestment,
-  updateAccountBalance,
-  createInvestmentAccount,
-  createInvestmentAccountWithTurbo,
-  deleteStockTrade,
-  deleteInvestment,
-  deleteInvestmentAccount,
-} from "@/lib/api";
+import { isEmergencyAccountName } from "@/lib/account-groups";
+import { createInvestmentAccountWithTurbo, deleteInvestmentAccount } from "@/lib/api";
 import {
   SimulatorInvestFlow,
   DEFAULT_TESOURO_PRODUCTS,
   type MarketSection,
-  type TesouroProduct,
 } from "@/components/investimentos/simulator-invest-flow";
 import type { InvestorLiveViewProps } from "./investor-live-view";
+import { useLiveActions, type LiveAccount, type LiveMovement } from "./live-actions";
+import {
+  StockOrderSheet,
+  WithdrawSheet,
+  UpdateValueSheet,
+  AmountSheet,
+  MovementsList,
+  UndoSheet,
+  type StockOrder,
+} from "./live-money-sheets";
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 import {
   FOCUS,
@@ -38,10 +38,6 @@ import {
 } from "./live-ui";
 import { CdiHelp, SaldoEmContaHelp, TetoHelp, TipoCaixinhaHelp } from "./help-texts";
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function formatBRLMask(digits: string): string {
   const cleaned = digits.replace(/\D/g, "").slice(0, 12);
   const cents = parseInt(cleaned || "0", 10);
@@ -51,14 +47,6 @@ function formatBRLMask(digits: string): string {
 function parseBRLMask(masked: string): number {
   const cents = parseInt(masked.replace(/\D/g, "") || "0", 10);
   return cents / 100;
-}
-
-async function safeDelete(action: () => Promise<unknown>, label: string) {
-  try {
-    await action();
-  } catch (err) {
-    console.error(`Falha ao reverter ${label}:`, err);
-  }
 }
 
 function fmtQty(n: number) {
@@ -108,6 +96,68 @@ const SMALL_BTN = `inline-flex min-h-9 items-center gap-1 rounded-lg border bord
 /** Tons de cinza para a distribuição: cor aqui não é diagnóstico, só separação de faixas. */
 const ALLOCATION_SHADES = ["bg-foreground", "bg-foreground/70", "bg-foreground/45", "bg-foreground/25", "bg-foreground/12"];
 
+function AccountCard({
+  acc,
+  onAporte,
+  onWithdraw,
+  onUpdate,
+  onDelete,
+}: {
+  acc: LiveAccount;
+  onAporte: (a: LiveAccount) => void;
+  onWithdraw: (a: LiveAccount) => void;
+  onUpdate: (a: LiveAccount) => void;
+  onDelete: (a: LiveAccount) => void;
+}) {
+  return (
+    <li className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground truncate">{acc.nome}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+            {acc.instituicao}
+            {acc.cdiPercent ? ` · ${acc.cdiPercent}% do CDI` : ""}
+            {acc.maxRendimento ? ` · teto ${formatCurrency(acc.maxRendimento)}` : ""}
+          </p>
+        </div>
+        <p className={`${MONEY} text-sm shrink-0`}>{formatCurrency(acc.valor)}</p>
+      </div>
+      <div className="mt-3 grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5">
+        <button type="button" onClick={() => onAporte(acc)} aria-label={`Aplicar em ${acc.nome}`} className={`${SMALL_BTN} justify-center`}>
+          Aplicar
+        </button>
+        <button
+          type="button"
+          onClick={() => onWithdraw(acc)}
+          disabled={acc.valor <= 0}
+          aria-label={`Retirar de ${acc.nome}`}
+          className={`${SMALL_BTN} justify-center disabled:opacity-40 disabled:pointer-events-none`}
+        >
+          Retirar
+        </button>
+        <button
+          type="button"
+          onClick={() => onUpdate(acc)}
+          aria-label={`Atualizar o valor de ${acc.nome}`}
+          title="Atualizar com o valor que o banco mostra (rendimento)"
+          className={`${SMALL_BTN} justify-center`}
+        >
+          Atualizar
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(acc)}
+          aria-label={`Excluir ${acc.nome}`}
+          title="Excluir caixinha"
+          className={`${SMALL_BTN} justify-center hover:bg-red-500/10 hover:text-red-500`}
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </div>
+    </li>
+  );
+}
+
 export function InvestorLiveViewDesktop({
   grandTotal,
   turboAccountsReal,
@@ -129,18 +179,24 @@ export function InvestorLiveViewDesktop({
   const [marketOpen, setMarketOpen] = useState(false);
   const [marketSection, setMarketSection] = useState<MarketSection>("hub");
 
-  /* ── Sell flow ────────────────────────────────────────────────── */
-  const [sellTicker, setSellTicker] = useState<string | null>(null);
-  const [sellQtyMask, setSellQtyMask] = useState("");
-  const [sellSubmitting, setSellSubmitting] = useState(false);
-  const [sellError, setSellError] = useState<string | null>(null);
-
-  /* ── Withdraw flow ────────────────────────────────────────────── */
-  type AccountRef = { id: string; nome: string; instituicao: string; valor: number; isTurbo: boolean };
-  const [withdrawAccount, setWithdrawAccount] = useState<AccountRef | null>(null);
-  const [withdrawMask, setWithdrawMask] = useState("");
-  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
-  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  /* ── Operações (compartilhadas com o celular) ─────────────────── */
+  const actions = useLiveActions({
+    cashAccountId,
+    cashBalance,
+    turboAccounts: turboAccountsReal,
+    emergenciaAccounts: emergenciaAccountsReal,
+    investimentosAccounts: investimentosAccountsReal,
+    stockTrades,
+    investments,
+    onRefresh,
+  });
+  const [order, setOrder] = useState<StockOrder | null>(null);
+  const [aporteAccount, setAporteAccount] = useState<LiveAccount | null>(null);
+  const [withdrawAccount, setWithdrawAccount] = useState<LiveAccount | null>(null);
+  const [updateAccount, setUpdateAccount] = useState<LiveAccount | null>(null);
+  const [undoMovement, setUndoMovement] = useState<LiveMovement | null>(null);
+  const [showAllMovements, setShowAllMovements] = useState(false);
+  type AccountRef = LiveAccount;
 
   /* ── New caixinha flow ────────────────────────────────────────── */
   const [newCaixinhaOpen, setNewCaixinhaOpen] = useState(false);
@@ -223,232 +279,9 @@ export function InvestorLiveViewDesktop({
     })), ...extras];
   }, [stockPositions, quoteMap]);
 
-  /* ── Sell helpers ─────────────────────────────────────────────── */
-  const sellHolding = useMemo(() => {
-    if (!sellTicker) return null;
-    const h = holdingRows.find((x) => x.ticker === sellTicker);
-    if (!h) return null;
-    return h;
-  }, [sellTicker, holdingRows]);
-
-  const sellQty = (() => {
-    const n = parseFloat(sellQtyMask.replace(",", "."));
-    return Number.isFinite(n) ? n : 0;
-  })();
-  const sellProceeds = sellHolding ? sellQty * sellHolding.price : 0;
-  const canConfirmSell =
-    !!sellHolding && sellQty > 0 && sellQty <= sellHolding.quantity + 0.0001 && !sellSubmitting;
-
   function openSell(ticker: string) {
-    setSellTicker(ticker);
-    setSellQtyMask("");
-    setSellError(null);
-  }
-
-  function onSellQtyChange(raw: string) {
-    let v = raw.replace(/[^\d,]/g, "");
-    const parts = v.split(",");
-    if (parts.length > 2) v = parts[0] + "," + parts.slice(1).join("");
-    setSellQtyMask(v);
-  }
-
-  /* ── Buy actions ──────────────────────────────────────────────── */
-  async function handleBuyStock(ticker: string, _name: string, price: number, amount: number) {
-    if (!cashAccountId || amount <= 0 || amount > cashBalance + 0.001 || price <= 0) return;
-    const qty = Math.floor(amount / price);
-    if (qty < 1) throw new Error(`Valor insuficiente para 1 ação de ${ticker} (${formatCurrency(price)}).`);
-    const spent = qty * price;
-    const trade = await createStockTrade({
-      ticker,
-      type: "compra",
-      quantity: qty,
-      price_per_share: price,
-      total_amount: spent,
-      date: today(),
-    });
-    try {
-      await createInvestment({
-        account_id: cashAccountId,
-        type: "retirada",
-        amount: spent,
-        description: `Compra ${ticker}`,
-        date: today(),
-      });
-    } catch (err) {
-      await safeDelete(() => deleteStockTrade(trade.id), "compra de ação");
-      throw err;
-    }
-    await onRefresh();
-    toast.success(`Compra de ${qty} ${ticker} concluída`);
-  }
-
-  async function handleBuyTesouro(product: TesouroProduct, amount: number) {
-    if (!cashAccountId || amount <= 0 || amount > cashBalance + 0.001) return;
-    const existing = investimentosAccountsReal.find((a) => a.nome === product.nome);
-    const previousBalance = existing?.valor ?? 0;
-    let accountId: string;
-    let createdAccount = false;
-
-    if (existing) {
-      accountId = existing.id;
-    } else {
-      const acc = await createInvestmentAccount({ name: product.nome, institution: product.taxa, ...product.rate });
-      accountId = acc.id;
-      createdAccount = true;
-    }
-
-    let depositRecordId: string | null = null;
-    try {
-      const depositRecord = await createInvestment({
-        account_id: accountId,
-        type: "deposito",
-        amount,
-        description: "Compra Tesouro Direto",
-        date: today(),
-      });
-      depositRecordId = depositRecord.id;
-      await updateAccountBalance(accountId, previousBalance + amount);
-      await createInvestment({
-        account_id: cashAccountId,
-        type: "retirada",
-        amount,
-        description: `Compra ${product.nome}`,
-        date: today(),
-      });
-    } catch (err) {
-      if (createdAccount) {
-        await safeDelete(() => deleteInvestmentAccount(accountId), "conta de Tesouro criada");
-      } else {
-        await safeDelete(() => updateAccountBalance(accountId, previousBalance), "saldo do Tesouro");
-        if (depositRecordId) await safeDelete(() => deleteInvestment(depositRecordId!), "depósito do Tesouro");
-      }
-      throw err;
-    }
-    await onRefresh();
-    toast.success(`Compra de ${product.nome} concluída`);
-  }
-
-  async function handleAporte(accountId: string, amount: number) {
-    if (!cashAccountId || amount <= 0 || amount > cashBalance + 0.001) return;
-    const acc = [...turboAccountsReal, ...emergenciaAccountsReal, ...investimentosAccountsReal].find(
-      (a) => a.id === accountId
-    );
-    if (!acc) return;
-    const depositRecord = await createInvestment({
-      account_id: accountId,
-      type: "deposito",
-      amount,
-      description: `Aporte · ${acc.nome}`,
-      date: today(),
-    });
-    try {
-      await updateAccountBalance(accountId, acc.valor + amount);
-      await createInvestment({
-        account_id: cashAccountId,
-        type: "retirada",
-        amount,
-        description: `Aporte · ${acc.nome}`,
-        date: today(),
-      });
-    } catch (err) {
-      await safeDelete(() => updateAccountBalance(accountId, acc.valor), "saldo do aporte");
-      await safeDelete(() => deleteInvestment(depositRecord.id), "depósito do aporte");
-      throw err;
-    }
-    await onRefresh();
-    toast.success(`Aporte em ${acc.nome} concluído`);
-  }
-
-  async function confirmSell() {
-    if (!sellHolding || !canConfirmSell) return;
-    setSellSubmitting(true);
-    setSellError(null);
-    const ticker = sellHolding.ticker;
-    const price = sellHolding.price;
-    const amount = sellQty * price;
-    let cid = cashAccountId;
-    let cashRecordId: string | null = null;
-    try {
-      if (!cid) {
-        const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
-        cid = acc.id;
-      }
-      const cashRecord = await createInvestment({
-        account_id: cid,
-        type: "deposito",
-        amount,
-        description: `Venda ${ticker}`,
-        date: today(),
-      });
-      cashRecordId = cashRecord.id;
-      await createStockTrade({
-        ticker,
-        type: "venda",
-        quantity: sellQty,
-        price_per_share: price,
-        total_amount: amount,
-        date: today(),
-      });
-      await onRefresh();
-      toast.success(`Venda de ${fmtQty(sellQty)} ${ticker} concluída`);
-      setSellTicker(null);
-    } catch (err) {
-      console.error("Erro ao vender:", err);
-      if (cashRecordId) await safeDelete(() => deleteInvestment(cashRecordId!), "crédito da venda");
-      setSellError(err instanceof Error ? err.message : "Não foi possível concluir a venda. Tente novamente.");
-    } finally {
-      setSellSubmitting(false);
-    }
-  }
-
-  /* ── Withdraw ─────────────────────────────────────────────────── */
-  const withdrawAmount = parseBRLMask(withdrawMask);
-  const canConfirmWithdraw =
-    !!withdrawAccount &&
-    withdrawAmount > 0 &&
-    withdrawAmount <= withdrawAccount.valor + 0.001 &&
-    !withdrawSubmitting;
-
-  function openWithdraw(acc: AccountRef) {
-    setWithdrawAccount(acc);
-    setWithdrawMask("");
-    setWithdrawError(null);
-  }
-
-  async function confirmWithdraw() {
-    if (!withdrawAccount || !canConfirmWithdraw) return;
-    setWithdrawSubmitting(true);
-    setWithdrawError(null);
-    try {
-      let cid = cashAccountId;
-      if (!cid) {
-        const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
-        cid = acc.id;
-      }
-      await createInvestment({
-        account_id: withdrawAccount.id,
-        type: "retirada",
-        amount: withdrawAmount,
-        description: `Retirada · ${withdrawAccount.nome}`,
-        date: today(),
-      });
-      await updateAccountBalance(withdrawAccount.id, withdrawAccount.valor - withdrawAmount);
-      await createInvestment({
-        account_id: cid,
-        type: "deposito",
-        amount: withdrawAmount,
-        description: `Retirada de ${withdrawAccount.nome}`,
-        date: today(),
-      });
-      await onRefresh();
-      toast.success(`${formatCurrency(withdrawAmount)} retirados de ${withdrawAccount.nome}`);
-      setWithdrawAccount(null);
-    } catch (err) {
-      console.error("Erro ao retirar:", err);
-      setWithdrawError(err instanceof Error ? err.message : "Não foi possível retirar. Tente novamente.");
-    } finally {
-      setWithdrawSubmitting(false);
-    }
+    const h = holdingRows.find((x) => x.ticker === ticker);
+    if (h) setOrder({ mode: "venda", ticker, price: h.price, maxQty: h.quantity });
   }
 
   /* ── New caixinha ─────────────────────────────────────────────── */
@@ -528,21 +361,8 @@ export function InvestorLiveViewDesktop({
     if (!cashChanged || cashSaving) return;
     setCashSaving(true);
     try {
-      let id = cashAccountId;
-      if (!id) {
-        const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
-        id = acc.id;
-      }
-      await createInvestment({
-        account_id: id,
-        type: cashDelta > 0 ? "deposito" : "retirada",
-        amount: Math.abs(cashDelta),
-        description: "Ajuste de saldo via Live",
-        date: today(),
-      });
-      await onRefresh();
+      await actions.setCash(cashInputValue);
       setCashSheetOpen(false);
-      toast.success("Saldo em conta atualizado");
     } catch (err) {
       console.error("Erro ao ajustar saldo:", err);
       toast.error("Não foi possível salvar o saldo. Tente novamente.");
@@ -550,26 +370,6 @@ export function InvestorLiveViewDesktop({
       setCashSaving(false);
     }
   }
-
-  /* ── Derived: movements ───────────────────────────────────────── */
-  const movements = useMemo(() => {
-    const items: { id: string; title: string; sub: string; amount: number; date: string; iso: string }[] = [];
-    const display = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
-    for (const t of stockTrades) {
-      items.push({ id: `s-${t.id}`, title: `${t.type === "venda" ? "Venda" : "Compra"} ${t.ticker}`, sub: "Bolsa", amount: t.total_amount, date: display(t.date), iso: t.date });
-    }
-    const lookup = new Map(
-      [...turboAccountsReal, ...emergenciaAccountsReal, ...investimentosAccountsReal].map((a) => [a.id, a])
-    );
-    for (const inv of investments) {
-      if (inv.type !== "deposito" || inv.account_id === cashAccountId) continue;
-      const acc = lookup.get(inv.account_id);
-      if (!acc) continue;
-      const group = acc.isTurbo ? "Turbo" : emergenciaAccountsReal.some((e) => e.id === acc.id) ? "Emergência" : "Renda Fixa";
-      items.push({ id: `i-${inv.id}`, title: `Aporte · ${acc.nome}`, sub: group, amount: inv.amount, date: display(inv.date), iso: inv.date });
-    }
-    return items.sort((a, b) => (a.iso < b.iso ? 1 : a.iso > b.iso ? -1 : 0)).slice(0, 10);
-  }, [stockTrades, investments, cashAccountId, turboAccountsReal, emergenciaAccountsReal, investimentosAccountsReal]);
 
   /* ── Derived: allocation ──────────────────────────────────────── */
   const allocation = useMemo(() => {
@@ -631,9 +431,16 @@ export function InvestorLiveViewDesktop({
   }, [liveAction]);
 
   const allAccounts = [
-    { title: "TURBO", total: turboTotal, accounts: turboAccountsReal, empty: "Nenhuma conta TURBO.", section: "turbo" as MarketSection, tipo: "turbo" as const, action: "Aportar" },
-    { title: "Emergência", total: emergenciaTotal, accounts: emergenciaAccountsReal, empty: "Nenhuma reserva de emergência.", section: "eme" as MarketSection, tipo: "emergencia" as const, action: "Aportar" },
+    { title: "TURBO", total: turboTotal, accounts: turboAccountsReal, empty: "Nenhuma conta TURBO.", section: "turbo" as MarketSection, tipo: "turbo" as const, action: "Aplicar" },
+    { title: "Emergência", total: emergenciaTotal, accounts: emergenciaAccountsReal, empty: "Nenhuma reserva de emergência.", section: "eme" as MarketSection, tipo: "emergencia" as const, action: "Aplicar" },
   ];
+
+  const accountHandlers = {
+    onAporte: setAporteAccount,
+    onWithdraw: setWithdrawAccount,
+    onUpdate: setUpdateAccount,
+    onDelete: setDeleteAccount,
+  };
 
   return (
     <div className="flex flex-col h-full bg-background text-foreground relative overflow-hidden">
@@ -834,23 +641,21 @@ export function InvestorLiveViewDesktop({
             {/* Movimentações */}
             <section aria-labelledby="mov-heading" className="p-6 overflow-y-auto scrollbar-thin-dark">
               <SectionHeading id="mov-heading">Últimas movimentações</SectionHeading>
-              {movements.length === 0 ? (
-                <p className="py-16 text-center text-sm text-muted-foreground">Sem movimentações ainda.</p>
-              ) : (
-                <ul className="mt-2">
-                  {movements.map((mov) => (
-                    <li key={mov.id} className="flex items-center gap-3 py-3 border-b border-border last:border-0">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true">
-                        <ArrowRightLeft className="h-4 w-4" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-foreground truncate">{mov.title}</p>
-                        <p className="text-[11px] text-muted-foreground">{mov.sub} · {mov.date}</p>
-                      </div>
-                      <p className="text-sm font-semibold tabular-nums text-foreground shrink-0">{formatCurrency(mov.amount)}</p>
-                    </li>
-                  ))}
-                </ul>
+              <p className="text-[11px] text-muted-foreground mt-1">Lançou algo errado? Use o botão de desfazer ao lado.</p>
+              <div className="mt-2">
+                <MovementsList
+                  movements={showAllMovements ? actions.movements : actions.movements.slice(0, 12)}
+                  onUndo={setUndoMovement}
+                />
+              </div>
+              {actions.movements.length > 12 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllMovements((v) => !v)}
+                  className={`${SMALL_BTN} mt-3 w-full justify-center`}
+                >
+                  {showAllMovements ? "Mostrar menos" : `Ver todas (${actions.movements.length})`}
+                </button>
               )}
             </section>
           </div>
@@ -885,41 +690,7 @@ export function InvestorLiveViewDesktop({
                 ) : (
                   <ul className="space-y-2">
                     {group.accounts.map((acc) => (
-                      <li key={acc.id} className="rounded-xl border border-border bg-card p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{acc.nome}</p>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{acc.instituicao}</p>
-                          </div>
-                          <p className={`${MONEY} text-sm shrink-0`}>{formatCurrency(acc.valor)}</p>
-                        </div>
-                        {acc.cdiPercent ? (
-                          <p className="mt-2 text-[11px] text-muted-foreground">
-                            {acc.cdiPercent}% do CDI
-                            {acc.maxRendimento ? ` · teto ${formatCurrency(acc.maxRendimento)}` : ""}
-                          </p>
-                        ) : null}
-                        <div className="mt-3 flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openWithdraw(acc)}
-                            disabled={acc.valor <= 0}
-                            aria-label={`Retirar de ${acc.nome}`}
-                            className={`${SMALL_BTN} flex-1 justify-center disabled:opacity-40 disabled:pointer-events-none`}
-                          >
-                            Retirar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteAccount(acc)}
-                            aria-label={`Excluir ${acc.nome}`}
-                            title="Excluir caixinha"
-                            className={`${SMALL_BTN} justify-center hover:bg-red-500/10 hover:text-red-500`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                          </button>
-                        </div>
-                      </li>
+                      <AccountCard key={acc.id} acc={acc} {...accountHandlers} />
                     ))}
                   </ul>
                 )}
@@ -935,7 +706,7 @@ export function InvestorLiveViewDesktop({
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button type="button" onClick={() => openMarket("tesouro")} className={SMALL_BTN}>
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Investir
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Aplicar
                   </button>
                   <button type="button" onClick={() => openNewCaixinha("investimentos")} className={SMALL_BTN}>
                     Nova
@@ -947,35 +718,7 @@ export function InvestorLiveViewDesktop({
               )}
               <ul className="space-y-2">
                 {investimentosAccountsReal.map((acc) => (
-                  <li key={acc.id} className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{acc.nome}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">{acc.instituicao}</p>
-                      </div>
-                      <p className={`${MONEY} text-sm shrink-0`}>{formatCurrency(acc.valor)}</p>
-                    </div>
-                    <div className="mt-3 flex gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => openWithdraw(acc)}
-                        disabled={acc.valor <= 0}
-                        aria-label={`Retirar de ${acc.nome}`}
-                        className={`${SMALL_BTN} flex-1 justify-center disabled:opacity-40 disabled:pointer-events-none`}
-                      >
-                        Retirar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteAccount(acc)}
-                        aria-label={`Excluir ${acc.nome}`}
-                        title="Excluir caixinha"
-                        className={`${SMALL_BTN} justify-center hover:bg-red-500/10 hover:text-red-500`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </li>
+                  <AccountCard key={acc.id} acc={acc} {...accountHandlers} />
                 ))}
               </ul>
               {holdingRows.length > 0 && (
@@ -1139,12 +882,13 @@ export function InvestorLiveViewDesktop({
                 tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
                 turboAccounts={turboAccountsReal}
                 emergenciaAccounts={emergenciaAccountsReal}
+                rendaFixaAccounts={investimentosAccountsReal}
                 section={marketSection}
                 onSectionChange={setMarketSection}
                 onClose={() => setMarketOpen(false)}
-                onBuyStock={handleBuyStock}
-                onBuyTesouro={handleBuyTesouro}
-                onAporte={handleAporte}
+                onBuyStock={actions.buyStock}
+                onBuyTesouro={actions.buyTesouro}
+                onAporte={actions.aporte}
                 onCreateAccount={openNewCaixinha}
                 onAdjustCash={openCashSheet}
               />
@@ -1153,101 +897,18 @@ export function InvestorLiveViewDesktop({
         </div>
       )}
 
-      {/* ── Vender ────────────────────────────────────────────────── */}
-      <LiveSheet
-        open={!!sellTicker && !!sellHolding}
-        onOpenChange={(o) => { if (!o) setSellTicker(null); }}
-        dismissible={!sellSubmitting}
-        title={sellHolding ? `Vender ${sellHolding.ticker}` : "Vender"}
-        description={sellHolding ? `${fmtQty(sellHolding.quantity)} un. · ${formatCurrency(sellHolding.price)} por unidade` : undefined}
-      >
-        {sellHolding && (
-          <form onSubmit={(e) => { e.preventDefault(); void confirmSell(); }} className="space-y-4">
-            <div>
-              <label htmlFor="sell-qty" className={`${LABEL} block mb-2`}>Quantidade a vender</label>
-              <div className="flex gap-2">
-                <div className={cn(INPUT_BOX, "flex-1")}>
-                  <input
-                    id="sell-qty"
-                    type="text"
-                    inputMode="decimal"
-                    autoFocus
-                    value={sellQtyMask}
-                    onChange={(e) => onSellQtyChange(e.target.value)}
-                    placeholder="0"
-                    aria-describedby="sell-qty-hint"
-                    className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none text-base font-semibold tabular-nums"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSellQtyMask(fmtQty(sellHolding.quantity).replace(".", ","))}
-                  className={`min-h-12 px-4 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground ${FOCUS}`}
-                >
-                  Tudo
-                </button>
-              </div>
-              <p id="sell-qty-hint" className={cn("text-xs mt-2", sellQty > sellHolding.quantity + 0.0001 ? LOSS : "text-muted-foreground")}>
-                {sellQty > sellHolding.quantity + 0.0001
-                  ? "Quantidade maior que a posição atual."
-                  : sellQty > 0
-                    ? <>Você recebe <span className="font-semibold text-foreground tabular-nums">{formatCurrency(sellProceeds)}</span> no saldo em conta.</>
-                    : "O valor da venda entra no saldo em conta."}
-              </p>
-            </div>
-            {sellError && <p role="alert" className={`text-xs ${LOSS} rounded-xl bg-red-500/10 px-3 py-2`}>{sellError}</p>}
-            <button type="submit" disabled={!canConfirmSell} className={BTN_PRIMARY}>
-              {sellSubmitting ? "Vendendo…" : `Confirmar venda${sellQty > 0 ? ` de ${fmtQty(sellQty)} ${sellHolding.ticker}` : ""}`}
-            </button>
-          </form>
-        )}
-      </LiveSheet>
-
-      {/* ── Retirar ───────────────────────────────────────────────── */}
-      <LiveSheet
-        open={!!withdrawAccount}
-        onOpenChange={(o) => { if (!o) setWithdrawAccount(null); }}
-        dismissible={!withdrawSubmitting}
-        title={withdrawAccount ? `Retirar de ${withdrawAccount.nome}` : "Retirar"}
-        description={withdrawAccount ? `Disponível: ${formatCurrency(withdrawAccount.valor)}. O valor volta para o saldo em conta.` : undefined}
-      >
-        {withdrawAccount && (
-          <form onSubmit={(e) => { e.preventDefault(); void confirmWithdraw(); }} className="space-y-4">
-            <div>
-              <label htmlFor="withdraw-amount" className={`${LABEL} block mb-2`}>Valor a retirar</label>
-              <div className="flex gap-2">
-                <div className={cn(INPUT_BOX, "flex-1")}>
-                  <span className="text-muted-foreground text-sm shrink-0">R$</span>
-                  <input
-                    id="withdraw-amount"
-                    type="text"
-                    inputMode="numeric"
-                    autoFocus
-                    value={withdrawMask}
-                    onChange={(e) => setWithdrawMask(formatBRLMask(e.target.value.replace(/\D/g, "")))}
-                    placeholder="0,00"
-                    className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none text-base font-semibold tabular-nums"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setWithdrawMask(formatBRLMask((withdrawAccount.valor * 100).toFixed(0)))}
-                  className={`min-h-12 px-4 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground ${FOCUS}`}
-                >
-                  Tudo
-                </button>
-              </div>
-              {withdrawAmount > withdrawAccount.valor + 0.001 && (
-                <p className={`text-xs mt-2 ${LOSS}`}>Valor maior que o saldo disponível.</p>
-              )}
-            </div>
-            {withdrawError && <p role="alert" className={`text-xs ${LOSS} rounded-xl bg-red-500/10 px-3 py-2`}>{withdrawError}</p>}
-            <button type="submit" disabled={!canConfirmWithdraw} className={BTN_PRIMARY}>
-              {withdrawSubmitting ? "Retirando…" : `Retirar ${withdrawAmount > 0 ? formatCurrency(withdrawAmount) : ""}`.trim()}
-            </button>
-          </form>
-        )}
-      </LiveSheet>
+      <StockOrderSheet order={order} onClose={() => setOrder(null)} cash={cashBalance} onBuy={actions.buyStock} onSell={actions.sellStock} />
+      <AmountSheet
+        open={!!aporteAccount}
+        onOpenChange={(o) => !o && setAporteAccount(null)}
+        title={aporteAccount ? `Aplicar em ${aporteAccount.nome}` : ""}
+        description={aporteAccount ? `Hoje: ${formatCurrency(aporteAccount.valor)}` : undefined}
+        cash={cashBalance}
+        onConfirm={(amount, source) => (aporteAccount ? actions.aporte(aporteAccount.id, amount, source) : Promise.resolve())}
+      />
+      <WithdrawSheet account={withdrawAccount} onClose={() => setWithdrawAccount(null)} onConfirm={actions.withdraw} />
+      <UpdateValueSheet account={updateAccount} onClose={() => setUpdateAccount(null)} onConfirm={actions.updateValue} />
+      <UndoSheet movement={undoMovement} onClose={() => setUndoMovement(null)} onConfirm={actions.undo} />
 
       {/* ── Nova caixinha ─────────────────────────────────────────── */}
       <LiveSheet

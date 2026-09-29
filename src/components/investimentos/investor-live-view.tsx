@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState, type ElementType, type FormEvent,
 import { toast } from "sonner";
 import {
   X, Landmark, Calculator, Zap, Shield,
-  ArrowUpRight, ArrowDownRight, ArrowRight, ArrowRightLeft, Check, Pencil, Home, ChevronRight,
-  CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Undo2, Trash2,
+  ArrowUpRight, ArrowDownRight, ArrowRight, Check, Pencil, Home, ChevronRight,
+  CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Trash2,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { CdiHelp, TetoHelp, TipoCaixinhaHelp } from "./help-texts";
@@ -14,18 +14,9 @@ import {
   ROW, INPUT_BOX, GAIN, LOSS, ATTENTION, LiveSheet, StatBox, BackLink,
 } from "@/components/investimentos/live-ui";
 import { detectAssetType } from "@/lib/stock-utils";
-import { CASH_ACCOUNT_NAME, isEmergencyAccountName } from "@/lib/account-groups";
+import { isEmergencyAccountName } from "@/lib/account-groups";
 import type { StockTrade, Investment } from "@/types/database";
-import {
-  createStockTrade,
-  createInvestment,
-  updateAccountBalance,
-  createInvestmentAccount,
-  createInvestmentAccountWithTurbo,
-  deleteInvestment,
-  deleteStockTrade,
-  deleteInvestmentAccount,
-} from "@/lib/api";
+import { createInvestmentAccountWithTurbo, deleteInvestmentAccount } from "@/lib/api";
 import {
   SimulatorFinancePanel,
   type FinancePanelId,
@@ -34,22 +25,18 @@ import {
   SimulatorInvestFlow,
   DEFAULT_TESOURO_PRODUCTS,
   type MarketSection,
-  type TesouroProduct,
 } from "@/components/investimentos/simulator-invest-flow";
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-/** Tenta desfazer uma etapa já gravada quando uma etapa seguinte falha (best-effort). */
-async function safeDelete(action: () => Promise<unknown>, label: string) {
-  try {
-    await action();
-  } catch (err) {
-    console.error(`Falha ao reverter ${label}:`, err);
-  }
-}
+import { useLiveActions, type LiveAccount, type LiveMovement } from "@/components/investimentos/live-actions";
+import {
+  StockOrderSheet,
+  WithdrawSheet,
+  UpdateValueSheet,
+  AmountSheet,
+  MovementsList,
+  UndoSheet,
+  type StockOrder,
+} from "@/components/investimentos/live-money-sheets";
 
 type Asset = {
   ticker: string;
@@ -140,13 +127,6 @@ function formatPct(value: number, digits = 1) {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   })}%`;
-}
-
-function formatShortDate(iso: string) {
-  const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
-  return Number.isNaN(d.getTime())
-    ? ""
-    : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
 /** Máscara de percentual: até 3 dígitos inteiros e 2 decimais, vírgula como separador. */
@@ -383,15 +363,10 @@ export function InvestorLiveView({
   const [cashSheetOpen, setCashSheetOpen] = useState(false);
   const [cashInput, setCashInput] = useState("");
   const [financePanel, setFinancePanel] = useState<FinancePanelId | null>(null);
-  const [undoTarget, setUndoTarget] = useState<{ id: string; title: string } | null>(null);
   const [selectedFixedIncome, setSelectedFixedIncome] = useState<RealAccountItem | null>(null);
   const [deleteAccount, setDeleteAccount] = useState<RealAccountItem | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [sellTicker, setSellTicker] = useState<string | null>(null);
-  const [sellQtyMask, setSellQtyMask] = useState("");
-  const [sellSubmitting, setSellSubmitting] = useState(false);
-  const [sellError, setSellError] = useState<string | null>(null);
 
   const [newCaixinhaOpen, setNewCaixinhaOpen] = useState(false);
   const [newCaixinhaName, setNewCaixinhaName] = useState("");
@@ -402,7 +377,22 @@ export function InvestorLiveView({
   const [newCaixinhaTetoMask, setNewCaixinhaTetoMask] = useState("");
   const [newCaixinhaSubmitting, setNewCaixinhaSubmitting] = useState(false);
   const [newCaixinhaError, setNewCaixinhaError] = useState<string | null>(null);
-  const [undoingId, setUndoingId] = useState<string | null>(null);
+
+  const actions = useLiveActions({
+    cashAccountId,
+    cashBalance,
+    turboAccounts: turboAccountsReal,
+    emergenciaAccounts: emergenciaAccountsReal,
+    investimentosAccounts: investimentosAccountsReal,
+    stockTrades,
+    investments,
+    onRefresh,
+  });
+  const [order, setOrder] = useState<StockOrder | null>(null);
+  const [aporteAccount, setAporteAccount] = useState<LiveAccount | null>(null);
+  const [withdrawAccount, setWithdrawAccount] = useState<LiveAccount | null>(null);
+  const [updateAccount, setUpdateAccount] = useState<LiveAccount | null>(null);
+  const [undoMovement, setUndoMovement] = useState<LiveMovement | null>(null);
 
   const holdings: Holding[] = useMemo(
     () =>
@@ -496,28 +486,12 @@ export function InvestorLiveView({
     return { h, asset, value, cost, gain, gainPct };
   }, [selectedTicker, holdings, liveAssets]);
 
-  const sellHolding = useMemo(() => {
-    if (!sellTicker) return null;
-    const h = holdings.find((x) => x.ticker === sellTicker);
-    const asset = liveAssets.find((a) => a.ticker === sellTicker);
-    if (!h || !asset) return null;
-    const price = asset.price * (1 + asset.variation);
-    return { h, asset, price };
-  }, [sellTicker, holdings, liveAssets]);
-
-  const sellQty = (() => {
-    const n = parseFloat(sellQtyMask.replace(",", "."));
-    return Number.isFinite(n) ? n : 0;
-  })();
-  const sellProceeds = sellHolding ? sellQty * sellHolding.price : 0;
-  const canConfirmSell =
-    !!sellHolding && sellQty > 0 && sellQty <= sellHolding.h.quantity + 0.0001 && !sellSubmitting;
-
   function openSell(ticker: string) {
+    const h = holdings.find((x) => x.ticker === ticker);
+    const asset = liveAssets.find((a) => a.ticker === ticker);
+    if (!h || !asset) return;
     setSelectedTicker(null);
-    setSellTicker(ticker);
-    setSellQtyMask("");
-    setSellError(null);
+    setOrder({ mode: "venda", ticker, price: asset.price * (1 + asset.variation), maxQty: h.quantity });
   }
 
   useEffect(() => {
@@ -530,64 +504,7 @@ export function InvestorLiveView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveAction]);
 
-  function onSellQtyChange(raw: string) {
-    let v = raw.replace(/[^\d,]/g, "");
-    const parts = v.split(",");
-    if (parts.length > 2) v = parts[0] + "," + parts.slice(1).join("");
-    setSellQtyMask(v);
-  }
 
-  function setSellAll() {
-    if (!sellHolding) return;
-    setSellQtyMask(formatQty(sellHolding.h.quantity));
-  }
-
-  async function confirmSell() {
-    if (!sellHolding || !canConfirmSell) return;
-    setSellSubmitting(true);
-    setSellError(null);
-    const { ticker } = sellHolding.asset;
-    const price = sellHolding.price;
-    const amount = sellQty * price;
-    let cid = cashAccountId;
-    let cashRecordId: string | null = null;
-    try {
-      if (!cid) {
-        const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
-        cid = acc.id;
-      }
-      // Credita o saldo ANTES de gravar a venda: se a etapa seguinte falhar,
-      // o usuário fica com um crédito a mais (corrigível) em vez de perder a
-      // ação sem receber nada por ela.
-      const cashRecord = await createInvestment({
-        account_id: cid,
-        type: "deposito",
-        amount,
-        description: `Venda ${ticker}`,
-        date: today(),
-      });
-      cashRecordId = cashRecord.id;
-      await createStockTrade({
-        ticker,
-        type: "venda",
-        quantity: sellQty,
-        price_per_share: price,
-        total_amount: amount,
-        date: today(),
-      });
-      await onRefresh();
-      toast.success(`Venda de ${formatQty(sellQty)} ${ticker} concluída`);
-      setSellTicker(null);
-    } catch (err) {
-      console.error("Erro ao vender:", err);
-      if (cashRecordId) {
-        await safeDelete(() => deleteInvestment(cashRecordId!), "crédito da venda");
-      }
-      setSellError(err instanceof Error ? err.message : "Não foi possível concluir a venda. Tente novamente.");
-    } finally {
-      setSellSubmitting(false);
-    }
-  }
 
   function openNewCaixinha(tipo: "turbo" | "emergencia" | "investimentos" = "investimentos") {
     setNewCaixinhaName("");
@@ -686,18 +603,18 @@ export function InvestorLiveView({
     return [
       {
         id: "fii",
-        label: "FIIs",
+        label: "Fundos imobiliários",
         atual: pct(fiiValue),
         ideal: 40,
-        desc: "Renda mensal isenta de IR",
+        desc: "Renda mensal sem Imposto de Renda",
         action: "acoes" as MarketSection,
       },
       {
         id: "turbo",
-        label: "Turbo/CDB",
+        label: "Turbo e renda fixa",
         atual: pct(turboTotal + investimentosFixedTotal),
         ideal: 30,
-        desc: "Segurança + rendimento do CDI",
+        desc: "Segurança e rendimento do CDI",
         action: "turbo" as MarketSection,
       },
       {
@@ -705,60 +622,12 @@ export function InvestorLiveView({
         label: "Ações",
         atual: pct(acoesValue),
         ideal: 30,
-        desc: "Crescimento + dividendos",
+        desc: "Crescimento e dividendos",
         action: "acoes" as MarketSection,
       },
     ];
   }, [patrimonioTotal, fiiValue, turboTotal, investimentosFixedTotal, acoesValue]);
 
-  /** Movimentações reais recentes (compras de ações + aportes em caixinhas). */
-  const homeMovements = useMemo(() => {
-    type Mov = {
-      id: string;
-      title: string;
-      subtitle: string;
-      amount: number;
-      date: string;
-    };
-    const items: Mov[] = [];
-
-    for (const t of stockTrades) {
-      if (t.type !== "compra") continue;
-      items.push({
-        id: `stock-${t.id}`,
-        title: `Compra ${t.ticker}`,
-        subtitle: `Saldo → Ações/FIIs · ${formatQty(t.quantity)} un.`,
-        amount: t.total_amount,
-        date: t.date,
-      });
-    }
-
-    const aporteLookup = new Map(
-      [...turboAccountsReal, ...emergenciaAccountsReal, ...investimentosAccountsReal].map((a) => [
-        a.id,
-        a,
-      ])
-    );
-    for (const inv of investments) {
-      if (inv.type !== "deposito" || inv.account_id === cashAccountId) continue;
-      const acc = aporteLookup.get(inv.account_id);
-      if (!acc) continue;
-      const group = acc.isTurbo
-        ? "Turbo"
-        : emergenciaAccountsReal.some((e) => e.id === inv.account_id)
-          ? "Emergência"
-          : "Investimentos";
-      items.push({
-        id: `inv-${inv.id}`,
-        title: `Aporte · ${acc.nome}`,
-        subtitle: `Saldo → ${group}`,
-        amount: inv.amount,
-        date: inv.date,
-      });
-    }
-
-    return items.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, 6);
-  }, [stockTrades, investments, cashAccountId, turboAccountsReal, emergenciaAccountsReal, investimentosAccountsReal]);
 
   const tesouroAccounts = useMemo(
     () => investimentosAccountsLive.filter((a) => isTesouroAccount(a.nome)),
@@ -877,24 +746,10 @@ export function InvestorLiveView({
   async function saveCash(e?: FormEvent) {
     e?.preventDefault();
     if (!cashChanged || savingCash) return;
-    const delta = cashDelta;
     setSavingCash(true);
     try {
-      let id = cashAccountId;
-      if (!id) {
-        const acc = await createInvestmentAccount({ name: CASH_ACCOUNT_NAME, institution: "Carteira" });
-        id = acc.id;
-      }
-      await createInvestment({
-        account_id: id,
-        type: delta > 0 ? "deposito" : "retirada",
-        amount: Math.abs(delta),
-        description: "Ajuste de saldo via Live",
-        date: today(),
-      });
-      await onRefresh();
+      await actions.setCash(cashInputValue);
       setCashSheetOpen(false);
-      toast.success("Saldo em conta atualizado");
     } catch (err) {
       console.error("Erro ao ajustar saldo:", err);
       toast.error("Não foi possível salvar o saldo. Tente novamente.");
@@ -920,172 +775,6 @@ export function InvestorLiveView({
         color: a.color,
       }));
   }, [liveAssets]);
-
-  async function handleBuyStock(ticker: string, _name: string, price: number, amount: number) {
-    if (!cashAccountId || amount <= 0 || amount > cash + 0.001 || price <= 0) return;
-    const qty = Math.floor(amount / price);
-    if (qty < 1) {
-      throw new Error(`Valor insuficiente para 1 ação de ${ticker} (${formatCurrency(price)}).`);
-    }
-    const spent = qty * price;
-    const trade = await createStockTrade({
-      ticker,
-      type: "compra",
-      quantity: qty,
-      price_per_share: price,
-      total_amount: spent,
-      date: today(),
-    });
-    try {
-      await createInvestment({
-        account_id: cashAccountId,
-        type: "retirada",
-        amount: spent,
-        description: `Compra ${ticker}`,
-        date: today(),
-      });
-    } catch (err) {
-      await safeDelete(() => deleteStockTrade(trade.id), "compra de ação");
-      throw err;
-    }
-    await onRefresh();
-    toast.success(`Compra de ${qty} ${ticker} concluída`);
-  }
-
-  async function handleBuyTesouro(product: TesouroProduct, amount: number) {
-    if (!cashAccountId || amount <= 0 || amount > cash + 0.001) return;
-    const existing = investimentosAccountsReal.find((a) => a.nome === product.nome);
-    const previousBalance = existing?.valor ?? 0;
-    let accountId: string;
-    let createdAccount = false;
-
-    if (existing) {
-      accountId = existing.id;
-    } else {
-      const acc = await createInvestmentAccount({ name: product.nome, institution: product.taxa, ...product.rate });
-      accountId = acc.id;
-      createdAccount = true;
-    }
-
-    let depositRecordId: string | null = null;
-    try {
-      const depositRecord = await createInvestment({
-        account_id: accountId,
-        type: "deposito",
-        amount,
-        description: "Compra Tesouro Direto",
-        date: today(),
-      });
-      depositRecordId = depositRecord.id;
-      await updateAccountBalance(accountId, previousBalance + amount);
-      await createInvestment({
-        account_id: cashAccountId,
-        type: "retirada",
-        amount,
-        description: `Compra ${product.nome}`,
-        date: today(),
-      });
-    } catch (err) {
-      if (createdAccount) {
-        // Conta nova: apagar ela já remove o depósito em cascata.
-        await safeDelete(() => deleteInvestmentAccount(accountId), "conta de Tesouro criada");
-      } else {
-        await safeDelete(() => updateAccountBalance(accountId, previousBalance), "saldo do Tesouro");
-        if (depositRecordId) {
-          await safeDelete(() => deleteInvestment(depositRecordId!), "depósito do Tesouro");
-        }
-      }
-      throw err;
-    }
-    await onRefresh();
-    toast.success(`Compra de ${product.nome} concluída`);
-  }
-
-  async function handleAporte(accountId: string, amount: number) {
-    if (!cashAccountId || amount <= 0 || amount > cash + 0.001) return;
-    const acc = [...turboAccountsReal, ...emergenciaAccountsReal, ...investimentosAccountsReal].find(
-      (a) => a.id === accountId
-    );
-    if (!acc) return;
-
-    const depositRecord = await createInvestment({
-      account_id: accountId,
-      type: "deposito",
-      amount,
-      description: "Aporte via Live",
-      date: today(),
-    });
-    try {
-      await updateAccountBalance(accountId, acc.valor + amount);
-      await createInvestment({
-        account_id: cashAccountId,
-        type: "retirada",
-        amount,
-        description: `Aporte · ${acc.nome}`,
-        date: today(),
-      });
-    } catch (err) {
-      await safeDelete(() => updateAccountBalance(accountId, acc.valor), "saldo do aporte");
-      await safeDelete(() => deleteInvestment(depositRecord.id), "depósito do aporte");
-      throw err;
-    }
-    await onRefresh();
-    toast.success(`Aporte em ${acc.nome} concluído`);
-  }
-
-  /**
-   * Desfaz uma movimentação da lista "Últimas movimentações": reverte o
-   * lançamento em si e o débito correspondente no saldo em conta,
-   * restaurando o saldo da conta-alvo quando necessário.
-   */
-  async function undoMovement(mov: { id: string; title: string }) {
-    if (!cashAccountId) return;
-    setUndoingId(mov.id);
-    try {
-      if (mov.id.startsWith("stock-")) {
-        const tradeId = mov.id.slice("stock-".length);
-        const trade = stockTrades.find((t) => t.id === tradeId);
-        if (!trade) return;
-        await deleteStockTrade(tradeId);
-        const cashRetirada = investments.find(
-          (i) =>
-            i.account_id === cashAccountId &&
-            i.type === "retirada" &&
-            i.description === `Compra ${trade.ticker}` &&
-            Math.abs(i.amount - trade.total_amount) < 0.01
-        );
-        if (cashRetirada) await safeDelete(() => deleteInvestment(cashRetirada.id), "débito da compra");
-      } else if (mov.id.startsWith("inv-")) {
-        const invId = mov.id.slice("inv-".length);
-        const inv = investments.find((i) => i.id === invId);
-        if (!inv) return;
-        const targetAcc = [...turboAccountsReal, ...emergenciaAccountsReal, ...investimentosAccountsReal].find(
-          (a) => a.id === inv.account_id
-        );
-        await deleteInvestment(invId);
-        if (targetAcc) {
-          await safeDelete(() => updateAccountBalance(targetAcc.id, targetAcc.valor - inv.amount), "saldo da caixinha");
-        }
-        const cashRetirada = investments.find(
-          (i) =>
-            i.account_id === cashAccountId &&
-            i.type === "retirada" &&
-            Math.abs(i.amount - inv.amount) < 0.01 &&
-            targetAcc &&
-            i.description.includes(targetAcc.nome)
-        );
-        if (cashRetirada) await safeDelete(() => deleteInvestment(cashRetirada.id), "débito do aporte");
-      }
-      await onRefresh();
-      setUndoTarget(null);
-      toast.success(`Movimentação desfeita: ${mov.title}. O valor voltou para o saldo em conta.`);
-    } catch (err) {
-      console.error("Erro ao desfazer movimentação:", err);
-      toast.error("Não foi possível desfazer essa movimentação. Tente novamente.");
-    } finally {
-      setUndoingId(null);
-    }
-  }
 
   const [simAporteInicial, setSimAporteInicial] = useState(() => Math.round(grandTotal) || 1000);
   const [simAporteMensal, setSimAporteMensal] = useState(300);
@@ -1228,26 +917,38 @@ export function InvestorLiveView({
                   turboAccountsLive.length > 0 ? (
                     <PortfolioSection title="Contas">
                       <RealAccountList items={turboAccountsLive} onSelect={setSelectedFixedIncome} />
+                      <p className="text-[11px] text-muted-foreground mt-2">Toque numa conta para aplicar, retirar ou atualizar o valor.</p>
                     </PortfolioSection>
                   ) : (
                     <p className="text-sm text-muted-foreground text-center py-8">Nenhuma conta Turbo.</p>
                   )
+                )}
+                {focusGroup === "turbo" && (
+                  <button type="button" onClick={() => openNewCaixinha("turbo")} className={BTN_SECONDARY}>
+                    Nova caixinha Turbo
+                  </button>
                 )}
 
                 {focusGroup === "emergencia" && (
                   emergenciaAccountsLive.length > 0 ? (
                     <PortfolioSection title="Contas">
                       <RealAccountList items={emergenciaAccountsLive} onSelect={setSelectedFixedIncome} />
+                      <p className="text-[11px] text-muted-foreground mt-2">Toque numa conta para aplicar, retirar ou atualizar o valor.</p>
                     </PortfolioSection>
                   ) : (
                     <p className="text-sm text-muted-foreground text-center py-8">Nenhuma conta de emergência.</p>
                   )
                 )}
+                {focusGroup === "emergencia" && (
+                  <button type="button" onClick={() => openNewCaixinha("emergencia")} className={BTN_SECONDARY}>
+                    Nova reserva de emergência
+                  </button>
+                )}
 
                 {focusGroup === "investimentos" && (
                   <div className="space-y-2">
                     <CaixinhaRow
-                      title="Tesouro Direto"
+                      title="Tesouro e renda fixa"
                       subtitle={`${tesouroAccounts.length + outrasRendaFixa.length} título${
                         tesouroAccounts.length + outrasRendaFixa.length !== 1 ? "s" : ""
                       }`}
@@ -1256,7 +957,7 @@ export function InvestorLiveView({
                       onClick={() => setInvestSubPage("tesouro")}
                     />
                     <CaixinhaRow
-                      title="Ações"
+                      title="Ações e fundos imobiliários"
                       subtitle={`${acoesPageHoldings.length} ativo${acoesPageHoldings.length !== 1 ? "s" : ""}`}
                       value={acoesPageTotal}
                       icon={TrendingUp}
@@ -1268,7 +969,7 @@ export function InvestorLiveView({
                       className={`w-full min-h-12 rounded-xl border border-dashed border-border flex items-center justify-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors ${FOCUS}`}
                     >
                       <Plus className="h-4 w-4" aria-hidden="true" />
-                      Aplicar saldo em conta
+                      Investir
                     </button>
                   </div>
                 )}
@@ -1281,7 +982,7 @@ export function InvestorLiveView({
               <SubPageHeader
                 backLabel="Investimentos"
                 onBack={() => setInvestSubPage(null)}
-                title="Tesouro Direto"
+                title="Tesouro e renda fixa"
                 total={tesouroTotal}
               />
 
@@ -1289,18 +990,24 @@ export function InvestorLiveView({
                 <p className="text-sm text-muted-foreground text-center py-8">Nenhum título cadastrado.</p>
               ) : (
                 <div className="space-y-5">
-                  <PortfolioSection title="Títulos" empty={tesouroAccounts.length === 0}>
+                  <PortfolioSection title="Tesouro Direto" empty={tesouroAccounts.length === 0}>
                     <RealAccountList items={tesouroAccounts} onSelect={setSelectedFixedIncome} />
                   </PortfolioSection>
                   <PortfolioSection title="Renda fixa" empty={outrasRendaFixa.length === 0}>
                     <RealAccountList items={outrasRendaFixa} onSelect={setSelectedFixedIncome} />
                   </PortfolioSection>
+                  <p className="text-[11px] text-muted-foreground -mt-2">Toque num título para aplicar, retirar ou atualizar o valor.</p>
                 </div>
               )}
 
-              <button type="button" onClick={() => openMarket("tesouro")} className={BTN_PRIMARY}>
-                Comprar Tesouro com saldo
-              </button>
+              <div className="space-y-2">
+                <button type="button" onClick={() => openMarket("tesouro")} className={BTN_PRIMARY}>
+                  Aplicar em Tesouro ou renda fixa
+                </button>
+                <button type="button" onClick={() => openNewCaixinha("investimentos")} className={BTN_SECONDARY}>
+                  Cadastrar outra renda fixa
+                </button>
+              </div>
             </div>
           )}
 
@@ -1309,7 +1016,7 @@ export function InvestorLiveView({
               <SubPageHeader
                 backLabel="Investimentos"
                 onBack={() => setInvestSubPage(null)}
-                title="Ações"
+                title="Ações e fundos imobiliários"
                 total={acoesPageTotal}
               />
 
@@ -1320,17 +1027,18 @@ export function InvestorLiveView({
                   <PortfolioSection title="Ações" empty={acoesHoldings.length === 0}>
                     <HoldingList items={acoesHoldings} onSelect={setSelectedTicker} />
                   </PortfolioSection>
-                  <PortfolioSection title="FIIs" empty={fiiHoldings.length === 0}>
+                  <PortfolioSection title="Fundos imobiliários" empty={fiiHoldings.length === 0}>
                     <HoldingList items={fiiHoldings} onSelect={setSelectedTicker} />
                   </PortfolioSection>
                   <PortfolioSection title="ETFs" empty={etfHoldings.length === 0}>
                     <HoldingList items={etfHoldings} onSelect={setSelectedTicker} />
                   </PortfolioSection>
+                  <p className="text-[11px] text-muted-foreground -mt-2">Toque num ativo para comprar mais ou vender.</p>
                 </div>
               )}
 
-              <button type="button" onClick={() => openMarket("acoes")} className={BTN_PRIMARY}>
-                Comprar ações com saldo
+              <button type="button" onClick={() => setOrder({ mode: "compra" })} className={BTN_PRIMARY}>
+                Registrar compra
               </button>
             </div>
           )}
@@ -1436,11 +1144,11 @@ export function InvestorLiveView({
                   <h2 id="live-movimentacoes" className={LABEL}>Últimas movimentações</h2>
                 </div>
 
-                {homeMovements.length === 0 ? (
+                {actions.movements.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center">
                     <p className="text-sm font-semibold text-foreground/70">Nenhuma movimentação ainda</p>
                     <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                      Compras e aportes feitos aqui aparecem nesta lista.
+                      Compras, vendas, aplicações e retiradas aparecem aqui. Dá para desfazer qualquer uma.
                     </p>
                     <button
                       type="button"
@@ -1452,35 +1160,9 @@ export function InvestorLiveView({
                     </button>
                   </div>
                 ) : (
-                  <ul className="rounded-xl border border-border bg-card divide-y divide-border">
-                    {homeMovements.map((mov) => (
-                      <li key={mov.id} className="flex items-center justify-between gap-2 pl-3.5 pr-1 py-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                            <ArrowRightLeft className="h-3.5 w-3.5 text-foreground/70" aria-hidden="true" />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-[13px] font-semibold text-foreground truncate">{mov.title}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">
-                              {formatShortDate(mov.date)} · {mov.subtitle}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          <p className={`${MONEY} text-[13px]`}>{formatCurrency(mov.amount)}</p>
-                          <button
-                            type="button"
-                            onClick={() => setUndoTarget({ id: mov.id, title: mov.title })}
-                            disabled={undoingId === mov.id}
-                            aria-label={`Desfazer ${mov.title}`}
-                            className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 ${FOCUS}`}
-                          >
-                            <Undo2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="rounded-xl border border-border bg-card px-3.5">
+                    <MovementsList movements={actions.movements.slice(0, 8)} onUndo={setUndoMovement} />
+                  </div>
                 )}
               </section>
             </div>
@@ -1532,11 +1214,11 @@ export function InvestorLiveView({
                           </span>
                         )}
                         {status === "falta" && (
-                          <span className="text-[11px] font-bold text-foreground/80">Faltam {gapPts} pp</span>
+                          <span className="text-[11px] font-bold text-foreground/80">Faltam {gapPts} pontos</span>
                         )}
                         {status === "excede" && (
                           <span className={`text-[11px] font-bold ${ATTENTION}`}>
-                            Excede {gapPts} pp
+                            {gapPts} pontos acima
                           </span>
                         )}
                       </div>
@@ -1544,10 +1226,9 @@ export function InvestorLiveView({
                         <button
                           type="button"
                           onClick={() => openMarket(r.action)}
-                          disabled={cash <= 0}
                           className={`${BTN_SECONDARY} min-h-11 text-xs`}
                         >
-                          {cash > 0 ? `Aplicar saldo em ${r.label}` : "Sem saldo em conta para aplicar"}
+                          Investir em {r.label}
                         </button>
                       )}
                     </div>
@@ -1556,7 +1237,7 @@ export function InvestorLiveView({
               </div>
 
               <p className="text-center text-[11px] text-muted-foreground px-2 leading-relaxed">
-                Referência: FIIs 40% · Turbo/CDB 30% · Ações 30% do patrimônio.
+                Referência: fundos imobiliários 40% · Turbo e renda fixa 30% · ações 30% do patrimônio.
                 {allocationOutside >= 1 && (
                   <>
                     {" "}Saldo em conta e Emergência somam{" "}
@@ -1706,12 +1387,13 @@ export function InvestorLiveView({
                 tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
                 turboAccounts={turboAccountsLive}
                 emergenciaAccounts={emergenciaAccountsLive}
+                rendaFixaAccounts={investimentosAccountsLive}
                 section={marketSection}
                 onSectionChange={setMarketSection}
                 onClose={() => setMarketOpen(false)}
-                onBuyStock={handleBuyStock}
-                onBuyTesouro={handleBuyTesouro}
-                onAporte={handleAporte}
+                onBuyStock={actions.buyStock}
+                onBuyTesouro={actions.buyTesouro}
+                onAporte={actions.aporte}
                 onCreateAccount={openNewCaixinha}
                 onAdjustCash={openCashSheet}
               />
@@ -1758,29 +1440,6 @@ export function InvestorLiveView({
         </form>
       </LiveSheet>
 
-      {/* Confirmação de desfazer */}
-      <LiveSheet
-        open={!!undoTarget}
-        onOpenChange={(o) => !o && setUndoTarget(null)}
-        dismissible={!undoingId}
-        title={undoTarget ? `Desfazer "${undoTarget.title}"?` : "Desfazer movimentação"}
-        description="O lançamento é apagado e o valor volta para o saldo em conta."
-      >
-        <div className="space-y-2">
-          <button
-            type="button"
-            disabled={!!undoingId}
-            onClick={() => undoTarget && undoMovement(undoTarget)}
-            className={BTN_DANGER}
-          >
-            {undoingId ? "Desfazendo…" : "Desfazer movimentação"}
-          </button>
-          <button type="button" disabled={!!undoingId} onClick={() => setUndoTarget(null)} className={BTN_SECONDARY}>
-            Cancelar
-          </button>
-        </div>
-      </LiveSheet>
-
       {/* Detalhe de conta real (turbo/emergência/renda fixa) */}
       <LiveSheet
         open={!!selectedFixedIncome}
@@ -1791,7 +1450,9 @@ export function InvestorLiveView({
             ? [
                 selectedFixedIncome.isTurbo
                   ? "Turbo"
-                  : isTesouroAccount(selectedFixedIncome.nome)
+                  : emergenciaAccountsLive.some((a) => a.id === selectedFixedIncome.id)
+                    ? "Reserva de emergência"
+                    : isTesouroAccount(selectedFixedIncome.nome)
                     ? "Tesouro Direto"
                     : "Renda fixa",
                 selectedFixedIncome.instituicao,
@@ -1825,28 +1486,37 @@ export function InvestorLiveView({
                   </div>
                 )}
             </div>
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => {
-                  const isEme = emergenciaAccountsLive.some((a) => a.id === selectedFixedIncome.id);
+                  setAporteAccount(selectedFixedIncome);
                   setSelectedFixedIncome(null);
-                  openMarket(
-                    selectedFixedIncome.isTurbo
-                      ? "turbo"
-                      : isTesouroAccount(selectedFixedIncome.nome)
-                        ? "tesouro"
-                        : isEme
-                          ? "eme"
-                          : "hub"
-                  );
                 }}
-                className={BTN_PRIMARY}
+                className={`${BTN_PRIMARY} col-span-2`}
               >
-                Aportar com saldo
+                Aplicar
               </button>
-              <button type="button" onClick={() => setSelectedFixedIncome(null)} className={BTN_SECONDARY}>
-                Fechar
+              <button
+                type="button"
+                disabled={selectedFixedIncome.valor <= 0}
+                onClick={() => {
+                  setWithdrawAccount(selectedFixedIncome);
+                  setSelectedFixedIncome(null);
+                }}
+                className={BTN_SECONDARY}
+              >
+                Retirar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUpdateAccount(selectedFixedIncome);
+                  setSelectedFixedIncome(null);
+                }}
+                className={BTN_SECONDARY}
+              >
+                Atualizar valor
               </button>
               <button
                 type="button"
@@ -1854,7 +1524,7 @@ export function InvestorLiveView({
                   setDeleteAccount(selectedFixedIncome);
                   setSelectedFixedIncome(null);
                 }}
-                className={`${BTN_DANGER_OUTLINE} inline-flex items-center justify-center gap-2`}
+                className={`${BTN_DANGER_OUTLINE} col-span-2 inline-flex items-center justify-center gap-2`}
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
                 Excluir caixinha
@@ -1944,12 +1614,13 @@ export function InvestorLiveView({
               <button
                 type="button"
                 onClick={() => {
+                  const { asset } = selectedHolding;
                   setSelectedTicker(null);
-                  openMarket("acoes");
+                  setOrder({ mode: "compra", ticker: asset.ticker, name: asset.name, price: asset.price * (1 + asset.variation) });
                 }}
                 className={BTN_PRIMARY}
               >
-                Comprar mais com saldo
+                Comprar mais
               </button>
               <button type="button" onClick={() => openSell(selectedHolding.asset.ticker)} className={BTN_DANGER_OUTLINE}>
                 Vender
@@ -1959,85 +1630,18 @@ export function InvestorLiveView({
         )}
       </LiveSheet>
 
-      {/* Venda de posição */}
-      <LiveSheet
-        open={!!sellHolding}
-        onOpenChange={(o) => !o && setSellTicker(null)}
-        dismissible={!sellSubmitting}
-        title={sellHolding ? `Vender ${sellHolding.asset.ticker}` : "Vender"}
-        description={
-          sellHolding
-            ? `Você tem ${formatQty(sellHolding.h.quantity)} un. · ${
-                sellHolding.asset.isReal ? "cotação atual" : "preço de referência"
-              } ${formatCurrency(sellHolding.price)}`
-            : undefined
-        }
-      >
-        {sellHolding && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void confirmSell();
-            }}
-          >
-            <label htmlFor="live-sell-qty" className={LABEL}>Quantidade a vender</label>
-            <div className={`${INPUT_BOX} mt-1.5 pr-1.5 mb-3`}>
-              <input
-                id="live-sell-qty"
-                autoFocus
-                type="text"
-                inputMode="decimal"
-                value={sellQtyMask}
-                onChange={(e) => onSellQtyChange(e.target.value)}
-                placeholder="0"
-                aria-invalid={sellQty > sellHolding.h.quantity + 0.0001}
-                aria-describedby="live-sell-feedback"
-                className="flex-1 min-w-0 bg-transparent font-display text-xl font-black tabular-nums text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={setSellAll}
-                className={`shrink-0 min-h-10 rounded-lg border border-border px-3 text-xs font-bold text-foreground/80 hover:bg-muted ${FOCUS}`}
-              >
-                Tudo
-              </button>
-            </div>
-
-            <div id="live-sell-feedback" aria-live="polite">
-              {sellQty > 0 && sellQty <= sellHolding.h.quantity + 0.0001 && (
-                <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 mb-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Você recebe no saldo</span>
-                    <span className={`${MONEY} text-base`}>{formatCurrency(sellProceeds)}</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-1 tabular-nums">
-                    {formatQty(sellQty)} un. × {formatCurrency(sellHolding.price)}
-                  </p>
-                </div>
-              )}
-              {sellQty > sellHolding.h.quantity + 0.0001 && (
-                <p className={`text-xs mb-3 ${LOSS}`}>
-                  Quantidade maior que a sua posição ({formatQty(sellHolding.h.quantity)} un.).
-                </p>
-              )}
-              {sellError && <p className={`text-xs mb-3 ${LOSS}`}>{sellError}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <button type="submit" disabled={!canConfirmSell} className={BTN_DANGER}>
-                {sellSubmitting
-                  ? "Processando…"
-                  : sellQty > 0
-                    ? `Confirmar venda de ${formatQty(sellQty)} un.`
-                    : "Confirmar venda"}
-              </button>
-              <button type="button" disabled={sellSubmitting} onClick={() => setSellTicker(null)} className={BTN_SECONDARY}>
-                Cancelar
-              </button>
-            </div>
-          </form>
-        )}
-      </LiveSheet>
+      <StockOrderSheet order={order} onClose={() => setOrder(null)} cash={cash} onBuy={actions.buyStock} onSell={actions.sellStock} />
+      <AmountSheet
+        open={!!aporteAccount}
+        onOpenChange={(o) => !o && setAporteAccount(null)}
+        title={aporteAccount ? `Aplicar em ${aporteAccount.nome}` : ""}
+        description={aporteAccount ? `Hoje: ${formatCurrency(aporteAccount.valor)}` : undefined}
+        cash={cash}
+        onConfirm={(amount, source) => (aporteAccount ? actions.aporte(aporteAccount.id, amount, source) : Promise.resolve())}
+      />
+      <WithdrawSheet account={withdrawAccount} onClose={() => setWithdrawAccount(null)} onConfirm={actions.withdraw} />
+      <UpdateValueSheet account={updateAccount} onClose={() => setUpdateAccount(null)} onConfirm={actions.updateValue} />
+      <UndoSheet movement={undoMovement} onClose={() => setUndoMovement(null)} onConfirm={actions.undo} />
 
       {/* Nova caixinha */}
       <LiveSheet
