@@ -129,8 +129,6 @@ export function bucketOf(row: PortfolioRow): Bucket {
 }
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-const pp = (n: number) => `${Math.round(n)} p.p.`;
-
 function roundAllocations(items: Allocation[], total: number): Allocation[] {
   const step = total >= 500 ? 10 : 1;
   const rounded = items.map((a) => ({ ...a, valor: Math.floor(a.valor / step) * step }));
@@ -203,7 +201,7 @@ export function buildRebalancePlan(input: RebalanceInput): RebalancePlan {
       prioridade: "alta",
       titulo: "Complete a reserva de emergência",
       detalhe: baseadaEmGastos
-        ? `Faltam ${brl(faltaReserva)} para ${cfg.reservaMeses} meses dos seus gastos (${brl(input.gastoMensal!)}/mês). Use aplicação com liquidez diária, como Tesouro Selic ou CDB 100% do CDI.`
+        ? `Faltam ${brl(faltaReserva)} para ${cfg.reservaMeses} meses dos seus gastos (${brl(input.gastoMensal!)} por mês). Use aplicação com liquidez diária, como Tesouro Selic ou CDB 100% do CDI.`
         : `Faltam ${brl(faltaReserva)} para a reserva mínima de ${brl(MIN_RESERVE)}. Cadastre seus gastos no Planejamento para calcular o valor ideal.`,
     });
   }
@@ -247,9 +245,9 @@ export function buildRebalancePlan(input: RebalanceInput): RebalancePlan {
     sugestoes.push({
       id: `acima-${b.id}`,
       prioridade: acima >= 20 ? "media" : "baixa",
-      titulo: `${b.label}: ${pp(acima)} acima do alvo`,
+      titulo: `${b.label} acima do alvo: ${Math.round(b.pct)}% da parte fora da reserva, alvo de ${Math.round(b.alvoPct)}%`,
       detalhe: acima >= 20
-        ? `Pare de aportar aqui. Se quiser acelerar, realoque até ${brl(-b.diff)}, mas considere o IR da venda antes.`
+        ? `Pare de aportar aqui. Se quiser acelerar, realoque até ${brl(-b.diff)}, mas considere o Imposto de Renda da venda antes.`
         : "Pare de aportar aqui até os novos aportes equilibrarem a carteira.",
     });
   }
@@ -264,10 +262,10 @@ export function buildRebalancePlan(input: RebalanceInput): RebalancePlan {
       sugestoes.push({
         id: `conc-${kind}`,
         prioridade: "media",
-        titulo: `${maior.ticker} é ${Math.round(peso * 100)}% ${kind === "acao" ? "das suas ações" : "dos seus FIIs"}`,
+        titulo: `${maior.ticker} é ${Math.round(peso * 100)}% ${kind === "acao" ? "das suas ações" : "dos seus fundos imobiliários"}`,
         detalhe: kind === "acao"
           ? "Concentração alta em um só ativo. Nos próximos aportes em ações, diversifique entre setores."
-          : "Concentração alta em um só fundo. Nos próximos aportes em FIIs, diversifique entre tipos (tijolo, papel, logística).",
+          : "Concentração alta em um só fundo. Nos próximos aportes em fundos imobiliários, diversifique entre tipos (tijolo, papel, logística).",
       });
     }
   }

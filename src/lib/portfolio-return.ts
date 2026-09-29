@@ -222,7 +222,7 @@ export function buildPortfolio(
     const f = acc.fiis;
     const aoVivo = f.live >= f.valor * 0.5;
     drafts.push({
-      id: "fiis", accountId: null, nome: `FIIs · ${f.tickers.join(", ")}`, classe: "fiis", valor: f.valor,
+      id: "fiis", accountId: null, nome: `Fundos imobiliários · ${f.tickers.join(", ")}`, classe: "fiis", valor: f.valor,
       fonte: aoVivo ? "Dividendos pagos nos últimos 12 meses" : "Dividendos estimados (~0,85% ao mês)", origem: aoVivo ? "mercado" : "estimada", rate: null,
       pos: { id: "fiis", valor: f.valor, custo: f.custo, idadeMeses: f.idade / f.valor, rule: { k: "fixa", taxa: f.dy / f.valor }, vencimento: null, tax: "isento" },
     });

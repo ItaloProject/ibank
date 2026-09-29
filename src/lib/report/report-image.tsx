@@ -53,7 +53,7 @@ function ReportCard({ s, display }: { s: UserSnapshot; display: boolean }) {
         <Label>{nome ? `Patrimônio de ${nome}` : "Patrimônio"}</Label>
         <div style={{ display: "flex", fontSize: 88, letterSpacing: -2, marginTop: 4, ...num }}>{brl(plan.total)}</div>
         <div style={{ display: "flex", fontSize: 26, color: MUTED, marginTop: 4 }}>
-          {`${pct(plan.retorno12m, 2)} ao ano esperado, sem IR · Perfil ${RISK_PROFILES[plan.profile].label.toLowerCase()}`}
+          {`${pct(plan.retorno12m, 2)} ao ano esperado, sem Imposto de Renda · Perfil ${RISK_PROFILES[plan.profile].label.toLowerCase()}`}
         </div>
       </div>
 

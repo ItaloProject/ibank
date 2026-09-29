@@ -11,7 +11,7 @@ const pct = (n: number) => `${n.toLocaleString("pt-BR", { maximumFractionDigits:
 
 function pdfCaption(s: UserSnapshot): string {
   const nome = firstName(s.nome);
-  return `Relatório MUVO${nome ? ` de ${nome}` : ""} · ${reportDate(s.geradoEm)}\nPatrimônio: ${brl(s.plan!.total)} · Rende ${pct(s.plan!.retorno12m)} ao ano esperado, sem IR.`;
+  return `Relatório MUVO${nome ? ` de ${nome}` : ""} · ${reportDate(s.geradoEm)}\nPatrimônio: ${brl(s.plan!.total)} · Rende ${pct(s.plan!.retorno12m)} ao ano esperado, sem Imposto de Renda.`;
 }
 
 /** Dentro da janela de 24 horas: PDF do relatório (ou o texto, se ainda não há carteira). */

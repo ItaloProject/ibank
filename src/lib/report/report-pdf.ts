@@ -1,4 +1,5 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage, type RGB } from "pdf-lib";
+import { LOGO_PNG_BASE64 } from "@/lib/report/logo";
 import { BUCKET_LABEL, MIN_INVESTIDO_ALOCACAO, RISK_PROFILES, alocacaoRelevante, bucketOf, type Suggestion } from "@/lib/rebalance";
 import type { AssetClass } from "@/lib/portfolio-return";
 import type { UserSnapshot } from "@/lib/server/portfolio-snapshot";
@@ -68,11 +69,22 @@ type Column = { label: string; width: number; align?: "left" | "right" };
 class Layout {
   page!: PDFPage;
   y = 0;
-  private constructor(readonly pdf: PDFDocument, readonly regular: PDFFont, readonly bold: PDFFont, readonly onPage: (l: Layout) => void) {}
+  private constructor(
+    readonly pdf: PDFDocument,
+    readonly regular: PDFFont,
+    readonly bold: PDFFont,
+    readonly logo: PDFImage,
+    readonly onPage: (l: Layout) => void,
+  ) {}
 
   static async create(onPage: (l: Layout) => void) {
     const pdf = await PDFDocument.create();
-    const l = new Layout(pdf, await pdf.embedFont(StandardFonts.Helvetica), await pdf.embedFont(StandardFonts.HelveticaBold), onPage);
+    const [regular, bold, logo] = await Promise.all([
+      pdf.embedFont(StandardFonts.Helvetica),
+      pdf.embedFont(StandardFonts.HelveticaBold),
+      pdf.embedPng(Buffer.from(LOGO_PNG_BASE64, "base64")),
+    ]);
+    const l = new Layout(pdf, regular, bold, logo, onPage);
     l.addPage();
     return l;
   }
@@ -202,10 +214,19 @@ export async function renderReportPdf(s: UserSnapshot): Promise<Uint8Array> {
   const hora = new Date(s.geradoEm).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
 
   const l = await Layout.create((p) => {
-    p.drawAt("MUVO", MX, p.y, { size: 20, bold: true });
-    p.drawAt("RELATÓRIO DE CARTEIRA", MX, p.y - 1, { size: 7, bold: true, color: MUTED, align: "right", lineHeight: 1.2 });
-    p.drawAt(`${dataStr} às ${hora}`, MX, p.y - 11, { size: 9, align: "right", lineHeight: 1.2 });
-    p.y -= 32;
+    const first = p.pdf.getPageCount() === 1;
+    const logoH = first ? 40 : 22;
+    const logoW = (p.logo.width / p.logo.height) * logoH;
+    p.page.drawImage(p.logo, { x: MX, y: p.y - logoH, width: logoW, height: logoH });
+    if (first) {
+      p.drawAt("MUVO", MX + logoW + 8, p.y - 9, { size: 20, bold: true, lineHeight: 1.2 });
+      p.drawAt("RELATÓRIO DE CARTEIRA", MX, p.y - 8, { size: 7, bold: true, color: MUTED, align: "right", lineHeight: 1.2 });
+      p.drawAt(`${dataStr} às ${hora}`, MX, p.y - 18, { size: 9, align: "right", lineHeight: 1.2 });
+    } else {
+      p.drawAt("MUVO", MX + logoW + 6, p.y - 5, { size: 11, bold: true, lineHeight: 1.2 });
+      p.drawAt(`Relatório de carteira · ${dataStr}`, MX, p.y - 6, { size: 7.5, color: MUTED, align: "right", lineHeight: 1.2 });
+    }
+    p.y -= logoH + 6;
     p.rule(INK, 1.5);
     p.y -= 4;
   });
@@ -235,7 +256,7 @@ export async function renderReportPdf(s: UserSnapshot): Promise<Uint8Array> {
   // Indicadores
   const kpis: { label: string; value: string; hint: string; color?: RGB }[] = [
     { label: "PATRIMÔNIO", value: brl(total), hint: `${rows.length} ${rows.length === 1 ? "posição" : "posições"}` },
-    { label: "RENDE EM 12 MESES", value: pct(plan.retorno12m, 2), hint: "esperado, já sem IR" },
+    { label: "RENDE EM 12 MESES", value: pct(plan.retorno12m, 2), hint: "esperado, já sem Imposto de Renda" },
     {
       label: "RESERVA DE EMERGÊNCIA",
       value: brl0(plan.reserva.atual),
@@ -304,11 +325,17 @@ export async function renderReportPdf(s: UserSnapshot): Promise<Uint8Array> {
   }
 
   // Reserva
+  const naReserva = rows.filter((r) => ["reserva", "pos"].includes(bucketOf(r))).map((r) => r.nome);
   l.section(
     "Reserva de emergência",
-    plan.reserva.baseadaEmGastos
-      ? `Meta de ${plan.reserva.meses} meses dos seus gastos médios no Planejamento. Contas de reserva e aplicações pós-fixadas com liquidez contam aqui.`
-      : "Sem gastos cadastrados no Planejamento, usamos uma reserva mínima de referência.",
+    [
+      plan.reserva.baseadaEmGastos
+        ? `Meta de ${plan.reserva.meses} meses dos seus gastos médios no Planejamento.`
+        : "Sem gastos cadastrados no Planejamento, usamos uma reserva mínima de referência.",
+      plan.reserva.atual > 0 && naReserva.length > 0
+        ? `Contam como reserva: ${naReserva.join(", ")}.`
+        : "Contas de reserva e aplicações pós-fixadas com liquidez diária contam aqui.",
+    ].join(" "),
     40,
   );
   l.drawAt(`${brl0(plan.reserva.atual)} de ${brl0(plan.reserva.alvo)}`, MX, l.y, { bold: true });
@@ -320,11 +347,6 @@ export async function renderReportPdf(s: UserSnapshot): Promise<Uint8Array> {
   l.page.drawRectangle({ x: MX, y: l.y - 6, width: CONTENT_W, height: 6, color: SOFT });
   l.page.drawRectangle({ x: MX, y: l.y - 6, width: Math.max(4, (CONTENT_W * reservaPct) / 100), height: 6, color: reservaOk ? OK : WARN });
   l.y -= 6;
-  const naReserva = rows.filter((r) => ["reserva", "pos"].includes(bucketOf(r))).map((r) => r.nome);
-  if (plan.reserva.atual > 0 && naReserva.length > 0) {
-    l.y -= 6;
-    l.text(`Contam como reserva: ${naReserva.join(", ")}.`, { size: 7.5, color: MUTED });
-  }
 
   // Alocação
   if (alocacaoRelevante(plan)) {
@@ -394,7 +416,7 @@ export async function renderReportPdf(s: UserSnapshot): Promise<Uint8Array> {
   const focus = s.rates.focus?.data ? `, Boletim Focus de ${s.rates.focus.data.split("-").reverse().join("/")}` : "";
   l.y -= 10;
   l.text(
-    `Fontes: Selic ${pct(s.rates.selicAnual, 2)} e CDI ${pct(s.rates.cdiAnual, 2)} ao ano (Banco Central)${s.rates.ipca12m != null ? `, IPCA ${pct(s.rates.ipca12m, 2)} em 12 meses` : ""}${focus}. A rentabilidade esperada usa as taxas de cada posição, a curva de juros projetada e o IR de longo prazo. Análise educativa, não é recomendação de investimento.`,
+    `Fontes: Selic ${pct(s.rates.selicAnual, 2)} e CDI ${pct(s.rates.cdiAnual, 2)} ao ano (Banco Central)${s.rates.ipca12m != null ? `, IPCA ${pct(s.rates.ipca12m, 2)} em 12 meses` : ""}${focus}. A rentabilidade esperada usa as taxas de cada posição, a curva de juros projetada e o Imposto de Renda de longo prazo. Análise educativa, não é recomendação de investimento.`,
     { size: 7.5, color: MUTED },
   );
 

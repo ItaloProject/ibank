@@ -31,7 +31,7 @@ export function buildReportText(s: UserSnapshot): string {
 
   lines.push(
     `*Patrimônio:* ${brl(plan.total)}`,
-    `*Rentabilidade esperada:* ${pct(plan.retorno12m, 2)} ao ano nos próximos 12 meses, já sem IR`,
+    `*Rentabilidade esperada:* ${pct(plan.retorno12m, 2)} ao ano nos próximos 12 meses, já sem Imposto de Renda`,
     `*Perfil:* ${RISK_PROFILES[plan.profile].label}${s.profileDefinido ? "" : " (padrão; defina o seu no app)"}`,
     "",
     "*Onde está seu dinheiro*",

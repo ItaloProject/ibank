@@ -150,7 +150,7 @@ function rebalReply(a: AnalysisPayload): Msg {
       kind: "stats",
       items: [
         { label: "Patrimônio", value: formatCurrency(plan.total) },
-        { label: "Rende em 12 meses", value: pct(plan.retorno12m, 2), hint: "esperado, já sem IR" },
+        { label: "Rende em 12 meses", value: pct(plan.retorno12m, 2), hint: "esperado, já sem Imposto de Renda" },
         {
           label: "Reserva",
           value: formatCurrency(plan.reserva.atual),
