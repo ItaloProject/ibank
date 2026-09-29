@@ -246,39 +246,6 @@ export function InvestorLiveViewDesktop({
   const investimentosTotal = investimentosAccountsReal.reduce((s, a) => s + a.valor, 0);
   const patrimonioTotal = turboTotal + emergenciaTotal + investimentosTotal + investedValue + cashBalance;
 
-  /* ── Market catalog (for SimulatorInvestFlow) ─────────────────── */
-  const marketCatalog = useMemo(() => {
-    const BASE = [
-      { ticker: "PETR4", name: "Petrobras PN",      category: "Ação" as const, price: 38.5,  variation: 0.021,  color: "#e8e8e8" },
-      { ticker: "VALE3", name: "Vale ON",            category: "Ação" as const, price: 61.2,  variation: -0.014, color: "#c4c4c4" },
-      { ticker: "ITUB4", name: "Itaú Unibanco PN",   category: "Ação" as const, price: 34.1,  variation: 0.008,  color: "#a0a0a0" },
-      { ticker: "BBAS3", name: "Banco do Brasil ON", category: "Ação" as const, price: 22.5,  variation: 0.04,   color: "#7c7c7c" },
-      { ticker: "WEGE3", name: "WEG ON",             category: "Ação" as const, price: 48.2,  variation: 0.015,  color: "#5c5c5c" },
-      { ticker: "MXRF11", name: "Maxi Renda",        category: "FII" as const,  price: 10.15, variation: 0.012,  color: "#444444" },
-      { ticker: "HGLG11", name: "CSHG Logística",    category: "FII" as const,  price: 165.4, variation: 0.019,  color: "#303030" },
-      { ticker: "XPML11", name: "XP Malls",          category: "FII" as const,  price: 98.5,  variation: 0.008,  color: "#202020" },
-    ];
-    const knownTickers = new Set(BASE.map((a) => a.ticker));
-    const extras = stockPositions
-      .filter((p) => p.quantity > 0 && !knownTickers.has(p.ticker))
-      .map((p, i) => {
-        const extraColors = ["#e8e8e8", "#a0a0a0", "#6c6c6c", "#484848", "#303030", "#1c1c1c"];
-        const kind = detectAssetType(p.ticker);
-        return {
-          ticker: p.ticker,
-          name: p.ticker,
-          category: kind === "FII" ? ("FII" as const) : ("Ação" as const),
-          price: quoteMap.get(p.ticker) ?? p.avgPrice,
-          variation: 0,
-          color: extraColors[i % extraColors.length],
-        };
-      });
-    return [...BASE.map((a) => ({
-      ...a,
-      price: quoteMap.get(a.ticker) ?? a.price,
-    })), ...extras];
-  }, [stockPositions, quoteMap]);
-
   function openSell(ticker: string) {
     const h = holdingRows.find((x) => x.ticker === ticker);
     if (h) setOrder({ mode: "venda", ticker, price: h.price, maxQty: h.quantity });
@@ -426,7 +393,7 @@ export function InvestorLiveViewDesktop({
     else if (holdingRows.some((h) => h.ticker === liveAction.ticker)) {
       setTab("investimentos");
       openSell(liveAction.ticker);
-    } else openMarket("acoes");
+    } else openMarket(detectAssetType(liveAction.ticker) === "FII" ? "fiis" : "acoes");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveAction]);
 
@@ -878,7 +845,7 @@ export function InvestorLiveViewDesktop({
             <div className="mx-auto w-full max-w-2xl px-7 pt-4 pb-8">
               <SimulatorInvestFlow
                 cash={cashBalance}
-                catalog={marketCatalog}
+                knownPrices={quoteMap}
                 tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
                 turboAccounts={turboAccountsReal}
                 emergenciaAccounts={emergenciaAccountsReal}

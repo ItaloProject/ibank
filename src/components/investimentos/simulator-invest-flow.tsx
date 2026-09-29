@@ -1,21 +1,13 @@
-﻿"use client";
+"use client";
 
 import { useState, type ElementType } from "react";
-import { ChevronRight, Landmark, TrendingUp, Zap, Shield, Plus } from "lucide-react";
+import { Building2, ChevronRight, Landmark, TrendingUp, Zap, Shield, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { AccountRate } from "@/lib/account-rate";
 import { FOCUS, LABEL, MONEY, ROW, BackLink } from "@/components/investimentos/live-ui";
 import { AmountSheet, StockOrderSheet, type StockOrder } from "@/components/investimentos/live-money-sheets";
 import type { MoneySource } from "@/components/investimentos/live-actions";
-
-export type MarketCatalogAsset = {
-  ticker: string;
-  name: string;
-  category: "Ação" | "FII" | "ETF";
-  price: number;
-  variation: number;
-  color: string;
-};
+import { CatalogPicker } from "@/components/investimentos/catalog-picker";
 
 export type TesouroProduct = {
   id: string;
@@ -35,7 +27,7 @@ export type AporteAccount = {
   cdiPercent: number | null;
 };
 
-export type MarketSection = "hub" | "acoes" | "tesouro" | "turbo" | "eme";
+export type MarketSection = "hub" | "acoes" | "fiis" | "tesouro" | "turbo" | "eme";
 
 type AmountTarget =
   | { kind: "tesouro"; product: TesouroProduct }
@@ -43,7 +35,8 @@ type AmountTarget =
 
 type Props = {
   cash: number;
-  catalog: MarketCatalogAsset[];
+  /** Cotações já conhecidas da carteira, usadas enquanto a de mercado não chega. */
+  knownPrices?: Map<string, number>;
   tesouroProducts: TesouroProduct[];
   turboAccounts: AporteAccount[];
   emergenciaAccounts: AporteAccount[];
@@ -149,21 +142,16 @@ export const DEFAULT_TESOURO_PRODUCTS: TesouroProduct[] = [
 ];
 
 const SECTION_TITLE: Record<Exclude<MarketSection, "hub">, string> = {
-  acoes: "Ações e fundos imobiliários",
+  acoes: "Ações",
+  fiis: "Fundos imobiliários",
   tesouro: "Tesouro Direto e renda fixa",
   turbo: "Caixinha Turbo",
   eme: "Reserva de emergência",
 };
 
-const CATEGORY_LABEL: Record<MarketCatalogAsset["category"], string> = {
-  "Ação": "Ação",
-  FII: "Fundo imobiliário",
-  ETF: "ETF",
-};
-
 export function SimulatorInvestFlow({
   cash,
-  catalog,
+  knownPrices,
   tesouroProducts,
   turboAccounts,
   emergenciaAccounts,
@@ -226,10 +214,16 @@ export function SimulatorInvestFlow({
         <div className="space-y-2.5">
           <h2 className={LABEL}>Onde você quer investir?</h2>
           <DestCard
-            title="Ações e fundos imobiliários"
-            subtitle="Registre uma compra na bolsa com o preço que você pagou"
+            title="Ações"
+            subtitle="Empresas da bolsa, como Petrobras, Itaú, Vale e WEG"
             icon={TrendingUp}
             onClick={() => onSectionChange("acoes")}
+          />
+          <DestCard
+            title="Fundos imobiliários"
+            subtitle="Renda mensal de aluguéis de galpões, shoppings, escritórios e recebíveis"
+            icon={Building2}
+            onClick={() => onSectionChange("fiis")}
           />
           <DestCard
             title="Tesouro Direto e renda fixa"
@@ -256,41 +250,13 @@ export function SimulatorInvestFlow({
         <div className="space-y-2">
           <h2 className={`${LABEL} mb-1`}>{SECTION_TITLE[section]}</h2>
 
-          {section === "acoes" && (
-            <>
-              <button
-                type="button"
-                onClick={() => setOrder({ mode: "compra" })}
-                className={`w-full min-h-14 rounded-xl border border-dashed border-border p-3.5 text-left flex items-center gap-2.5 hover:bg-muted/60 hover:border-foreground/30 transition-colors ${FOCUS}`}
-              >
-                <span className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
-                  <Plus className="h-4 w-4 text-foreground/70" aria-hidden="true" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-bold text-foreground">Digitar o código</span>
-                  <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                    Qualquer ação ou fundo imobiliário, com quantidade e preço
-                  </span>
-                </span>
-              </button>
-              <p className={`${LABEL} pt-3`}>Populares</p>
-              {catalog.map((asset) => (
-                <button
-                  key={asset.ticker}
-                  type="button"
-                  onClick={() => setOrder({ mode: "compra", ticker: asset.ticker, name: asset.name, price: asset.price })}
-                  className={`${ROW} min-h-14 p-3.5 flex items-center justify-between gap-3`}
-                >
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold text-foreground truncate">{asset.ticker}</span>
-                    <span className="block text-[11px] text-muted-foreground truncate">
-                      {asset.name} · {CATEGORY_LABEL[asset.category]}
-                    </span>
-                  </span>
-                  <span className={`${MONEY} text-sm shrink-0`}>{formatCurrency(asset.price)}</span>
-                </button>
-              ))}
-            </>
+          {(section === "acoes" || section === "fiis") && (
+            <CatalogPicker
+              key={section}
+              kind={section === "acoes" ? "acao" : "fii"}
+              knownPrices={knownPrices}
+              onPick={(a) => setOrder(a.ticker ? { mode: "compra", ticker: a.ticker, name: a.name, price: a.price } : { mode: "compra" })}
+            />
           )}
 
           {section === "tesouro" && (

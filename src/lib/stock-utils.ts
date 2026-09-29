@@ -1,4 +1,5 @@
 import type { Investment, StockTrade } from "@/types/database";
+import { isCatalogFii, isCatalogStock } from "@/lib/market-catalog";
 
 export function accountBalance(investments: Investment[], accountId: string) {
   return investments
@@ -86,7 +87,8 @@ export type AssetType = "FII" | "ETF" | "BDR" | "Ação";
 
 export function detectAssetType(ticker: string): AssetType {
   const upper = ticker.toUpperCase().replace(/\s/g, "");
-  if (FII_SET.has(upper)) return "FII";
+  if (isCatalogStock(upper)) return "Ação";
+  if (FII_SET.has(upper) || isCatalogFii(upper)) return "FII";
   if (ETF_SET.has(upper)) return "ETF";
   if (upper.endsWith("34") || upper.endsWith("35")) return "BDR";
   // sufixo 11 desconhecido → assume FII (mais comum)

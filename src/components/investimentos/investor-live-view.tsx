@@ -14,6 +14,7 @@ import {
   ROW, INPUT_BOX, GAIN, LOSS, ATTENTION, LiveSheet, StatBox, BackLink,
 } from "@/components/investimentos/live-ui";
 import { detectAssetType } from "@/lib/stock-utils";
+import { catalogName } from "@/lib/market-catalog";
 import { isEmergencyAccountName } from "@/lib/account-groups";
 import type { StockTrade, Investment } from "@/types/database";
 import { createInvestmentAccountWithTurbo, deleteInvestmentAccount } from "@/lib/api";
@@ -448,7 +449,7 @@ export function InvestorLiveView({
       const kind = detectAssetType(ticker);
       return {
         ticker,
-        name: ticker,
+        name: catalogName(ticker) ?? ticker,
         category: kind === "FII" ? ("FII" as const) : ("Ação" as const),
         price: quoteMap.get(ticker) ?? avgPrice,
         variation: 0,
@@ -500,7 +501,7 @@ export function InvestorLiveView({
     else if (holdings.some((h) => h.ticker === liveAction.ticker)) {
       setTab("investimentos");
       openSell(liveAction.ticker);
-    } else openMarket("acoes");
+    } else openMarket(detectAssetType(liveAction.ticker) === "FII" ? "fiis" : "acoes");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveAction]);
 
@@ -607,7 +608,7 @@ export function InvestorLiveView({
         atual: pct(fiiValue),
         ideal: 40,
         desc: "Renda mensal sem Imposto de Renda",
-        action: "acoes" as MarketSection,
+        action: "fiis" as MarketSection,
       },
       {
         id: "turbo",
@@ -762,19 +763,6 @@ export function InvestorLiveView({
     const digits = raw.replace(/\D/g, "").slice(0, 12);
     setCashInput(formatBRLMask(digits));
   }
-
-  const marketCatalog = useMemo(() => {
-    return liveAssets
-      .filter((a) => a.category === "Ação" || a.category === "FII")
-      .map((a) => ({
-        ticker: a.ticker,
-        name: a.name,
-        category: a.category === "FII" ? ("FII" as const) : ("Ação" as const),
-        price: a.price * (1 + a.variation),
-        variation: a.variation,
-        color: a.color,
-      }));
-  }, [liveAssets]);
 
   const [simAporteInicial, setSimAporteInicial] = useState(() => Math.round(grandTotal) || 1000);
   const [simAporteMensal, setSimAporteMensal] = useState(300);
@@ -1383,7 +1371,7 @@ export function InvestorLiveView({
             >
               <SimulatorInvestFlow
                 cash={cash}
-                catalog={marketCatalog}
+                knownPrices={quoteMap}
                 tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
                 turboAccounts={turboAccountsLive}
                 emergenciaAccounts={emergenciaAccountsLive}

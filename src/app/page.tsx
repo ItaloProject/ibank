@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import { getInvestmentAccounts, getInvestments, getStockTrades, getStockQuotes, refreshStockQuotes } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
-import { accountBalance } from "@/lib/stock-utils";
+import { accountBalance, detectAssetType } from "@/lib/stock-utils";
 import { INVESTMENT_TYPE_COLORS } from "@/lib/investment-colors";
 import { computeMonthlyPassiveIncome } from "@/lib/passive-income";
 import type { InvestmentAccount, Investment, StockTrade } from "@/types/database";
@@ -26,19 +26,6 @@ import { useUser } from "@/context/user-context";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 import { SplashScreen } from "@/components/splash-screen";
 import { ChartFrame } from "@/components/mobile/chart-frame";
-
-const FII_SET = new Set([
-  "MXRF11","HGLG11","XPML11","BCFF11","KNRI11","HSML11","BTLG11","IRDM11",
-  "RBRF11","VGIP11","VISC11","BRCO11","CPTS11","KNCR11","PVBI11","RBRP11",
-  "HGRU11","ALZR11","XPLG11","RECT11","MGFF11","HABT11","RBRR11","TGAR11",
-  "HGRE11","VILG11","PATL11","BBFI11B","JSAF11","RZAK11","BPFF11","VRTA11",
-  "VINO11","HGPO11","FVPQ11","DEVA11","SNAG11","GGRC11","BCRI11","AFHI11",
-  "MCCI11","RCRB11","ARRI11","HCTR11","OUJP11","SARE11","RBVA11","CVBI11",
-  "RBRD11","BARI11","RNDP11","VGHF11","TRXF11","XPCI11","FIGS11","HGBS11",
-  "FLMA11","HFOF11","TPFT11","BRCR11","CSHG11","SPTW11","GTWR11","MALL11",
-  "ABCP11","PQDP11","WPLZ11","DOMC11","SHPH11","FMOF11","EDGA11","CBOP11",
-  "IGTI11","BRML3",
-]);
 
 interface PlanGroup { id: string; name: string; color: string; }
 interface PlanItem  { id: string; name: string; type: string; planned: number; actual: number; group_id: string; }
@@ -125,7 +112,7 @@ export default function DashboardPage() {
   }, {});
   const acoes      = Object.entries(netQty).reduce((s, [tk, qty]) => s + qty * (quoteMap[tk] ?? 0), 0);
   const totalSaved = rendaFixa + acoes;
-  const valorFIIs  = Object.entries(netQty).reduce((s, [tk, qty]) => FII_SET.has(tk) ? s + qty * (quoteMap[tk] ?? 0) : s, 0);
+  const valorFIIs  = Object.entries(netQty).reduce((s, [tk, qty]) => detectAssetType(tk) === "FII" ? s + qty * (quoteMap[tk] ?? 0) : s, 0);
   const valorAcoes = acoes - valorFIIs;
   const portfolioPieData = [
     { name: "Renda Fixa", value: rendaFixa,   color: "#38bdf8" },
