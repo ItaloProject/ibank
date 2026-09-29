@@ -1,4 +1,5 @@
 import sql from "@/lib/db";
+import { evoSendImage, evoSendText, type EvolutionConfig } from "@/lib/evolution";
 import { loadUserSnapshot } from "@/lib/server/portfolio-snapshot";
 import { renderReportImage } from "@/lib/report/report-image";
 import { buildReportText, firstName, reportDate } from "@/lib/report/report-text";
@@ -18,6 +19,16 @@ export async function sendFullReport(cfg: WhatsappConfig, userId: string, to: st
   }
   await sendText(cfg, to, text);
   await sql`UPDATE app_users SET whatsapp_pending_report_at = NULL WHERE user_id = ${userId}`;
+}
+
+/** Imagem + texto completo pela Evolution API (sem janela nem modelo). */
+export async function sendReportViaEvolution(cfg: EvolutionConfig, userId: string, to: string) {
+  const s = await loadUserSnapshot(userId);
+  if (s.plan) {
+    const png = await renderReportImage(s);
+    await evoSendImage(cfg, to, png, `Relatório MUVO · ${reportDate(s.geradoEm)}`, `relatorio-muvo-${s.geradoEm.slice(0, 10)}.png`);
+  }
+  await evoSendText(cfg, to, buildReportText(s));
 }
 
 /**

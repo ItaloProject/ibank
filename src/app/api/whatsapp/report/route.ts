@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { consumeDailyQuota, ensureBotSchema } from "@/lib/bot-schema";
 import { requireBotUser } from "@/lib/server/bot-auth";
-import { sendFullReport, sendTemplateReport } from "@/lib/server/send-report";
+import { evolutionConfig } from "@/lib/evolution";
+import { sendFullReport, sendReportViaEvolution, sendTemplateReport } from "@/lib/server/send-report";
 import { WhatsappError, isWindowOpen, maskPhone, normalizePhone, whatsappConfig } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +18,9 @@ const DAILY_LIMIT = 5;
 export async function POST(request: Request) {
   const auth = await requireBotUser();
   if (auth instanceof NextResponse) return auth;
-  const cfg = whatsappConfig();
-  if (!cfg) return NextResponse.json({ error: "O envio automático pelo WhatsApp ainda não foi ativado." }, { status: 503 });
+  const evo = evolutionConfig();
+  const cfg = evo ? null : whatsappConfig();
+  if (!evo && !cfg) return NextResponse.json({ error: "O envio automático pelo WhatsApp ainda não foi ativado." }, { status: 503 });
   await ensureBotSchema();
 
   const body = (await request.json().catch(() => null)) as { phone?: unknown; consent?: unknown } | null;
@@ -41,7 +43,7 @@ export async function POST(request: Request) {
   if (!phone) return NextResponse.json({ error: "Informe seu número de WhatsApp.", code: "not_connected" }, { status: 409 });
 
   const windowOpen = isWindowOpen(rows[0]?.whatsapp_last_inbound_at);
-  if (!windowOpen && !cfg.reportTemplate) {
+  if (cfg && !windowOpen && !cfg.reportTemplate) {
     return NextResponse.json({
       error: "O envio automático ainda não está liberado. Use “Compartilhar no WhatsApp”.",
       code: "template_missing",
@@ -52,13 +54,18 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (evo) {
+      await sendReportViaEvolution(evo, auth.userId, phone);
+      return NextResponse.json({ sent: true, mode: "full", phone: maskPhone(phone) });
+    }
+    if (!cfg) throw new Error("WhatsApp não configurado");
     if (windowOpen) await sendFullReport(cfg, auth.userId, phone);
     else await sendTemplateReport(cfg, auth.userId, phone);
     return NextResponse.json({ sent: true, mode: windowOpen ? "full" : "template", phone: maskPhone(phone) });
   } catch (err) {
     console.error("[POST /api/whatsapp/report]", err);
     const msg = err instanceof WhatsappError
-      ? `O WhatsApp recusou o envio: ${err.message}. Confira se o número tem WhatsApp.`
+      ? `Não foi possível entregar: ${err.message}. Confira se o número tem WhatsApp.`
       : "Não foi possível enviar o relatório agora.";
     return NextResponse.json({ error: msg }, { status: 502 });
   }
