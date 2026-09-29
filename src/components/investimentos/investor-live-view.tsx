@@ -7,7 +7,7 @@ import {
   ArrowUpRight, ArrowDownRight, ArrowRight, Check, Pencil, Home, ChevronRight,
   CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Trash2,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { CdiHelp, TetoHelp, TipoCaixinhaHelp } from "./help-texts";
 import {
   FOCUS, LABEL, MONEY, BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, BTN_DANGER_OUTLINE,
@@ -28,6 +28,7 @@ import {
 } from "@/components/investimentos/simulator-invest-flow";
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 import { BankPicker } from "@/components/investimentos/bank-picker";
+import { InicialShortcuts, SimChart, SimLegend, SimParam, useSimulation } from "@/components/investimentos/sim-controls";
 import type { Bank, BankProduct } from "@/lib/bank-rates";
 import { useLiveActions, type LiveAccount, type LiveMovement } from "@/components/investimentos/live-actions";
 import {
@@ -775,28 +776,8 @@ export function InvestorLiveView({
     setCashInput(formatBRLMask(digits));
   }
 
-  const [simAporteInicial, setSimAporteInicial] = useState(() => Math.round(grandTotal) || 1000);
-  const [simAporteMensal, setSimAporteMensal] = useState(300);
-  const [simMeses, setSimMeses] = useState(24);
-  const [simTaxa, setSimTaxa] = useState(0.9); // % ao mês
-  const simMax = Math.max(20000, Math.ceil((grandTotal * 2) / 1000) * 1000 || 20000);
-
-  const simProjection = useMemo(() => {
-    const rate = simTaxa / 100;
-    const points: { month: number; value: number }[] = [];
-    let value = simAporteInicial;
-    points.push({ month: 0, value });
-    for (let m = 1; m <= simMeses; m++) {
-      value = value * (1 + rate) + simAporteMensal;
-      points.push({ month: m, value });
-    }
-    return points;
-  }, [simAporteInicial, simAporteMensal, simMeses, simTaxa]);
-
-  const simFinalValue = simProjection[simProjection.length - 1]?.value ?? 0;
-  const simTotalAportado = simAporteInicial + simAporteMensal * simMeses;
-  const simTotalRendimento = simFinalValue - simTotalAportado;
-  const maxSimValue = Math.max(1, ...simProjection.map((p) => p.value));
+  const sim = useSimulation(patrimonioTotal, cash);
+  const simInicialMax = Math.max(20000, Math.ceil((patrimonioTotal * 2) / 1000) * 1000);
 
   const REBALANCE_TOLERANCE = 2;
   const allocationOutside = Math.max(
@@ -1252,91 +1233,52 @@ export function InvestorLiveView({
               <div>
                 <h2 className={LABEL}>Simulador de rendimentos</h2>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Projeção hipotética. Não altera sua carteira nem seu saldo.
+                  Digite o valor exato ou arraste. Projeção hipotética: não altera sua carteira nem seu saldo.
                 </p>
               </div>
 
-              <div className="rounded-xl border border-border bg-card p-4 space-y-4">
-                {(
-                  [
-                    {
-                      id: "sim-inicial",
-                      label: "Valor inicial",
-                      value: simAporteInicial,
-                      display: formatCurrency(simAporteInicial),
-                      min: 0, max: simMax, step: 100,
-                      set: setSimAporteInicial,
-                    },
-                    {
-                      id: "sim-mensal",
-                      label: "Aporte mensal",
-                      value: simAporteMensal,
-                      display: formatCurrency(simAporteMensal),
-                      min: 0, max: 3000, step: 50,
-                      set: setSimAporteMensal,
-                    },
-                    {
-                      id: "sim-prazo",
-                      label: "Prazo",
-                      value: simMeses,
-                      display: `${simMeses} meses`,
-                      min: 1, max: 120, step: 1,
-                      set: setSimMeses,
-                    },
-                    {
-                      id: "sim-taxa",
-                      label: "Rendimento ao mês",
-                      value: simTaxa,
-                      display: `${simTaxa.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`,
-                      min: 0.1, max: 2, step: 0.1,
-                      set: setSimTaxa,
-                    },
-                  ] as const
-                ).map((s) => (
-                  <div key={s.id}>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <label htmlFor={s.id} className="text-muted-foreground">{s.label}</label>
-                      <span className="font-bold tabular-nums text-foreground">{s.display}</span>
-                    </div>
-                    <input
-                      id={s.id}
-                      type="range"
-                      min={s.min}
-                      max={s.max}
-                      step={s.step}
-                      value={s.value}
-                      aria-valuetext={s.display}
-                      onChange={(e) => s.set(Number(e.target.value))}
-                      className={cn("w-full h-6 accent-foreground cursor-pointer", FOCUS)}
-                    />
+              <div className="rounded-xl border border-border bg-card p-4 space-y-6">
+                <SimParam
+                  id="sim-inicial"
+                  label="Valor inicial"
+                  format="brl"
+                  value={sim.inicial}
+                  onChange={sim.setInicial}
+                  min={0}
+                  max={simInicialMax}
+                  step={100}
+                  typedMax={100_000_000}
+                >
+                  <InicialShortcuts sim={sim} patrimonio={patrimonioTotal} saldo={cash} />
+                </SimParam>
+                <SimParam id="sim-mensal" label="Aporte mensal" format="brl" value={sim.mensal} onChange={sim.setMensal} min={0} max={3000} step={50} typedMax={10_000_000} />
+                <SimParam id="sim-prazo" label="Prazo" format="meses" value={sim.meses} onChange={sim.setMeses} min={1} max={120} step={1} typedMax={600} />
+                <SimParam id="sim-taxa" label="Rendimento ao mês" format="pct" value={sim.taxa} onChange={sim.setTaxa} min={0.1} max={2} step={0.05} typedMax={10} />
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-5 text-center" aria-live="polite">
+                <p className={`${LABEL} mb-2`}>Patrimônio em {sim.meses} {sim.meses === 1 ? "mês" : "meses"}</p>
+                <p className={`${MONEY} text-4xl leading-none tracking-tight`}>{formatCurrency(sim.final)}</p>
+                <span className="mt-3 inline-flex rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-black tabular-nums text-emerald-500">
+                  +{sim.retornoPct.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% de retorno sobre o que você aportou
+                </span>
+                <div className="grid grid-cols-2 gap-2 mt-4 text-left">
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3">
+                    <p className={LABEL}>Juros</p>
+                    <p className={`mt-1 text-base font-black font-display tabular-nums ${GAIN}`}>+{formatCurrency(Math.max(0, sim.rendimento))}</p>
                   </div>
-                ))}
-              </div>
-
-              <div className="rounded-xl border border-border bg-card p-5 text-center">
-                <p className={`${LABEL} mb-2`}>Patrimônio projetado</p>
-                <p className={`${MONEY} text-3xl leading-none tracking-tight`}>{formatCurrency(simFinalValue)}</p>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Aportado: <span className="font-semibold text-foreground/80 tabular-nums">{formatCurrency(simTotalAportado)}</span>
-                  {" · "}Rendimento:{" "}
-                  <span className={`font-semibold tabular-nums ${GAIN}`}>+{formatCurrency(simTotalRendimento)}</span>
-                </p>
+                  <div className="rounded-lg border border-border p-3">
+                    <p className={LABEL}>Aportado</p>
+                    <p className="mt-1 text-base font-black font-display tabular-nums text-foreground">{formatCurrency(sim.aportado)}</p>
+                  </div>
+                </div>
               </div>
 
               <div className="rounded-xl border border-border bg-card p-4">
-                <div className="flex items-end gap-[3px] h-28" aria-hidden="true">
-                  {simProjection
-                    .filter((_, i) => i % Math.ceil(simProjection.length / 24 || 1) === 0)
-                    .map((p, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 rounded-t-sm bg-foreground/70"
-                        style={{ height: `${Math.max(3, (p.value / maxSimValue) * 100)}%` }}
-                      />
-                    ))}
-                </div>
+                <SimLegend />
+                <SimChart data={sim.data} maxBars={24} className="mt-3 h-40" />
                 <p className="text-[11px] text-muted-foreground text-center mt-2">
-                  Evolução simulada ao longo de {simMeses} meses
+                  Evolução simulada ao longo de {sim.meses} {sim.meses === 1 ? "mês" : "meses"}, antes do Imposto de Renda
                 </p>
               </div>
             </div>
