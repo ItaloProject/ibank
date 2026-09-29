@@ -6,8 +6,19 @@ import { isRateIndex } from "@/lib/account-rate";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeDate(raw: any): string {
   if (!raw) return "";
+  if (raw instanceof Date) {
+    if (Number.isNaN(raw.getTime())) return "";
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${raw.getFullYear()}-${p(raw.getMonth() + 1)}-${p(raw.getDate())}`;
+  }
   // "2026-06-01T03:00:00.000Z" → "2026-06-01"
   return String(raw).slice(0, 10);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeTimestamp(raw: any): string {
+  if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? "" : raw.toISOString();
+  return raw ? String(raw) : "";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,6 +34,7 @@ export function toAccount(r: any): InvestmentAccount {
     rate_value: r.rate_value != null ? Number(r.rate_value) : null,
     maturity: r.maturity ? normalizeDate(r.maturity) : null,
     tax_exempt: r.tax_exempt != null ? Boolean(r.tax_exempt) : null,
+    created_at: normalizeTimestamp(r.created_at),
   };
 }
 
