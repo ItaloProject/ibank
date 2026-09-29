@@ -5,8 +5,10 @@ import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BANKS,
-  BANK_RATES_REFERENCE,
+  BANK_RATES_CHECKED_LABEL,
+  BANK_RATES_STALE_DAYS,
   bankProductRate,
+  bankRatesAgeDays,
   findBankByName,
   productsForTipo,
   type Bank,
@@ -255,8 +257,13 @@ export function BankPicker({
             );
           })}
           <p className="text-[11px] text-muted-foreground leading-snug">
-            Taxas típicas de {BANK_RATES_REFERENCE}, garantidas pelo {bank.garantia === "FGC" ? "Fundo Garantidor de Créditos" : "fundo garantidor das cooperativas"} até R$ 250 mil. Confira no app do banco e ajuste se precisar.
+            Taxas típicas conferidas em {BANK_RATES_CHECKED_LABEL}, garantidas pelo {bank.garantia === "FGC" ? "Fundo Garantidor de Créditos" : "fundo garantidor das cooperativas"} até R$ 250 mil. Confira no app do banco e ajuste se precisar.
           </p>
+          {bankRatesAgeDays() > BANK_RATES_STALE_DAYS && (
+            <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 leading-snug">
+              Essas taxas têm mais de {BANK_RATES_STALE_DAYS} dias e podem ter mudado.
+            </p>
+          )}
         </div>
       )}
     </div>

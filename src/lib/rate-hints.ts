@@ -1,5 +1,5 @@
 import type { RateIndex } from "@/lib/account-rate";
-import { FIXED_INCOME_REFERENCE_DATE, TESOURO_CATALOG } from "@/lib/fixed-income-catalog";
+import { tesouroCatalog, type TesouroLive } from "@/lib/tesouro-rates";
 
 export type RateHint = {
   index?: RateIndex;
@@ -37,21 +37,22 @@ function tesouroMaturity(t: string, year: number): string | null {
  * Lê no nome da aplicação o que der para preencher: indexador, taxa e vencimento.
  * Ex.: "Tesouro IPCA+ 2035", "CDB 110% do CDI 2028", "LCA IPCA + 6,5% 15/05/2030".
  */
-export function rateHintFromName(name: string): RateHint | null {
+export function rateHintFromName(name: string, live: TesouroLive | null = null): RateHint | null {
   const t = plain(name).trim();
   if (t.length < 3) return null;
   const hint: RateHint = { fonte: "" };
   const isTesouro = /tesouro/.test(t);
 
-  const catalog = isTesouro
-    ? [...TESOURO_CATALOG].sort((a, b) => b.nome.length - a.nome.length).find((e) => t.includes(plain(e.nome)))
+  const tesouro = isTesouro ? tesouroCatalog(live) : null;
+  const catalog = tesouro
+    ? [...tesouro.catalog].sort((a, b) => b.nome.length - a.nome.length).find((e) => t.includes(plain(e.nome)))
     : undefined;
-  if (catalog) {
+  if (tesouro && catalog) {
     return {
       index: catalog.rate_index,
       value: catalog.rate_value,
       maturity: catalog.maturity ?? undefined,
-      fonte: `${catalog.nome}, com a taxa de referência de ${FIXED_INCOME_REFERENCE_DATE}`,
+      fonte: `${catalog.nome}, com a taxa de compra de ${tesouro.date}`,
     };
   }
 

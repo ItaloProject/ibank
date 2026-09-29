@@ -5,6 +5,7 @@ import { FOCUS, INPUT_BOX, LABEL } from "@/components/investimentos/live-ui";
 import { HelpTip } from "@/components/ui/help-tip";
 import { RATE_INDEXES, taxRuleFromName, type AccountRate, type RateIndex, type TaxRule } from "@/lib/account-rate";
 import { rateHintFromName, type RateHint } from "@/lib/rate-hints";
+import { useTesouroLive } from "@/lib/use-tesouro-live";
 
 function TaxBadge({ exempt, text }: { exempt: boolean; text: string }) {
   return (
@@ -94,7 +95,8 @@ export function RateFields({ value, onChange, productName = "" }: { value: RateD
   const set = (patch: Partial<RateDraft>) => onChange({ ...value, ...patch });
   const rule: TaxRule | null = value.index === "poupanca" ? { exempt: true, produto: "Poupança" } : taxRuleFromName(productName);
   const followsRule = rule !== null && value.exempt === rule.exempt;
-  const hint = rateHintFromName(productName);
+  const tesouroLive = useTesouroLive();
+  const hint = rateHintFromName(productName, tesouroLive);
   const hintKey = hint ? JSON.stringify([hint.index, hint.weakIndex, hint.value, hint.maturity]) : "";
 
   const lastProduto = useRef(rule?.produto ?? null);

@@ -8,6 +8,16 @@ import { fixedRateLabel } from "@/lib/fixed-income-catalog";
  * servem para preencher o formulário, e o usuário pode corrigir.
  */
 export const BANK_RATES_REFERENCE = "setembro de 2026";
+/** Última conferência da tabela; depois de BANK_RATES_STALE_DAYS o app avisa que pode ter mudado. */
+export const BANK_RATES_CHECKED_AT = "2026-09-25";
+export const BANK_RATES_STALE_DAYS = 45;
+
+/** Dias desde a conferência da tabela de bancos. `today` em aaaa-mm-dd. */
+export function bankRatesAgeDays(today: string = new Date().toISOString().slice(0, 10)): number {
+  return Math.max(0, Math.round((Date.parse(today) - Date.parse(BANK_RATES_CHECKED_AT)) / 86_400_000));
+}
+
+export const BANK_RATES_CHECKED_LABEL = BANK_RATES_CHECKED_AT.split("-").reverse().join("/");
 
 export type BankProductKind = "liquidez" | "turbo" | "cdb" | "lci" | "lca" | "poupanca";
 
@@ -226,9 +236,13 @@ export function bankProductRate(prod: BankProduct): string {
 }
 
 /** Resumo compacto para o assistente com IA. */
-export function bankRatesForBot() {
+export function bankRatesForBot(today?: string) {
+  const dias = bankRatesAgeDays(today);
   return {
     referencia: BANK_RATES_REFERENCE,
+    conferidasEm: BANK_RATES_CHECKED_LABEL,
+    diasDesdeConferencia: dias,
+    desatualizadas: dias > BANK_RATES_STALE_DAYS,
     aviso: "Taxas típicas; bancos grandes personalizam por relacionamento e valor. Confirmar no app do banco.",
     bancos: BANKS.map((b) => ({
       banco: b.nome,

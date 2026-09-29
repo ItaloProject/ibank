@@ -5,7 +5,6 @@ import {
   FIXED_INCOME_REFERENCE_DATE,
   RENDA_FIXA_CATALOG,
   RENDA_FIXA_GROUPS,
-  TESOURO_CATALOG,
   TESOURO_GROUPS,
   fixedRateLabel,
   type FixedIncomeEntry,
@@ -13,12 +12,17 @@ import {
 } from "@/lib/fixed-income-catalog";
 import { FilterChips, SearchBox, normalizeSearch } from "@/components/investimentos/catalog-picker";
 import { LABEL, ROW } from "@/components/investimentos/live-ui";
+import { tesouroCatalog } from "@/lib/tesouro-rates";
+import { useTesouroLive } from "@/lib/use-tesouro-live";
 
 const TOP = "Mais procurados";
 const ALL = "Todos";
 
 export function FixedIncomePicker({ kind, onPick }: { kind: FixedIncomeKind; onPick: (entry: FixedIncomeEntry) => void }) {
-  const catalog = kind === "tesouro" ? TESOURO_CATALOG : RENDA_FIXA_CATALOG;
+  const live = useTesouroLive();
+  const tesouro = useMemo(() => tesouroCatalog(live), [live]);
+  const catalog = kind === "tesouro" ? tesouro.catalog : RENDA_FIXA_CATALOG;
+  const ratesDate = kind === "tesouro" ? tesouro.date : FIXED_INCOME_REFERENCE_DATE;
   const groups: readonly string[] = kind === "tesouro" ? TESOURO_GROUPS : RENDA_FIXA_GROUPS;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>(TOP);
@@ -57,7 +61,7 @@ export function FixedIncomePicker({ kind, onPick }: { kind: FixedIncomeKind; onP
           ? "Nenhum resultado na lista."
           : `${results.length} ${results.length === 1 ? noun[0] : noun[1]} · ${
               kind === "tesouro" ? "taxas de compra" : "taxas típicas"
-            } de ${FIXED_INCOME_REFERENCE_DATE}. Você informa a taxa que conseguiu ao confirmar.`}
+            } de ${ratesDate}. Você informa a taxa que conseguiu ao confirmar.`}
       </p>
 
       {sections.map((s) => (

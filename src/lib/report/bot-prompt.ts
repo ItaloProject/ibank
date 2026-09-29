@@ -4,24 +4,28 @@ import type { UserSnapshot } from "@/lib/server/portfolio-snapshot";
 import {
   FIXED_INCOME_REFERENCE_DATE,
   RENDA_FIXA_CATALOG,
-  TESOURO_CATALOG,
   fixedRateLabel,
+  type FixedIncomeEntry,
 } from "@/lib/fixed-income-catalog";
+import { tesouroCatalog, type TesouroLive } from "@/lib/tesouro-rates";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Títulos do Tesouro e faixas de renda fixa privada que o app oferece na tela de investir. */
-function catalogJson() {
-  const entry = (e: (typeof TESOURO_CATALOG)[number]) => ({
+function catalogJson(live: TesouroLive | null) {
+  const entry = (e: FixedIncomeEntry) => ({
     nome: e.nome,
     taxa: fixedRateLabel(e.rate_index, e.rate_value),
     vencimento: e.maturity,
     isentoIr: e.tax_exempt,
     resumo: e.descricao,
   });
+  const tesouro = tesouroCatalog(live);
   return {
-    dataDasTaxas: FIXED_INCOME_REFERENCE_DATE,
-    tesouroDireto: TESOURO_CATALOG.map(entry),
+    dataDasTaxasDoTesouro: tesouro.date,
+    tesouroDoDia: tesouro.date !== FIXED_INCOME_REFERENCE_DATE,
+    dataDasFaixasDeRendaFixaPrivada: FIXED_INCOME_REFERENCE_DATE,
+    tesouroDireto: tesouro.catalog.map(entry),
     rendaFixaPrivada: RENDA_FIXA_CATALOG.map(entry),
   };
 }
@@ -89,7 +93,8 @@ function contextJson(s: UserSnapshot) {
   };
 }
 
-export function buildBotSystemPrompt(s: UserSnapshot, pageJson: string | null = null): string {
+export function buildBotSystemPrompt(s: UserSnapshot, pageJson: string | null = null, tesouroLive: TesouroLive | null = null): string {
+  const bankRates = bankRatesForBot(s.geradoEm.slice(0, 10));
   return [
     "Você é o Muvo, assistente de investimentos do app MUVO, falando com um investidor brasileiro pessoa física.",
     "Responda em português do Brasil, de forma direta e calorosa, em no máximo 180 palavras.",
@@ -107,6 +112,7 @@ export function buildBotSystemPrompt(s: UserSnapshot, pageJson: string | null = 
     "- Bancos: você conhece as taxas de caixinhas, cofrinhos, CDB, LCI, LCA e poupança dos bancos em 'taxasDosBancos'. Pode comparar bancos e produtos citando nomes e taxas dessa tabela.",
     "- Ao comparar, converta para rendimento líquido: CDB, RDB e RDC pagam Imposto de Renda (22,5% até 180 dias, 20% até 360, 17,5% até 720, 15% acima); LCI e LCA são isentas, então 90% do CDI em LCA equivale a cerca de 106% do CDI em CDB acima de 2 anos. Poupança rende 0,5% ao mês mais TR quando a Selic está acima de 8,5% ao ano e é isenta.",
     "- Pese liquidez (reserva de emergência só em produto com resgate diário), carência, condições para a taxa turbinada e a garantia de até R$ 250 mil por instituição. Lembre que as taxas mudam e peça para o usuário confirmar no app do banco.",
+    `- As taxas dos bancos foram conferidas em ${bankRates.conferidasEm}${bankRates.desatualizadas ? `, há ${bankRates.diasDesdeConferencia} dias: ao citá-las, avise que podem ter mudado` : ""}. As taxas do Tesouro Direto são as de compra de ${tesouroCatalog(tesouroLive).date}; cite essa data ao falar delas.`,
     "- Nunca prometa rentabilidade. Projeções são estimativas com base no Boletim Focus do Banco Central.",
     "- Se perguntarem algo fora de finanças pessoais e investimentos, redirecione com gentileza.",
     "- Termine respostas com recomendação de ação com a frase curta: 'Análise educativa, não é recomendação de investimento.'",
@@ -119,10 +125,10 @@ export function buildBotSystemPrompt(s: UserSnapshot, pageJson: string | null = 
     JSON.stringify(contextJson(s)),
     "",
     "Taxas dos bancos (JSON, chave taxasDosBancos):",
-    JSON.stringify(bankRatesForBot()),
+    JSON.stringify(bankRates),
     "",
-    "Catálogo de Tesouro Direto e renda fixa privada do app (JSON; taxas de referência da data indicada, variam todo dia):",
-    JSON.stringify(catalogJson()),
+    "Catálogo de Tesouro Direto e renda fixa privada do app (JSON; taxas das datas indicadas, variam todo dia):",
+    JSON.stringify(catalogJson(tesouroLive)),
     "",
     APP_GUIDE,
     ...(pageJson

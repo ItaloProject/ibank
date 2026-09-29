@@ -5,6 +5,7 @@ import { getCachedSnapshot } from "@/lib/server/portfolio-snapshot";
 import { completeChat, llmProvider, type ChatMessage } from "@/lib/server/llm";
 import { buildBotSystemPrompt } from "@/lib/report/bot-prompt";
 import { extractActions } from "@/lib/plan-view";
+import { peekTesouroLive } from "@/lib/server/tesouro-live";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
 
   try {
     const snap = await getCachedSnapshot(auth.userId, (body as { fresh?: unknown })?.fresh === true);
-    const raw = await completeChat(buildBotSystemPrompt(snap, parsePage(body)), messages);
+    const raw = await completeChat(buildBotSystemPrompt(snap, parsePage(body), peekTesouroLive()), messages);
     const { text, actions } = extractActions(raw ?? "", snap.stocks.map((s) => s.ticker));
     return NextResponse.json({ reply: text || "Não consegui formular uma resposta. Pode reformular a pergunta?", actions });
   } catch (err) {
