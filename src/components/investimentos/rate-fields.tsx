@@ -4,6 +4,7 @@ import { useEffect, useId, useRef } from "react";
 import { FOCUS, INPUT_BOX, LABEL } from "@/components/investimentos/live-ui";
 import { HelpTip } from "@/components/ui/help-tip";
 import { RATE_INDEXES, taxRuleFromName, type AccountRate, type RateIndex, type TaxRule } from "@/lib/account-rate";
+import { rateHintFromName, type RateHint } from "@/lib/rate-hints";
 
 function TaxBadge({ exempt, text }: { exempt: boolean; text: string }) {
   return (
@@ -20,8 +21,17 @@ function TaxBadge({ exempt, text }: { exempt: boolean; text: string }) {
   );
 }
 
-/** `exemptManual`: o usuário mexeu na isenção e ela não deve mais seguir o tipo do produto. */
-export type RateDraft = { index: RateIndex | ""; value: string; maturity: string; exempt: boolean; exemptManual?: boolean };
+/** Campos `*Manual`: o usuário mexeu no campo e ele não deve mais seguir o nome do produto. */
+export type RateDraft = {
+  index: RateIndex | "";
+  value: string;
+  maturity: string;
+  exempt: boolean;
+  exemptManual?: boolean;
+  indexManual?: boolean;
+  valueManual?: boolean;
+  maturityManual?: boolean;
+};
 
 export const EMPTY_RATE_DRAFT: RateDraft = { index: "", value: "", maturity: "", exempt: false };
 
@@ -33,7 +43,28 @@ export function draftFromRate(rate: AccountRate | null | undefined): RateDraft {
     maturity: rate.maturity ?? "",
     exempt: rate.tax_exempt,
     exemptManual: true,
+    indexManual: true,
+    valueManual: true,
+    maturityManual: true,
   };
+}
+
+const valueText = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 4, useGrouping: false });
+
+/** Aplica ao rascunho o que o nome indica, sem tocar nos campos que o usuário ajustou. */
+function applyHint(d: RateDraft, hint: RateHint | null): RateDraft {
+  if (!hint) return d;
+  const next = { ...d };
+  if (hint.index && !d.indexManual && (!hint.weakIndex || !d.index)) {
+    if (next.index !== hint.index) {
+      next.value = "";
+      next.valueManual = false;
+    }
+    next.index = hint.index;
+  }
+  if (hint.value !== undefined && !next.valueManual && next.index === hint.index) next.value = valueText(hint.value);
+  if (hint.maturity && !d.maturityManual && next.index !== "poupanca") next.maturity = hint.maturity;
+  return next;
 }
 
 /** null = nada informado; string = erro para mostrar. */
@@ -62,22 +93,35 @@ export function RateFields({ value, onChange, productName = "" }: { value: RateD
   const meta = RATE_INDEXES.find((r) => r.id === value.index);
   const set = (patch: Partial<RateDraft>) => onChange({ ...value, ...patch });
   const rule: TaxRule | null = value.index === "poupanca" ? { exempt: true, produto: "Poupança" } : taxRuleFromName(productName);
+  const followsRule = rule !== null && value.exempt === rule.exempt;
+  const hint = rateHintFromName(productName);
+  const hintKey = hint ? JSON.stringify([hint.index, hint.weakIndex, hint.value, hint.maturity]) : "";
 
   const lastProduto = useRef(rule?.produto ?? null);
+  const lastHint = useRef("");
   useEffect(() => {
-    const produto = rule?.produto ?? null;
-    const changed = produto !== lastProduto.current;
-    lastProduto.current = produto;
-    if (!rule) return;
-    if (changed && value.exemptManual) {
-      onChange({ ...value, exempt: rule.exempt, exemptManual: false });
-    } else if (!value.exemptManual && value.exempt !== rule.exempt) {
-      onChange({ ...value, exempt: rule.exempt });
+    let next = value;
+    if (hintKey !== lastHint.current) {
+      lastHint.current = hintKey;
+      next = applyHint(next, hint);
     }
+    const nextRule: TaxRule | null = next.index === "poupanca" ? { exempt: true, produto: "Poupança" } : taxRuleFromName(productName);
+    const produto = nextRule?.produto ?? null;
+    const produtoChanged = produto !== lastProduto.current;
+    lastProduto.current = produto;
+    if (nextRule && (produtoChanged || !next.exemptManual) && next.exempt !== nextRule.exempt) {
+      next = { ...next, exempt: nextRule.exempt, exemptManual: false };
+    } else if (nextRule && produtoChanged && next.exemptManual) {
+      next = { ...next, exemptManual: false };
+    }
+    if (next !== value) onChange(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rule?.produto, rule?.exempt, value.exemptManual, value.exempt]);
+  }, [hintKey, rule?.produto, rule?.exempt, value.index, value.exemptManual, value.exempt]);
 
-  const followsRule = rule !== null && value.exempt === rule.exempt;
+  const hintApplied =
+    hint !== null &&
+    ((hint.index !== undefined && !hint.weakIndex && value.index === hint.index && !value.indexManual) ||
+      (hint.maturity !== undefined && value.maturity === hint.maturity && !value.maturityManual));
 
   return (
     <fieldset className="space-y-3">
@@ -96,7 +140,7 @@ export function RateFields({ value, onChange, productName = "" }: { value: RateD
             type="button"
             role="radio"
             aria-checked={value.index === r.id}
-            onClick={() => set({ index: r.id, exempt: r.id === "poupanca" ? true : value.index === "poupanca" ? false : value.exempt })}
+            onClick={() => set({ index: r.id, indexManual: true, exempt: r.id === "poupanca" ? true : value.index === "poupanca" ? false : value.exempt })}
             className={`min-h-10 rounded-lg border px-2 text-xs font-semibold transition-colors ${FOCUS} ${
               value.index === r.id
                 ? "border-foreground bg-foreground text-background"
@@ -108,6 +152,13 @@ export function RateFields({ value, onChange, productName = "" }: { value: RateD
         ))}
       </div>
 
+      {hintApplied && hint && (
+        <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-[11px] leading-snug text-emerald-700 dark:text-emerald-300" aria-live="polite">
+          Lido do nome: {hint.fonte}.
+          {hint.maturityApprox && value.maturity === hint.maturity && " Confira o dia do vencimento."} Você pode ajustar qualquer campo.
+        </p>
+      )}
+
       {meta?.valueLabel && (
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -118,7 +169,7 @@ export function RateFields({ value, onChange, productName = "" }: { value: RateD
                 type="text"
                 inputMode="decimal"
                 value={value.value}
-                onChange={(e) => set({ value: e.target.value.replace(/[^\d,.]/g, "").slice(0, 8) })}
+                onChange={(e) => set({ value: e.target.value.replace(/[^\d,.]/g, "").slice(0, 8), valueManual: true })}
                 placeholder={meta.placeholder}
                 className="flex-1 min-w-0 bg-transparent text-sm tabular-nums text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
@@ -137,7 +188,7 @@ export function RateFields({ value, onChange, productName = "" }: { value: RateD
                 id={`${id}-venc`}
                 type="date"
                 value={value.maturity}
-                onChange={(e) => set({ maturity: e.target.value })}
+                onChange={(e) => set({ maturity: e.target.value, maturityManual: true })}
                 className="flex-1 min-w-0 bg-transparent text-sm tabular-nums text-foreground focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
               />
             </div>
