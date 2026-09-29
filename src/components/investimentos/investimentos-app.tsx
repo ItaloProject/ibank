@@ -32,7 +32,10 @@ import { getCurrentUser } from "@/lib/user";
 import {
   accountBalance, detectAssetType, detectSector, computeStockPositions,
 } from "@/lib/stock-utils";
-import { InvestorModeView } from "@/components/investimentos/investor-mode-view";
+import { InvestorModeView, type PortfolioAnalysis } from "@/components/investimentos/investor-mode-view";
+import { useRebalanceAnalysis } from "@/lib/use-rebalance-analysis";
+import { planAllocation, planInsights, planMoves, planScore } from "@/lib/plan-view";
+import { alocacaoRelevante } from "@/lib/rebalance";
 import { InvestorBot, type BotPortfolioContext } from "@/components/investor-bot";
 import { InvestorLiveView, type LiveAction } from "@/components/investimentos/investor-live-view";
 import type { MarketSection } from "@/components/investimentos/simulator-invest-flow";
@@ -514,157 +517,62 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         "Renda recebida": v,
       }));
 
-    const totalPortfolio = grandTotal;
-    const fiiPct = totalPortfolio > 0 ? (fiiCapital / totalPortfolio) * 100 : 0;
-    const turboPct = totalPortfolio > 0 ? (turboSources.reduce((s, t) => s + t.capital, 0) / totalPortfolio) * 100 : 0;
-    const rfPct = totalPortfolio > 0 ? (rfSources.reduce((s, r) => s + r.capital, 0) / totalPortfolio) * 100 : 0;
-    const divPct = totalPortfolio > 0 ? (dividendCapital / totalPortfolio) * 100 : 0;
+    return { allSources, totalRendaMensal, chartMonths, fiiCapital, CDI_MENSAL };
+  }, [accounts, investments, stockPositions, quoteMap, marketRates.cdiAnual]);
 
-    const recommendations = [
-      { label: "FIIs", atual: fiiPct, ideal: 40, cor: "#14b8a6", desc: "Melhor renda mensal (~0,85%/mês)" },
-      { label: "TURBO/CDB", atual: turboPct + rfPct, ideal: 30, cor: "#f5c425", desc: "Segurança + rendimento CDI" },
-      { label: "Ações/Dividendos", atual: divPct, ideal: 30, cor: "#10b981", desc: "Crescimento + dividendos" },
-    ];
+  const portfolioVersion = `${accounts.length}|${investments.length}|${stockTrades.length}|${grandTotal.toFixed(2)}|${incomeGoal}`;
+  const analysis = useRebalanceAnalysis(botEnabled && !loading, portfolioVersion);
 
-    return { allSources, totalRendaMensal, chartMonths, recommendations, fiiCapital, CDI_MENSAL };
-  }, [accounts, investments, stockPositions, quoteMap, grandTotal, marketRates.cdiAnual]);
+  const portfolioAnalysis = useMemo<PortfolioAnalysis | null>(() => {
+    const plan = analysis?.plan;
+    if (!analysis || !plan) return null;
+    const go = (query: string) => router.push(`/investimentos?${query}`);
+    return {
+      profile: analysis.profile,
+      profileDefinido: analysis.profileDefinido,
+      score: planScore(plan),
+      emerTotal: plan.reserva.atual,
+      investido: plan.investido,
+      alocacaoRelevante: alocacaoRelevante(plan),
+      allocation: planAllocation(plan),
+      insights: planInsights(plan).map((i) => ({
+        ...i,
+        onAction: i.sell
+          ? () => go(`vender=${encodeURIComponent(i.sell!)}`)
+          : i.section ? () => go(`investir=${i.section}`) : undefined,
+      })),
+      nextMoves: planMoves(plan).map((m) => ({ ...m, valorTexto: formatCurrency(m.valor) })),
+    };
+  }, [analysis, router]);
 
-  function goToStockDialog(ticker: string, type: "compra" | "venda") {
-    router.push(type === "venda" ? `/investimentos?vender=${encodeURIComponent(ticker)}` : "/investimentos?investir=acoes");
-  }
-
-  function goToDepositDialog() {
-    router.push("/investimentos?investir=eme");
-  }
-
-  const portfolioAnalysis = useMemo(() => {
-    const insights: { level: "critical" | "warning" | "ok" | "suggestion"; title: string; detail: string; action?: string; onAction?: () => void; actionLabel?: string }[] = [];
-
-    // 1. Reserva de emergência
-    const emerAccounts = accounts.filter((a) => !a.is_turbo && (
-      a.name.toLowerCase().includes("eme") || a.name.toLowerCase().includes("emergên") ||
-      a.name.toLowerCase().includes("emergencia") || a.name.toLowerCase().includes("reserva") ||
-      a.name.toLowerCase().includes("caixinha")
-    ));
-    const emerTotal = emerAccounts.reduce((s, a) => s + accountBalance(investments, a.id), 0);
-    if (emerAccounts.length === 0) {
-      insights.push({ level: "critical", title: "Sem reserva de emergência identificada", detail: "Crie uma conta com 'EME' ou 'Reserva' no nome e deposite mínimo R$ 3.000.", action: "Prioridade máxima antes de qualquer aporte variável" });
-    } else if (emerTotal < 3000) {
-      insights.push({
-        level: "warning", title: `Reserva insuficiente — ${formatCurrency(emerTotal)}`,
-        detail: `Recomendado mínimo R$ 3.000 (3 meses de gastos). Faltam ${formatCurrency(3000 - emerTotal)}.`,
-        action: "Direcionar aportes para emergência até completar",
-        onAction: goToDepositDialog, actionLabel: `Depositar em ${emerAccounts[0].name}`,
-      });
-    } else {
-      insights.push({ level: "ok", title: `Reserva de emergência adequada — ${formatCurrency(emerTotal)}`, detail: "Proteção básica garantida. Continue investindo normalmente." });
-    }
-
-    const turboAccounts = accounts.filter((a) => a.is_turbo);
-
-    // 3. Duplicidade de empresa (PTR3 + PTR4, BBDC3 + BBDC4, etc.)
-    const companyMap = new Map<string, string[]>();
-    for (const p of stockPositions) {
-      const base = p.ticker.replace(/\d+$/, "");
-      if (!companyMap.has(base)) companyMap.set(base, []);
-      companyMap.get(base)!.push(p.ticker);
-    }
-    for (const [, tickers] of companyMap) {
-      if (tickers.length > 1) {
-        const [, ...extra] = tickers;
-        insights.push({
-          level: "warning", title: `Duplicidade: ${tickers.join(" + ")}`,
-          detail: "Mesma empresa em classes diferentes. Não diversifica — apenas concentra o risco.",
-          action: "Escolha apenas uma classe e venda a outra",
-          onAction: () => goToStockDialog(extra[0], "venda"), actionLabel: `Vender ${extra[0]}`,
-        });
-      }
-    }
-
-    // 4. Concentração em commodities
-    const totalStockValue = stockPositions.reduce((s, p) => {
-      const q = quoteMap.get(p.ticker);
-      return s + (q !== undefined ? q * p.quantity : p.totalInvested);
-    }, 0);
-    const commodityValue = stockPositions
-      .filter((p) => { const u = p.ticker.toUpperCase(); return u.startsWith("VALE") || u.startsWith("PETR") || u.startsWith("PTR") || u.startsWith("PRIO") || u.startsWith("RECV"); })
-      .reduce((s, p) => { const q = quoteMap.get(p.ticker); return s + (q !== undefined ? q * p.quantity : p.totalInvested); }, 0);
-    const commodityPct = totalStockValue > 0 ? (commodityValue / totalStockValue) * 100 : 0;
-    if (commodityPct > 50) {
-      insights.push({ level: "warning", title: `Commodities representam ${commodityPct.toFixed(0)}% da renda variável`, detail: "VALE + Petrobras são correlacionadas (China + petróleo). Uma crise afeta as duas ao mesmo tempo.", action: "Diversifique para bancos, energia elétrica ou saúde" });
-    }
-
-    // 5. Proporção FIIs na renda variável
-    const fiiValue = stockPositions
-      .filter((p) => detectAssetType(p.ticker) === "FII")
-      .reduce((s, p) => { const q = quoteMap.get(p.ticker); return s + (q !== undefined ? q * p.quantity : p.totalInvested); }, 0);
-    const fiiPctVariavel = totalStockValue > 0 ? (fiiValue / totalStockValue) * 100 : 0;
-    if (stockPositions.length > 0 && fiiPctVariavel < 30) {
-      insights.push({
-        level: "suggestion", title: `FIIs: apenas ${fiiPctVariavel.toFixed(0)}% da renda variável`,
-        detail: "Para renda passiva consistente, FIIs devem representar 50–60% da carteira variável. Dividendos mensais isentos de IR.",
-        action: "Próximos aportes: MXRF11, XPML11 ou TRXF11",
-        onAction: () => goToStockDialog("MXRF11", "compra"), actionLabel: "Comprar MXRF11",
-      });
-    } else if (fiiPctVariavel >= 50) {
-      insights.push({ level: "ok", title: `Boa exposição a FIIs — ${fiiPctVariavel.toFixed(0)}%`, detail: "Proporção ideal para renda passiva mensal com isenção de IR." });
-    }
-
-    // Próximos movimentos recomendados
-    const nextMoves: { prioridade: number; label: string; valor: string; razao: string }[] = [];
-    if (emerTotal < 3000) {
-      nextMoves.push({ prioridade: 1, label: "Completar Reserva de Emergência", valor: formatCurrency(Math.min(3000 - emerTotal, 1300)), razao: "Proteção base antes de qualquer variável" });
-    }
-    const turboAtCap = turboAccounts.some((t) => t.max_rendimento && t.current_balance >= t.max_rendimento * 0.95);
-    if (!turboAtCap && turboAccounts.length > 0 && emerTotal >= 3000) {
-      nextMoves.push({ prioridade: nextMoves.length + 1, label: "TURBO (complementar até o teto)", valor: "R$ 300–400", razao: "Melhor custo-benefício em renda fixa, 115% CDI" });
-    }
-    if (fiiPctVariavel < 50 || nextMoves.length === 0) {
-      nextMoves.push({ prioridade: nextMoves.length + 1, label: "FIIs — MXRF11 ou XPML11", valor: emerTotal >= 3000 ? "R$ 650" : "R$ 500", razao: "Renda mensal isenta de IR, dividendo consistente" });
-    }
-    if (nextMoves.length < 3) {
-      nextMoves.push({ prioridade: nextMoves.length + 1, label: "Ações — BBAS3 ou TAEE11", valor: "R$ 300–500", razao: "Crescimento + dividendos de longo prazo" });
-    }
-
-    const criticalCount = insights.filter((i) => i.level === "critical").length;
-    const warningCount = insights.filter((i) => i.level === "warning").length;
-    const score = Math.max(0, 100 - criticalCount * 30 - warningCount * 15);
-
-    return { insights, nextMoves, score, emerTotal, fiiPctVariavel, commodityPct, totalStockValue };
-  }, [accounts, investments, stockPositions, quoteMap]);
-
-  // Salva o score do dia automaticamente quando a página Metas é aberta (1x por dia)
+  // Salva a nota do dia quando a página Metas é aberta (1x por dia)
+  const score = portfolioAnalysis?.score ?? null;
   useEffect(() => {
-    if (!isMetas || !botEnabled || loading) return;
+    if (!isMetas || !botEnabled || loading || score === null) return;
     const today = format(new Date(), "yyyy-MM-dd");
     const existing = scoreHistory.find((s) => s.date === today);
-    if (existing && existing.score === portfolioAnalysis.score) return;
-    saveScoreSnapshot(today, portfolioAnalysis.score).then((saved) => {
+    if (existing && existing.score === score) return;
+    saveScoreSnapshot(today, score).then((saved) => {
       setScoreHistory((prev) => [...prev.filter((s) => s.date !== today), saved].sort((a, b) => a.date.localeCompare(b.date)));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMetas, botEnabled, loading, portfolioAnalysis.score]);
+  }, [isMetas, botEnabled, loading, score]);
 
   const botContext = useMemo<BotPortfolioContext>(() => ({
-    score: portfolioAnalysis.score,
+    score,
     totalRendaMensal: investorData.totalRendaMensal,
     incomeGoal,
     grandTotal,
-    emerTotal: portfolioAnalysis.emerTotal,
-    fiiPctVariavel: portfolioAnalysis.fiiPctVariavel,
-    commodityPct: portfolioAnalysis.commodityPct,
-    totalStockValue: portfolioAnalysis.totalStockValue,
-    insights: portfolioAnalysis.insights,
-    nextMoves: portfolioAnalysis.nextMoves,
-    recommendations: investorData.recommendations,
+    emerTotal: portfolioAnalysis?.emerTotal ?? null,
+    insights: portfolioAnalysis?.insights ?? [],
     sources: investorData.allSources.map((s) => ({ nome: s.nome, tipo: s.tipo, capital: s.capital, rendaMensal: s.rendaMensal })),
     holdings: stockPositions.map((p) => {
       const q = quoteMap.get(p.ticker);
       return { ticker: p.ticker, kind: detectAssetType(p.ticker), value: q !== undefined ? q * p.quantity : p.totalInvested };
     }),
-  }), [portfolioAnalysis, investorData, incomeGoal, grandTotal, stockPositions, quoteMap]);
+  }), [score, portfolioAnalysis, investorData, incomeGoal, grandTotal, stockPositions, quoteMap]);
 
-  const botDataVersion = `${accounts.length}|${investments.length}|${stockTrades.length}|${grandTotal.toFixed(2)}|${incomeGoal}`;
+  const botDataVersion = portfolioVersion;
 
   async function addInvestment() {
     if (!invForm.account_id || !invForm.amount) return;

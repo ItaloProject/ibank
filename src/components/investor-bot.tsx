@@ -9,7 +9,8 @@ import {
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
-import { RISK_PROFILES, alocacaoRelevante, type RebalancePlan, type RiskProfile } from "@/lib/rebalance";
+import { RISK_PROFILES, alocacaoRelevante } from "@/lib/rebalance";
+import type { AnalysisPayload } from "@/lib/plan-view";
 import { WhatsappPanel } from "@/components/bot/whatsapp-panel";
 import { RiskProfilePicker } from "@/components/bot/risk-profile-picker";
 
@@ -25,17 +26,13 @@ function BotAvatar({ className }: { className?: string }) {
 }
 
 export type BotPortfolioContext = {
-  score: number;
+  /** Nota do plano de rebalanceamento; null enquanto o servidor calcula. */
+  score: number | null;
   totalRendaMensal: number;
   incomeGoal: number;
   grandTotal: number;
-  emerTotal: number;
-  fiiPctVariavel: number;
-  commodityPct: number;
-  totalStockValue: number;
-  insights: { level: string; title: string; detail: string; action?: string }[];
-  nextMoves: { prioridade: number; label: string; valor: string; razao: string }[];
-  recommendations: { label: string; atual: number; ideal: number; desc: string }[];
+  emerTotal: number | null;
+  insights: { level: string; title: string; detail: string }[];
   sources: { nome: string; tipo: string; capital: number; rendaMensal: number }[];
   holdings: { ticker: string; kind: string; value: number }[];
 };
@@ -66,20 +63,9 @@ const INTENTS: Record<Exclude<Intent, "help">, { label: string; ask: string; ico
   rebal: { label: "Rebalancear carteira", ask: "Como rebalancear minha carteira?", icon: Scale },
   whatsapp: { label: "Enviar no WhatsApp", ask: "Envia o relatório no meu WhatsApp", icon: MessageCircle },
   perfil: { label: "Perfil de risco", ask: "Quero ajustar meu perfil de risco", icon: SlidersHorizontal },
-  fiis: { label: "FIIs rentáveis", ask: "Quais FIIs estão mais rentáveis?", icon: Building2 },
+  fiis: { label: "Fundos imobiliários", ask: "Quais fundos imobiliários estão rendendo mais?", icon: Building2 },
   meta: { label: "Quanto falta para a meta", ask: "Quanto falta para a minha meta?", icon: Target },
   pdf: { label: "Baixar PDF", ask: "Gera o PDF do relatório", icon: FileDown },
-};
-
-type AnalysisPayload = {
-  nome: string;
-  profile: RiskProfile;
-  profileDefinido: boolean;
-  aporte: number;
-  aporteOrigem: "meta" | "media" | "padrao";
-  gastoMensal: number | null;
-  plan: RebalancePlan | null;
-  rates: { selic: number; cdi: number; ipca12m: number | null; source: string; focusData: string | null };
 };
 
 const STORAGE_CHAT = "muvo_bot_chat_v3";
@@ -104,7 +90,7 @@ function pct(n: number, digits = 0) {
 
 function fmtDy(v: number | null | undefined) {
   if (v == null || !Number.isFinite(v)) return "n/d";
-  return `${pct(v, 2)}/mês`;
+  return `${pct(v, 2)} ao mês`;
 }
 
 function uid() {
@@ -193,7 +179,7 @@ function rebalReply(a: AnalysisPayload): Msg {
 function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketResearchPayload | null): Msg {
   const gap = Math.max(0, (ctx.incomeGoal || 0) - ctx.totalRendaMensal);
   const market = research?.rates
-    ? `Selic ${pct(research.rates.selicAnual, 2)} · CDI ${pct(research.rates.cdiAnual, 2)} · fonte ${research.rates.source === "bcb" ? "BCB" : "estimada"}`
+    ? `Selic ${pct(research.rates.selicAnual, 2)} · CDI ${pct(research.rates.cdiAnual, 2)} · fonte ${research.rates.source === "bcb" ? "Banco Central" : "estimada"}`
     : null;
   const bot = (blocks: (Block | null | false)[], followups: Intent[]): Msg => ({
     id: uid(),
@@ -212,12 +198,14 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
       {
         kind: "stats",
         items: [
-          { label: "Score", value: String(ctx.score), hint: "de 100", tone: ctx.score >= 70 ? "pos" : ctx.score >= 45 ? "warn" : "neg" },
+          ctx.score === null
+            ? { label: "Nota da carteira", value: "…", hint: "calculando" }
+            : { label: "Nota da carteira", value: String(ctx.score), hint: "de 100", tone: ctx.score >= 70 ? "pos" : ctx.score >= 45 ? "warn" : "neg" },
           { label: "Patrimônio", value: formatCurrency(ctx.grandTotal) },
           { label: "Renda passiva", value: formatCurrency(ctx.totalRendaMensal), hint: "por mês" },
           ctx.incomeGoal > 0
             ? { label: "Falta para a meta", value: formatCurrency(gap), hint: `meta ${formatCurrency(ctx.incomeGoal)}`, tone: gap === 0 ? "pos" : undefined }
-            : { label: "Reserva", value: formatCurrency(ctx.emerTotal), hint: "emergência" },
+            : { label: "Reserva", value: ctx.emerTotal === null ? "…" : formatCurrency(ctx.emerTotal), hint: "emergência" },
         ],
       },
       market ? { kind: "text", text: market, muted: true } : null,
@@ -241,11 +229,11 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
       .sort((a, b) => (b.dyMensalPct ?? 0) - (a.dyMensalPct ?? 0));
     const picks = universe.filter((f) => !owned.has(f.ticker)).slice(0, 5);
     return bot([
-      { kind: "heading", text: "FIIs por rendimento" },
+      { kind: "heading", text: "Fundos imobiliários por rendimento" },
       {
         kind: "text",
         muted: true,
-        text: [owned.size ? `Você já tem ${[...owned].join(", ")}.` : "Você ainda não tem FIIs.", market].filter(Boolean).join(" · "),
+        text: [owned.size ? `Você já tem ${[...owned].join(", ")}.` : "Você ainda não tem fundos imobiliários.", market].filter(Boolean).join(" · "),
       },
       picks.length
         ? {
@@ -262,12 +250,12 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
               };
             }),
           }
-        : { kind: "text", text: "Sua carteira de FIIs já cobre os principais nomes da lista." },
+        : { kind: "text", text: "Sua carteira de fundos imobiliários já cobre os principais nomes da lista." },
       gap > 0 && {
         kind: "stats",
-        items: [{ label: "Capital para fechar a meta via FIIs", value: formatCurrency(gap / 0.0085), hint: `rendendo ~0,85%/mês para cobrir ${formatCurrency(gap)}` }],
+        items: [{ label: "Capital para fechar a meta com fundos imobiliários", value: formatCurrency(gap / 0.0085), hint: `rendendo cerca de 0,85% ao mês para cobrir ${formatCurrency(gap)}` }],
       },
-      { kind: "text", muted: true, text: "Ordenado por rendimento; não é recomendação de investimento. Fontes: BCB, Brapi/Yahoo quando disponíveis e estimativas curadas." },
+      { kind: "text", muted: true, text: "Ordenado por rendimento; não é recomendação de investimento. Fontes: Banco Central, Brapi e Yahoo quando disponíveis, e estimativas curadas." },
     ], ["rebal", "meta", "whatsapp"]);
   }
 
@@ -311,9 +299,9 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
             kind: "list",
             title: "Capital extra estimado para fechar",
             items: [
-              { title: "Via FIIs", meta: "~0,85%/mês", value: formatCurrency(gap / 0.0085) },
-              { title: "Via TURBO", meta: "115% do CDI", value: formatCurrency(gap / cdiMensal) },
-              { title: "Via dividendos", meta: "~0,4%/mês", value: formatCurrency(gap / 0.004) },
+              { title: "Com fundos imobiliários", meta: "cerca de 0,85% ao mês", value: formatCurrency(gap / 0.0085) },
+              { title: "Com a caixinha Turbo", meta: "115% do CDI", value: formatCurrency(gap / cdiMensal) },
+              { title: "Com dividendos de ações", meta: "cerca de 0,4% ao mês", value: formatCurrency(gap / 0.004) },
             ],
           }
         : { kind: "alert", tone: "pos", text: "A meta já está coberta pela renda estimada." },

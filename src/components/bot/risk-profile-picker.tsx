@@ -7,7 +7,7 @@ import { BUCKET_LABEL, RISK_PROFILES, type InvestBucket, type RiskProfile } from
 
 type Variant = "bot" | "app";
 
-const SHORT: Record<InvestBucket, string> = { pos: "Pós", inflacao: "IPCA+", prefixado: "Pré", fiis: "FIIs", acoes: "Ações" };
+const SHORT: Record<InvestBucket, string> = { pos: "Pós", inflacao: "IPCA+", prefixado: "Pré", fiis: "Fundos imobiliários", acoes: "Ações" };
 
 export function allocationSummary(p: RiskProfile): string {
   const alvo = RISK_PROFILES[p].alvo;
@@ -21,6 +21,7 @@ export async function saveRiskProfile(profile: RiskProfile): Promise<void> {
     body: JSON.stringify({ profile }),
   });
   if (!res.ok) throw new Error("Não foi possível salvar o perfil.");
+  window.dispatchEvent(new CustomEvent("muvo_profile_changed", { detail: profile }));
 }
 
 export function RiskProfilePicker({

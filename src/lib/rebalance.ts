@@ -46,6 +46,7 @@ export const BUCKET_LABEL: Record<Bucket, string> = {
 };
 
 const INVEST_BUCKETS: InvestBucket[] = ["pos", "inflacao", "prefixado", "fiis", "acoes"];
+const COMMODITY_PREFIXES = ["VALE", "PETR", "PTR", "PRIO", "RECV", "CSNA", "GGBR", "BRAP"];
 /** Reserva mínima quando não há gastos cadastrados. */
 export const MIN_RESERVE = 3000;
 
@@ -277,12 +278,24 @@ export function buildRebalancePlan(input: RebalanceInput): RebalancePlan {
   for (const tickers of empresas.values()) {
     if (tickers.length > 1) {
       sugestoes.push({
-        id: `dup-${tickers[0]}`,
+        id: `dup-${tickers.join("+")}`,
         prioridade: "baixa",
         titulo: `${tickers.join(" e ")} são da mesma empresa`,
         detalhe: "Ter duas classes da mesma empresa não diversifica. Concentre em uma delas nos próximos aportes.",
       });
     }
+  }
+  const acoes = holdings.filter((h) => h.kind === "acao");
+  const somaAcoes = acoes.reduce((s, h) => s + h.valor, 0);
+  const commodities = acoes.filter((h) => COMMODITY_PREFIXES.some((p) => h.ticker.toUpperCase().startsWith(p)));
+  const pesoCommodities = somaAcoes > 0 ? commodities.reduce((s, h) => s + h.valor, 0) / somaAcoes : 0;
+  if (somaAcoes >= 1000 && commodities.length > 0 && pesoCommodities > 0.5) {
+    sugestoes.push({
+      id: "commodities",
+      prioridade: "media",
+      titulo: `Minério e petróleo são ${Math.round(pesoCommodities * 100)}% das suas ações`,
+      detalhe: `${commodities.map((h) => h.ticker).join(", ")} dependem dos mesmos fatores (China e preço do petróleo) e caem juntas numa crise. Nos próximos aportes em ações, prefira bancos, energia elétrica ou saúde.`,
+    });
   }
   const semTaxa = rows.filter((r) => r.accountId && (r.origem === "estimada" || r.origem === "nome"));
   if (semTaxa.length > 0) {

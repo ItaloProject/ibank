@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { FileText, Target, Check, CheckCircle2, ArrowRight, CornerDownRight, Pencil, X } from "lucide-react";
+import { FileText, Target, Check, CheckCircle2, ArrowRight, Pencil, X } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { InvestorBot, type BotPortfolioContext } from "@/components/investor-bot";
 import { formatCurrency } from "@/lib/utils";
+import { RISK_PROFILES, type RiskProfile } from "@/lib/rebalance";
+import type { PlanAllocation, PlanInsight, PlanMove } from "@/lib/plan-view";
 import type { ScoreSnapshot, InvestmentAccount, StockTrade, Investment } from "@/types/database";
 
 type IncomeSource = {
@@ -20,28 +22,16 @@ type IncomeSource = {
   badge: string;
 };
 
-type Recommendation = {
-  label: string;
-  atual: number;
-  ideal: number;
-  cor: string;
-  desc: string;
-};
-
-type Insight = {
-  level: "critical" | "warning" | "ok" | "suggestion";
-  title: string;
-  detail: string;
-  action?: string;
-  onAction?: () => void;
-  actionLabel?: string;
-};
-
-type NextMove = {
-  prioridade: number;
-  label: string;
-  valor: string;
-  razao: string;
+export type PortfolioAnalysis = {
+  profile: RiskProfile;
+  profileDefinido: boolean;
+  score: number;
+  emerTotal: number;
+  investido: number;
+  alocacaoRelevante: boolean;
+  allocation: PlanAllocation[];
+  insights: (PlanInsight & { onAction?: () => void })[];
+  nextMoves: (PlanMove & { valorTexto: string })[];
 };
 
 /** Aceita "1.500,50", "1.500", "1500,5" ou "1500.50". */
@@ -60,18 +50,10 @@ export type InvestorModeViewProps = {
     allSources: IncomeSource[];
     totalRendaMensal: number;
     chartMonths: { label: string; "Renda recebida": number }[];
-    recommendations: Recommendation[];
     CDI_MENSAL: number;
   };
-  portfolioAnalysis: {
-    insights: Insight[];
-    nextMoves: NextMove[];
-    score: number;
-    emerTotal: number;
-    fiiPctVariavel: number;
-    commodityPct: number;
-    totalStockValue: number;
-  };
+  /** Null enquanto o plano do servidor carrega. */
+  portfolioAnalysis: PortfolioAnalysis | null;
   incomeGoal: number;
   incomeGoalInput: string;
   setIncomeGoal: (v: number) => void;
@@ -104,7 +86,7 @@ export function InvestorModeView({
   botContext,
   botDataVersion,
 }: InvestorModeViewProps) {
-  const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
+  const { allSources, totalRendaMensal, chartMonths, CDI_MENSAL } = investorData;
   const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
   const circumference = 2 * Math.PI * 118;
 
@@ -330,9 +312,22 @@ export function InvestorModeView({
 
             {/* Alocação */}
             <div className="mb-14 sm:mb-20">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Alocação atual vs. ideal</h3>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                Alocação atual e alvo{portfolioAnalysis ? ` do perfil ${RISK_PROFILES[portfolioAnalysis.profile].label.toLowerCase()}` : ""}
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                {portfolioAnalysis
+                  ? `Percentuais sobre ${formatCurrency(portfolioAnalysis.investido)} fora da reserva de emergência.${portfolioAnalysis.profileDefinido ? "" : " Perfil moderado usado como padrão; escolha o seu no assistente."}`
+                  : "Calculando pelo seu perfil de risco…"}
+              </p>
               <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 sm:p-6 space-y-6">
-                {recommendations.map((r) => (
+                {!portfolioAnalysis && <div className="h-40 animate-pulse rounded-xl bg-muted/40" aria-hidden="true" />}
+                {portfolioAnalysis && !portfolioAnalysis.alocacaoRelevante && (
+                  <p className="text-sm text-muted-foreground">
+                    Com {formatCurrency(portfolioAnalysis.investido)} fora da reserva, ainda não faz sentido comparar percentuais. Complete a reserva primeiro; depois os aportes seguem o alvo do perfil.
+                  </p>
+                )}
+                {portfolioAnalysis?.alocacaoRelevante && portfolioAnalysis.allocation.map((r) => (
                   <div key={r.label} className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                       <div className="flex items-center gap-2">
@@ -342,11 +337,11 @@ export function InvestorModeView({
                       </div>
                       <div className="flex items-center gap-3 text-xs">
                         <span className="tabular-nums font-bold" style={{ color: r.cor }}>{r.atual.toFixed(1)}%</span>
-                        <span className="text-muted-foreground">alvo {r.ideal}%</span>
+                        <span className="text-muted-foreground">alvo {Math.round(r.ideal)}%</span>
                         <span className={`inline-flex items-center font-bold ${r.atual >= r.ideal ? "text-emerald-400" : "text-amber-400"}`}>
                           {r.atual >= r.ideal
                             ? <><Check className="h-3.5 w-3.5" aria-hidden="true" /><span className="sr-only">No alvo</span></>
-                            : `+${(r.ideal - r.atual).toFixed(0)}%`}
+                            : `faltam ${(r.ideal - r.atual).toFixed(0)} pontos`}
                         </span>
                       </div>
                     </div>
@@ -382,9 +377,9 @@ export function InvestorModeView({
                     <>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {[
-                          { label: "Via FIIs (~0,85%/mês)", value: formatCurrency(remainingGap / 0.0085), sub: "a mais investidos em FIIs" },
-                          { label: "Via TURBO 115% CDI", value: formatCurrency(remainingGap / (1.15 * CDI_MENSAL)), sub: "a mais em CDB TURBO" },
-                          { label: "Via dividendos (~0,4%/mês)", value: formatCurrency(remainingGap / 0.004), sub: "a mais em ações pagadoras" },
+                          { label: "Fundos imobiliários (cerca de 0,85% ao mês)", value: formatCurrency(remainingGap / 0.0085), sub: "a mais em fundos imobiliários" },
+                          { label: "Caixinha Turbo a 115% do CDI", value: formatCurrency(remainingGap / (1.15 * CDI_MENSAL)), sub: "a mais na caixinha Turbo" },
+                          { label: "Dividendos (cerca de 0,4% ao mês)", value: formatCurrency(remainingGap / 0.004), sub: "a mais em ações pagadoras" },
                         ].map((item) => (
                           <div key={item.label} className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
                             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">{item.label}</p>
@@ -403,7 +398,15 @@ export function InvestorModeView({
             })()}
 
             {/* Diagnóstico da carteira */}
-            {(() => {
+            {!portfolioAnalysis && (
+              <div className="mt-14 sm:mt-20 space-y-3" aria-busy="true">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Diagnóstico da carteira</h3>
+                <p className="text-xs text-muted-foreground">Analisando sua carteira pelo seu perfil de risco…</p>
+                <div className="h-24 animate-pulse rounded-2xl bg-muted/40" />
+                <div className="h-16 animate-pulse rounded-xl bg-muted/30" />
+              </div>
+            )}
+            {portfolioAnalysis && (() => {
               const { insights, nextMoves, score } = portfolioAnalysis;
               const levelColors: Record<string, string> = { critical: "#f87171", warning: "#fbbf24", ok: "#34d399", suggestion: "#a3a3a3" };
               const levelBgs: Record<string, string> = { critical: "border-red-500/20 bg-red-500/[0.06]", warning: "border-amber-500/20 bg-amber-500/[0.06]", ok: "border-emerald-500/20 bg-emerald-500/[0.06]", suggestion: "border-border bg-muted/30" };
@@ -438,7 +441,7 @@ export function InvestorModeView({
                     </div>
                     <div>
                       <p className="text-lg font-bold text-foreground">{score >= 70 ? "Carteira saudável" : score >= 40 ? "Precisa de ajustes" : "Atenção necessária"}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Score baseado nos pontos de melhoria identificados abaixo</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Nota pelos pontos de melhoria abaixo e pela distância da alocação-alvo do seu perfil</p>
                     </div>
                   </div>
 
@@ -497,12 +500,6 @@ export function InvestorModeView({
                             <div>
                               <p className="text-sm font-semibold text-foreground/90 leading-snug">{ins.title}</p>
                               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{ins.detail}</p>
-                              {ins.action && (
-                                <p className="flex items-start gap-1.5 text-xs font-semibold mt-1.5 leading-snug" style={{ color: levelColors[ins.level] }}>
-                                  <CornerDownRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                  {ins.action}
-                                </p>
-                              )}
                             </div>
                             {ins.onAction && (
                               <button
@@ -522,8 +519,11 @@ export function InvestorModeView({
                   </div>
 
                   {/* Próximos aportes */}
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Próximos aportes recomendados</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Onde aportar este mês</h3>
                   <div className="rounded-2xl border border-border bg-card backdrop-blur-xl overflow-hidden">
+                    {nextMoves.length === 0 && (
+                      <p className="p-4 text-sm text-muted-foreground">Defina seu aporte mensal para eu distribuir o valor pelas classes do seu perfil.</p>
+                    )}
                     {nextMoves.map((m, i) => (
                       <div key={i} className="flex items-start gap-3 p-4 border-b border-border last:border-b-0">
                         <span className="flex-shrink-0 w-7 h-7 rounded-full bg-muted/60 border border-border flex items-center justify-center text-xs font-black text-muted-foreground mt-0.5">
@@ -533,7 +533,7 @@ export function InvestorModeView({
                           <div className="flex items-start justify-between gap-3">
                             <p className="text-sm font-semibold text-foreground/90 leading-snug">{m.label}</p>
                             <span className="text-sm font-extrabold text-emerald-400 tabular-nums flex-shrink-0">
-                              {m.valor}
+                              {m.valorTexto}
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1 leading-relaxed break-words">{m.razao}</p>
