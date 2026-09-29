@@ -53,6 +53,31 @@ export function waLink(businessNumber: string, text: string): string {
   return `https://wa.me/${businessNumber}?text=${encodeURIComponent(text)}`;
 }
 
+/**
+ * Número digitado pelo usuário → formato da API (só dígitos com DDI).
+ * Sem DDI, assume Brasil (DDD + número). Retorna null se não parecer um celular válido.
+ */
+export function normalizePhone(input: string): string | null {
+  const international = input.trim().startsWith("+");
+  let d = input.replace(/\D/g, "").replace(/^0+/, "");
+  if (!international && (d.length === 10 || d.length === 11)) d = `55${d}`;
+  if (d.startsWith("55")) {
+    const local = d.slice(2);
+    if (!/^[1-9]{2}\d{8,9}$/.test(local)) return null;
+    if (local.length === 11 && local[2] !== "9") return null;
+    return d;
+  }
+  return international && d.length >= 10 && d.length <= 15 ? d : null;
+}
+
+/** A Meta pode identificar celulares brasileiros sem o nono dígito; considera as duas formas. */
+export function phoneVariants(waId: string): string[] {
+  const d = waId.replace(/\D/g, "");
+  if (d.startsWith("55") && d.length === 12) return [d, `${d.slice(0, 4)}9${d.slice(4)}`];
+  if (d.startsWith("55") && d.length === 13 && d[4] === "9") return [d, `${d.slice(0, 4)}${d.slice(5)}`];
+  return [d];
+}
+
 export function maskPhone(phone: string): string {
   const d = phone.replace(/\D/g, "");
   if (d.length < 8) return d;

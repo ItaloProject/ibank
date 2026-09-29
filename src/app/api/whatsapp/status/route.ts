@@ -19,5 +19,6 @@ export async function GET() {
     phone: phone ? maskPhone(phone) : null,
     windowOpen: isWindowOpen(rows[0]?.whatsapp_last_inbound_at),
     templateReady: Boolean(cfg?.reportTemplate),
+    autoAvailable: cfg != null && Boolean(cfg.reportTemplate),
   });
 }

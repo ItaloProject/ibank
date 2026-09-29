@@ -270,7 +270,6 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
   if (intent === "whatsapp") {
     return bot([
       { kind: "heading", text: "Relatório no WhatsApp" },
-      { kind: "text", text: "Mando uma **imagem** com a sua carteira e o plano de aporte, e um **texto** com todas as sugestões de rebalanceamento." },
       { kind: "whatsapp" },
     ], ["rebal", "perfil"]);
   }

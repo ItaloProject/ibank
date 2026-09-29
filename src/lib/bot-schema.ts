@@ -12,6 +12,7 @@ export function ensureBotSchema(): Promise<void> {
     await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS whatsapp_link_code VARCHAR(12) DEFAULT NULL`;
     await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS whatsapp_link_expires TIMESTAMPTZ DEFAULT NULL`;
     await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS whatsapp_pending_report_at TIMESTAMPTZ DEFAULT NULL`;
+    await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS whatsapp_consent_at TIMESTAMPTZ DEFAULT NULL`;
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS app_users_whatsapp_phone_key ON app_users (whatsapp_phone) WHERE whatsapp_phone IS NOT NULL`;
     await sql`
       CREATE TABLE IF NOT EXISTS bot_usage (

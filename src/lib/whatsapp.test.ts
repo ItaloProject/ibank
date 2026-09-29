@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { isWindowOpen, maskPhone, templateParam, verifySignature, waLink } from "@/lib/whatsapp";
+import { isWindowOpen, maskPhone, normalizePhone, phoneVariants, templateParam, verifySignature, waLink } from "@/lib/whatsapp";
 
 describe("whatsapp", () => {
   it("valida a assinatura do webhook", () => {
@@ -24,5 +24,23 @@ describe("whatsapp", () => {
     expect(templateParam("linha 1\nlinha 2\t     fim").text).toBe("linha 1 linha 2 fim".replace("2 fim", "2   fim"));
     expect(waLink("5511999999999", "MUVO-ABC123 oi")).toBe("https://wa.me/5511999999999?text=MUVO-ABC123%20oi");
     expect(maskPhone("5511987654321")).toBe("+55 (11) •••••-4321");
+  });
+
+  it("normaliza o número digitado", () => {
+    expect(normalizePhone("(11) 98765-4321")).toBe("5511987654321");
+    expect(normalizePhone("011 98765-4321")).toBe("5511987654321");
+    expect(normalizePhone("+55 11 98765-4321")).toBe("5511987654321");
+    expect(normalizePhone("5511987654321")).toBe("5511987654321");
+    expect(normalizePhone("(11) 8765-4321")).toBe("551187654321");
+    expect(normalizePhone("(11) 88765-4321")).toBeNull();
+    expect(normalizePhone("98765-4321")).toBeNull();
+    expect(normalizePhone("+1 415 555 0132")).toBe("14155550132");
+    expect(normalizePhone("")).toBeNull();
+  });
+
+  it("aceita o número com e sem o nono dígito vindo da Meta", () => {
+    expect(phoneVariants("551187654321")).toEqual(["551187654321", "5511987654321"]);
+    expect(phoneVariants("5511987654321")).toEqual(["5511987654321", "551187654321"]);
+    expect(phoneVariants("14155550132")).toEqual(["14155550132"]);
   });
 });

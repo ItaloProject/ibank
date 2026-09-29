@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, ExternalLink, Image as ImageIcon, Loader2, MessageCircle, Send } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { CheckCircle2, Copy, Image as ImageIcon, Loader2, Send, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWhatsapp, type SendResult } from "./use-whatsapp";
+import { useReportShare, type ShareOutcome } from "./use-report-share";
 
 type Variant = "bot" | "app";
 
-const STYLES: Record<Variant, { text: string; muted: string; primary: string; secondary: string; box: string; link: string; ring: string }> = {
+const STYLES: Record<Variant, { text: string; muted: string; primary: string; secondary: string; box: string; link: string; ring: string; input: string; divider: string }> = {
   bot: {
     text: "text-white",
     muted: "text-white/50",
@@ -16,6 +17,8 @@ const STYLES: Record<Variant, { text: string; muted: string; primary: string; se
     box: "rounded-xl border border-white/[0.08] bg-white/[0.03]",
     link: "text-white/60 hover:text-white",
     ring: "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#05050A]",
+    input: "border border-white/15 bg-white/[0.04] text-white placeholder:text-white/30 focus:border-white/40",
+    divider: "border-white/[0.08]",
   },
   app: {
     text: "text-foreground",
@@ -25,128 +28,156 @@ const STYLES: Record<Variant, { text: string; muted: string; primary: string; se
     box: "rounded-xl border bg-card",
     link: "text-muted-foreground hover:text-foreground",
     ring: "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    input: "border border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-foreground/40",
+    divider: "border-border",
   },
 };
 
-export function WhatsappPanel({ variant = "bot", autoSend = false }: { variant?: Variant; autoSend?: boolean }) {
+const SHARE_MSG: Record<"shared" | "copied" | "downloaded", string> = {
+  shared: "Pronto! Escolha a conversa no WhatsApp e envie.",
+  copied: "Imagem copiada. Na conversa do WhatsApp que abriu, cole com Ctrl+V junto do texto.",
+  downloaded: "Imagem baixada. Na conversa do WhatsApp que abriu, anexe a imagem junto do texto.",
+};
+
+/** Máscara (11) 98765-4321 enquanto digita; números com + ficam livres. */
+function maskPhoneInput(raw: string): string {
+  if (raw.trim().startsWith("+")) return raw.replace(/[^\d+\s()-]/g, "").slice(0, 20);
+  const d = raw.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : "";
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+export function WhatsappPanel({ variant = "bot" }: { variant?: Variant }) {
   const st = STYLES[variant];
-  const { status, error, pending, link, unlink, sendReport, cancelLink } = useWhatsapp();
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<SendResult | null>(null);
-  const [linkError, setLinkError] = useState<string | null>(null);
+  const { status, unlink, sendReport } = useWhatsapp();
+  const report = useReportShare();
+  const [shareResult, setShareResult] = useState<ShareOutcome | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<SendResult | null>(null);
   const btn = cn("inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors disabled:opacity-50", st.ring);
 
-  async function connect() {
-    setLinkError(null);
-    setBusy(true);
-    try {
-      const { url } = await link();
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      setLinkError(err instanceof Error ? err.message : "Não foi possível gerar o código.");
-    } finally {
-      setBusy(false);
-    }
+  async function share() {
+    setShareResult(await report.share());
   }
 
-  async function send() {
-    setBusy(true);
-    setResult(null);
-    setResult(await sendReport());
-    setBusy(false);
+  async function copy() {
+    setCopied(await report.copyText());
+    setTimeout(() => setCopied(false), 2500);
   }
 
-  if (!status) {
-    return (
-      <div className={cn("flex items-center gap-2 p-3 text-xs", st.box, st.muted)}>
-        {error ?? <><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Verificando seu WhatsApp…</>}
-      </div>
-    );
+  async function sendTo(e?: FormEvent) {
+    e?.preventDefault();
+    setSending(true);
+    setSendResult(null);
+    const res = await sendReport(showForm ? { phone, consent } : undefined);
+    setSendResult(res);
+    if (res.ok) setEditing(false);
+    setSending(false);
   }
 
-  if (!status.configured) {
-    return (
-      <p className={cn("p-3 text-xs leading-relaxed", st.box, st.muted)}>
-        O envio pelo WhatsApp ainda não foi ativado neste ambiente. Enquanto isso, você pode baixar a imagem do relatório.{" "}
-        <a href="/api/report/image" target="_blank" rel="noopener" className={cn("font-semibold underline underline-offset-2", st.link)}>Ver relatório</a>
-      </p>
-    );
-  }
-
-  if (!status.connected) {
-    return (
-      <div className={cn("space-y-3 p-3", st.box)}>
-        <div className="flex items-start gap-2.5">
-          <MessageCircle className={cn("mt-0.5 h-4 w-4 shrink-0", st.muted)} aria-hidden="true" />
-          <p className={cn("text-xs leading-relaxed", st.muted)}>
-            Conecte seu WhatsApp para receber o relatório com a imagem da carteira e as sugestões de rebalanceamento.
-            Você envia um código para o MUVO, e isso confirma que o número é seu.
-          </p>
-        </div>
-        {pending ? (
-          <div className="space-y-2" aria-live="polite">
-            <p className={cn("text-xs", st.text)}>
-              Envie a mensagem com o código <strong className="font-mono tracking-wider">MUVO-{pending.code}</strong> no WhatsApp. Aguardando…
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <a href={pending.url} target="_blank" rel="noopener noreferrer" className={cn(btn, st.primary)}>
-                <ExternalLink className="h-4 w-4" aria-hidden="true" /> Abrir WhatsApp
-              </a>
-              <button type="button" onClick={cancelLink} className={cn(btn, st.secondary)}>Cancelar</button>
-            </div>
-            <p className={cn("flex items-center gap-1.5 text-[11px]", st.muted)}>
-              <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> O código vale por 15 minutos.
-            </p>
-          </div>
-        ) : (
-          <button type="button" onClick={connect} disabled={busy} className={cn(btn, st.primary, "w-full")}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <MessageCircle className="h-4 w-4" aria-hidden="true" />}
-            Conectar WhatsApp
-          </button>
-        )}
-        {linkError && <p role="alert" className="text-xs text-red-500">{linkError}</p>}
-      </div>
-    );
-  }
+  const showForm = editing || !status?.connected;
 
   return (
     <div className={cn("space-y-3 p-3", st.box)}>
-      <p className={cn("flex items-center gap-2 text-xs", st.muted)}>
-        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden="true" />
-        Conectado a <span className={cn("font-semibold tabular-nums", st.text)}>{status.phone}</span>
+      <p className={cn("text-xs leading-relaxed", st.muted)}>
+        Envie a imagem da sua carteira com as sugestões de rebalanceamento para você mesmo ou para quem quiser.
       </p>
+
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={send} disabled={busy} className={cn(btn, st.primary, "flex-1")} autoFocus={autoSend}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
-          {busy ? "Enviando…" : "Enviar para meu WhatsApp"}
+        <button type="button" onClick={() => void share()} disabled={!report.ready} className={cn(btn, st.primary, "flex-1")}>
+          {report.ready ? <Share2 className="h-4 w-4" aria-hidden="true" /> : <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+          {report.ready ? "Compartilhar no WhatsApp" : "Gerando relatório…"}
         </button>
         <a href="/api/report/image" target="_blank" rel="noopener" className={cn(btn, st.secondary)}>
           <ImageIcon className="h-4 w-4" aria-hidden="true" /> Prévia
         </a>
       </div>
-      {result && (
-        <div aria-live="polite" className="text-xs leading-relaxed">
-          {result.ok ? (
-            <p className="text-emerald-500">
-              {result.mode === "full"
-                ? "Enviado! Confira seu WhatsApp: a imagem e o texto com as sugestões já estão lá."
-                : "Enviamos a imagem com o resumo. Responda a mensagem no WhatsApp para receber o texto completo."}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              <p role="alert" className={result.code === "window_closed" ? st.text : "text-red-500"}>{result.error}</p>
-              {result.url && (
-                <a href={result.url} target="_blank" rel="noopener noreferrer" className={cn(btn, st.secondary)}>
-                  <ExternalLink className="h-4 w-4" aria-hidden="true" /> Mandar “oi” no WhatsApp
-                </a>
-              )}
-            </div>
+
+      {report.error && <p role="alert" className="text-xs text-red-500">{report.error}</p>}
+      {shareResult && (shareResult.ok || shareResult.error) && (
+        <div aria-live="polite" className="space-y-2">
+          <p className={cn("text-xs leading-relaxed", shareResult.ok ? "text-emerald-500" : "text-red-500")}>
+            {shareResult.ok ? SHARE_MSG[shareResult.how] : shareResult.error}
+          </p>
+          {shareResult.ok && (
+            <button type="button" onClick={() => void copy()} className={cn("inline-flex items-center gap-1.5 text-[11px] font-semibold underline underline-offset-2", st.link, st.ring)}>
+              <Copy className="h-3 w-3" aria-hidden="true" />
+              {copied ? "Texto copiado!" : "Copiar texto completo com todas as sugestões"}
+            </button>
           )}
         </div>
       )}
-      <button type="button" onClick={() => void unlink()} className={cn("text-[11px] underline underline-offset-2", st.link, st.ring)}>
-        Desconectar este número
-      </button>
+
+      {status?.autoAvailable && (
+        <div className={cn("space-y-2.5 border-t pt-3", st.divider)}>
+          <p className={cn("text-xs font-semibold", st.text)}>Ou receba direto no seu WhatsApp</p>
+
+          {showForm ? (
+            <form onSubmit={sendTo} className="space-y-2.5">
+              <div className="flex gap-2">
+                <label htmlFor={`wa-phone-${variant}`} className="sr-only">Seu número de WhatsApp</label>
+                <input
+                  id={`wa-phone-${variant}`}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  placeholder="(11) 98765-4321"
+                  value={phone}
+                  onChange={(e) => setPhone(maskPhoneInput(e.target.value))}
+                  className={cn("min-h-10 min-w-0 flex-1 rounded-md px-3 text-sm tabular-nums outline-none transition-colors", st.input, st.ring)}
+                />
+                <button type="submit" disabled={sending || phone.replace(/\D/g, "").length < 10 || !consent} className={cn(btn, st.primary)}>
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+                  Enviar
+                </button>
+              </div>
+              <label className={cn("flex cursor-pointer items-start gap-2 text-[11px] leading-snug", st.muted)}>
+                <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-current" />
+                Este número é meu e autorizo o MUVO a me enviar relatórios pelo WhatsApp.
+              </label>
+              {editing && (
+                <button type="button" onClick={() => setEditing(false)} className={cn("text-[11px] underline underline-offset-2", st.link, st.ring)}>
+                  Cancelar
+                </button>
+              )}
+            </form>
+          ) : (
+            <div className="space-y-2">
+              <button type="button" onClick={() => void sendTo()} disabled={sending} className={cn(btn, st.secondary, "w-full")}>
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+                {sending ? "Enviando…" : <>Enviar para <span className="tabular-nums">{status.phone}</span></>}
+              </button>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => { setEditing(true); setSendResult(null); }} className={cn("text-[11px] underline underline-offset-2", st.link, st.ring)}>
+                  Trocar número
+                </button>
+                <button type="button" onClick={() => { setSendResult(null); void unlink(); }} className={cn("text-[11px] underline underline-offset-2", st.link, st.ring)}>
+                  Remover número
+                </button>
+              </div>
+            </div>
+          )}
+
+          {sendResult && (
+            <p aria-live="polite" role={sendResult.ok ? undefined : "alert"} className={cn("text-xs leading-relaxed", sendResult.ok ? "text-emerald-500" : "text-red-500")}>
+              {sendResult.ok ? (
+                <span className="inline-flex items-start gap-1.5">
+                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  {sendResult.mode === "full"
+                    ? "Enviado! A imagem e o texto com as sugestões já estão no seu WhatsApp."
+                    : "Enviado! Responda a mensagem no WhatsApp para receber também o texto com todas as sugestões."}
+                </span>
+              ) : sendResult.error}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
