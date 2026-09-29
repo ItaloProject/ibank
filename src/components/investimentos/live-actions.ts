@@ -14,7 +14,7 @@ import {
   deleteInvestmentAccount,
 } from "@/lib/api";
 import type { Investment, StockTrade } from "@/types/database";
-import type { TesouroProduct } from "./simulator-invest-flow";
+import type { AccountRate } from "@/lib/account-rate";
 
 export type LiveAccount = {
   id: string;
@@ -28,6 +28,15 @@ export type LiveAccount = {
 
 /** De onde sai o dinheiro de uma compra ou aporte. */
 export type MoneySource = "saldo" | "fora";
+
+/** Título do Tesouro ou aplicação de renda fixa, com a taxa contratada. */
+export type FixedIncomeProduct = {
+  nome: string;
+  /** Taxa em texto ("Inflação + 7,65%"); vira a instituição quando ela não é informada. */
+  taxa: string;
+  instituicao?: string;
+  rate: AccountRate;
+};
 
 export type LiveMovementKind = "compra" | "venda" | "aporte" | "retirada" | "rendimento" | "ajuste-valor" | "ajuste-saldo";
 
@@ -162,23 +171,24 @@ export function useLiveActions(d: Deps) {
     toast.success(`${formatCurrency(amount)} aplicados em ${acc.nome}`);
   }
 
-  async function buyTesouro(product: TesouroProduct, amount: number, source: MoneySource) {
+  async function buyFixedIncome(product: FixedIncomeProduct, amount: number, source: MoneySource) {
     if (amount <= 0) throw new Error("Informe um valor maior que zero.");
     assertFunds(amount, source);
+    const institution = product.instituicao ?? product.taxa;
     const existing = d.investimentosAccounts.find((a) => a.nome === product.nome);
     if (existing) {
       await depositInto(existing, amount, `Compra ${product.nome}`, source);
     } else {
-      const created = await createInvestmentAccount({ name: product.nome, institution: product.taxa, ...product.rate });
+      const created = await createInvestmentAccount({ name: product.nome, institution, ...product.rate });
       try {
         await depositInto(
-          { id: created.id, nome: product.nome, instituicao: product.taxa, valor: 0, isTurbo: false, cdiPercent: null, maxRendimento: null },
+          { id: created.id, nome: product.nome, instituicao: institution, valor: 0, isTurbo: false, cdiPercent: null, maxRendimento: null },
           amount,
           `Compra ${product.nome}`,
           source,
         );
       } catch (err) {
-        await safeDelete(() => deleteInvestmentAccount(created.id), "conta de Tesouro criada");
+        await safeDelete(() => deleteInvestmentAccount(created.id), "aplicação de renda fixa criada");
         throw err;
       }
     }
@@ -366,7 +376,7 @@ export function useLiveActions(d: Deps) {
     toast.success(`Desfeito: ${mov.title}.${cashNote}`);
   }
 
-  return { buyStock, sellStock, aporte, buyTesouro, withdraw, updateValue, setCash, undo, movements };
+  return { buyStock, sellStock, aporte, buyFixedIncome, withdraw, updateValue, setCash, undo, movements };
 }
 
 export type LiveActions = ReturnType<typeof useLiveActions>;

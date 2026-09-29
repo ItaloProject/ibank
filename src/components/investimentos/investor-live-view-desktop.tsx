@@ -9,7 +9,6 @@ import { isEmergencyAccountName } from "@/lib/account-groups";
 import { createInvestmentAccountWithTurbo, deleteInvestmentAccount } from "@/lib/api";
 import {
   SimulatorInvestFlow,
-  DEFAULT_TESOURO_PRODUCTS,
   type MarketSection,
 } from "@/components/investimentos/simulator-invest-flow";
 import type { InvestorLiveViewProps } from "./investor-live-view";
@@ -846,7 +845,6 @@ export function InvestorLiveViewDesktop({
               <SimulatorInvestFlow
                 cash={cashBalance}
                 knownPrices={quoteMap}
-                tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
                 turboAccounts={turboAccountsReal}
                 emergenciaAccounts={emergenciaAccountsReal}
                 rendaFixaAccounts={investimentosAccountsReal}
@@ -854,7 +852,7 @@ export function InvestorLiveViewDesktop({
                 onSectionChange={setMarketSection}
                 onClose={() => setMarketOpen(false)}
                 onBuyStock={actions.buyStock}
-                onBuyTesouro={actions.buyTesouro}
+                onBuyFixedIncome={actions.buyFixedIncome}
                 onAporte={actions.aporte}
                 onCreateAccount={openNewCaixinha}
                 onAdjustCash={openCashSheet}

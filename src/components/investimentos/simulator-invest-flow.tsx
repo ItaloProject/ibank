@@ -1,22 +1,14 @@
 "use client";
 
 import { useState, type ElementType } from "react";
-import { Building2, ChevronRight, Landmark, TrendingUp, Zap, Shield, Plus } from "lucide-react";
+import { Building2, ChevronRight, Landmark, PiggyBank, TrendingUp, Zap, Shield, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import type { AccountRate } from "@/lib/account-rate";
+import { isTesouroName, type FixedIncomeEntry } from "@/lib/fixed-income-catalog";
 import { FOCUS, LABEL, MONEY, ROW, BackLink } from "@/components/investimentos/live-ui";
-import { AmountSheet, StockOrderSheet, type StockOrder } from "@/components/investimentos/live-money-sheets";
-import type { MoneySource } from "@/components/investimentos/live-actions";
+import { AmountSheet, FixedIncomeSheet, StockOrderSheet, type StockOrder } from "@/components/investimentos/live-money-sheets";
+import type { FixedIncomeProduct, MoneySource } from "@/components/investimentos/live-actions";
 import { CatalogPicker } from "@/components/investimentos/catalog-picker";
-
-export type TesouroProduct = {
-  id: string;
-  nome: string;
-  taxa: string;
-  descricao: string;
-  color: string;
-  rate: AccountRate;
-};
+import { FixedIncomePicker } from "@/components/investimentos/fixed-income-picker";
 
 export type AporteAccount = {
   id: string;
@@ -27,17 +19,14 @@ export type AporteAccount = {
   cdiPercent: number | null;
 };
 
-export type MarketSection = "hub" | "acoes" | "fiis" | "tesouro" | "turbo" | "eme";
+export type MarketSection = "hub" | "acoes" | "fiis" | "tesouro" | "rendafixa" | "turbo" | "eme";
 
-type AmountTarget =
-  | { kind: "tesouro"; product: TesouroProduct }
-  | { kind: "aporte"; account: AporteAccount; group: string };
+type AmountTarget = { account: AporteAccount; group: string };
 
 type Props = {
   cash: number;
   /** Cotações já conhecidas da carteira, usadas enquanto a de mercado não chega. */
   knownPrices?: Map<string, number>;
-  tesouroProducts: TesouroProduct[];
   turboAccounts: AporteAccount[];
   emergenciaAccounts: AporteAccount[];
   /** Caixinhas de renda fixa que já existem (Tesouro, CDB, prefixado…), para aportar de novo. */
@@ -46,7 +35,7 @@ type Props = {
   onSectionChange: (section: MarketSection) => void;
   onClose: () => void;
   onBuyStock: (ticker: string, price: number, quantity: number, source: MoneySource) => Promise<void>;
-  onBuyTesouro: (product: TesouroProduct, amount: number, source: MoneySource) => Promise<void>;
+  onBuyFixedIncome: (product: FixedIncomeProduct, amount: number, source: MoneySource) => Promise<void>;
   onAporte: (accountId: string, amount: number, source: MoneySource) => Promise<void>;
   onCreateAccount?: (tipo: "turbo" | "emergencia" | "investimentos") => void;
   onAdjustCash?: () => void;
@@ -114,37 +103,11 @@ function AccountButton({
   );
 }
 
-export const DEFAULT_TESOURO_PRODUCTS: TesouroProduct[] = [
-  {
-    id: "selic-2029",
-    nome: "Tesouro Selic 2029",
-    taxa: "Selic + 0,0463%",
-    descricao: "Pode resgatar a qualquer dia · bom para reserva",
-    color: "#3b82f6",
-    rate: { rate_index: "selic", rate_value: 0.0463, maturity: "2029-03-01", tax_exempt: false },
-  },
-  {
-    id: "prefix-2029",
-    nome: "Tesouro Prefixado 2029",
-    taxa: "13,85% ao ano",
-    descricao: "Taxa travada até o vencimento",
-    color: "#10b981",
-    rate: { rate_index: "pre", rate_value: 13.85, maturity: "2029-01-01", tax_exempt: false },
-  },
-  {
-    id: "ipca-2035",
-    nome: "Tesouro IPCA+ 2035",
-    taxa: "Inflação + 6,92%",
-    descricao: "Protege contra a inflação",
-    color: "#8b5cf6",
-    rate: { rate_index: "ipca", rate_value: 6.92, maturity: "2035-05-15", tax_exempt: false },
-  },
-];
-
 const SECTION_TITLE: Record<Exclude<MarketSection, "hub">, string> = {
   acoes: "Ações",
   fiis: "Fundos imobiliários",
-  tesouro: "Tesouro Direto e renda fixa",
+  tesouro: "Tesouro Direto",
+  rendafixa: "Renda fixa",
   turbo: "Caixinha Turbo",
   eme: "Reserva de emergência",
 };
@@ -152,7 +115,6 @@ const SECTION_TITLE: Record<Exclude<MarketSection, "hub">, string> = {
 export function SimulatorInvestFlow({
   cash,
   knownPrices,
-  tesouroProducts,
   turboAccounts,
   emergenciaAccounts,
   rendaFixaAccounts = [],
@@ -160,24 +122,18 @@ export function SimulatorInvestFlow({
   onSectionChange,
   onClose,
   onBuyStock,
-  onBuyTesouro,
+  onBuyFixedIncome,
   onAporte,
   onCreateAccount,
   onAdjustCash,
 }: Props) {
   const [order, setOrder] = useState<StockOrder | null>(null);
   const [amountTarget, setAmountTarget] = useState<AmountTarget | null>(null);
+  const [fixedEntry, setFixedEntry] = useState<FixedIncomeEntry | null>(null);
 
-  const amountTitle =
-    amountTarget?.kind === "tesouro"
-      ? `Comprar ${amountTarget.product.nome}`
-      : amountTarget
-        ? `Aplicar em ${amountTarget.account.nome}`
-        : "";
-  const amountDescription =
-    amountTarget?.kind === "tesouro"
-      ? `${amountTarget.product.taxa} · ${amountTarget.product.descricao}`
-      : amountTarget?.group;
+  const ownTesouro = rendaFixaAccounts.filter((a) => isTesouroName(a.nome));
+  const ownRendaFixa = rendaFixaAccounts.filter((a) => !isTesouroName(a.nome));
+  const ownFixed = section === "tesouro" ? ownTesouro : ownRendaFixa;
 
   return (
     <div className="space-y-5">
@@ -226,10 +182,16 @@ export function SimulatorInvestFlow({
             onClick={() => onSectionChange("fiis")}
           />
           <DestCard
-            title="Tesouro Direto e renda fixa"
-            subtitle="Títulos do Tesouro e suas caixinhas de renda fixa"
+            title="Tesouro Direto"
+            subtitle="Títulos do governo: Selic, prefixado, inflação, Renda+ e Educa+"
             icon={Landmark}
             onClick={() => onSectionChange("tesouro")}
+          />
+          <DestCard
+            title="Renda fixa"
+            subtitle="CDB, LCI, LCA, debêntures, CRI, CRA e poupança"
+            icon={PiggyBank}
+            onClick={() => onSectionChange("rendafixa")}
           />
           <DestCard
             title="Caixinha Turbo"
@@ -259,39 +221,26 @@ export function SimulatorInvestFlow({
             />
           )}
 
-          {section === "tesouro" && (
+          {(section === "tesouro" || section === "rendafixa") && (
             <>
-              {rendaFixaAccounts.length > 0 && (
+              {ownFixed.length > 0 && (
                 <>
-                  <p className={`${LABEL} pt-1`}>Suas caixinhas</p>
-                  {rendaFixaAccounts.map((account) => (
+                  <p className={`${LABEL} pt-1`}>{section === "tesouro" ? "Seus títulos" : "Suas aplicações"}</p>
+                  {ownFixed.map((account) => (
                     <AccountButton
                       key={account.id}
                       title={account.nome}
-                      subtitle={account.instituicao || "Renda fixa"}
+                      subtitle={account.instituicao || SECTION_TITLE[section]}
                       value={account.valor}
-                      onClick={() => setAmountTarget({ kind: "aporte", account, group: "Renda fixa" })}
+                      onClick={() => setAmountTarget({ account, group: SECTION_TITLE[section] })}
                     />
                   ))}
-                  <p className={`${LABEL} pt-3`}>Novo título do Tesouro</p>
+                  <p className={`${LABEL} pt-3`}>{section === "tesouro" ? "Comprar outro título" : "Nova aplicação"}</p>
                 </>
               )}
-              {tesouroProducts.map((product) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => setAmountTarget({ kind: "tesouro", product })}
-                  className={`${ROW} min-h-14 p-3.5 flex items-start justify-between gap-3`}
-                >
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold text-foreground">{product.nome}</span>
-                    <span className="block text-[11px] text-muted-foreground mt-0.5">{product.descricao}</span>
-                  </span>
-                  <span className="text-xs font-bold tabular-nums text-foreground shrink-0">{product.taxa}</span>
-                </button>
-              ))}
-              {onCreateAccount && (
-                <CreateAccountButton label="Outra renda fixa (CDB, LCI, prefixado…)" onClick={() => onCreateAccount("investimentos")} />
+              <FixedIncomePicker key={section} kind={section === "tesouro" ? "tesouro" : "privada"} onPick={setFixedEntry} />
+              {section === "rendafixa" && onCreateAccount && (
+                <CreateAccountButton label="Não achou? Cadastrar outra aplicação" onClick={() => onCreateAccount("investimentos")} />
               )}
             </>
           )}
@@ -312,7 +261,7 @@ export function SimulatorInvestFlow({
                     : account.instituicao || "Turbo"
                 }
                 value={account.valor}
-                onClick={() => setAmountTarget({ kind: "aporte", account, group: "Caixinha Turbo" })}
+                onClick={() => setAmountTarget({ account, group: "Caixinha Turbo" })}
               />
             ))}
           {section === "turbo" && onCreateAccount && (
@@ -331,7 +280,7 @@ export function SimulatorInvestFlow({
                 title={account.nome}
                 subtitle={account.instituicao || "Reserva de emergência"}
                 value={account.valor}
-                onClick={() => setAmountTarget({ kind: "aporte", account, group: "Reserva de emergência" })}
+                onClick={() => setAmountTarget({ account, group: "Reserva de emergência" })}
               />
             ))}
           {section === "eme" && onCreateAccount && (
@@ -351,16 +300,15 @@ export function SimulatorInvestFlow({
       <AmountSheet
         open={!!amountTarget}
         onOpenChange={(o) => !o && setAmountTarget(null)}
-        title={amountTitle}
-        description={amountDescription}
+        title={amountTarget ? `Aplicar em ${amountTarget.account.nome}` : ""}
+        description={amountTarget?.group}
         cash={cash}
-        verb={amountTarget?.kind === "tesouro" ? "Comprar" : "Aplicar"}
         onConfirm={async (amount, source) => {
-          if (!amountTarget) return;
-          if (amountTarget.kind === "tesouro") await onBuyTesouro(amountTarget.product, amount, source);
-          else await onAporte(amountTarget.account.id, amount, source);
+          if (amountTarget) await onAporte(amountTarget.account.id, amount, source);
         }}
       />
+
+      <FixedIncomeSheet entry={fixedEntry} onClose={() => setFixedEntry(null)} cash={cash} onConfirm={onBuyFixedIncome} />
     </div>
   );
 }

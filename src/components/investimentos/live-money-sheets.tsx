@@ -4,7 +4,9 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { ArrowDownLeft, ArrowUpRight, Undo2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { FOCUS, LABEL, MONEY, BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, INPUT_BOX, LOSS, LiveSheet } from "./live-ui";
-import { formatQty, type LiveAccount, type LiveMovement, type MoneySource } from "./live-actions";
+import { formatQty, type FixedIncomeProduct, type LiveAccount, type LiveMovement, type MoneySource } from "./live-actions";
+import type { RateIndex } from "@/lib/account-rate";
+import { fixedRateLabel, type FixedIncomeEntry } from "@/lib/fixed-income-catalog";
 
 /* ── Máscaras ─────────────────────────────────────────────────────── */
 
@@ -415,6 +417,194 @@ function StockOrderForm({
             : selling
               ? qty > 0 ? `Vender ${formatQty(qty)} por ${formatCurrency(total)}` : "Vender"
               : qty > 0 && price > 0 ? `Comprar por ${formatCurrency(total)}` : "Comprar"}
+        </button>
+        <button type="button" disabled={busy} onClick={onClose} className={BTN_SECONDARY}>Cancelar</button>
+      </div>
+    </form>
+  );
+}
+
+/* ── Comprar título do Tesouro ou renda fixa ──────────────────────── */
+
+const RATE_AFFIX: Record<RateIndex, { prefix?: string; suffix: string; max: number }> = {
+  cdi: { suffix: "% do CDI", max: 300 },
+  pre: { suffix: "% ao ano", max: 60 },
+  ipca: { prefix: "Inflação +", suffix: "%", max: 30 },
+  selic: { prefix: "Selic +", suffix: "%", max: 30 },
+  poupanca: { suffix: "", max: 0 },
+};
+
+function rateText(value: number) {
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
+}
+
+function parseRate(raw: string) {
+  const n = parseFloat(raw.replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+export function FixedIncomeSheet({
+  entry,
+  onClose,
+  cash,
+  onConfirm,
+}: {
+  entry: FixedIncomeEntry | null;
+  onClose: () => void;
+  cash: number;
+  onConfirm: (product: FixedIncomeProduct, amount: number, source: MoneySource) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <LiveSheet
+      open={!!entry}
+      onOpenChange={(o) => !o && onClose()}
+      dismissible={!busy}
+      title={entry ? `Comprar ${entry.nome}` : ""}
+      description={entry?.descricao}
+    >
+      {entry && <FixedIncomeForm key={entry.id} entry={entry} cash={cash} onBusy={setBusy} onClose={onClose} onConfirm={onConfirm} />}
+    </LiveSheet>
+  );
+}
+
+function FixedIncomeForm({
+  entry,
+  cash,
+  onBusy,
+  onClose,
+  onConfirm,
+}: {
+  entry: FixedIncomeEntry;
+  cash: number;
+  onBusy: (b: boolean) => void;
+  onClose: () => void;
+  onConfirm: (product: FixedIncomeProduct, amount: number, source: MoneySource) => Promise<void>;
+}) {
+  const privada = !!entry.kind;
+  const hasRate = entry.rate_index !== "poupanca";
+  const affix = RATE_AFFIX[entry.rate_index];
+  const [institution, setInstitution] = useState("");
+  const [rateRaw, setRateRaw] = useState(rateText(entry.rate_value));
+  const [maturity, setMaturity] = useState("");
+  const [mask, setMask] = useState("");
+  const [source, setSource] = useState<MoneySource>(defaultSource(cash));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const amount = parseBRLMask(mask);
+  const rate = hasRate ? parseRate(rateRaw) : 0;
+  const minRate = entry.rate_index === "selic" || entry.rate_index === "ipca" ? 0 : 0.0001;
+  const rateOk = !hasRate || (rate >= minRate && rate <= affix.max);
+  const short = source === "saldo" && amount > cash + 0.001;
+  const can = amount > 0 && rateOk && !short && !busy;
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!can) return;
+    const label = fixedRateLabel(entry.rate_index, rate);
+    const inst = institution.trim();
+    const product: FixedIncomeProduct = privada
+      ? {
+          nome: [entry.kind, inst].filter(Boolean).join(" ") + (hasRate ? ` · ${label}` : ""),
+          taxa: label,
+          instituicao: inst || entry.kind,
+          rate: { rate_index: entry.rate_index, rate_value: rate, maturity: maturity || null, tax_exempt: entry.tax_exempt },
+        }
+      : {
+          nome: entry.nome,
+          taxa: label,
+          rate: { rate_index: entry.rate_index, rate_value: rate, maturity: entry.maturity, tax_exempt: entry.tax_exempt },
+        };
+    setBusy(true);
+    onBusy(true);
+    setError(null);
+    try {
+      await onConfirm(product, amount, source);
+      onClose();
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+      onBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      {privada && (
+        <div>
+          <label htmlFor="fi-institution" className={`${LABEL} block mb-1.5`}>Banco ou corretora</label>
+          <div className={INPUT_BOX}>
+            <input
+              id="fi-institution"
+              type="text"
+              autoFocus
+              value={institution}
+              onChange={(e) => setInstitution(e.target.value.slice(0, 40))}
+              placeholder="Ex.: Nubank, Inter, XP"
+              className="flex-1 min-w-0 bg-transparent text-base font-bold text-foreground placeholder:text-muted-foreground/50 placeholder:font-medium focus:outline-none"
+            />
+          </div>
+        </div>
+      )}
+
+      {hasRate && (
+        <div className={privada && !entry.noMaturity ? "grid grid-cols-2 gap-3" : undefined}>
+          <div>
+            <label htmlFor="fi-rate" className={`${LABEL} block mb-1.5`}>Taxa contratada</label>
+            <div className={INPUT_BOX}>
+              {affix.prefix && <span className="text-sm font-bold text-muted-foreground shrink-0">{affix.prefix}</span>}
+              <input
+                id="fi-rate"
+                type="text"
+                inputMode="decimal"
+                value={rateRaw}
+                onChange={(e) => setRateRaw(e.target.value.replace(/[^\d,]/g, "").slice(0, 8))}
+                className="flex-1 min-w-0 bg-transparent text-base font-bold tabular-nums text-foreground focus:outline-none"
+              />
+              <span className="text-sm font-bold text-muted-foreground shrink-0">{affix.suffix}</span>
+            </div>
+          </div>
+          {privada && !entry.noMaturity && (
+            <div>
+              <label htmlFor="fi-maturity" className={`${LABEL} block mb-1.5`}>Vencimento</label>
+              <div className={INPUT_BOX}>
+                <input
+                  id="fi-maturity"
+                  type="date"
+                  value={maturity}
+                  onChange={(e) => setMaturity(e.target.value)}
+                  className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {hasRate && !rateOk && (
+        <p className={`-mt-2 text-xs ${LOSS}`}>Confira a taxa: use um número entre 0 e {affix.max}.</p>
+      )}
+      {hasRate && rateOk && (
+        <p className="-mt-2 text-[11px] text-muted-foreground leading-snug">
+          {privada
+            ? "Já vem com uma taxa típica. Troque pela que aparece no seu banco."
+            : "Já vem com a taxa de referência. Troque pela que aparece na sua corretora."}
+          {!privada && entry.maturity ? ` Vence em ${entry.maturity.split("-").reverse().join("/")}.` : ""}
+        </p>
+      )}
+
+      <MoneyField id="fi-amount" label="Valor" value={mask} onChange={setMask} autoFocus={!privada} large />
+      <SourcePicker cash={cash} needed={amount} value={source} onChange={setSource} />
+      {short && (
+        <p className="text-xs text-muted-foreground">
+          Escolha &quot;Dinheiro de fora&quot; ou diminua o valor para até {formatCurrency(cash)}.
+        </p>
+      )}
+      {error && <ErrorNote>{error}</ErrorNote>}
+      <div className="space-y-2">
+        <button type="submit" disabled={!can} className={BTN_PRIMARY}>
+          {busy ? "Salvando…" : amount > 0 ? `Comprar ${formatCurrency(amount)}` : "Comprar"}
         </button>
         <button type="button" disabled={busy} onClick={onClose} className={BTN_SECONDARY}>Cancelar</button>
       </div>

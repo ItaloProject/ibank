@@ -35,7 +35,7 @@ import { InvestorModeView } from "@/components/investimentos/investor-mode-view"
 import { InvestorLiveView, type LiveAction } from "@/components/investimentos/investor-live-view";
 import type { MarketSection } from "@/components/investimentos/simulator-invest-flow";
 
-const MARKET_SECTIONS = ["hub", "acoes", "fiis", "tesouro", "turbo", "eme"] as const satisfies readonly MarketSection[];
+const MARKET_SECTIONS = ["hub", "acoes", "fiis", "tesouro", "rendafixa", "turbo", "eme"] as const satisfies readonly MarketSection[];
 import { InvestorLiveViewDesktop } from "@/components/investimentos/investor-live-view-desktop";
 import { categorizeAccount, isCashAccountName } from "@/lib/account-groups";
 import { AccountTab } from "@/components/investimentos/account-tab";

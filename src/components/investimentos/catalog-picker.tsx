@@ -63,7 +63,7 @@ function freshPrices(tickers: string[]) {
   return map;
 }
 
-function normalize(text: string) {
+export function normalizeSearch(text: string) {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
@@ -103,12 +103,12 @@ export function CatalogPicker({
 
   const priceOf = (ticker: string) => prices.get(ticker) ?? knownPrices?.get(ticker);
 
-  const q = normalize(query.trim());
+  const q = normalizeSearch(query.trim());
   const searching = q.length > 0;
   const results = useMemo(() => {
     if (searching)
       return catalog.filter(
-        (a) => normalize(a.ticker).includes(q) || normalize(a.name).includes(q) || normalize(a.group).includes(q),
+        (a) => normalizeSearch(a.ticker).includes(q) || normalizeSearch(a.name).includes(q) || normalizeSearch(a.group).includes(q),
       );
     if (filter === TOP) return catalog.filter((a) => a.top);
     if (filter === ALL) return catalog;
@@ -131,52 +131,9 @@ export function CatalogPicker({
 
   return (
     <div className="space-y-3">
-      <label className={INPUT_BOX}>
-        <Search className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
-        <span className="sr-only">{copy.search}</span>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={copy.search}
-          autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none [&::-webkit-search-cancel-button]:hidden"
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={() => setQuery("")}
-            aria-label="Limpar busca"
-            className={`h-7 w-7 -mr-1 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground ${FOCUS}`}
-          >
-            <X className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        )}
-      </label>
+      <SearchBox value={query} onChange={setQuery} placeholder={copy.search} />
 
-      {!searching && (
-        <div role="tablist" aria-label="Filtrar por setor" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-none">
-          {[TOP, ALL, ...groups].map((g) => {
-            const active = filter === g;
-            return (
-              <button
-                key={g}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setFilter(g)}
-                className={`shrink-0 min-h-9 rounded-full border px-3 text-xs font-bold whitespace-nowrap transition-colors ${FOCUS} ${
-                  active
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border text-foreground/80 hover:bg-muted"
-                }`}
-              >
-                {g}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {!searching && <FilterChips label="Filtrar por setor" options={[TOP, ALL, ...groups]} value={filter} onChange={setFilter} />}
 
       <p className="text-[11px] text-muted-foreground" aria-live="polite">
         {searching
@@ -235,6 +192,67 @@ export function CatalogPicker({
           <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">{copy.manualHint}</span>
         </span>
       </button>
+    </div>
+  );
+}
+
+export function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <label className={INPUT_BOX}>
+      <Search className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+      <span className="sr-only">{placeholder}</span>
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete="off"
+        className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none [&::-webkit-search-cancel-button]:hidden"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Limpar busca"
+          className={`h-7 w-7 -mr-1 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground ${FOCUS}`}
+        >
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      )}
+    </label>
+  );
+}
+
+export function FilterChips({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: readonly string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div role="tablist" aria-label={label} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-none">
+      {options.map((g) => {
+        const active = value === g;
+        return (
+          <button
+            key={g}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(g)}
+            className={`shrink-0 min-h-9 rounded-full border px-3 text-xs font-bold whitespace-nowrap transition-colors ${FOCUS} ${
+              active ? "border-foreground bg-foreground text-background" : "border-border text-foreground/80 hover:bg-muted"
+            }`}
+          >
+            {g}
+          </button>
+        );
+      })}
     </div>
   );
 }

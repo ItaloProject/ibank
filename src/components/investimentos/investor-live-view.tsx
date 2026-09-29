@@ -24,7 +24,6 @@ import {
 } from "@/components/investimentos/simulator-finance-panels";
 import {
   SimulatorInvestFlow,
-  DEFAULT_TESOURO_PRODUCTS,
   type MarketSection,
 } from "@/components/investimentos/simulator-invest-flow";
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
@@ -1372,7 +1371,6 @@ export function InvestorLiveView({
               <SimulatorInvestFlow
                 cash={cash}
                 knownPrices={quoteMap}
-                tesouroProducts={DEFAULT_TESOURO_PRODUCTS}
                 turboAccounts={turboAccountsLive}
                 emergenciaAccounts={emergenciaAccountsLive}
                 rendaFixaAccounts={investimentosAccountsLive}
@@ -1380,7 +1378,7 @@ export function InvestorLiveView({
                 onSectionChange={setMarketSection}
                 onClose={() => setMarketOpen(false)}
                 onBuyStock={actions.buyStock}
-                onBuyTesouro={actions.buyTesouro}
+                onBuyFixedIncome={actions.buyFixedIncome}
                 onAporte={actions.aporte}
                 onCreateAccount={openNewCaixinha}
                 onAdjustCash={openCashSheet}
