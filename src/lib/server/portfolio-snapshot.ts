@@ -12,10 +12,34 @@ import { fetchYahooQuote } from "@/lib/market-quotes";
 import { buildCurve, type Curve } from "@/lib/market-curve";
 import { buildPortfolio, type Portfolio } from "@/lib/portfolio-return";
 import { buildRebalancePlan, isRiskProfile, type Holding, type RebalancePlan, type RiskProfile, type TurboCap } from "@/lib/rebalance";
-import { computeStockPositions, detectAssetType } from "@/lib/stock-utils";
+import { accountBalance, computeStockPositions, detectAssetType } from "@/lib/stock-utils";
+import { categorizeAccount, isCashAccountName, type AccountGroupId } from "@/lib/account-groups";
 import type { Investment, InvestmentAccount, StockTrade } from "@/types/database";
 
 export type AporteOrigem = "meta" | "media" | "padrao";
+
+export type SnapshotAccount = {
+  nome: string;
+  instituicao: string;
+  grupo: AccountGroupId | "saldo";
+  saldo: number;
+  turbo: { cdiPct: number | null; tetoRendimento: number | null } | null;
+  taxa: { indexador: string; valor: number | null; vencimento: string | null; isentoIr: boolean | null } | null;
+};
+
+export type SnapshotStock = {
+  ticker: string;
+  tipo: string;
+  quantidade: number;
+  precoMedio: number;
+  precoAtual: number | null;
+  investido: number;
+  valorAtual: number;
+  resultado: number;
+  resultadoPct: number;
+};
+
+export type SnapshotMovement = { data: string; descricao: string; valor: number };
 
 export type UserSnapshot = {
   userId: string;
@@ -29,6 +53,10 @@ export type UserSnapshot = {
   portfolio: Portfolio | null;
   plan: RebalancePlan | null;
   holdings: Holding[];
+  accounts: SnapshotAccount[];
+  saldoEmConta: number;
+  stocks: SnapshotStock[];
+  movements: SnapshotMovement[];
   rates: MarketRates;
   curve: Curve;
   geradoEm: string;
@@ -77,6 +105,50 @@ function averageContribution(investments: Investment[], trades: StockTrade[], to
     total += t.type === "compra" ? t.total_amount : -t.total_amount;
   }
   return Math.max(0, total / 6);
+}
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+const MOVEMENT_LABEL: Record<Investment["type"], string> = {
+  deposito: "Aporte",
+  retirada: "Retirada",
+  rendimento: "Rendimento",
+};
+
+function snapshotAccounts(accounts: InvestmentAccount[], investments: Investment[]): SnapshotAccount[] {
+  return accounts.map((a) => ({
+    nome: a.name,
+    instituicao: a.institution ?? "",
+    grupo: isCashAccountName(a.name) ? "saldo" : categorizeAccount(a),
+    saldo: r2(a.is_turbo ? Number(a.current_balance) || 0 : accountBalance(investments, a.id)),
+    turbo: a.is_turbo ? { cdiPct: a.cdi_percent, tetoRendimento: a.max_rendimento } : null,
+    taxa: a.rate_index
+      ? { indexador: a.rate_index, valor: a.rate_value ?? null, vencimento: a.maturity ?? null, isentoIr: a.tax_exempt ?? null }
+      : null,
+  }));
+}
+
+/** Últimos lançamentos de contas e da bolsa, do mais recente para o mais antigo. */
+function recentMovements(accounts: InvestmentAccount[], investments: Investment[], trades: StockTrade[], limit = 20): SnapshotMovement[] {
+  const nameOf = new Map(accounts.map((a) => [a.id, a.name]));
+  const rows: (SnapshotMovement & { at: string })[] = [
+    ...investments.map((i) => ({
+      at: `${i.date}|${i.created_at}`,
+      data: i.date,
+      descricao: [MOVEMENT_LABEL[i.type], nameOf.get(i.account_id), i.description].filter(Boolean).join(" · "),
+      valor: r2(i.type === "retirada" ? -i.amount : i.amount),
+    })),
+    ...trades.map((t) => ({
+      at: `${t.date}|${t.created_at}`,
+      data: t.date,
+      descricao: `${t.type === "compra" ? "Compra" : "Venda"} de ${t.quantity} ${t.ticker} a ${r2(t.price_per_share)}`,
+      valor: r2(t.type === "compra" ? -t.total_amount : t.total_amount),
+    })),
+  ];
+  return rows
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, limit)
+    .map(({ data, descricao, valor }) => ({ data, descricao, valor }));
 }
 
 const cache = new Map<string, { at: number; snap: Promise<UserSnapshot> }>();
@@ -134,6 +206,25 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
       valor: price != null && price > 0 ? price * p.quantity : p.totalInvested,
     };
   });
+  const stocks: SnapshotStock[] = positions.map((p) => {
+    const price = priceOf.get(p.ticker);
+    const atual = price != null && price > 0 ? price * p.quantity : p.totalInvested;
+    const resultado = atual - p.totalInvested;
+    return {
+      ticker: p.ticker,
+      tipo: detectAssetType(p.ticker),
+      quantidade: p.quantity,
+      precoMedio: r2(p.avgPrice),
+      precoAtual: price != null && price > 0 ? r2(price) : null,
+      investido: r2(p.totalInvested),
+      valorAtual: r2(atual),
+      resultado: r2(resultado),
+      resultadoPct: p.totalInvested > 0 ? r2((resultado / p.totalInvested) * 100) : 0,
+    };
+  });
+  const snapAccounts = snapshotAccounts(accounts, investments);
+  const saldoEmConta = snapAccounts.filter((a) => a.grupo === "saldo").reduce((s, a) => s + a.saldo, 0);
+
   const turbos: TurboCap[] = accounts
     .filter((a) => a.is_turbo && a.max_rendimento && a.max_rendimento > 0)
     .map((a) => ({ nome: a.name, saldo: a.current_balance, teto: a.max_rendimento! }));
@@ -164,6 +255,10 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
     portfolio,
     plan,
     holdings,
+    accounts: snapAccounts,
+    saldoEmConta: r2(saldoEmConta),
+    stocks,
+    movements: recentMovements(accounts, investments, trades),
     rates,
     curve,
     geradoEm: new Date().toISOString(),

@@ -15,6 +15,7 @@ function snapshot(over: Partial<UserSnapshot> = {}): UserSnapshot {
   return {
     userId: "u", nome: "italo silva", profile: "moderado", profileDefinido: true, metaRenda: null, aporte: 1000, aporteOrigem: "media",
     gastoMensal: 2000, portfolio: { total: 40000, caixa: 0, rows, positions: [] }, plan, holdings: [],
+    accounts: [], saldoEmConta: 0, stocks: [], movements: [],
     rates: { selicAnual: 15, cdiAnual: 14.9, source: "bcb", updatedAt: "" } as UserSnapshot["rates"],
     curve: { selic: [15], cdi: [14.9], ipca: [4.5], source: "neutro" },
     geradoEm: "2026-09-25T15:00:00.000Z",

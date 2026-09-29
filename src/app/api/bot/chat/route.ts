@@ -27,14 +27,15 @@ export async function POST(request: Request) {
   if (auth instanceof NextResponse) return auth;
   if (!llmProvider()) return NextResponse.json({ error: "IA não configurada", code: "no_llm" }, { status: 503 });
 
-  const messages = parseMessages(await request.json().catch(() => null));
+  const body = await request.json().catch(() => null);
+  const messages = parseMessages(body);
   if (!messages) return NextResponse.json({ error: "Mensagem inválida." }, { status: 400 });
   if (!(await consumeDailyQuota(auth.userId, "chat", DAILY_LIMIT))) {
     return NextResponse.json({ error: `Você chegou ao limite de ${DAILY_LIMIT} perguntas por dia. Volte amanhã.` }, { status: 429 });
   }
 
   try {
-    const snap = await getCachedSnapshot(auth.userId);
+    const snap = await getCachedSnapshot(auth.userId, (body as { fresh?: unknown })?.fresh === true);
     const reply = await completeChat(buildBotSystemPrompt(snap), messages);
     return NextResponse.json({ reply: reply || "Não consegui formular uma resposta. Pode reformular a pergunta?" });
   } catch (err) {

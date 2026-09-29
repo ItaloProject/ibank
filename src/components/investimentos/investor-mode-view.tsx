@@ -6,9 +6,8 @@ import { FileText, Target, Check, CheckCircle2, ArrowRight, CornerDownRight, Pen
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { InvestorBot } from "@/components/investor-bot";
+import { InvestorBot, type BotPortfolioContext } from "@/components/investor-bot";
 import { formatCurrency } from "@/lib/utils";
-import { detectAssetType } from "@/lib/stock-utils";
 import type { ScoreSnapshot, InvestmentAccount, StockTrade, Investment } from "@/types/database";
 
 type IncomeSource = {
@@ -56,13 +55,6 @@ function parseGoal(raw: string): number {
   return Number.isFinite(v) && v < 1e10 ? Math.round(v * 100) / 100 : 0;
 }
 
-type StockPosition = {
-  ticker: string;
-  quantity: number;
-  totalInvested: number;
-  avgPrice: number;
-};
-
 export type InvestorModeViewProps = {
   investorData: {
     allSources: IncomeSource[];
@@ -86,13 +78,13 @@ export type InvestorModeViewProps = {
   setIncomeGoalInput: (v: string) => void;
   scoreHistory: ScoreSnapshot[];
   grandTotal: number;
-  stockPositions: StockPosition[];
-  quoteMap: Map<string, number>;
   accountBalances: { account: InvestmentAccount; balance: number }[];
   stockTrades: StockTrade[];
   investments: Investment[];
   onGenerateReport: () => void;
   onRefresh: () => Promise<void> | void;
+  botContext: BotPortfolioContext;
+  botDataVersion: string;
 };
 
 export function InvestorModeView({
@@ -104,13 +96,13 @@ export function InvestorModeView({
   setIncomeGoalInput,
   scoreHistory,
   grandTotal,
-  stockPositions,
-  quoteMap,
   accountBalances,
   stockTrades,
   investments,
   onGenerateReport,
   onRefresh,
+  botContext,
+  botDataVersion,
 }: InvestorModeViewProps) {
   const { allSources, totalRendaMensal, chartMonths, recommendations, CDI_MENSAL } = investorData;
   const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
@@ -557,33 +549,8 @@ export function InvestorModeView({
           </div>
 
           <InvestorBot
-            context={{
-              score: portfolioAnalysis.score,
-              totalRendaMensal,
-              incomeGoal,
-              grandTotal,
-              emerTotal: portfolioAnalysis.emerTotal,
-              fiiPctVariavel: portfolioAnalysis.fiiPctVariavel,
-              commodityPct: portfolioAnalysis.commodityPct,
-              totalStockValue: portfolioAnalysis.totalStockValue,
-              insights: portfolioAnalysis.insights,
-              nextMoves: portfolioAnalysis.nextMoves,
-              recommendations,
-              sources: allSources.map((s) => ({
-                nome: s.nome,
-                tipo: s.tipo,
-                capital: s.capital,
-                rendaMensal: s.rendaMensal,
-              })),
-              holdings: stockPositions.map((p) => ({
-                ticker: p.ticker,
-                kind: detectAssetType(p.ticker),
-                value: (() => {
-                  const q = quoteMap.get(p.ticker);
-                  return q !== undefined ? q * p.quantity : p.totalInvested;
-                })(),
-              })),
-            }}
+            context={botContext}
+            dataVersion={botDataVersion}
             onGeneratePdf={onGenerateReport}
           />
         </div>

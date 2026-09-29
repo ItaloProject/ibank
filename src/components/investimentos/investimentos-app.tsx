@@ -33,6 +33,7 @@ import {
   accountBalance, detectAssetType, detectSector, computeStockPositions,
 } from "@/lib/stock-utils";
 import { InvestorModeView } from "@/components/investimentos/investor-mode-view";
+import { InvestorBot, type BotPortfolioContext } from "@/components/investor-bot";
 import { InvestorLiveView, type LiveAction } from "@/components/investimentos/investor-live-view";
 import type { MarketSection } from "@/components/investimentos/simulator-invest-flow";
 
@@ -644,6 +645,27 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMetas, botEnabled, loading, portfolioAnalysis.score]);
 
+  const botContext = useMemo<BotPortfolioContext>(() => ({
+    score: portfolioAnalysis.score,
+    totalRendaMensal: investorData.totalRendaMensal,
+    incomeGoal,
+    grandTotal,
+    emerTotal: portfolioAnalysis.emerTotal,
+    fiiPctVariavel: portfolioAnalysis.fiiPctVariavel,
+    commodityPct: portfolioAnalysis.commodityPct,
+    totalStockValue: portfolioAnalysis.totalStockValue,
+    insights: portfolioAnalysis.insights,
+    nextMoves: portfolioAnalysis.nextMoves,
+    recommendations: investorData.recommendations,
+    sources: investorData.allSources.map((s) => ({ nome: s.nome, tipo: s.tipo, capital: s.capital, rendaMensal: s.rendaMensal })),
+    holdings: stockPositions.map((p) => {
+      const q = quoteMap.get(p.ticker);
+      return { ticker: p.ticker, kind: detectAssetType(p.ticker), value: q !== undefined ? q * p.quantity : p.totalInvested };
+    }),
+  }), [portfolioAnalysis, investorData, incomeGoal, grandTotal, stockPositions, quoteMap]);
+
+  const botDataVersion = `${accounts.length}|${investments.length}|${stockTrades.length}|${grandTotal.toFixed(2)}|${incomeGoal}`;
+
   async function addInvestment() {
     if (!invForm.account_id || !invForm.amount) return;
     const amount = parseFloat(invForm.amount);
@@ -861,13 +883,13 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         setIncomeGoalInput={setIncomeGoalInput}
         scoreHistory={scoreHistory}
         grandTotal={grandTotal}
-        stockPositions={stockPositions}
-        quoteMap={quoteMap}
         accountBalances={accountBalances}
         stockTrades={stockTrades}
         investments={investments}
         onGenerateReport={generateReport}
         onRefresh={load}
+        botContext={botContext}
+        botDataVersion={botDataVersion}
       />
     );
   }
@@ -910,6 +932,9 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       <div className="hidden md:flex flex-col h-full">
         <InvestorLiveViewDesktop {...liveProps} liveAction={liveAction?.desktop ? liveAction : null} />
       </div>
+      {botEnabled && (
+        <InvestorBot context={botContext} onGeneratePdf={generateReport} overlay dataVersion={botDataVersion} />
+      )}
     </>
   );
 }

@@ -533,10 +533,17 @@ function IconButton({ label, onClick, children, className }: { label: string; on
 export function InvestorBot({
   context,
   onGeneratePdf,
+  overlay = false,
+  dataVersion,
 }: {
   context: BotPortfolioContext;
   onGeneratePdf: () => void;
+  /** Acima de telas cheias (MUVO LIVE no celular, z-200) e abaixo das folhas de diálogo (z-300). */
+  overlay?: boolean;
+  /** Muda quando a carteira muda; a próxima pergunta à IA pede dados novos ao servidor. */
+  dataVersion?: string;
 }) {
+  const askedVersion = useRef<string | null>(null);
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState("");
@@ -625,11 +632,14 @@ export function InvestorBot({
       if (u.role === "user" && b.role === "bot" && b.ai) turns.push({ role: "user", content: u.text }, { role: "assistant", content: b.ai });
     }
     turns.push({ role: "user", content: userText });
+    const version = dataVersion ?? "";
+    const fresh = askedVersion.current !== version;
     const res = await fetch("/api/bot/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: turns.slice(-12) }),
+      body: JSON.stringify({ messages: turns.slice(-12), fresh }),
     });
+    if (res.ok) askedVersion.current = version;
     const data = await res.json().catch(() => null);
     if (res.status === 503 && data?.code === "no_llm") return replyFor("help", context, researchCache.current);
     if (!res.ok) return errorReply(data?.error ?? "Não consegui responder agora. Tente de novo em instantes.");
@@ -697,7 +707,8 @@ export function InvestorBot({
         type="button"
         onClick={() => (open ? close() : setOpen(true))}
         className={cn(
-          "fixed z-[120] flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-border shadow-2xl transition-[transform,background-color] duration-150 ease-out touch-manipulation",
+          "fixed flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-border shadow-2xl transition-[transform,background-color] duration-150 ease-out touch-manipulation",
+          overlay ? "z-[210]" : "z-[120]",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "right-[max(1.25rem,var(--safe-right))]",
           "bottom-[calc(var(--bottom-nav-offset)+0.75rem)] md:bottom-5",
@@ -718,7 +729,8 @@ export function InvestorBot({
           id="muvo-bot-panel"
           aria-label="Assistente Muvo"
           className={cn(
-            "muvo-panel fixed z-[120] flex flex-col overflow-hidden border border-white/[0.08] bg-[#05050A] text-white shadow-2xl selection:bg-white selection:text-[#0D0D0D]",
+            overlay ? "z-[210]" : "z-[120]",
+            "muvo-panel fixed flex flex-col overflow-hidden border border-white/[0.08] bg-[#05050A] text-white shadow-2xl selection:bg-white selection:text-[#0D0D0D]",
             "w-[min(100vw-1.5rem,400px)] rounded-2xl",
             "h-[min(70dvh,560px)] max-h-[calc(100dvh_-_var(--bottom-nav-offset)_-_7rem)]",
             "left-1/2 -translate-x-1/2 bottom-[calc(var(--bottom-nav-offset)+5rem)]",
