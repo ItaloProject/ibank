@@ -9,7 +9,8 @@ import {
 import { InvestorBot, type BotPortfolioContext } from "@/components/investor-bot";
 import { formatCurrency } from "@/lib/utils";
 import { RISK_PROFILES, type RiskProfile } from "@/lib/rebalance";
-import type { PlanAllocation, PlanInsight, PlanMove } from "@/lib/plan-view";
+import { actionHref, type PlanAllocation, type PlanInsight, type PlanMove } from "@/lib/plan-view";
+import Link from "next/link";
 import type { ScoreSnapshot, InvestmentAccount, StockTrade, Investment } from "@/types/database";
 
 type IncomeSource = {
@@ -537,6 +538,13 @@ export function InvestorModeView({
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1 leading-relaxed break-words">{m.razao}</p>
+                          <Link
+                            href={actionHref({ kind: "investir", section: m.section, amount: m.valor })}
+                            className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-bold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            Aplicar {m.valorTexto}
+                            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Link>
                         </div>
                       </div>
                     ))}

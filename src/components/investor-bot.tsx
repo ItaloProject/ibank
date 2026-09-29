@@ -1,8 +1,9 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
-  X, ArrowUp, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
+  X, ArrowUp, ArrowRight, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
   Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -10,7 +11,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
 import { RISK_PROFILES, alocacaoRelevante } from "@/lib/rebalance";
-import type { AnalysisPayload } from "@/lib/plan-view";
+import { BUCKET_SECTION, actionHref, actionLabel, type AnalysisPayload, type BotAction } from "@/lib/plan-view";
 import { WhatsappPanel } from "@/components/bot/whatsapp-panel";
 import { RiskProfilePicker } from "@/components/bot/risk-profile-picker";
 
@@ -52,7 +53,8 @@ type Block =
   | { kind: "alert"; tone: Tone; text: string }
   | { kind: "pdf" }
   | { kind: "whatsapp" }
-  | { kind: "profile" };
+  | { kind: "profile" }
+  | { kind: "actions"; items: BotAction[] };
 
 type Msg =
   | { id: string; role: "user"; text: string }
@@ -159,6 +161,10 @@ function rebalReply(a: AnalysisPayload): Msg {
       items: plan.plano.map((p) => ({ title: p.label, value: formatCurrency(p.valor) })),
     });
     blocks.push({ kind: "text", muted: true, text: `Aporte ${APORTE_ORIGEM[a.aporteOrigem]}. Sem vender nada: o dinheiro novo corrige a carteira aos poucos.` });
+    blocks.push({
+      kind: "actions",
+      items: plan.plano.slice(0, 3).map((p): BotAction => ({ kind: "investir", section: BUCKET_SECTION[p.bucket], amount: p.valor })),
+    });
   }
   blocks.push(
     plan.sugestoes.length > 0
@@ -396,8 +402,29 @@ function Markdown({ text }: { text: string }) {
   );
 }
 
-function BlockView({ block, onPdf, onProfile }: { block: Block; onPdf: () => void; onProfile: () => void }) {
+function BlockView({ block, onPdf, onProfile, onAction }: { block: Block; onPdf: () => void; onProfile: () => void; onAction: (a: BotAction) => void }) {
   switch (block.kind) {
+    case "actions":
+      if (block.items.length === 0) return null;
+      return (
+        <div className="flex flex-col gap-1.5">
+          {block.items.map((a, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onAction(a)}
+              className={cn(
+                "inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-lg px-3.5 text-left text-sm font-semibold transition-colors",
+                i === 0 ? "bg-white text-[#0D0D0D] hover:bg-white/90" : "border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12]",
+                FOCUS,
+              )}
+            >
+              <span className="truncate">{actionLabel(a)}</span>
+              <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      );
     case "md":
       return <Markdown text={block.text} />;
     case "whatsapp":
@@ -532,6 +559,7 @@ export function InvestorBot({
   dataVersion?: string;
 }) {
   const askedVersion = useRef<string | null>(null);
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState("");
@@ -632,7 +660,10 @@ export function InvestorBot({
     if (res.status === 503 && data?.code === "no_llm") return replyFor("help", context, researchCache.current);
     if (!res.ok) return errorReply(data?.error ?? "Não consegui responder agora. Tente de novo em instantes.");
     const reply = String(data?.reply ?? "");
-    return { id: uid(), role: "bot", blocks: [{ kind: "md", text: reply }], ai: reply, followups: ["rebal", "whatsapp"] };
+    const actions: BotAction[] = Array.isArray(data?.actions) ? data.actions : [];
+    const blocks: Block[] = [{ kind: "md", text: reply }];
+    if (actions.length) blocks.push({ kind: "actions", items: actions });
+    return { id: uid(), role: "bot", blocks, ai: reply, followups: ["rebal", "whatsapp"] };
   }
 
   async function ask(userText: string, intent: Intent) {
@@ -677,6 +708,12 @@ export function InvestorBot({
     setRevealId(null);
     setInput("");
     inputRef.current?.focus();
+  }
+
+  /** Fecha o painel para a folha de investir/vender ficar livre na tela. */
+  function runAction(a: BotAction) {
+    setOpen(false);
+    router.push(actionHref(a), { scroll: false });
   }
 
   function toggleExpanded() {
@@ -762,7 +799,7 @@ export function InvestorBot({
                           className={cn(m.id === revealId && "muvo-reveal")}
                           style={m.id === revealId ? { animationDelay: `${i * 90}ms` } : undefined}
                         >
-                          <BlockView block={b} onPdf={onGeneratePdf} onProfile={() => void ask("Refaz o plano com o novo perfil", "rebal")} />
+                          <BlockView block={b} onPdf={onGeneratePdf} onProfile={() => void ask("Refaz o plano com o novo perfil", "rebal")} onAction={runAction} />
                         </div>
                       ))}
                       {m === lastBot && !busy && m.followups && m.followups.length > 0 && (

@@ -180,6 +180,10 @@ export function InvestorLiveViewDesktop({
   /* ── Market / buy flow ────────────────────────────────────────── */
   const [marketOpen, setMarketOpen] = useState(false);
   const [marketSection, setMarketSection] = useState<MarketSection>("hub");
+  const [suggestedAmount, setSuggestedAmount] = useState<number | undefined>();
+  useEffect(() => {
+    if (!marketOpen) setSuggestedAmount(undefined);
+  }, [marketOpen]);
 
   /* ── Operações (compartilhadas com o celular) ─────────────────── */
   const actions = useLiveActions({
@@ -382,7 +386,10 @@ export function InvestorLiveViewDesktop({
 
   useEffect(() => {
     if (!liveAction) return;
-    if (liveAction.kind === "investir") openMarket(liveAction.section);
+    if (liveAction.kind === "investir") {
+      setSuggestedAmount(liveAction.amount);
+      openMarket(liveAction.section);
+    }
     else if (holdingRows.some((h) => h.ticker === liveAction.ticker)) {
       setTab("investimentos");
       openSell(liveAction.ticker);
@@ -827,6 +834,7 @@ export function InvestorLiveViewDesktop({
           <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark">
             <div className="mx-auto w-full max-w-2xl px-7 pt-4 pb-8">
               <SimulatorInvestFlow
+                suggestedAmount={suggestedAmount}
                 cash={cashBalance}
                 knownPrices={quoteMap}
                 turboAccounts={turboAccountsReal}

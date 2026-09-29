@@ -281,7 +281,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       .catch(() => {});
   }, [searchParams, isMetas, router]);
 
-  // ?investir=<seção> | ?vender=<ticker>: vindo do diagnóstico em Metas
+  // ?investir=<seção>[&valor=<reais>] | ?vender=<ticker>: vindo do diagnóstico em Metas ou do assistente
   const [liveAction, setLiveAction] = useState<(LiveAction & { desktop: boolean }) | null>(null);
   useEffect(() => {
     if (isMetas) return;
@@ -290,7 +290,8 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     const desktop = window.matchMedia("(min-width: 768px)").matches;
     let action: LiveAction | null = null;
     if (investir && (MARKET_SECTIONS as readonly string[]).includes(investir)) {
-      action = { kind: "investir", section: investir as MarketSection };
+      const valor = Number(searchParams.get("valor"));
+      action = { kind: "investir", section: investir as MarketSection, amount: valor > 0 && valor < 1e9 ? valor : undefined };
     } else if (vender) {
       action = { kind: "vender", ticker: vender.toUpperCase() };
     }

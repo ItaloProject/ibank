@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildRebalancePlan } from "@/lib/rebalance";
-import { planInsights, planMoves, planScore, planAllocation } from "@/lib/plan-view";
+import { actionHref, actionLabel, extractActions, planInsights, planMoves, planScore, planAllocation } from "@/lib/plan-view";
 import type { PortfolioRow } from "@/lib/portfolio-return";
 
 function row(p: Partial<PortfolioRow> & Pick<PortfolioRow, "id" | "classe" | "valor">): PortfolioRow {
@@ -32,6 +32,17 @@ describe("plan-view", () => {
     ]);
     expect(planScore(p)).toBeGreaterThanOrEqual(90);
     expect(planInsights(p).filter((i) => i.level === "ok").length).toBe(2);
+  });
+
+  it("extrai ações da resposta da IA e descarta as inválidas", () => {
+    const { text, actions } = extractActions(
+      "Aplique na reserva.\n<<investir:eme:500>>\n<<vender:PTR4>>\n<<vender:XPTO3>>\n<<investir:cripto:10>>",
+      ["PTR4"],
+    );
+    expect(text).toBe("Aplique na reserva.");
+    expect(actions).toEqual([{ kind: "investir", section: "eme", amount: 500 }, { kind: "vender", ticker: "PTR4" }]);
+    expect(actionHref(actions[0])).toBe("/investimentos?investir=eme&valor=500");
+    expect(actionLabel(actions[0])).toMatch(/^Aplicar R\$\s?500 em Reserva de emergência$/);
   });
 
   it("alocação usa as classes e os alvos do perfil", () => {

@@ -339,7 +339,7 @@ export type InvestorLiveViewProps = {
 };
 
 export type LiveAction =
-  | { kind: "investir"; section: MarketSection }
+  | { kind: "investir"; section: MarketSection; amount?: number }
   | { kind: "vender"; ticker: string };
 
 export function InvestorLiveView({
@@ -362,6 +362,10 @@ export function InvestorLiveView({
   const [investSubPage, setInvestSubPage] = useState<"tesouro" | "acoes" | null>(null);
   const [marketOpen, setMarketOpen] = useState(false);
   const [marketSection, setMarketSection] = useState<MarketSection>("hub");
+  const [suggestedAmount, setSuggestedAmount] = useState<number | undefined>();
+  useEffect(() => {
+    if (!marketOpen) setSuggestedAmount(undefined);
+  }, [marketOpen]);
   const cash = cashBalance;
   const [cashSheetOpen, setCashSheetOpen] = useState(false);
   const [cashInput, setCashInput] = useState("");
@@ -499,7 +503,10 @@ export function InvestorLiveView({
 
   useEffect(() => {
     if (!liveAction) return;
-    if (liveAction.kind === "investir") openMarket(liveAction.section);
+    if (liveAction.kind === "investir") {
+      setSuggestedAmount(liveAction.amount);
+      openMarket(liveAction.section);
+    }
     else if (holdings.some((h) => h.ticker === liveAction.ticker)) {
       setTab("investimentos");
       openSell(liveAction.ticker);
@@ -1323,6 +1330,7 @@ export function InvestorLiveView({
               style={{ paddingTop: "calc(1rem + var(--safe-top))" }}
             >
               <SimulatorInvestFlow
+                suggestedAmount={suggestedAmount}
                 cash={cash}
                 knownPrices={quoteMap}
                 turboAccounts={turboAccountsLive}

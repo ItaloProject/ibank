@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ElementType } from "react";
+import { useEffect, useState, type ElementType } from "react";
 import { Building2, ChevronRight, Landmark, PiggyBank, TrendingUp, Zap, Shield, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { isTesouroName, type FixedIncomeEntry } from "@/lib/fixed-income-catalog";
@@ -39,6 +39,8 @@ type Props = {
   onAporte: (accountId: string, amount: number, source: MoneySource) => Promise<void>;
   onCreateAccount?: (tipo: "turbo" | "emergencia" | "investimentos") => void;
   onAdjustCash?: () => void;
+  /** Valor sugerido pelo assistente: preenche o campo de valor; com uma só conta na seção, já abre a aplicação. */
+  suggestedAmount?: number;
 };
 
 function CreateAccountButton({ label, onClick }: { label: string; onClick: () => void }) {
@@ -126,10 +128,20 @@ export function SimulatorInvestFlow({
   onAporte,
   onCreateAccount,
   onAdjustCash,
+  suggestedAmount,
 }: Props) {
   const [order, setOrder] = useState<StockOrder | null>(null);
   const [amountTarget, setAmountTarget] = useState<AmountTarget | null>(null);
   const [fixedEntry, setFixedEntry] = useState<FixedIncomeEntry | null>(null);
+
+  useEffect(() => {
+    if (!suggestedAmount) return;
+    const only = section === "eme" ? emergenciaAccounts : section === "turbo" ? turboAccounts : [];
+    if (only.length === 1) {
+      setAmountTarget({ account: only[0], group: section === "eme" ? "Reserva de emergência" : "Caixinha Turbo" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, suggestedAmount]);
 
   const ownTesouro = rendaFixaAccounts.filter((a) => isTesouroName(a.nome));
   const ownRendaFixa = rendaFixaAccounts.filter((a) => !isTesouroName(a.nome));
@@ -303,12 +315,13 @@ export function SimulatorInvestFlow({
         title={amountTarget ? `Aplicar em ${amountTarget.account.nome}` : ""}
         description={amountTarget?.group}
         cash={cash}
+        initialAmount={suggestedAmount}
         onConfirm={async (amount, source) => {
           if (amountTarget) await onAporte(amountTarget.account.id, amount, source);
         }}
       />
 
-      <FixedIncomeSheet entry={fixedEntry} onClose={() => setFixedEntry(null)} cash={cash} onConfirm={onBuyFixedIncome} />
+      <FixedIncomeSheet entry={fixedEntry} onClose={() => setFixedEntry(null)} cash={cash} initialAmount={suggestedAmount} onConfirm={onBuyFixedIncome} />
     </div>
   );
 }

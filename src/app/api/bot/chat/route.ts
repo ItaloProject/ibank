@@ -4,6 +4,7 @@ import { requireBotUser } from "@/lib/server/bot-auth";
 import { getCachedSnapshot } from "@/lib/server/portfolio-snapshot";
 import { completeChat, llmProvider, type ChatMessage } from "@/lib/server/llm";
 import { buildBotSystemPrompt } from "@/lib/report/bot-prompt";
+import { extractActions } from "@/lib/plan-view";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -36,8 +37,9 @@ export async function POST(request: Request) {
 
   try {
     const snap = await getCachedSnapshot(auth.userId, (body as { fresh?: unknown })?.fresh === true);
-    const reply = await completeChat(buildBotSystemPrompt(snap), messages);
-    return NextResponse.json({ reply: reply || "Não consegui formular uma resposta. Pode reformular a pergunta?" });
+    const raw = await completeChat(buildBotSystemPrompt(snap), messages);
+    const { text, actions } = extractActions(raw ?? "", snap.stocks.map((s) => s.ticker));
+    return NextResponse.json({ reply: text || "Não consegui formular uma resposta. Pode reformular a pergunta?", actions });
   } catch (err) {
     console.error("[POST /api/bot/chat]", err);
     return NextResponse.json({ error: "O assistente está indisponível agora. Tente de novo em instantes." }, { status: 502 });

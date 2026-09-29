@@ -178,6 +178,7 @@ export function AmountSheet({
   description,
   cash,
   verb = "Aplicar",
+  initialAmount,
   onConfirm,
 }: {
   open: boolean;
@@ -186,12 +187,14 @@ export function AmountSheet({
   description?: string;
   cash: number;
   verb?: string;
+  /** Valor sugerido (ex.: vindo do assistente); o usuário pode mudar. */
+  initialAmount?: number;
   onConfirm: (amount: number, source: MoneySource) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   return (
     <LiveSheet open={open} onOpenChange={onOpenChange} dismissible={!busy} title={title} description={description}>
-      <AmountForm cash={cash} verb={verb} onBusy={setBusy} onCancel={() => onOpenChange(false)} onConfirm={onConfirm} onDone={() => onOpenChange(false)} />
+      <AmountForm cash={cash} verb={verb} initialAmount={initialAmount} onBusy={setBusy} onCancel={() => onOpenChange(false)} onConfirm={onConfirm} onDone={() => onOpenChange(false)} />
     </LiveSheet>
   );
 }
@@ -199,6 +202,7 @@ export function AmountSheet({
 function AmountForm({
   cash,
   verb,
+  initialAmount,
   onBusy,
   onCancel,
   onConfirm,
@@ -206,12 +210,13 @@ function AmountForm({
 }: {
   cash: number;
   verb: string;
+  initialAmount?: number;
   onBusy: (b: boolean) => void;
   onCancel: () => void;
   onConfirm: (amount: number, source: MoneySource) => Promise<void>;
   onDone: () => void;
 }) {
-  const [mask, setMask] = useState("");
+  const [mask, setMask] = useState(() => (initialAmount && initialAmount > 0 ? toBRLMask(initialAmount) : ""));
   const [source, setSource] = useState<MoneySource>(defaultSource(cash));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -447,11 +452,13 @@ export function FixedIncomeSheet({
   entry,
   onClose,
   cash,
+  initialAmount,
   onConfirm,
 }: {
   entry: FixedIncomeEntry | null;
   onClose: () => void;
   cash: number;
+  initialAmount?: number;
   onConfirm: (product: FixedIncomeProduct, amount: number, source: MoneySource) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
@@ -463,7 +470,7 @@ export function FixedIncomeSheet({
       title={entry ? `Comprar ${entry.nome}` : ""}
       description={entry?.descricao}
     >
-      {entry && <FixedIncomeForm key={entry.id} entry={entry} cash={cash} onBusy={setBusy} onClose={onClose} onConfirm={onConfirm} />}
+      {entry && <FixedIncomeForm key={entry.id} entry={entry} cash={cash} initialAmount={initialAmount} onBusy={setBusy} onClose={onClose} onConfirm={onConfirm} />}
     </LiveSheet>
   );
 }
@@ -471,12 +478,14 @@ export function FixedIncomeSheet({
 function FixedIncomeForm({
   entry,
   cash,
+  initialAmount,
   onBusy,
   onClose,
   onConfirm,
 }: {
   entry: FixedIncomeEntry;
   cash: number;
+  initialAmount?: number;
   onBusy: (b: boolean) => void;
   onClose: () => void;
   onConfirm: (product: FixedIncomeProduct, amount: number, source: MoneySource) => Promise<void>;
@@ -487,7 +496,7 @@ function FixedIncomeForm({
   const [institution, setInstitution] = useState("");
   const [rateRaw, setRateRaw] = useState(rateText(entry.rate_value));
   const [maturity, setMaturity] = useState("");
-  const [mask, setMask] = useState("");
+  const [mask, setMask] = useState(() => (initialAmount && initialAmount > 0 ? toBRLMask(initialAmount) : ""));
   const [source, setSource] = useState<MoneySource>(defaultSource(cash));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
