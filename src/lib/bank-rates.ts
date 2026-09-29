@@ -3,7 +3,7 @@ import { fixedRateLabel } from "@/lib/fixed-income-catalog";
 /**
  * Taxas típicas dos principais bancos, pesquisadas em setembro de 2026
  * (sites dos bancos, Valor Investe, InfoMoney/XP, R7, Creditas, Meelion,
- * Boaconta e tabela de captação do Sicoob). Os bancos mudam as taxas com
+ * Boaconta, central de ajuda do PicPay e tabela de captação do Sicoob). Os bancos mudam as taxas com
  * frequência e alguns personalizam por relacionamento e valor aplicado:
  * servem para preencher o formulário, e o usuário pode corrigir.
  */
@@ -32,13 +32,6 @@ export type Bank = {
   garantia: "FGC" | "FGCoop";
   products: BankProduct[];
 };
-
-export const BANK_GROUPS = [
-  "Grandes bancos",
-  "Bancos digitais",
-  "Bancos de investimento",
-  "Cooperativas",
-] as const;
 
 const DIARIA = "Resgate a qualquer dia";
 const VENC = "Resgate no vencimento";
@@ -161,6 +154,16 @@ export const BANKS: Bank[] = [
       p("pan-dia", "liquidez", "Cofrinho Dia a Dia", 100, DIARIA),
       p("pan-rende-mais", "cdb", "Cofrinho Rende Mais", 105, VENC, { condicao: "Acima do CDI em troca de prazo · confira a taxa no app" }),
       POUPANCA("pan"),
+    ],
+  },
+  {
+    id: "picpay", nome: "PicPay", group: "Bancos digitais", garantia: "FGC",
+    products: [
+      p("picpay-turbinado", "turbo", "Cofrinho Turbinado", 121, DIARIA, {
+        condicao: "Até R$ 10 mil · plano PicPay Mais ou Epic, ou receber R$ 999 por mês via Pix",
+      }),
+      p("picpay-cofrinho", "liquidez", "Cofrinho", 102, DIARIA, { condicao: "Rende todo dia útil desde o depósito" }),
+      p("picpay-saldo", "liquidez", "Saldo da conta", 102, DIARIA, { condicao: "Cada depósito só rende depois de 30 dias parado" }),
     ],
   },
 
