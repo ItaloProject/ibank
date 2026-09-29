@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { readBotPageContext } from "@/lib/bot-page-context";
 import {
   X, ArrowUp, ArrowRight, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
   Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal,
@@ -653,7 +654,7 @@ export function InvestorBot({
     const res = await fetch("/api/bot/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: turns.slice(-12), fresh }),
+      body: JSON.stringify({ messages: turns.slice(-12), fresh, page: readBotPageContext() }),
     });
     if (res.ok) askedVersion.current = version;
     const data = await res.json().catch(() => null);

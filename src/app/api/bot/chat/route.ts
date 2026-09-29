@@ -23,6 +23,14 @@ function parseMessages(body: unknown): ChatMessage[] | null {
   return msgs.length && msgs[msgs.length - 1].role === "user" ? msgs : null;
 }
 
+/** Contexto da tela enviado pelo app; limitado para não inflar o prompt. */
+function parsePage(body: unknown): string | null {
+  const page = (body as { page?: unknown })?.page;
+  if (!page || typeof page !== "object" || Array.isArray(page)) return null;
+  const json = JSON.stringify(page);
+  return json.length <= 3000 ? json : null;
+}
+
 export async function POST(request: Request) {
   const auth = await requireBotUser();
   if (auth instanceof NextResponse) return auth;
@@ -37,7 +45,7 @@ export async function POST(request: Request) {
 
   try {
     const snap = await getCachedSnapshot(auth.userId, (body as { fresh?: unknown })?.fresh === true);
-    const raw = await completeChat(buildBotSystemPrompt(snap), messages);
+    const raw = await completeChat(buildBotSystemPrompt(snap, parsePage(body)), messages);
     const { text, actions } = extractActions(raw ?? "", snap.stocks.map((s) => s.ticker));
     return NextResponse.json({ reply: text || "Não consegui formular uma resposta. Pode reformular a pergunta?", actions });
   } catch (err) {

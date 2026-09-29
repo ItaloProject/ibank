@@ -26,6 +26,9 @@ import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/c
 import { BankPicker } from "@/components/investimentos/bank-picker";
 import type { Bank, BankProduct } from "@/lib/bank-rates";
 import { InicialShortcuts, SimChart, SimLegend, SimParam, SimRateParam, simRateText, useSimulation } from "@/components/investimentos/sim-controls";
+import { liveBotContext } from "@/components/investimentos/live-bot-context";
+import { useBotPageContext } from "@/lib/bot-page-context";
+import { AskMuvoInline } from "@/components/bot/ask-muvo-inline";
 import {
   FOCUS,
   LABEL,
@@ -371,6 +374,14 @@ export function InvestorLiveViewDesktop({
   /* ── Simulator ────────────────────────────────────────────────── */
   const sim = useSimulation(patrimonioTotal, cashBalance);
   const simInicialMax = Math.max(200000, Math.ceil((patrimonioTotal * 2) / 10000) * 10000);
+
+  useBotPageContext("live:desktop", liveBotContext({
+    tab,
+    marketOpen,
+    marketSection,
+    newCaixinha: { open: newCaixinhaOpen, tipo: newCaixinhaTipo, nome: newCaixinhaName, instituicao: newCaixinhaInstituicao, rate: newCaixinhaRate, cdiMask: newCaixinhaCdiMask },
+    sim,
+  }));
 
   /* ── Tabs ─────────────────────────────────────────────────────── */
   const tabs = [
@@ -971,6 +982,14 @@ export function InvestorLiveViewDesktop({
           )}
 
           {newCaixinhaTipo !== "turbo" && <RateFields value={newCaixinhaRate} onChange={setNewCaixinhaRate} productName={newCaixinhaName} />}
+
+          {(newCaixinhaInstituicao || newCaixinhaName.trim()) && (
+            <AskMuvoInline
+              label="Perguntar ao Muvo se essa taxa está boa"
+              question="Essa aplicação que estou cadastrando tem uma boa taxa? Compare com os outros bancos e diga se paga Imposto de Renda."
+              resetKey={`${newCaixinhaTipo}|${newCaixinhaInstituicao}|${newCaixinhaName}|${newCaixinhaCdiMask}|${newCaixinhaRate.index}|${newCaixinhaRate.value}`}
+            />
+          )}
 
           {newCaixinhaError && <p role="alert" className={`text-xs ${LOSS} rounded-xl bg-red-500/10 px-3 py-2`}>{newCaixinhaError}</p>}
 

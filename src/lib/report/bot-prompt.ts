@@ -88,7 +88,7 @@ function contextJson(s: UserSnapshot) {
   };
 }
 
-export function buildBotSystemPrompt(s: UserSnapshot): string {
+export function buildBotSystemPrompt(s: UserSnapshot, pageJson: string | null = null): string {
   return [
     "Você é o Muvo, assistente de investimentos do app MUVO, falando com um investidor brasileiro pessoa física.",
     "Responda em português do Brasil, de forma direta e calorosa, em no máximo 180 palavras.",
@@ -123,5 +123,15 @@ export function buildBotSystemPrompt(s: UserSnapshot): string {
     JSON.stringify(catalogJson()),
     "",
     APP_GUIDE,
+    ...(pageJson
+      ? [
+          "",
+          "Tela que o usuário está vendo agora (JSON). Quando a pergunta falar de 'isso', 'aqui', 'essa taxa' ou 'esse resultado', ela se refere a esta tela:",
+          "- novaCaixinha: ele está cadastrando uma aplicação; compare banco e taxa com taxasDosBancos e diga se a taxa está boa, se falta algo e se paga Imposto de Renda.",
+          "- simulador: comente os números do simulador (valor final, juros, prazo) e sugira ajustes de aporte ou prazo para a meta dele.",
+          "- janelaInvestir: ele está escolhendo onde investir; oriente pela alocação do perfil.",
+          pageJson,
+        ]
+      : []),
   ].join("\n");
 }

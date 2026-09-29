@@ -29,6 +29,9 @@ import {
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 import { BankPicker } from "@/components/investimentos/bank-picker";
 import { InicialShortcuts, SimChart, SimLegend, SimParam, SimRateParam, simRateText, useSimulation } from "@/components/investimentos/sim-controls";
+import { liveBotContext } from "@/components/investimentos/live-bot-context";
+import { useBotPageContext } from "@/lib/bot-page-context";
+import { AskMuvoInline } from "@/components/bot/ask-muvo-inline";
 import type { Bank, BankProduct } from "@/lib/bank-rates";
 import { useLiveActions, type LiveAccount, type LiveMovement } from "@/components/investimentos/live-actions";
 import {
@@ -784,6 +787,13 @@ export function InvestorLiveView({
   }
 
   const sim = useSimulation(patrimonioTotal, cash);
+  useBotPageContext("live:mobile", liveBotContext({
+    tab,
+    marketOpen,
+    marketSection,
+    newCaixinha: { open: newCaixinhaOpen, tipo: newCaixinhaTipo, nome: newCaixinhaName, instituicao: newCaixinhaInstituicao, rate: newCaixinhaRate, cdiMask: newCaixinhaCdiMask },
+    sim,
+  }));
   const simInicialMax = Math.max(20000, Math.ceil((patrimonioTotal * 2) / 1000) * 1000);
 
   const REBALANCE_TOLERANCE = 2;
@@ -1714,6 +1724,16 @@ export function InvestorLiveView({
           {newCaixinhaTipo !== "turbo" && (
             <div className="mb-4">
               <RateFields value={newCaixinhaRate} onChange={setNewCaixinhaRate} productName={newCaixinhaName} />
+            </div>
+          )}
+
+          {(newCaixinhaInstituicao || newCaixinhaName.trim()) && (
+            <div className="mb-3">
+              <AskMuvoInline
+                label="Perguntar ao Muvo se essa taxa está boa"
+                question="Essa aplicação que estou cadastrando tem uma boa taxa? Compare com os outros bancos e diga se paga Imposto de Renda."
+                resetKey={`${newCaixinhaTipo}|${newCaixinhaInstituicao}|${newCaixinhaName}|${newCaixinhaCdiMask}|${newCaixinhaRate.index}|${newCaixinhaRate.value}`}
+              />
             </div>
           )}
 
