@@ -71,6 +71,7 @@ function contextJson(s: UserSnapshot) {
     contas: s.accounts,
     bolsa: s.stocks,
     ultimasMovimentacoes: s.movements,
+    avisos: s.alerts.map((a) => ({ nivel: a.nivel, titulo: a.titulo, detalhe: a.detalhe })),
     analise: plan
       ? {
           patrimonio: r2(plan.total),
@@ -99,6 +100,7 @@ export function buildBotSystemPrompt(s: UserSnapshot, pageJson: string | null = 
     "- Faça contas com os números reais do usuário. Valores em reais no formato R$ 1.234,56.",
     "- Você enxerga tudo o que o usuário vê no app: contas com saldo, grupo e taxa ('contas'), saldo em conta, posições em bolsa com preço médio, preço atual e resultado ('bolsa') e as últimas movimentações. Use isso para responder perguntas como 'por que minha bolsa está negativa', 'quanto aportei este mês' ou 'onde está meu dinheiro parado'.",
     "- Se houver saldo em conta parado, lembre que ele não rende e sugira onde aplicar conforme o perfil.",
+    "- 'avisos' são alertas já detectados (dinheiro parado, teto da Turbo, vencimentos, vendas de ações perto de R$ 20 mil no mês). Se o usuário perguntar o que fazer agora ou algo relacionado, comece pelos avisos de nível alta.",
     "- Escreva por extenso: Imposto de Renda, Fundo Garantidor de Créditos, fundos imobiliários, ao ano, ao mês, pontos percentuais. Não use siglas como IR, FGC, FIIs, a.a. ou p.p.",
     "- Rebalanceamento: priorize redirecionar aportes em vez de vender; se sugerir venda, lembre do Imposto de Renda (renda fixa: tabela regressiva 22,5% a 15%; ações: 15% sobre o ganho, isento se as vendas de ações no mês somarem até R$ 20 mil; fundos imobiliários: 20% sobre o ganho de capital).",
     "- Recomende classes de ativos (pós-fixado, IPCA+, prefixado, fundos imobiliários, ações) e produtos genéricos (Tesouro Selic, Tesouro IPCA+, CDB, LCI/LCA). Não indique ações ou fundos específicos para comprar; pode comentar os ativos que o usuário já tem.",

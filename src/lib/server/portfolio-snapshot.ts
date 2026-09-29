@@ -14,6 +14,7 @@ import { buildPortfolio, type Portfolio } from "@/lib/portfolio-return";
 import { buildRebalancePlan, isRiskProfile, type Holding, type RebalancePlan, type RiskProfile, type TurboCap } from "@/lib/rebalance";
 import { accountBalance, computeStockPositions, detectAssetType } from "@/lib/stock-utils";
 import { categorizeAccount, isCashAccountName, type AccountGroupId } from "@/lib/account-groups";
+import { buildAlerts, type BotAlert } from "@/lib/alerts";
 import type { Investment, InvestmentAccount, StockTrade } from "@/types/database";
 
 export type AporteOrigem = "meta" | "media" | "padrao";
@@ -57,6 +58,7 @@ export type UserSnapshot = {
   saldoEmConta: number;
   stocks: SnapshotStock[];
   movements: SnapshotMovement[];
+  alerts: BotAlert[];
   rates: MarketRates;
   curve: Curve;
   geradoEm: string;
@@ -259,6 +261,7 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
     saldoEmConta: r2(saldoEmConta),
     stocks,
     movements: recentMovements(accounts, investments, trades),
+    alerts: buildAlerts({ accounts, investments, trades }),
     rates,
     curve,
     geradoEm: new Date().toISOString(),

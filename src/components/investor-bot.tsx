@@ -3,8 +3,9 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { readBotPageContext } from "@/lib/bot-page-context";
+import type { BotAlert } from "@/lib/alerts";
 import {
-  X, ArrowUp, ArrowRight, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
+  X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
   Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -36,12 +37,13 @@ export type BotPortfolioContext = {
   emerTotal: number | null;
   insights: { level: string; title: string; detail: string }[];
   sources: { nome: string; tipo: string; capital: number; rendaMensal: number }[];
+  alerts: BotAlert[];
   holdings: { ticker: string; kind: string; value: number }[];
 };
 
 /* ── Modelo da conversa ─────────────────────────────────────────── */
 
-type Intent = "visao" | "rebal" | "fiis" | "meta" | "whatsapp" | "perfil" | "pdf" | "help";
+type Intent = "visao" | "rebal" | "fiis" | "meta" | "whatsapp" | "perfil" | "pdf" | "avisos" | "help";
 type Tone = "pos" | "warn" | "neg";
 
 type Block =
@@ -62,6 +64,7 @@ type Msg =
   | { id: string; role: "bot"; blocks: Block[]; followups?: Intent[]; ai?: string };
 
 const INTENTS: Record<Exclude<Intent, "help">, { label: string; ask: string; icon: LucideIcon }> = {
+  avisos: { label: "Avisos", ask: "Tem algum aviso para mim?", icon: Bell },
   visao: { label: "Visão da carteira", ask: "Quero a visão completa da carteira", icon: PieChart },
   rebal: { label: "Rebalancear carteira", ask: "Como rebalancear minha carteira?", icon: Scale },
   whatsapp: { label: "Enviar no WhatsApp", ask: "Envia o relatório no meu WhatsApp", icon: MessageCircle },
@@ -73,6 +76,7 @@ const INTENTS: Record<Exclude<Intent, "help">, { label: string; ask: string; ico
 
 const STORAGE_CHAT = "muvo_bot_chat_v3";
 const STORAGE_EXPANDED = "muvo_bot_expanded";
+const STORAGE_SEEN_ALERTS = "muvo_bot_alerts_seen";
 const MAX_STORED = 60;
 const THINK_MS = 650;
 
@@ -183,7 +187,28 @@ function rebalReply(a: AnalysisPayload): Msg {
   return { id, role: "bot", blocks, followups: a.profileDefinido ? ["whatsapp", "perfil", "visao"] : ["whatsapp", "visao"] };
 }
 
+function alertsReply(alerts: BotAlert[]): Msg {
+  if (alerts.length === 0) {
+    return {
+      id: uid(), role: "bot", followups: ["visao", "rebal"],
+      blocks: [{ kind: "alert", tone: "pos", text: "Nenhum aviso agora: nada parado, nenhum vencimento próximo e vendas de ações dentro do limite de isenção." }],
+    };
+  }
+  const actions = alerts.map((a) => a.acao).filter((a): a is BotAction => !!a).slice(0, 3);
+  return {
+    id: uid(),
+    role: "bot",
+    followups: ["rebal", "visao"],
+    blocks: [
+      { kind: "heading", text: alerts.length === 1 ? "Tenho um aviso para você" : `Tenho ${alerts.length} avisos para você` },
+      { kind: "list", items: alerts.map((a) => ({ title: a.titulo, meta: a.nivel === "alta" ? "Importante" : "Atenção", detail: a.detalhe })) },
+      ...(actions.length ? [{ kind: "actions", items: actions } as Block] : []),
+    ],
+  };
+}
+
 function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketResearchPayload | null): Msg {
+  if (intent === "avisos") return alertsReply(ctx.alerts);
   const gap = Math.max(0, (ctx.incomeGoal || 0) - ctx.totalRendaMensal);
   const market = research?.rates
     ? `Selic ${pct(research.rates.selicAnual, 2)} · CDI ${pct(research.rates.cdiAnual, 2)} · fonte ${research.rates.source === "bcb" ? "Banco Central" : "estimada"}`
@@ -346,6 +371,7 @@ function detectIntent(raw: string): Intent {
   if (/whats|zap|relator/.test(t)) return "whatsapp";
   if (/pdf|baixar|download|imprim/.test(t)) return "pdf";
   if (/perfil|conservador|moderado|arrojado/.test(t)) return "perfil";
+  if (/aviso|alerta/.test(t)) return "avisos";
   if (/rebalanc|equilibr|onde aportar|aloca/.test(t)) return "rebal";
   if (/^(visao|resumo|diagnostico|score|minha carteira)/.test(t)) return "visao";
   if (/quanto falta|minha meta/.test(t)) return "meta";
@@ -568,6 +594,8 @@ export function InvestorBot({
   const [messages, setMessages] = useState<Msg[]>(() => [welcome()]);
   const [revealId, setRevealId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [seenAlerts, setSeenAlerts] = useState<Set<string>>(() => new Set());
+  const unseenAlerts = hydrated ? context.alerts.filter((a) => !seenAlerts.has(a.id)) : [];
 
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -587,6 +615,8 @@ export function InvestorBot({
         if (valid.length) setMessages(valid);
       }
       setExpanded(localStorage.getItem(STORAGE_EXPANDED) === "1");
+      const seen: unknown = JSON.parse(localStorage.getItem(STORAGE_SEEN_ALERTS) ?? "[]");
+      if (Array.isArray(seen)) setSeenAlerts(new Set(seen.filter((s): s is string => typeof s === "string")));
     } catch { /* conversa nova */ }
     setHydrated(true);
   }, []);
@@ -711,6 +741,18 @@ export function InvestorBot({
     inputRef.current?.focus();
   }
 
+  /** Ao abrir com avisos novos, o bot já começa por eles. */
+  function openPanel() {
+    setOpen(true);
+    if (unseenAlerts.length === 0) return;
+    const reply = alertsReply(unseenAlerts);
+    setRevealId(reply.id);
+    setMessages((prev) => [...prev, reply]);
+    const next = new Set([...seenAlerts, ...unseenAlerts.map((a) => a.id)]);
+    setSeenAlerts(next);
+    try { localStorage.setItem(STORAGE_SEEN_ALERTS, JSON.stringify([...next].slice(-100))); } catch { /* cheio */ }
+  }
+
   /** Fecha o painel para a folha de investir/vender ficar livre na tela. */
   function runAction(a: BotAction) {
     setOpen(false);
@@ -731,9 +773,9 @@ export function InvestorBot({
       <button
         ref={fabRef}
         type="button"
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => (open ? close() : openPanel())}
         className={cn(
-          "fixed flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-border shadow-2xl transition-[transform,background-color] duration-150 ease-out touch-manipulation",
+          "fixed flex h-14 w-14 items-center justify-center rounded-full border border-border shadow-2xl transition-[transform,background-color] duration-150 ease-out touch-manipulation",
           overlay ? "z-[210]" : "z-[120]",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "right-[max(1.25rem,var(--safe-right))]",
@@ -743,11 +785,23 @@ export function InvestorBot({
             : "bg-background hover:scale-105 active:scale-95 motion-reduce:hover:scale-100",
           open && expanded && "md:hidden",
         )}
-        aria-label={open ? "Fechar assistente Muvo" : "Abrir assistente Muvo"}
+        aria-label={open
+          ? "Fechar assistente Muvo"
+          : unseenAlerts.length
+            ? `Abrir assistente Muvo, ${unseenAlerts.length} ${unseenAlerts.length === 1 ? "aviso novo" : "avisos novos"}`
+            : "Abrir assistente Muvo"}
         aria-expanded={open}
         aria-controls="muvo-bot-panel"
       >
-        {open ? <X className="h-6 w-6" /> : <BotAvatar className="h-full w-full rounded-none" />}
+        {open ? <X className="h-6 w-6" /> : <BotAvatar className="h-full w-full" />}
+        {!open && unseenAlerts.length > 0 && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-400 px-1 text-[11px] font-bold tabular-nums text-[#05050A] ring-2 ring-background"
+          >
+            {unseenAlerts.length}
+          </span>
+        )}
       </button>
 
       {open && (

@@ -566,12 +566,13 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     grandTotal,
     emerTotal: portfolioAnalysis?.emerTotal ?? null,
     insights: portfolioAnalysis?.insights ?? [],
+    alerts: analysis?.alerts ?? [],
     sources: investorData.allSources.map((s) => ({ nome: s.nome, tipo: s.tipo, capital: s.capital, rendaMensal: s.rendaMensal })),
     holdings: stockPositions.map((p) => {
       const q = quoteMap.get(p.ticker);
       return { ticker: p.ticker, kind: detectAssetType(p.ticker), value: q !== undefined ? q * p.quantity : p.totalInvested };
     }),
-  }), [score, portfolioAnalysis, investorData, incomeGoal, grandTotal, stockPositions, quoteMap]);
+  }), [score, portfolioAnalysis, analysis, investorData, incomeGoal, grandTotal, stockPositions, quoteMap]);
 
   const botDataVersion = portfolioVersion;
 
