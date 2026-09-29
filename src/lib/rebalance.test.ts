@@ -23,6 +23,12 @@ describe("bucketOf", () => {
     expect(bucketOf(row({ id: "d", classe: "turbo", valor: 1 }))).toBe("pos");
     expect(bucketOf(row({ id: "e", classe: "emergencia", valor: 1 }))).toBe("reserva");
   });
+
+  it("sem taxa cadastrada, usa o nome da conta para prefixado e IPCA", () => {
+    expect(bucketOf(row({ id: "f", nome: "Prefixado", classe: "renda_fixa", valor: 1 }))).toBe("prefixado");
+    expect(bucketOf(row({ id: "g", nome: "CDB pré-fixado", classe: "renda_fixa", valor: 1 }))).toBe("prefixado");
+    expect(bucketOf(row({ id: "h", nome: "Tesouro IPCA 2035", classe: "renda_fixa", valor: 1 }))).toBe("inflacao");
+  });
 });
 
 describe("buildRebalancePlan", () => {

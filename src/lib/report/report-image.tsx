@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { RISK_PROFILES, type Suggestion } from "@/lib/rebalance";
+import { RISK_PROFILES, alocacaoRelevante, type Suggestion } from "@/lib/rebalance";
 import type { UserSnapshot } from "@/lib/server/portfolio-snapshot";
 import { firstName, reportDate } from "@/lib/report/report-text";
 
@@ -58,10 +58,27 @@ function ReportCard({ s, display }: { s: UserSnapshot; display: boolean }) {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", marginTop: 36 }}>
-        <Label>Alocação atual e alvo</Label>
-        {plan.buckets.map((b) => (
-          <Bar key={b.id} label={b.label} atual={b.pct} alvo={b.alvoPct} valor={brl(b.valor)} />
-        ))}
+        {alocacaoRelevante(plan) ? (
+          <>
+            <Label>{`Fora da reserva (${brl(plan.investido)}) · atual e alvo`}</Label>
+            {plan.buckets.map((b) => (
+              <Bar key={b.id} label={b.label} atual={b.pct} alvo={b.alvoPct} valor={brl(b.valor)} />
+            ))}
+          </>
+        ) : (
+          <>
+            <Label>Onde está seu dinheiro</Label>
+            {s.portfolio!.rows.slice(0, 6).map((r) => (
+              <div key={r.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 24, marginTop: 12 }}>
+                <div style={{ display: "flex" }}>{r.nome}</div>
+                <div style={{ display: "flex", color: MUTED }}>
+                  <span style={{ color: FG, fontWeight: 700, marginRight: 10 }}>{brl(r.valor)}</span>
+                  {pct((r.valor / plan.total) * 100)}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${FAINT}` }}>
           <div style={{ display: "flex" }}>Reserva de emergência</div>
           <div style={{ display: "flex", color: reservaOk ? FG : "#F59E0B", fontWeight: 700 }}>{`${brl(plan.reserva.atual)} de ${brl(plan.reserva.alvo)}`}</div>

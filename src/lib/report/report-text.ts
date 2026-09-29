@@ -1,4 +1,4 @@
-import { RISK_PROFILES } from "@/lib/rebalance";
+import { RISK_PROFILES, alocacaoRelevante } from "@/lib/rebalance";
 import type { UserSnapshot } from "@/lib/server/portfolio-snapshot";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -34,12 +34,23 @@ export function buildReportText(s: UserSnapshot): string {
     `*Rentabilidade esperada:* ${pct(plan.retorno12m, 2)} ao ano nos próximos 12 meses, já sem IR`,
     `*Perfil:* ${RISK_PROFILES[plan.profile].label}${s.profileDefinido ? "" : " (padrão; defina o seu no app)"}`,
     "",
-    "*Alocação: atual → alvo*",
-    ...plan.buckets.map((b) => `• ${b.label}: ${pct(b.pct, 0)} → ${pct(b.alvoPct, 0)}`),
-    `• Reserva de emergência: ${brl(plan.reserva.atual)} de ${brl(plan.reserva.alvo)}${plan.reserva.baseadaEmGastos ? ` (${plan.reserva.meses} meses de gastos)` : ""}`,
+    "*Onde está seu dinheiro*",
+    ...s.portfolio.rows.map((r) => `• ${r.nome}: ${brl(r.valor)} (${pct((r.valor / plan.total) * 100, 0)})`),
+    "",
+    `*Reserva de emergência:* ${brl(plan.reserva.atual)} de ${brl(plan.reserva.alvo)}${plan.reserva.baseadaEmGastos ? ` (${plan.reserva.meses} meses de gastos)` : ""}`,
   );
-  if (plan.caixa > 0) lines.push(`• Saldo parado: ${brl(plan.caixa)}`);
-  lines.push(plan.desvio < 5 ? "_Carteira alinhada ao perfil._" : `_${pct(plan.desvio, 0)} da carteira está fora do alvo._`, "");
+  if (plan.caixa > 0) lines.push(`*Saldo parado:* ${brl(plan.caixa)}`);
+  lines.push("");
+  if (alocacaoRelevante(plan)) {
+    lines.push(
+      `*Fora da reserva (${brl(plan.investido)}): atual → alvo*`,
+      ...plan.buckets.map((b) => `• ${b.label}: ${pct(b.pct, 0)} → ${pct(b.alvoPct, 0)}`),
+      plan.desvio < 5 ? "_Alinhado ao perfil._" : `_${pct(plan.desvio, 0)} dessa parte está fora do alvo._`,
+      "",
+    );
+  } else {
+    lines.push(`_Fora da reserva há ${brl(plan.investido)}; a alocação por perfil passa a valer conforme esse valor cresce._`, "");
+  }
 
   if (plan.plano.length > 0) {
     lines.push(`*Plano para o aporte de ${brl(plan.aporte)}* _(${APORTE_ORIGEM[s.aporteOrigem]})_`);

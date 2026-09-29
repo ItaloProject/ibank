@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
-import { RISK_PROFILES, type RebalancePlan, type RiskProfile } from "@/lib/rebalance";
+import { RISK_PROFILES, alocacaoRelevante, type RebalancePlan, type RiskProfile } from "@/lib/rebalance";
 import { WhatsappPanel } from "@/components/bot/whatsapp-panel";
 import { RiskProfilePicker } from "@/components/bot/risk-profile-picker";
 
@@ -143,6 +143,7 @@ function rebalReply(a: AnalysisPayload): Msg {
   }
   const perfil = RISK_PROFILES[a.profile].label;
   const reservaOk = plan.reserva.atual >= plan.reserva.alvo - 1;
+  const comAlocacao = alocacaoRelevante(plan);
   const blocks: Block[] = [
     { kind: "heading", text: `Rebalanceamento · perfil ${perfil.toLowerCase()}` },
     {
@@ -150,16 +151,18 @@ function rebalReply(a: AnalysisPayload): Msg {
       items: [
         { label: "Patrimônio", value: formatCurrency(plan.total) },
         { label: "Rende em 12 meses", value: pct(plan.retorno12m, 2), hint: "esperado, já sem IR" },
-        { label: "Fora do alvo", value: pct(plan.desvio), hint: "da parte investida", tone: plan.desvio < 5 ? "pos" : plan.desvio < 15 ? "warn" : "neg" },
         {
           label: "Reserva",
           value: formatCurrency(plan.reserva.atual),
           hint: `de ${formatCurrency(plan.reserva.alvo)}${plan.reserva.baseadaEmGastos ? ` · ${plan.reserva.meses} meses de gastos` : ""}`,
           tone: reservaOk ? "pos" : "warn",
         },
+        { label: "Fora da reserva", value: formatCurrency(plan.investido), hint: comAlocacao ? `${pct(plan.desvio)} fora do alvo` : "base da alocação por perfil" },
       ],
     },
-    { kind: "bars", title: "Alocação · atual e alvo", items: plan.buckets.map((b) => ({ label: b.label, atual: b.pct, ideal: b.alvoPct })) },
+    comAlocacao
+      ? { kind: "bars", title: `Fora da reserva (${formatCurrency(plan.investido)}) · atual e alvo`, items: plan.buckets.map((b) => ({ label: b.label, atual: b.pct, ideal: b.alvoPct })) }
+      : { kind: "text", muted: true, text: `Com ${formatCurrency(plan.investido)} fora da reserva, ainda não faz sentido comparar percentuais com o perfil. Primeiro complete a reserva; depois os aportes seguem a alocação-alvo.` },
   ];
   if (plan.plano.length > 0) {
     blocks.push({

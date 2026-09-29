@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildReportText, firstName } from "@/lib/report/report-text";
+import { renderReportPdf, reportPdfFilename } from "@/lib/report/report-pdf";
 import { buildRebalancePlan } from "@/lib/rebalance";
 import type { PortfolioRow } from "@/lib/portfolio-return";
 import type { UserSnapshot } from "@/lib/server/portfolio-snapshot";
@@ -35,6 +36,20 @@ describe("buildReportText", () => {
   it("orienta quem ainda não tem investimentos", () => {
     const text = buildReportText(snapshot({ plan: null, portfolio: null }));
     expect(text).toContain("Ainda não encontrei investimentos");
+  });
+
+  it("lista as posições reais com a participação no patrimônio", () => {
+    const text = buildReportText(snapshot());
+    expect(text).toContain("*Onde está seu dinheiro*");
+    expect(text).toMatch(/• CDB: R\$\s?30\.000 \(75%\)/);
+    expect(text).toContain("*Fora da reserva (");
+  });
+
+  it("gera o PDF com o nome do cliente, mesmo com caracteres fora da fonte padrão", async () => {
+    const pdf = await renderReportPdf(snapshot({ nome: "Italo Silva 🚀 → teste" }));
+    expect(Buffer.from(pdf.slice(0, 5)).toString()).toBe("%PDF-");
+    expect(pdf.length).toBeGreaterThan(3000);
+    expect(reportPdfFilename(snapshot({ nome: "João da Silva" }))).toBe("Relatorio-MUVO-Joao-da-Silva-2026-09-25.pdf");
   });
 
   it("primeiro nome capitalizado", () => {

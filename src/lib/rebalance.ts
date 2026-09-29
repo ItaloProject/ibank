@@ -49,6 +49,13 @@ const INVEST_BUCKETS: InvestBucket[] = ["pos", "inflacao", "prefixado", "fiis", 
 /** Reserva mínima quando não há gastos cadastrados. */
 export const MIN_RESERVE = 3000;
 
+/** Abaixo disso, percentuais da parte investida distorcem mais do que ajudam. */
+export const MIN_INVESTIDO_ALOCACAO = 1000;
+
+export function alocacaoRelevante(plan: Pick<RebalancePlan, "investido">): boolean {
+  return plan.investido >= MIN_INVESTIDO_ALOCACAO;
+}
+
 export function isRiskProfile(v: unknown): v is RiskProfile {
   return v === "conservador" || v === "moderado" || v === "arrojado";
 }
@@ -93,6 +100,8 @@ export type RebalancePlan = {
   total: number;
   caixa: number;
   reserva: { atual: number; alvo: number; meses: number; baseadaEmGastos: boolean };
+  /** Valor fora da reserva e do saldo parado, base dos percentuais de `buckets`. */
+  investido: number;
   buckets: BucketView[];
   /** Metade da soma dos desvios, em pontos percentuais: quanto da carteira está fora do alvo. */
   desvio: number;
@@ -113,6 +122,8 @@ export function bucketOf(row: PortfolioRow): Bucket {
     case "renda_fixa":
       if (row.rate?.rate_index === "ipca") return "inflacao";
       if (row.rate?.rate_index === "pre") return "prefixado";
+      if (!row.rate && /ipca|infla/i.test(row.nome)) return "inflacao";
+      if (!row.rate && /pr[eé][\s-]?fix/i.test(row.nome)) return "prefixado";
       return "pos";
   }
 }
@@ -294,6 +305,7 @@ export function buildRebalancePlan(input: RebalanceInput): RebalancePlan {
     total,
     caixa: valor.caixa,
     reserva: { atual: reservaAtual, alvo: reservaAlvo, meses: cfg.reservaMeses, baseadaEmGastos },
+    investido,
     buckets,
     desvio,
     aporte,

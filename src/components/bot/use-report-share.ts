@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 export type ShareOutcome =
-  | { ok: true; how: "shared" | "copied" | "downloaded" }
+  | { ok: true; how: "shared" | "downloaded" }
   | { ok: false; error: string };
 
 type Loaded = { file: File; text: string };
@@ -18,11 +18,11 @@ export function shortReportText(text: string, max = 900): string {
     out.push(line);
     size += line.length + 1;
   }
-  return `${out.join("\n").trimEnd()}\n\n…análise completa no app MUVO.`;
+  return `${out.join("\n").trimEnd()}\n\n…análise completa no PDF.`;
 }
 
 /**
- * Carrega imagem e texto do relatório assim que o painel aparece: no celular, o
+ * Carrega o PDF e o texto do relatório assim que o painel aparece: no celular, o
  * compartilhamento precisa acontecer logo após o toque, sem esperar a rede.
  */
 export function useReportShare() {
@@ -33,11 +33,11 @@ export function useReportShare() {
     let alive = true;
     (async () => {
       try {
-        const [img, txt] = await Promise.all([fetch("/api/report/image"), fetch("/api/report/text")]);
+        const [pdf, txt] = await Promise.all([fetch("/api/report/pdf"), fetch("/api/report/text")]);
         const info = await txt.json().catch(() => null);
-        if (!img.ok || !txt.ok) throw new Error(info?.error ?? "Não foi possível gerar o relatório.");
-        const blob = await img.blob();
-        if (alive) setData({ file: new File([blob], info.filename, { type: "image/png" }), text: String(info.text) });
+        if (!pdf.ok || !txt.ok) throw new Error(info?.error ?? "Não foi possível gerar o relatório.");
+        const blob = await pdf.blob();
+        if (alive) setData({ file: new File([blob], info.filename, { type: "application/pdf" }), text: String(info.text) });
       } catch (err) {
         if (alive) setError(err instanceof Error ? err.message : "Não foi possível gerar o relatório.");
       }
@@ -58,20 +58,14 @@ export function useReportShare() {
       }
     }
 
-    let how: "copied" | "downloaded" = "downloaded";
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": data.file })]);
-      how = "copied";
-    } catch {
-      const url = URL.createObjectURL(data.file);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = data.file.name;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    }
+    const url = URL.createObjectURL(data.file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = data.file.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
     window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, "_blank", "noopener,noreferrer");
-    return { ok: true, how };
+    return { ok: true, how: "downloaded" };
   }, [data, error]);
 
   const copyText = useCallback(async () => {

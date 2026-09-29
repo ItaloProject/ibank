@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CheckCircle2, Copy, Image as ImageIcon, Loader2, Send, Share2 } from "lucide-react";
+import { CheckCircle2, Copy, FileText, Loader2, Send, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWhatsapp, type SendResult } from "./use-whatsapp";
 import { useReportShare, type ShareOutcome } from "./use-report-share";
@@ -33,10 +33,9 @@ const STYLES: Record<Variant, { text: string; muted: string; primary: string; se
   },
 };
 
-const SHARE_MSG: Record<"shared" | "copied" | "downloaded", string> = {
+const SHARE_MSG: Record<"shared" | "downloaded", string> = {
   shared: "Pronto! Escolha a conversa no WhatsApp e envie.",
-  copied: "Imagem copiada. Na conversa do WhatsApp que abriu, cole com Ctrl+V junto do texto.",
-  downloaded: "Imagem baixada. Na conversa do WhatsApp que abriu, anexe a imagem junto do texto.",
+  downloaded: "PDF baixado. Na conversa do WhatsApp que abriu, anexe o arquivo (clipe › Documento) e envie.",
 };
 
 /** Máscara (11) 98765-4321 enquanto digita; números com + ficam livres. */
@@ -86,7 +85,7 @@ export function WhatsappPanel({ variant = "bot" }: { variant?: Variant }) {
   return (
     <div className={cn("space-y-3 p-3", st.box)}>
       <p className={cn("text-xs leading-relaxed", st.muted)}>
-        Envie a imagem da sua carteira com as sugestões de rebalanceamento para você mesmo ou para quem quiser.
+        Gera um PDF com seu nome, suas posições, a reserva, a alocação e as sugestões de rebalanceamento, pronto para enviar no WhatsApp.
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -94,8 +93,8 @@ export function WhatsappPanel({ variant = "bot" }: { variant?: Variant }) {
           {report.ready ? <Share2 className="h-4 w-4" aria-hidden="true" /> : <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
           {report.ready ? "Compartilhar no WhatsApp" : "Gerando relatório…"}
         </button>
-        <a href="/api/report/image" target="_blank" rel="noopener" className={cn(btn, st.secondary)}>
-          <ImageIcon className="h-4 w-4" aria-hidden="true" /> Prévia
+        <a href="/api/report/pdf" target="_blank" rel="noopener" className={cn(btn, st.secondary)}>
+          <FileText className="h-4 w-4" aria-hidden="true" /> Ver PDF
         </a>
       </div>
 
@@ -170,8 +169,8 @@ export function WhatsappPanel({ variant = "bot" }: { variant?: Variant }) {
                 <span className="inline-flex items-start gap-1.5">
                   <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   {sendResult.mode === "full"
-                    ? "Enviado! A imagem e o texto com as sugestões já estão no seu WhatsApp."
-                    : "Enviado! Responda a mensagem no WhatsApp para receber também o texto com todas as sugestões."}
+                    ? "Enviado! O PDF do relatório já está no seu WhatsApp."
+                    : "Enviado! Responda a mensagem no WhatsApp para receber o PDF completo."}
                 </span>
               ) : sendResult.error}
             </p>

@@ -120,17 +120,21 @@ export function sendText(cfg: WhatsappConfig, to: string, body: string) {
   return sendMessage(cfg, to, { type: "text", text: { body: body.slice(0, 4096), preview_url: false } });
 }
 
-export async function uploadMedia(cfg: WhatsappConfig, data: ArrayBuffer, mime: string, filename: string): Promise<string> {
+export async function uploadMedia(cfg: WhatsappConfig, data: ArrayBuffer | Uint8Array, mime: string, filename: string): Promise<string> {
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
   form.append("type", mime);
-  form.append("file", new Blob([data], { type: mime }), filename);
+  form.append("file", new Blob([data as BlobPart], { type: mime }), filename);
   const res = await graph<{ id: string }>(cfg, `${cfg.phoneNumberId}/media`, { method: "POST", body: form });
   return res.id;
 }
 
 export function sendImage(cfg: WhatsappConfig, to: string, mediaId: string, caption?: string) {
   return sendMessage(cfg, to, { type: "image", image: { id: mediaId, ...(caption ? { caption: caption.slice(0, 1024) } : {}) } });
+}
+
+export function sendDocument(cfg: WhatsappConfig, to: string, mediaId: string, filename: string, caption?: string) {
+  return sendMessage(cfg, to, { type: "document", document: { id: mediaId, filename, ...(caption ? { caption: caption.slice(0, 1024) } : {}) } });
 }
 
 /** Parâmetros de modelo não aceitam quebras de linha, tabs nem mais de 4 espaços seguidos. */

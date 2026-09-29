@@ -48,12 +48,12 @@ export function evoSendText(cfg: EvolutionConfig, number: string, text: string) 
   return post(cfg, "sendText", { number, text });
 }
 
-export function evoSendImage(cfg: EvolutionConfig, number: string, png: ArrayBuffer, caption: string, fileName: string) {
+export function evoSendDocument(cfg: EvolutionConfig, number: string, pdf: Uint8Array, caption: string, fileName: string) {
   return post(cfg, "sendMedia", {
     number,
-    mediatype: "image",
-    mimetype: "image/png",
-    media: Buffer.from(png).toString("base64"),
+    mediatype: "document",
+    mimetype: "application/pdf",
+    media: Buffer.from(pdf).toString("base64"),
     caption,
     fileName,
   });

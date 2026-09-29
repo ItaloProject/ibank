@@ -37,6 +37,8 @@ function contextJson(s: UserSnapshot) {
           saldoParado: r2(plan.caixa),
           retornoEsperado12mLiquidoPct: r2(plan.retorno12m),
           reserva: plan.reserva,
+          foraDaReserva: r2(plan.investido),
+          alocacaoPercentuaisSobre: "valor fora da reserva de emergência (foraDaReserva), não sobre o patrimônio total",
           alocacao: plan.buckets.map((b) => ({ classe: b.label, valor: r2(b.valor), atualPct: r2(b.pct), alvoPct: b.alvoPct, faltaParaAlvo: r2(b.diff) })),
           desvioPct: r2(plan.desvio),
           planoDeAporte: plan.plano.map((a) => ({ classe: a.label, valor: a.valor })),
