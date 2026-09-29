@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getBottomTabs, isNavItemActive } from "@/lib/nav";
+import { FEATURED_DOT, getBottomTabs, isNavItemActive } from "@/lib/nav";
 
 const TABS = getBottomTabs().map((item) => ({
   href: item.href,
   label: item.href === "/" ? "Início" : item.href === "/planejamento" ? "Plano" : item.href === "/investimentos" ? "Investir" : item.label,
   icon: item.icon,
-  featured: item.featured ?? false,
+  featured: !!item.featured,
+  dot: item.featured ? FEATURED_DOT[item.featured] : "",
 }));
 
 /** Abas de página + Mais. */
@@ -64,8 +65,8 @@ export function BottomNav({ onMore }: { onMore: () => void }) {
                 <Icon className={cn("h-5 w-5", active && "stroke-[2.25px]")} />
                 {tab.featured && (
                   <span className="absolute -top-[3px] -right-[3px] flex h-[7px] w-[7px]">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-70 motion-reduce:hidden" />
-                    <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-amber-400" />
+                    <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-70 motion-reduce:hidden", tab.dot)} />
+                    <span className={cn("relative inline-flex h-[7px] w-[7px] rounded-full", tab.dot)} />
                   </span>
                 )}
               </span>

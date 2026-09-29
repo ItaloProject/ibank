@@ -20,6 +20,7 @@ function fmtCompact(v: number): string {
   return `R$ ${n.toFixed(0)}`;
 }
 import {
+  FEATURED_DOT,
   NAV_GROUPS,
   SYSTEM_NAV_ITEMS,
   isNavItemActive,
@@ -43,6 +44,35 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
 
   const [hiddenPages, setHiddenPages] = useState<Set<string>>(() => readHiddenPages());
   const [portfolioTotal, setPortfolioTotal] = useState<number | null>(null);
+  const [incomeGoal, setIncomeGoal] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetch("/api/goals")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { goal_target?: number | string } | null) => {
+        if (!cancelled && d) setIncomeGoal(Number(d.goal_target) || 0);
+      })
+      .catch(() => {});
+    function onGoalChanged(e: Event) {
+      setIncomeGoal(Number((e as CustomEvent<number>).detail) || 0);
+    }
+    window.addEventListener("ibank_goal_changed", onGoalChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("ibank_goal_changed", onGoalChanged);
+    };
+  }, [userId]);
+
+  function featuredBadge(href: string): string | null {
+    if (href === "/investimentos") return portfolioTotal !== null ? fmtCompact(portfolioTotal) : null;
+    if (href === "/metas") {
+      if (incomeGoal === null) return null;
+      return incomeGoal > 0 ? `${fmtCompact(incomeGoal)}/mês` : "Definir";
+    }
+    return null;
+  }
 
   useEffect(() => {
     if (!userId) return;
@@ -161,7 +191,9 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = isNavItemActive(pathname, item.href);
-                  const isFeatured = item.featured;
+                  const isFeatured = !!item.featured;
+                  const dot = item.featured ? FEATURED_DOT[item.featured] : "";
+                  const badge = isFeatured && !isCollapsed ? featuredBadge(item.href) : null;
                   return (
                     <Link key={item.href} href={item.href}
                       title={isCollapsed ? item.label : undefined}
@@ -183,7 +215,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                           className="pointer-events-none absolute inset-y-0 w-1/2 animate-[sidebar-sweep_4s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/[0.07] to-transparent skew-x-[-15deg]"
                         />
                       )}
-                      {/* ícone com dot pulsante âmbar no canto */}
+                      {/* ícone com dot pulsante no canto, na cor do destaque */}
                       <span className="relative shrink-0 flex items-center justify-center">
                         <Icon className={cn(
                           "transition-colors duration-100",
@@ -194,8 +226,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                         )} />
                         {isFeatured && (
                           <span className="absolute -top-[3px] -right-[3px] flex h-[7px] w-[7px]">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-70" />
-                            <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-amber-400" />
+                            <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-70", dot)} />
+                            <span className={cn("relative inline-flex h-[7px] w-[7px] rounded-full", dot)} />
                           </span>
                         )}
                       </span>
@@ -205,14 +237,14 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                       )}>
                         {item.label}
                       </span>
-                      {isFeatured && !isCollapsed && portfolioTotal !== null && (
+                      {badge && (
                         <span className={cn(
                           "ml-auto shrink-0 text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md transition-all duration-150",
                           isActive
                             ? "bg-sidebar-primary/20 text-sidebar-primary"
                             : "bg-white/[0.08] text-sidebar-foreground/65",
                         )}>
-                          {fmtCompact(portfolioTotal)}
+                          {badge}
                         </span>
                       )}
                     </Link>

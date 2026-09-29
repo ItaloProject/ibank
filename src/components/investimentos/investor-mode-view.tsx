@@ -142,6 +142,7 @@ export function InvestorModeView({
       if (!r.ok) throw new Error();
       setIncomeGoal(v);
       try { localStorage.setItem("ibank_income_goal", String(v)); } catch {}
+      window.dispatchEvent(new CustomEvent("ibank_goal_changed", { detail: v }));
       setIncomeGoalInput("");
       setEditingGoal(false);
       toast.success(`Meta de ${formatCurrency(v)} por mês salva`);
