@@ -351,7 +351,13 @@ export type InvestorLiveViewProps = {
   onRefresh: () => Promise<void> | void;
   /** Sem onClose, o botão de fechar não aparece. */
   onClose?: () => void;
+  /** Ação pedida por outra tela (ex.: diagnóstico em Metas), executada ao chegar. */
+  liveAction?: LiveAction | null;
 };
+
+export type LiveAction =
+  | { kind: "investir"; section: MarketSection }
+  | { kind: "vender"; ticker: string };
 
 export function InvestorLiveView({
   grandTotal,
@@ -366,6 +372,7 @@ export function InvestorLiveView({
   cashBalance,
   onRefresh,
   onClose,
+  liveAction,
 }: InvestorLiveViewProps) {
   const [tab, setTab] = useState<"inicio" | "investimentos" | "rebalancear" | "simular">("inicio");
   const [focusGroup, setFocusGroup] = useState<"all" | "turbo" | "emergencia" | "investimentos">("all");
@@ -512,6 +519,16 @@ export function InvestorLiveView({
     setSellQtyMask("");
     setSellError(null);
   }
+
+  useEffect(() => {
+    if (!liveAction) return;
+    if (liveAction.kind === "investir") openMarket(liveAction.section);
+    else if (holdings.some((h) => h.ticker === liveAction.ticker)) {
+      setTab("investimentos");
+      openSell(liveAction.ticker);
+    } else openMarket("acoes");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveAction]);
 
   function onSellQtyChange(raw: string) {
     let v = raw.replace(/[^\d,]/g, "");

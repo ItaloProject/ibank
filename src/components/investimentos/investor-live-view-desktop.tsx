@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { X, Plus, ArrowRightLeft, Wallet, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -121,6 +121,7 @@ export function InvestorLiveViewDesktop({
   cashBalance,
   onRefresh,
   onClose,
+  liveAction,
 }: InvestorLiveViewProps) {
   const [tab, setTab] = useState<"inicio" | "investimentos" | "simular">("inicio");
 
@@ -618,6 +619,16 @@ export function InvestorLiveViewDesktop({
     setMarketSection(section);
     setMarketOpen(true);
   }
+
+  useEffect(() => {
+    if (!liveAction) return;
+    if (liveAction.kind === "investir") openMarket(liveAction.section);
+    else if (holdingRows.some((h) => h.ticker === liveAction.ticker)) {
+      setTab("investimentos");
+      openSell(liveAction.ticker);
+    } else openMarket("acoes");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveAction]);
 
   const allAccounts = [
     { title: "TURBO", total: turboTotal, accounts: turboAccountsReal, empty: "Nenhuma conta TURBO.", section: "turbo" as MarketSection, tipo: "turbo" as const, action: "Aportar" },

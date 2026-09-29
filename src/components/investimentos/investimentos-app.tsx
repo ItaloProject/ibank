@@ -31,9 +31,11 @@ import { getCurrentUser } from "@/lib/user";
 import {
   accountBalance, detectAssetType, detectSector, computeStockPositions,
 } from "@/lib/stock-utils";
-import { printInvestorReport } from "@/lib/generate-investor-report";
 import { InvestorModeView } from "@/components/investimentos/investor-mode-view";
-import { InvestorLiveView } from "@/components/investimentos/investor-live-view";
+import { InvestorLiveView, type LiveAction } from "@/components/investimentos/investor-live-view";
+import type { MarketSection } from "@/components/investimentos/simulator-invest-flow";
+
+const MARKET_SECTIONS = ["hub", "acoes", "tesouro", "turbo", "eme"] as const satisfies readonly MarketSection[];
 import { InvestorLiveViewDesktop } from "@/components/investimentos/investor-live-view-desktop";
 import { categorizeAccount, isCashAccountName } from "@/lib/account-groups";
 import { AccountTab } from "@/components/investimentos/account-tab";
@@ -273,6 +275,24 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       .catch(() => {});
   }, [searchParams, isMetas, router]);
 
+  // ?investir=<seção> | ?vender=<ticker>: vindo do diagnóstico em Metas
+  const [liveAction, setLiveAction] = useState<(LiveAction & { desktop: boolean }) | null>(null);
+  useEffect(() => {
+    if (isMetas) return;
+    const investir = searchParams.get("investir");
+    const vender = searchParams.get("vender");
+    const desktop = window.matchMedia("(min-width: 768px)").matches;
+    let action: LiveAction | null = null;
+    if (investir && (MARKET_SECTIONS as readonly string[]).includes(investir)) {
+      action = { kind: "investir", section: investir as MarketSection };
+    } else if (vender) {
+      action = { kind: "vender", ticker: vender.toUpperCase() };
+    }
+    if (!action) return;
+    setLiveAction({ ...action, desktop });
+    router.replace(window.location.pathname, { scroll: false });
+  }, [searchParams, isMetas, router]);
+
   // Load turbo history when active account changes to a turbo account
   useEffect(() => {
     const acc = accounts.find((a) => a.id === activeTab);
@@ -508,15 +528,11 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   }, [accounts, investments, stockPositions, quoteMap, grandTotal]);
 
   function goToStockDialog(ticker: string, type: "compra" | "venda") {
-    setActiveTab("acoes");
-    setStockForm({ ticker, type, quantity: "", price_per_share: "", notes: "", date: format(new Date(), "yyyy-MM-dd") });
-    setStockOpen(true);
+    router.push(type === "venda" ? `/investimentos?vender=${encodeURIComponent(ticker)}` : "/investimentos?investir=acoes");
   }
 
-  function goToDepositDialog(accountId: string) {
-    setActiveTab(accountId);
-    setInvForm({ account_id: accountId, type: "deposito", amount: "", description: "", date: format(new Date(), "yyyy-MM-dd") });
-    setInvOpen(true);
+  function goToDepositDialog() {
+    router.push("/investimentos?investir=eme");
   }
 
   const portfolioAnalysis = useMemo(() => {
@@ -536,7 +552,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         level: "warning", title: `Reserva insuficiente — ${formatCurrency(emerTotal)}`,
         detail: `Recomendado mínimo R$ 3.000 (3 meses de gastos). Faltam ${formatCurrency(3000 - emerTotal)}.`,
         action: "Direcionar aportes para emergência até completar",
-        onAction: () => goToDepositDialog(emerAccounts[0].id), actionLabel: "Depositar em EME",
+        onAction: goToDepositDialog, actionLabel: `Depositar em ${emerAccounts[0].name}`,
       });
     } else {
       insights.push({ level: "ok", title: `Reserva de emergência adequada — ${formatCurrency(emerTotal)}`, detail: "Proteção básica garantida. Continue investindo normalmente." });
@@ -829,11 +845,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   }
 
   function generateReport() {
-    printInvestorReport({
-      portfolioAnalysis,
-      investorData,
-      grandTotal,
-    });
+    window.open("/api/report/pdf", "_blank", "noopener");
   }
 
   if (isMetas) {
@@ -888,10 +900,14 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     <>
       {/* Mobile: tela cheia sobre a navegação, por isso precisa de saída própria */}
       <div className="md:hidden">
-        <InvestorLiveView {...liveProps} onClose={() => router.push("/")} />
+        <InvestorLiveView
+          {...liveProps}
+          liveAction={liveAction && !liveAction.desktop ? liveAction : null}
+          onClose={() => router.push("/")}
+        />
       </div>
       <div className="hidden md:flex flex-col h-full">
-        <InvestorLiveViewDesktop {...liveProps} />
+        <InvestorLiveViewDesktop {...liveProps} liveAction={liveAction?.desktop ? liveAction : null} />
       </div>
     </>
   );
