@@ -6,7 +6,7 @@ import { readBotPageContext } from "@/lib/bot-page-context";
 import type { BotAlert } from "@/lib/alerts";
 import {
   X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
-  Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal,
+  Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal, ThumbsUp, ThumbsDown,
   type LucideIcon,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -61,7 +61,7 @@ type Block =
 
 type Msg =
   | { id: string; role: "user"; text: string }
-  | { id: string; role: "bot"; blocks: Block[]; followups?: Intent[]; ai?: string };
+  | { id: string; role: "bot"; blocks: Block[]; followups?: Intent[]; ai?: string; q?: string; rated?: "up" | "down" };
 
 const INTENTS: Record<Exclude<Intent, "help">, { label: string; ask: string; icon: LucideIcon }> = {
   avisos: { label: "Avisos", ask: "Tem algum aviso para mim?", icon: Bell },
@@ -570,6 +570,28 @@ function IconButton({ label, onClick, children, className }: { label: string; on
   );
 }
 
+function FeedbackRow({ rated, onRate }: { rated?: "up" | "down"; onRate: (r: "up" | "down") => void }) {
+  if (rated) {
+    return (
+      <p className="text-[11px] text-white/45" role="status">
+        {rated === "up" ? "Obrigado! Vou manter respostas assim." : "Obrigado. Vou usar isso para responder melhor da próxima vez."}
+      </p>
+    );
+  }
+  const btn = cn("flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/[0.08] hover:text-white", FOCUS);
+  return (
+    <div className="flex items-center gap-0.5">
+      <span className="mr-1 text-[11px] text-white/35">Essa resposta ajudou?</span>
+      <button type="button" className={btn} onClick={() => onRate("up")} aria-label="Resposta útil" title="Resposta útil">
+        <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+      <button type="button" className={btn} onClick={() => onRate("down")} aria-label="Resposta não ajudou" title="Resposta não ajudou">
+        <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
 /* ── Componente ─────────────────────────────────────────────────── */
 
 export function InvestorBot({
@@ -688,13 +710,31 @@ export function InvestorBot({
     });
     if (res.ok) askedVersion.current = version;
     const data = await res.json().catch(() => null);
-    if (res.status === 503 && data?.code === "no_llm") return replyFor("help", context, researchCache.current);
+    if (res.status === 503 && data?.code === "no_llm") {
+      sendFeedback("sem_resposta", userText, "");
+      return replyFor("help", context, researchCache.current);
+    }
     if (!res.ok) return errorReply(data?.error ?? "Não consegui responder agora. Tente de novo em instantes.");
     const reply = String(data?.reply ?? "");
     const actions: BotAction[] = Array.isArray(data?.actions) ? data.actions : [];
     const blocks: Block[] = [{ kind: "md", text: reply }];
     if (actions.length) blocks.push({ kind: "actions", items: actions });
-    return { id: uid(), role: "bot", blocks, ai: reply, followups: ["rebal", "whatsapp"] };
+    return { id: uid(), role: "bot", blocks, ai: reply, q: userText, followups: ["rebal", "whatsapp"] };
+  }
+
+  function sendFeedback(kind: "up" | "down" | "sem_resposta", question: string, answer: string) {
+    void fetch("/api/bot/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, question, answer }),
+    }).catch(() => {});
+  }
+
+  function rate(id: string, rated: "up" | "down") {
+    const m = messages.find((x) => x.id === id);
+    if (!m || m.role !== "bot" || !m.q || m.rated) return;
+    setMessages((prev) => prev.map((x) => (x.id === id && x.role === "bot" ? { ...x, rated } : x)));
+    sendFeedback(rated, m.q, m.ai ?? "");
   }
 
   async function ask(userText: string, intent: Intent) {
@@ -857,6 +897,7 @@ export function InvestorBot({
                           <BlockView block={b} onPdf={onGeneratePdf} onProfile={() => void ask("Refaz o plano com o novo perfil", "rebal")} onAction={runAction} />
                         </div>
                       ))}
+                      {m.ai && m.q && <FeedbackRow rated={m.rated} onRate={(r) => rate(m.id, r)} />}
                       {m === lastBot && !busy && m.followups && m.followups.length > 0 && (
                         <div
                           className={cn("flex flex-wrap gap-1.5 pt-1", m.id === revealId && "muvo-reveal")}

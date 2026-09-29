@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { consumeDailyQuota } from "@/lib/bot-schema";
+import { consumeDailyQuota, recentDislikes, recordBotFeedback } from "@/lib/bot-schema";
+import { feedbackText, looksUnanswered } from "@/lib/bot-feedback";
 import { requireBotUser } from "@/lib/server/bot-auth";
 import { getCachedSnapshot } from "@/lib/server/portfolio-snapshot";
 import { completeChat, llmProvider, type ChatMessage } from "@/lib/server/llm";
@@ -45,9 +46,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const snap = await getCachedSnapshot(auth.userId, (body as { fresh?: unknown })?.fresh === true);
-    const raw = await completeChat(buildBotSystemPrompt(snap, parsePage(body), peekTesouroLive()), messages);
+    const [snap, dislikes] = await Promise.all([
+      getCachedSnapshot(auth.userId, (body as { fresh?: unknown })?.fresh === true),
+      recentDislikes(auth.userId).catch(() => []),
+    ]);
+    const raw = await completeChat(buildBotSystemPrompt(snap, parsePage(body), peekTesouroLive(), dislikes), messages);
     const { text, actions } = extractActions(raw ?? "", snap.stocks.map((s) => s.ticker));
+    if (!text || looksUnanswered(text)) {
+      const question = feedbackText(messages[messages.length - 1].content);
+      void recordBotFeedback(auth.userId, "sem_resposta", question, feedbackText(text)).catch(() => {});
+    }
     return NextResponse.json({ reply: text || "Não consegui formular uma resposta. Pode reformular a pergunta?", actions });
   } catch (err) {
     console.error("[POST /api/bot/chat]", err);

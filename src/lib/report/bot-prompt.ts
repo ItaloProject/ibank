@@ -93,7 +93,12 @@ function contextJson(s: UserSnapshot) {
   };
 }
 
-export function buildBotSystemPrompt(s: UserSnapshot, pageJson: string | null = null, tesouroLive: TesouroLive | null = null): string {
+export function buildBotSystemPrompt(
+  s: UserSnapshot,
+  pageJson: string | null = null,
+  tesouroLive: TesouroLive | null = null,
+  dislikes: { pergunta: string; resposta: string }[] = [],
+): string {
   const bankRates = bankRatesForBot(s.geradoEm.slice(0, 10));
   return [
     "Você é o Muvo, assistente de investimentos do app MUVO, falando com um investidor brasileiro pessoa física.",
@@ -131,6 +136,13 @@ export function buildBotSystemPrompt(s: UserSnapshot, pageJson: string | null = 
     JSON.stringify(catalogJson(tesouroLive)),
     "",
     APP_GUIDE,
+    ...(dislikes.length
+      ? [
+          "",
+          "Respostas anteriores que este usuário marcou como ruins (JSON). Entenda o que faltou (dado errado, resposta genérica, longa demais, não respondeu o que foi pedido) e não repita o erro:",
+          JSON.stringify(dislikes),
+        ]
+      : []),
     ...(pageJson
       ? [
           "",
