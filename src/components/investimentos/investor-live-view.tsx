@@ -1705,7 +1705,7 @@ export function InvestorLiveView({
 
           {newCaixinhaTipo !== "turbo" && (
             <div className="mb-4">
-              <RateFields value={newCaixinhaRate} onChange={setNewCaixinhaRate} />
+              <RateFields value={newCaixinhaRate} onChange={setNewCaixinhaRate} productName={newCaixinhaName} />
             </div>
           )}
 

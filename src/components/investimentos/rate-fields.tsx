@@ -1,11 +1,27 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { FOCUS, INPUT_BOX, LABEL } from "@/components/investimentos/live-ui";
 import { HelpTip } from "@/components/ui/help-tip";
-import { RATE_INDEXES, type AccountRate, type RateIndex } from "@/lib/account-rate";
+import { RATE_INDEXES, taxRuleFromName, type AccountRate, type RateIndex, type TaxRule } from "@/lib/account-rate";
 
-export type RateDraft = { index: RateIndex | ""; value: string; maturity: string; exempt: boolean };
+function TaxBadge({ exempt, text }: { exempt: boolean; text: string }) {
+  return (
+    <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground" aria-live="polite">
+      <span
+        className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+          exempt ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-muted text-foreground/80"
+        }`}
+      >
+        {exempt ? "Isento de Imposto de Renda" : "Paga Imposto de Renda"}
+      </span>
+      <span className="min-w-0">{text}</span>
+    </p>
+  );
+}
+
+/** `exemptManual`: o usuário mexeu na isenção e ela não deve mais seguir o tipo do produto. */
+export type RateDraft = { index: RateIndex | ""; value: string; maturity: string; exempt: boolean; exemptManual?: boolean };
 
 export const EMPTY_RATE_DRAFT: RateDraft = { index: "", value: "", maturity: "", exempt: false };
 
@@ -16,6 +32,7 @@ export function draftFromRate(rate: AccountRate | null | undefined): RateDraft {
     value: rate.rate_index === "poupanca" ? "" : String(rate.rate_value).replace(".", ","),
     maturity: rate.maturity ?? "",
     exempt: rate.tax_exempt,
+    exemptManual: true,
   };
 }
 
@@ -36,10 +53,31 @@ export function rateFromDraft(d: RateDraft): AccountRate | null | string {
   };
 }
 
-export function RateFields({ value, onChange }: { value: RateDraft; onChange: (d: RateDraft) => void }) {
+/**
+ * `productName`: nome da aplicação. Quando ele indica o tipo (LCI, CDB, Tesouro…), a isenção de
+ * Imposto de Renda é preenchida sozinha e o checkbox vira só um ajuste manual.
+ */
+export function RateFields({ value, onChange, productName = "" }: { value: RateDraft; onChange: (d: RateDraft) => void; productName?: string }) {
   const id = useId();
   const meta = RATE_INDEXES.find((r) => r.id === value.index);
   const set = (patch: Partial<RateDraft>) => onChange({ ...value, ...patch });
+  const rule: TaxRule | null = value.index === "poupanca" ? { exempt: true, produto: "Poupança" } : taxRuleFromName(productName);
+
+  const lastProduto = useRef(rule?.produto ?? null);
+  useEffect(() => {
+    const produto = rule?.produto ?? null;
+    const changed = produto !== lastProduto.current;
+    lastProduto.current = produto;
+    if (!rule) return;
+    if (changed && value.exemptManual) {
+      onChange({ ...value, exempt: rule.exempt, exemptManual: false });
+    } else if (!value.exemptManual && value.exempt !== rule.exempt) {
+      onChange({ ...value, exempt: rule.exempt });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rule?.produto, rule?.exempt, value.exemptManual, value.exempt]);
+
+  const followsRule = rule !== null && value.exempt === rule.exempt;
 
   return (
     <fieldset className="space-y-3">
@@ -58,7 +96,7 @@ export function RateFields({ value, onChange }: { value: RateDraft; onChange: (d
             type="button"
             role="radio"
             aria-checked={value.index === r.id}
-            onClick={() => set({ index: r.id, exempt: r.id === "poupanca" ? true : value.exempt })}
+            onClick={() => set({ index: r.id, exempt: r.id === "poupanca" ? true : value.index === "poupanca" ? false : value.exempt })}
             className={`min-h-10 rounded-lg border px-2 text-xs font-semibold transition-colors ${FOCUS} ${
               value.index === r.id
                 ? "border-foreground bg-foreground text-background"
@@ -107,19 +145,48 @@ export function RateFields({ value, onChange }: { value: RateDraft; onChange: (d
         </div>
       )}
 
+      {value.index === "poupanca" && <TaxBadge exempt text="A poupança é isenta de Imposto de Renda." />}
+
       {value.index && value.index !== "poupanca" && (
-        <label className="flex cursor-pointer items-start gap-2.5">
-          <input
-            type="checkbox"
-            checked={value.exempt}
-            onChange={(e) => set({ exempt: e.target.checked })}
-            className="mt-0.5 h-4 w-4 accent-foreground"
-          />
-          <span className="text-xs">
-            <span className="block font-medium text-foreground">Isento de Imposto de Renda</span>
-            <span className="block text-muted-foreground">LCI, LCA, CRI, CRA e debêntures incentivadas.</span>
-          </span>
-        </label>
+        <div className="rounded-xl border border-border px-3 py-2.5 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <TaxBadge
+              exempt={value.exempt}
+              text={
+                followsRule
+                  ? `Automático: ${rule!.produto}`
+                  : rule
+                    ? "Ajustado por você"
+                    : value.exempt
+                      ? "Marcado por você"
+                      : "Escreva o tipo no nome (LCI, CDB…) para preencher sozinho"
+              }
+            />
+            {rule && !followsRule && (
+              <button
+                type="button"
+                onClick={() => set({ exempt: rule.exempt, exemptManual: false })}
+                className={`shrink-0 rounded-md px-1.5 py-1 text-[11px] font-semibold text-foreground underline underline-offset-2 hover:no-underline ${FOCUS}`}
+              >
+                Usar automático
+              </button>
+            )}
+          </div>
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={value.exempt}
+              onChange={(e) => set({ exempt: e.target.checked, exemptManual: true })}
+              className="mt-0.5 h-4 w-4 accent-foreground"
+            />
+            <span className="text-xs">
+              <span className="block font-medium text-foreground">Isento de Imposto de Renda</span>
+              <span className="block text-muted-foreground">
+                {rule ? "Ajuste só se o seu caso for diferente." : "LCI, LCA, CRI, CRA, debêntures incentivadas e poupança."}
+              </span>
+            </span>
+          </label>
+        </div>
       )}
       {meta?.valueLabel && (
         <p className="text-[11px] text-muted-foreground">

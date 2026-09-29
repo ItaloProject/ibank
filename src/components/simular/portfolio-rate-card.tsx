@@ -61,7 +61,7 @@ function RateEditor({ row, onClose, onSaved }: { row: PortfolioRow; onClose: () 
   return (
     <LiveSheet open onOpenChange={(o) => !o && onClose()} title={row.nome} description="Como essa aplicação rende, conforme o contrato ou o app do banco.">
       <form onSubmit={(e) => { e.preventDefault(); void save(); }} className="space-y-5">
-        <RateFields value={draft} onChange={setDraft} />
+        <RateFields value={draft} onChange={setDraft} productName={row.nome} />
         {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={onClose} disabled={saving} className={BTN_SECONDARY}>Cancelar</button>

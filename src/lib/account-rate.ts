@@ -65,6 +65,32 @@ function plain(s: string): string {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+export type TaxRule = { exempt: boolean; produto: string };
+
+const TAX_RULES: { re: RegExp; rule: TaxRule }[] = [
+  { re: /debentures?\s+incentivadas?|\bincentivadas?\b/, rule: { exempt: true, produto: "Debênture incentivada" } },
+  { re: /\blci\b/, rule: { exempt: true, produto: "LCI" } },
+  { re: /\blca\b/, rule: { exempt: true, produto: "LCA" } },
+  { re: /\bcri\b/, rule: { exempt: true, produto: "CRI" } },
+  { re: /\bcra\b/, rule: { exempt: true, produto: "CRA" } },
+  { re: /\blig\b/, rule: { exempt: true, produto: "LIG" } },
+  { re: /poupanca/, rule: { exempt: true, produto: "Poupança" } },
+  { re: /tesouro/, rule: { exempt: false, produto: "Tesouro Direto" } },
+  { re: /\bcdbs?\b/, rule: { exempt: false, produto: "CDB" } },
+  { re: /\brdbs?\b/, rule: { exempt: false, produto: "RDB" } },
+  { re: /\brdcs?\b/, rule: { exempt: false, produto: "RDC" } },
+  { re: /\blc\b|letra de cambio/, rule: { exempt: false, produto: "Letra de câmbio" } },
+  { re: /debentures?/, rule: { exempt: false, produto: "Debênture" } },
+  { re: /\bfundos?\b|\bfic\b|\bfidc\b/, rule: { exempt: false, produto: "Fundo" } },
+  { re: /caixinha|cofrinho|porquinho|cofre/, rule: { exempt: false, produto: "Caixinha" } },
+];
+
+/** Regra de Imposto de Renda pelo tipo de produto escrito no nome. null quando o nome não indica o tipo. */
+export function taxRuleFromName(text: string): TaxRule | null {
+  const t = plain(text);
+  return TAX_RULES.find((r) => r.re.test(t))?.rule ?? null;
+}
+
 /**
  * Lê a regra no nome/instituição de contas antigas ("IPCA + 6,92%", "110% CDI",
  * "13,85% a.a."). Usado só quando a conta ainda não tem os campos estruturados.

@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { accountRateFromText, describeRate, validateAccountRate } from "./account-rate";
+import { accountRateFromText, describeRate, taxRuleFromName, validateAccountRate } from "./account-rate";
+
+describe("isenção de Imposto de Renda pelo tipo do produto", () => {
+  it("marca isentos e desmarca tributáveis", () => {
+    expect(taxRuleFromName("LCA · Banco do Brasil")).toEqual({ exempt: true, produto: "LCA" });
+    expect(taxRuleFromName("CRI Rede D'Or 2030")?.exempt).toBe(true);
+    expect(taxRuleFromName("Debênture incentivada Vale")).toMatchObject({ exempt: true, produto: "Debênture incentivada" });
+    expect(taxRuleFromName("Poupança Caixa")?.exempt).toBe(true);
+    expect(taxRuleFromName("CDB com prazo · Itaú Unibanco")).toMatchObject({ exempt: false, produto: "CDB" });
+    expect(taxRuleFromName("Tesouro IPCA+ 2035")?.exempt).toBe(false);
+    expect(taxRuleFromName("Debênture Petrobras")?.exempt).toBe(false);
+    expect(taxRuleFromName("Caixinha Turbo · Nubank")?.exempt).toBe(false);
+  });
+
+  it("não decide quando o nome não diz o tipo nem confunde palavras", () => {
+    expect(taxRuleFromName("Reserva")).toBeNull();
+    expect(taxRuleFromName("Viagem para Cracóvia")).toBeNull();
+  });
+});
 
 describe("leitura da taxa no nome de contas antigas", () => {
   it("entende os formatos do Tesouro", () => {

@@ -962,7 +962,7 @@ export function InvestorLiveViewDesktop({
             </div>
           )}
 
-          {newCaixinhaTipo !== "turbo" && <RateFields value={newCaixinhaRate} onChange={setNewCaixinhaRate} />}
+          {newCaixinhaTipo !== "turbo" && <RateFields value={newCaixinhaRate} onChange={setNewCaixinhaRate} productName={newCaixinhaName} />}
 
           {newCaixinhaError && <p role="alert" className={`text-xs ${LOSS} rounded-xl bg-red-500/10 px-3 py-2`}>{newCaixinhaError}</p>}
 
