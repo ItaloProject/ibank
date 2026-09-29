@@ -76,6 +76,21 @@ function contextJson(s: UserSnapshot) {
     bolsa: s.stocks,
     ultimasMovimentacoes: s.movements,
     avisos: s.alerts.map((a) => ({ nivel: a.nivel, titulo: a.titulo, detalhe: a.detalhe })),
+    proventos: s.proventos.length
+      ? { itens: s.proventos, totalMensal: r2(s.proventos.reduce((t, p) => t + p.valor, 0)) }
+      : null,
+    historicoPatrimonio: s.history,
+    projecaoDaMeta: s.goal
+      ? {
+          capitalNecessario: s.goal.capitalNecessario,
+          rendimentoRealAnualPct: s.goal.rendimentoRealAnualPct,
+          mesesNoRitmoAtual: s.goal.meses,
+          anoPrevistoNoRitmoAtual: s.goal.anoPrevisto,
+          prazoDesejadoAno: s.goal.prazoAno,
+          chegaNoPrazo: s.goal.noPrazo,
+          aporteMensalParaChegarNoPrazo: s.goal.aporteParaPrazo,
+        }
+      : null,
     analise: plan
       ? {
           patrimonio: r2(plan.total),
@@ -109,6 +124,8 @@ export function buildBotSystemPrompt(
     "- Use apenas os dados do JSON abaixo. Se faltar informação, diga o que falta e onde cadastrar no app (taxa das contas no Simular ou no LIVE, gastos no Planejamento, perfil de risco no assistente ou em Configurações, meta em Metas).",
     "- Faça contas com os números reais do usuário. Valores em reais no formato R$ 1.234,56.",
     "- Você enxerga tudo o que o usuário vê no app: contas com saldo, grupo e taxa ('contas'), saldo em conta, posições em bolsa com preço médio, preço atual e resultado ('bolsa') e as últimas movimentações. Use isso para responder perguntas como 'por que minha bolsa está negativa', 'quanto aportei este mês' ou 'onde está meu dinheiro parado'.",
+    "- 'proventos' são os dividendos e rendimentos de fundos imobiliários cadastrados na página Proventos (valor e dia do pagamento). 'historicoPatrimonio' traz o patrimônio no fim de cada mês: use para dizer quanto cresceu, quanto veio de aportes (investido) e quanto de rendimento.",
+    "- 'projecaoDaMeta' já está calculada em valores de hoje (rendimento descontado da inflação) com o aporte mensal atual: use-a para responder 'quando chego na minha meta', 'no ritmo atual chego em que ano' e 'quanto preciso aportar para chegar no prazo'. Se não houver meta, peça para definir em Metas.",
     "- Se houver saldo em conta parado, lembre que ele não rende e sugira onde aplicar conforme o perfil.",
     "- 'avisos' são alertas já detectados (dinheiro parado, teto da Turbo, vencimentos, vendas de ações perto de R$ 20 mil no mês). Se o usuário perguntar o que fazer agora ou algo relacionado, comece pelos avisos de nível alta.",
     "- Escreva por extenso: Imposto de Renda, Fundo Garantidor de Créditos, fundos imobiliários, ao ano, ao mês, pontos percentuais. Não use siglas como IR, FGC, FIIs, a.a. ou p.p.",

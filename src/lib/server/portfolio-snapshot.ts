@@ -15,6 +15,7 @@ import { buildRebalancePlan, isRiskProfile, type Holding, type RebalancePlan, ty
 import { accountBalance, computeStockPositions, detectAssetType } from "@/lib/stock-utils";
 import { categorizeAccount, isCashAccountName, type AccountGroupId } from "@/lib/account-groups";
 import { buildAlerts, type BotAlert } from "@/lib/alerts";
+import { projectGoal, type GoalProjection } from "@/lib/goal-projection";
 import type { Investment, InvestmentAccount, StockTrade } from "@/types/database";
 
 export type AporteOrigem = "meta" | "media" | "padrao";
@@ -42,6 +43,11 @@ export type SnapshotStock = {
 
 export type SnapshotMovement = { data: string; descricao: string; valor: number };
 
+export type SnapshotProvento = { ticker: string; valor: number; diaPagamento: number; tipo: string };
+
+/** Patrimônio no último registro de cada mês. */
+export type SnapshotHistoryPoint = { mes: string; patrimonio: number; investido: number };
+
 export type UserSnapshot = {
   userId: string;
   nome: string;
@@ -59,6 +65,9 @@ export type UserSnapshot = {
   stocks: SnapshotStock[];
   movements: SnapshotMovement[];
   alerts: BotAlert[];
+  proventos: SnapshotProvento[];
+  history: SnapshotHistoryPoint[];
+  goal: GoalProjection | null;
   rates: MarketRates;
   curve: Curve;
   geradoEm: string;
@@ -172,14 +181,21 @@ export function invalidateSnapshot(userId: string) {
 
 export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
   await Promise.all([ensureAccountColumns(), ensureBotSchema()]);
-  const [users, accRows, invRows, tradeRows, quoteRows, gastoMensal, rates] = await Promise.all([
-    sql`SELECT name, risk_profile, goal_target, goal_monthly_contribution FROM app_users WHERE user_id = ${userId}`,
+  const [users, accRows, invRows, tradeRows, quoteRows, gastoMensal, rates, proventoRows, historyRows] = await Promise.all([
+    sql`SELECT name, risk_profile, goal_target, goal_deadline_year, goal_monthly_contribution FROM app_users WHERE user_id = ${userId}`,
     sql`SELECT * FROM investment_accounts WHERE user_id = ${userId} ORDER BY created_at`,
     sql`SELECT * FROM investments WHERE user_id = ${userId} ORDER BY date`,
     sql`SELECT * FROM stock_trades WHERE user_id = ${userId} ORDER BY date`,
     safe(sql`SELECT ticker, current_price FROM stock_quotes WHERE user_id = ${userId}`, [] as Record<string, unknown>[]),
     monthlySpending(userId),
     fetchMarketRates(),
+    safe(sql`SELECT ticker, amount, payment_day, type FROM proventos WHERE user_id = ${userId} ORDER BY payment_day`, [] as Record<string, unknown>[]),
+    safe(sql`
+      SELECT DISTINCT ON (to_char(date, 'YYYY-MM')) to_char(date, 'YYYY-MM') AS mes, total::float AS total, invested::float AS invested
+      FROM portfolio_snapshots
+      WHERE user_id = ${userId} AND date > CURRENT_DATE - INTERVAL '13 months'
+      ORDER BY to_char(date, 'YYYY-MM'), date DESC
+    `, [] as Record<string, unknown>[]),
   ]);
   const user = users[0] ?? {};
   const accounts: InvestmentAccount[] = accRows.map(toAccount);
@@ -245,12 +261,24 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
     ? buildRebalancePlan({ rows: portfolio.rows, profile, aporte, gastoMensal, holdings, turbos })
     : null;
 
+  const metaRenda = Number(user.goal_target) > 0 ? Number(user.goal_target) : null;
+  const goal = metaRenda && plan
+    ? projectGoal({
+        metaRendaMensal: metaRenda,
+        patrimonio: plan.total,
+        aporteMensal: aporte,
+        retornoAnualPct: plan.retorno12m,
+        ipcaAnualPct: rates.focus?.ipca[1]?.valor ?? rates.focus?.ipca[0]?.valor ?? rates.ipca12m ?? 4.5,
+        prazoAno: Number(user.goal_deadline_year) || null,
+      })
+    : null;
+
   return {
     userId,
     nome: String(user.name ?? userId),
     profile,
     profileDefinido,
-    metaRenda: Number(user.goal_target) > 0 ? Number(user.goal_target) : null,
+    metaRenda,
     aporte,
     aporteOrigem,
     gastoMensal,
@@ -262,6 +290,9 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
     stocks,
     movements: recentMovements(accounts, investments, trades),
     alerts: buildAlerts({ accounts, investments, trades }),
+    proventos: proventoRows.map((p) => ({ ticker: String(p.ticker), valor: r2(Number(p.amount)), diaPagamento: Number(p.payment_day), tipo: String(p.type) })),
+    history: historyRows.map((h) => ({ mes: String(h.mes), patrimonio: r2(Number(h.total)), investido: r2(Number(h.invested)) })),
+    goal,
     rates,
     curve,
     geradoEm: new Date().toISOString(),

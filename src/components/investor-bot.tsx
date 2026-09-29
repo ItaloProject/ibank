@@ -374,8 +374,22 @@ function detectIntent(raw: string): Intent {
   if (/aviso|alerta/.test(t)) return "avisos";
   if (/rebalanc|equilibr|onde aportar|aloca/.test(t)) return "rebal";
   if (/^(visao|resumo|diagnostico|score|minha carteira)/.test(t)) return "visao";
+  if (/quando|que ano|prazo|ritmo/.test(t)) return "help";
   if (/quanto falta|minha meta/.test(t)) return "meta";
   return "help";
+}
+
+/** Resumo em texto de uma resposta pronta, para a IA saber o que já foi mostrado na conversa. */
+function blocksSummary(blocks: Block[]): string {
+  const lines: string[] = [];
+  for (const b of blocks) {
+    if (b.kind === "heading" || b.kind === "text" || b.kind === "md" || b.kind === "alert") lines.push(b.text.replace(/\*\*/g, ""));
+    else if (b.kind === "stats") lines.push(b.items.map((s) => `${s.label}: ${s.value}`).join("; "));
+    else if (b.kind === "bars") lines.push(`${b.title}: ${b.items.map((x) => `${x.label} ${x.atual}% (alvo ${x.ideal}%)`).join("; ")}`);
+    else if (b.kind === "list") lines.push(`${b.title ? `${b.title}: ` : ""}${b.items.map((x) => [x.title, x.value, x.detail].filter(Boolean).join(" ")).join("; ")}`);
+    else if (b.kind === "actions") lines.push(`Botões oferecidos: ${b.items.map(actionLabel).join("; ")}`);
+  }
+  return lines.join("\n").slice(0, 800);
 }
 
 /* ── Renderização ───────────────────────────────────────────────── */
@@ -698,7 +712,9 @@ export function InvestorBot({
     for (let i = 0; i < history.length - 1; i++) {
       const u = history[i];
       const b = history[i + 1];
-      if (u.role === "user" && b.role === "bot" && b.ai) turns.push({ role: "user", content: u.text }, { role: "assistant", content: b.ai });
+      if (u.role !== "user" || b.role !== "bot") continue;
+      const content = b.ai ?? blocksSummary(b.blocks);
+      if (content) turns.push({ role: "user", content: u.text }, { role: "assistant", content });
     }
     turns.push({ role: "user", content: userText });
     const version = dataVersion ?? "";
