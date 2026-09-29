@@ -1,3 +1,5 @@
+import { FALLBACK_CDI, FALLBACK_SELIC } from "@/lib/investment-rates";
+
 export type MarketRates = {
   selicAnual: number;
   cdiAnual: number;
@@ -128,8 +130,8 @@ export async function fetchMarketRates(): Promise<MarketRates> {
     };
   }
   return {
-    selicAnual: 15.0,
-    cdiAnual: 14.9,
+    selicAnual: FALLBACK_SELIC,
+    cdiAnual: FALLBACK_CDI,
     focus,
     updatedAt: new Date().toLocaleDateString("pt-BR"),
     source: "fallback",

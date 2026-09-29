@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
+import { FALLBACK_CDI } from "@/lib/investment-rates";
 import { RISK_PROFILES, alocacaoRelevante, type RebalancePlan, type RiskProfile } from "@/lib/rebalance";
 import { WhatsappPanel } from "@/components/bot/whatsapp-panel";
 import { RiskProfilePicker } from "@/components/bot/risk-profile-picker";
@@ -293,7 +294,7 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
         { kind: "text", text: "Você ainda não definiu uma meta. Use **Definir meta**, no topo desta página, e eu calculo quanto falta." },
       ], ["visao", "fiis"]);
     }
-    const cdiAnual = (research?.rates?.cdiAnual ?? 14.9) / 100;
+    const cdiAnual = (research?.rates?.cdiAnual ?? FALLBACK_CDI) / 100;
     const cdiMensal = Math.pow(1 + cdiAnual * 1.15, 1 / 12) - 1;
     return bot([
       { kind: "heading", text: "Sua meta de renda" },

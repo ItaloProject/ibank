@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { FOCUS } from "@/components/investimentos/live-ui";
+import { toMonthly } from "@/lib/investment-rates";
+import { useMarketRates } from "@/lib/use-market-rates";
 
 export type SimPoint = { month: number; value: number; aportado: number };
 type InicialSource = "patrimonio" | "saldo" | "manual";
@@ -12,11 +14,18 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Estado do simulador de rendimentos. O capital inicial acompanha o patrimônio ou o saldo até o usuário digitar outro valor. */
 export function useSimulation(patrimonio: number, saldo: number) {
+  const rates = useMarketRates();
   const [source, setSource] = useState<InicialSource>("patrimonio");
   const [manual, setManual] = useState(0);
   const [mensal, setMensal] = useState(300);
   const [meses, setMeses] = useState(24);
-  const [taxa, setTaxa] = useState(0.9);
+  const [rateMode, setRateMode] = useState<"cdi" | "manual">("cdi");
+  const [pctCdi, setPctCdi] = useState(100);
+  const [manualTaxa, setManualTaxa] = useState(1);
+
+  /** Taxa ao mês (%) e ao ano (%) usadas no cálculo. */
+  const taxaAnual = rateMode === "cdi" ? (rates.cdiAnual * pctCdi) / 100 : (Math.pow(1 + manualTaxa / 100, 12) - 1) * 100;
+  const taxa = rateMode === "cdi" ? toMonthly(taxaAnual) : manualTaxa;
 
   const inicial = round2(Math.max(0, source === "patrimonio" ? patrimonio : source === "saldo" ? saldo : manual));
 
@@ -47,8 +56,14 @@ export function useSimulation(patrimonio: number, saldo: number) {
     setMensal,
     meses,
     setMeses,
+    rates,
+    rateMode,
+    setRateMode,
+    pctCdi,
+    setPctCdi,
     taxa,
-    setTaxa,
+    taxaAnual,
+    setTaxa: setManualTaxa,
     data,
     final,
     aportado,
@@ -167,7 +182,7 @@ export function SimParam({
               }}
               className={cn(
                 "bg-transparent text-right text-sm font-bold tabular-nums text-foreground focus:outline-none",
-                format === "brl" ? "w-24" : "w-10",
+                format === "brl" ? "w-24" : format === "pct" ? "w-14" : "w-10",
               )}
             />
             {suffix && <span className="text-xs text-muted-foreground">{suffix}</span>}
@@ -232,6 +247,69 @@ export function InicialShortcuts({
       >
         Começar do zero
       </button>
+    </div>
+  );
+}
+
+const pct2 = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Descrição da taxa usada, para o texto de resumo. */
+export function simRateText(sim: ReturnType<typeof useSimulation>): string {
+  const base = `${pct2(sim.taxaAnual)}% ao ano, ${pct2(sim.taxa)}% ao mês`;
+  return sim.rateMode === "cdi"
+    ? `${sim.pctCdi.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% do CDI (${base})`
+    : base;
+}
+
+/** Rendimento: percentual do CDI vigente (padrão) ou taxa ao mês digitada, sempre mostrando o CDI de referência. */
+export function SimRateParam({ id, sim, manualMax = 3 }: { id: string; sim: ReturnType<typeof useSimulation>; manualMax?: number }) {
+  const { rates } = sim;
+  const tab = (active: boolean) =>
+    cn(
+      "min-h-8 flex-1 rounded-md px-3 text-[11px] font-bold transition-colors",
+      FOCUS,
+      active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
+    );
+  const equivCdi = rates.cdiAnual > 0 ? (sim.taxaAnual / rates.cdiAnual) * 100 : 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p id={`${id}-modo`} className="text-sm text-muted-foreground whitespace-nowrap">Rendimento</p>
+        <div role="radiogroup" aria-labelledby={`${id}-modo`} className="flex w-52 rounded-lg border border-border p-0.5">
+          <button type="button" role="radio" aria-checked={sim.rateMode === "cdi"} onClick={() => sim.setRateMode("cdi")} className={tab(sim.rateMode === "cdi")}>
+            % do CDI
+          </button>
+          <button type="button" role="radio" aria-checked={sim.rateMode === "manual"} onClick={() => sim.setRateMode("manual")} className={tab(sim.rateMode === "manual")}>
+            Taxa ao mês
+          </button>
+        </div>
+      </div>
+
+      {sim.rateMode === "cdi" ? (
+        <SimParam id={`${id}-cdi`} label="Percentual do CDI" format="pct" value={sim.pctCdi} onChange={sim.setPctCdi} min={50} max={150} step={1} nudge={5} typedMax={300} />
+      ) : (
+        <SimParam id={`${id}-taxa`} label="Taxa ao mês" format="pct" value={sim.taxa} onChange={sim.setTaxa} min={0.1} max={manualMax} step={0.05} typedMax={10} />
+      )}
+
+      <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 text-[11px] leading-relaxed text-muted-foreground" aria-live="polite">
+        <p>
+          CDI de referência: <span className="font-bold text-foreground tabular-nums">{pct2(rates.cdiAnual)}% ao ano</span>
+          {" · "}Selic {pct2(rates.selicAnual)}% ao ano
+        </p>
+        <p>
+          {rates.loading
+            ? "Buscando a taxa atual no Banco Central…"
+            : rates.source === "bcb"
+              ? `Fonte: Banco Central${rates.updatedAt ? `, ${rates.updatedAt}` : ""}.`
+              : "Banco Central fora do ar: usando o último valor conhecido."}
+        </p>
+        <p className="mt-1.5 text-foreground/90">
+          Taxa usada no cálculo: <span className="font-bold tabular-nums">{pct2(sim.taxaAnual)}% ao ano</span>, equivalente a{" "}
+          <span className="font-bold tabular-nums">{pct2(sim.taxa)}% ao mês</span>
+          {sim.rateMode === "manual" && <> ({equivCdi.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% do CDI)</>}.
+        </p>
+      </div>
     </div>
   );
 }

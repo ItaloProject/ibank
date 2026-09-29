@@ -26,7 +26,8 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { InvestmentAccount, Investment, InvestmentType, StockTrade } from "@/types/database";
 import { format } from "date-fns";
 import { InvestmentRates } from "@/components/investment-rates";
-import { detectCategory, type RateCategory } from "@/lib/investment-rates";
+import { detectCategory, toMonthly, type RateCategory } from "@/lib/investment-rates";
+import { useMarketRates } from "@/lib/use-market-rates";
 import { getCurrentUser } from "@/lib/user";
 import {
   accountBalance, detectAssetType, detectSector, computeStockPositions,
@@ -129,6 +130,7 @@ function EmptyCaixinha({
 
 export function InvestimentosApp({ section }: { section: InvestimentosSection }) {
   const { botEnabled } = useUser();
+  const marketRates = useMarketRates();
   const searchParams = useSearchParams();
   const router = useRouter();
   const isMetas = section === "metas";
@@ -427,8 +429,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   }, [stockForm.quantity, stockForm.price_per_share]);
 
   const investorData = useMemo(() => {
-    const CDI_ANUAL = 0.1065; // CDI ~10.65% ao ano
-    const CDI_MENSAL = CDI_ANUAL / 12;
+    const CDI_MENSAL = toMonthly(marketRates.cdiAnual) / 100;
 
     const turboSources = accounts.filter((a) => a.is_turbo).map((a) => ({
       nome: a.name,
@@ -525,7 +526,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     ];
 
     return { allSources, totalRendaMensal, chartMonths, recommendations, fiiCapital, CDI_MENSAL };
-  }, [accounts, investments, stockPositions, quoteMap, grandTotal]);
+  }, [accounts, investments, stockPositions, quoteMap, grandTotal, marketRates.cdiAnual]);
 
   function goToStockDialog(ticker: string, type: "compra" | "venda") {
     router.push(type === "venda" ? `/investimentos?vender=${encodeURIComponent(ticker)}` : "/investimentos?investir=acoes");

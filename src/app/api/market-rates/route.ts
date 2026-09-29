@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FALLBACK_CDI, FALLBACK_SELIC } from "@/lib/investment-rates";
 
 // Busca taxas oficiais em tempo real na API do Banco Central (SGS).
 // 432  = Meta Selic definida pelo Copom (% a.a.)
@@ -27,15 +28,15 @@ export async function GET() {
       selicAnual: selic.valor,
       // CDI costuma ficar ~0,10 p.p. abaixo da Selic; usa fallback se a série falhar.
       cdiAnual: cdi?.valor ?? Math.max(selic.valor - 0.1, 0),
-      updatedAt: selic.data,
+      updatedAt: cdi?.data ?? selic.data,
       source: "bcb",
     });
   }
 
   // Fallback caso a API do BC esteja indisponível.
   return NextResponse.json({
-    selicAnual: 15.0,
-    cdiAnual: 14.9,
+    selicAnual: FALLBACK_SELIC,
+    cdiAnual: FALLBACK_CDI,
     updatedAt: new Date().toLocaleDateString("pt-BR"),
     source: "fallback",
   });

@@ -25,7 +25,7 @@ import {
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 import { BankPicker } from "@/components/investimentos/bank-picker";
 import type { Bank, BankProduct } from "@/lib/bank-rates";
-import { InicialShortcuts, SimChart, SimLegend, SimParam, useSimulation } from "@/components/investimentos/sim-controls";
+import { InicialShortcuts, SimChart, SimLegend, SimParam, SimRateParam, simRateText, useSimulation } from "@/components/investimentos/sim-controls";
 import {
   FOCUS,
   LABEL,
@@ -761,17 +761,7 @@ export function InvestorLiveViewDesktop({
                 step={1}
                 typedMax={600}
               />
-              <SimParam
-                id="dsim-taxa"
-                label="Rendimento ao mês"
-                format="pct"
-                value={sim.taxa}
-                onChange={sim.setTaxa}
-                min={0.1}
-                max={3}
-                step={0.05}
-                typedMax={10}
-              />
+              <SimRateParam id="dsim-rend" sim={sim} />
             </section>
 
             <section aria-labelledby="proj-heading" className="p-6 flex flex-col gap-5 min-h-0 overflow-y-auto scrollbar-thin-dark">
@@ -809,7 +799,7 @@ export function InvestorLiveViewDesktop({
 
               <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
                 Em {sim.meses} {sim.meses === 1 ? "mês" : "meses"}, rendendo{" "}
-                {sim.taxa.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% ao mês e aportando{" "}
+                {simRateText(sim)} e aportando{" "}
                 {formatCurrency(sim.mensal)} por mês, você tira do bolso{" "}
                 <span className="font-semibold text-foreground tabular-nums">{formatCurrency(sim.aportado)}</span> e os juros somam{" "}
                 <span className="font-semibold text-emerald-500 tabular-nums">{formatCurrency(Math.max(0, sim.rendimento))}</span>, chegando a{" "}

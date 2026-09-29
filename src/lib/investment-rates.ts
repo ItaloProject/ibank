@@ -8,6 +8,10 @@ export interface MarketRates {
   source: "bcb" | "fallback";
 }
 
+/** Usadas só quando a API do Banco Central não responde. Últimos valores conhecidos: setembro de 2026. */
+export const FALLBACK_SELIC = 13.75;
+export const FALLBACK_CDI = 13.65;
+
 export type RateCategory = "poupanca" | "selic" | "cdb" | "lci_lca";
 
 // Nubank não oferece poupança tradicional.

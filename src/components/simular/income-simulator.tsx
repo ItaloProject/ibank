@@ -7,6 +7,7 @@ import {
 import { ChevronDown, Target, Wallet } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
+import { FALLBACK_CDI, FALLBACK_SELIC } from "@/lib/investment-rates";
 import { getInvestmentAccounts, getInvestments, getStockQuotes, getStockTrades, refreshStockQuotes, type StockQuote } from "@/lib/api";
 import type { Investment, InvestmentAccount, StockTrade } from "@/types/database";
 import { EQUITY_REAL_RETURN, buildPortfolio, scalePositions } from "@/lib/portfolio-return";
@@ -279,8 +280,8 @@ export function IncomeSimulator() {
 
   const curve = useMemo(
     () => buildCurve({
-      selic: rates?.selicAnual ?? 15,
-      cdi: rates?.cdiAnual ?? 14.9,
+      selic: rates?.selicAnual ?? FALLBACK_SELIC,
+      cdi: rates?.cdiAnual ?? FALLBACK_CDI,
       ipca12m: rates?.ipca12m ?? INFLATION_ANNUAL * 100,
       focus: rates?.focus,
     }, HORIZON + 12),

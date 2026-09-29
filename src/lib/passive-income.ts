@@ -3,6 +3,8 @@
  * em Investimentos (TURBO, FIIs, média de RF, dividendos estimados).
  */
 
+import { FALLBACK_CDI, toMonthly } from "@/lib/investment-rates";
+
 export type PassiveIncomeSource = {
   label: string;
   value: number;
@@ -31,8 +33,6 @@ export type StockTradeLike = {
   total_amount: number;
 };
 
-const CDI_ANUAL = 0.1065;
-const CDI_MENSAL = CDI_ANUAL / 12;
 const FII_MONTHLY_YIELD = 0.0085;
 const DIVIDEND_MONTHLY_YIELD = 0.004;
 
@@ -70,8 +70,10 @@ export function computeMonthlyPassiveIncome(
   accounts: AccountLike[],
   investments: InvestmentLike[],
   stockTrades: StockTradeLike[],
+  cdiAnual: number = FALLBACK_CDI,
 ): { sources: PassiveIncomeSource[]; total: number } {
   const sources: PassiveIncomeSource[] = [];
+  const CDI_MENSAL = toMonthly(cdiAnual) / 100;
 
   // TURBO — estimativa CDI mensal
   for (const a of accounts.filter((x) => x.is_turbo)) {

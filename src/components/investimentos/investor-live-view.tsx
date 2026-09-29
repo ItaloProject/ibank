@@ -28,7 +28,7 @@ import {
 } from "@/components/investimentos/simulator-invest-flow";
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 import { BankPicker } from "@/components/investimentos/bank-picker";
-import { InicialShortcuts, SimChart, SimLegend, SimParam, useSimulation } from "@/components/investimentos/sim-controls";
+import { InicialShortcuts, SimChart, SimLegend, SimParam, SimRateParam, simRateText, useSimulation } from "@/components/investimentos/sim-controls";
 import type { Bank, BankProduct } from "@/lib/bank-rates";
 import { useLiveActions, type LiveAccount, type LiveMovement } from "@/components/investimentos/live-actions";
 import {
@@ -1253,7 +1253,7 @@ export function InvestorLiveView({
                 </SimParam>
                 <SimParam id="sim-mensal" label="Aporte mensal" format="brl" value={sim.mensal} onChange={sim.setMensal} min={0} max={3000} step={50} typedMax={10_000_000} />
                 <SimParam id="sim-prazo" label="Prazo" format="meses" value={sim.meses} onChange={sim.setMeses} min={1} max={120} step={1} typedMax={600} />
-                <SimParam id="sim-taxa" label="Rendimento ao mês" format="pct" value={sim.taxa} onChange={sim.setTaxa} min={0.1} max={2} step={0.05} typedMax={10} />
+                <SimRateParam id="sim-rend" sim={sim} manualMax={2} />
               </div>
 
               <div className="rounded-xl border border-border bg-card p-5 text-center" aria-live="polite">
@@ -1278,7 +1278,7 @@ export function InvestorLiveView({
                 <SimLegend />
                 <SimChart data={sim.data} maxBars={24} className="mt-3 h-40" />
                 <p className="text-[11px] text-muted-foreground text-center mt-2">
-                  Evolução simulada ao longo de {sim.meses} {sim.meses === 1 ? "mês" : "meses"}, antes do Imposto de Renda
+                  Evolução em {sim.meses} {sim.meses === 1 ? "mês" : "meses"} rendendo {simRateText(sim)}, antes do Imposto de Renda
                 </p>
               </div>
             </div>

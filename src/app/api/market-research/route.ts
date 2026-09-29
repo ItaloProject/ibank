@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildMarketResearch } from "@/lib/market-research";
+import { FALLBACK_CDI, FALLBACK_SELIC } from "@/lib/investment-rates";
 
 export async function GET() {
   try {
@@ -9,8 +10,8 @@ export async function GET() {
     return NextResponse.json(
       {
         rates: {
-          selicAnual: 15.0,
-          cdiAnual: 14.9,
+          selicAnual: FALLBACK_SELIC,
+          cdiAnual: FALLBACK_CDI,
           updatedAt: new Date().toLocaleDateString("pt-BR"),
           source: "fallback",
         },

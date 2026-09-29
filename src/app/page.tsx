@@ -17,6 +17,7 @@ import { formatCurrency } from "@/lib/utils";
 import { accountBalance, detectAssetType } from "@/lib/stock-utils";
 import { INVESTMENT_TYPE_COLORS } from "@/lib/investment-colors";
 import { computeMonthlyPassiveIncome } from "@/lib/passive-income";
+import { useMarketRates } from "@/lib/use-market-rates";
 import type { InvestmentAccount, Investment, StockTrade } from "@/types/database";
 import type { StockQuote } from "@/lib/api";
 import { format } from "date-fns";
@@ -38,6 +39,7 @@ const SOURCE_COLORS = INVESTMENT_TYPE_COLORS;
 
 export default function DashboardPage() {
   const { userId } = useUser();
+  const { cdiAnual } = useMarketRates();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const chartTextColor  = isDark ? "#999999"  : "#706A67";
@@ -127,8 +129,8 @@ export default function DashboardPage() {
     .reduce((s, i) => s + i.amount, 0) + stockPurchases;
 
   const { sources: incomeSources, total: monthlyIncome } = useMemo(
-    () => computeMonthlyPassiveIncome(accounts, investments, stockTrades),
-    [accounts, investments, stockTrades],
+    () => computeMonthlyPassiveIncome(accounts, investments, stockTrades, cdiAnual),
+    [accounts, investments, stockTrades, cdiAnual],
   );
 
   /* ── Planejamento calculations ── */
