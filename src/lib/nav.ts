@@ -23,11 +23,6 @@ export type NavItem = {
   featured?: "amber" | "cyan";
 };
 
-export const FEATURED_DOT: Record<NonNullable<NavItem["featured"]>, string> = {
-  amber: "bg-amber-400",
-  cyan: "bg-cyan-400",
-};
-
 export type NavGroup = {
   id: string;
   label: string;

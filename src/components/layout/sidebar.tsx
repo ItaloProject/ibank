@@ -19,8 +19,8 @@ function fmtCompact(v: number): string {
   if (n >= 1_000) return `R$ ${(n / 1_000).toFixed(1).replace(".", ",")}k`;
   return `R$ ${n.toFixed(0)}`;
 }
+import { FEATURED_DOT } from "@/components/layout/featured-dot";
 import {
-  FEATURED_DOT,
   NAV_GROUPS,
   SYSTEM_NAV_ITEMS,
   isNavItemActive,

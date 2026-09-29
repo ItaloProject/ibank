@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FEATURED_DOT, getBottomTabs, isNavItemActive } from "@/lib/nav";
+import { getBottomTabs, isNavItemActive } from "@/lib/nav";
+import { FEATURED_DOT } from "@/components/layout/featured-dot";
 
 const TABS = getBottomTabs().map((item) => ({
   href: item.href,
