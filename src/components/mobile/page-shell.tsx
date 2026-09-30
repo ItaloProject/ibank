@@ -2,20 +2,25 @@
 
 import { cn } from "@/lib/utils";
 
-const WIDTH = {
-  /** Conteúdo full-bleed com padding padrão do app */
-  default: "px-4 sm:px-6 lg:px-8",
+/** Largura máxima do conteúdo das páginas (a mesma de Metas), centralizada em telas grandes. */
+export const PAGE_CONTENT = "mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8";
+
+export const PAGE_WIDTH = {
+  /** Padrão do app: conteúdo limitado e centralizado */
+  default: PAGE_CONTENT,
   /** Formulários / configs */
-  narrow: "max-w-lg mx-auto px-4 sm:px-6",
+  narrow: "mx-auto w-full max-w-lg px-4 sm:px-6",
   /** Relatórios de investimento, IR, rebalancear */
-  medium: "max-w-3xl mx-auto px-4 sm:px-6",
+  medium: "mx-auto w-full max-w-3xl px-4 sm:px-6",
   /** Listas admin */
-  cozy: "max-w-2xl mx-auto px-4 sm:px-6",
+  cozy: "mx-auto w-full max-w-2xl px-4 sm:px-6",
   /** Vídeos / grade ampla */
-  wide: "max-w-5xl mx-auto px-4 sm:px-6 lg:px-8",
+  wide: PAGE_CONTENT,
+  /** Faixas de ponta a ponta; cada faixa limita o próprio conteúdo com PAGE_CONTENT */
+  full: "w-full",
 } as const;
 
-export type PageBodyWidth = keyof typeof WIDTH;
+export type PageBodyWidth = keyof typeof PAGE_WIDTH;
 
 /** Área de conteúdo abaixo do PageHeader — padding e largura unificados. */
 export function PageBody({
@@ -31,7 +36,7 @@ export function PageBody({
     <div
       className={cn(
         "space-y-5 sm:space-y-6 pt-4 pb-2",
-        WIDTH[width],
+        PAGE_WIDTH[width],
         className,
       )}
     >

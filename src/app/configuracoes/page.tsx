@@ -97,7 +97,7 @@ export default function ConfiguracoesPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Configurações" description="Gerencie seu perfil e segurança" />
+      <PageHeader title="Configurações" description="Gerencie seu perfil e segurança" width="narrow" />
       <PageBody width="narrow">
       {/* Info do usuário */}
       <div className="flex items-center gap-3 border rounded-xl px-4 py-3">

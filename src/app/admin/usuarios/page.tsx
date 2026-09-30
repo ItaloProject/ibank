@@ -154,6 +154,7 @@ export default function UsuariosPage() {
   return (
     <PageShell>
       <PageHeader
+        width="cozy"
         title="Usuários"
         description="Gerencie o acesso ao MUVO"
         actions={

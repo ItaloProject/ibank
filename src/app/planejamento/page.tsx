@@ -30,6 +30,8 @@ import { ptBR } from "date-fns/locale";
 import { generatePlanReport } from "@/lib/generate-plan-report";
 import { USERS } from "@/lib/user";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { PAGE_CONTENT } from "@/components/mobile/page-shell";
+import { cn } from "@/lib/utils";
 import { SplashScreen } from "@/components/splash-screen";
 import { HelpTip } from "@/components/ui/help-tip";
 import { IncomeDialog, type PlanIncome } from "@/components/planejamento/income-dialog";
@@ -426,6 +428,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
       {/* Desktop: full page header */}
       <div className="hidden md:block sticky top-0 z-20 bg-background">
         <PageHeader
+          width="full"
           title="Planejamento"
           description={undefined}
           actions={
@@ -471,10 +474,11 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         </button>
       </div>
 
-      <PageBody className="px-0 pt-0 space-y-0 md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
+      <PageBody width="full" className="pt-0 space-y-0 md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
 
         {/* ── BUDGET OVERVIEW — full width, mobile + desktop ──────────────────── */}
-        <div className="px-4 sm:px-6 pt-3 pb-3 space-y-2.5 border-b bg-muted/10 shrink-0">
+        <div className="border-b bg-muted/10 shrink-0">
+        <div className={cn(PAGE_CONTENT, "pt-3 pb-3 space-y-2.5")}>
           <button
             type="button"
             className="flex items-end justify-between w-full text-left group"
@@ -582,6 +586,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             </div>
           </div>
         </div>
+        </div>
 
         {/* ── MOBILE: ações do mês ─────────────────────────────────────────────── */}
         <div className="md:hidden grid grid-cols-3 gap-1 border-b px-2 py-1.5 shrink-0">
@@ -627,7 +632,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
             </motion.div>
           ) : (
-            <div className="space-y-3 p-4 sm:p-6">
+            <div className={cn(PAGE_CONTENT, "space-y-3 py-4 sm:py-6")}>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-foreground/55">
                   {groups.length} {groups.length === 1 ? "grupo" : "grupos"}

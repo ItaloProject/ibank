@@ -147,6 +147,7 @@ export default function ProventosPage() {
   return (
     <PageShell>
       <PageHeader
+        width="medium"
         title="Calendário de Proventos"
         description="Proventos recorrentes por dia do mês"
         actions={
@@ -161,7 +162,7 @@ export default function ProventosPage() {
         }
       />
 
-      <PageBody className="px-0 sm:px-0 lg:px-0 pt-0 space-y-0">
+      <PageBody width="medium" className="px-0 sm:px-2 pt-0 space-y-0">
       {/* Add form */}
       {formOpen && (
         <div className="px-4 py-4 border-b bg-muted/20 space-y-3">

@@ -61,7 +61,7 @@ export default function ImpostosPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Imposto de Renda" description="Ganho de capital em renda variável" />
+      <PageHeader title="Imposto de Renda" description="Ganho de capital em renda variável" width="medium" />
 
       <PageBody width="medium">
         {allRows.length === 0 ? (
