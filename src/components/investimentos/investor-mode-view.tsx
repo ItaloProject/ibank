@@ -7,6 +7,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { InvestorBot, type BotPortfolioContext } from "@/components/investor-bot";
+import { ProgressRing, Reveal, useCountUp } from "@/components/motion/reveal";
 import { formatCurrency } from "@/lib/utils";
 import { RISK_PROFILES, type RiskProfile } from "@/lib/rebalance";
 import { actionHref, type PlanAllocation, type PlanInsight, type PlanMove } from "@/lib/plan-view";
@@ -34,6 +35,29 @@ export type PortfolioAnalysis = {
   insights: (PlanInsight & { onAction?: () => void })[];
   nextMoves: (PlanMove & { valorTexto: string })[];
 };
+
+function HeroValue({ value, active }: { value: number; active: boolean }) {
+  const shown = useCountUp(value, active, 1.8);
+  return (
+    <div className="flex flex-col items-center px-6">
+      <p className="text-3xl sm:text-4xl font-black tabular-nums text-foreground leading-none text-center font-display">
+        <span className="sr-only">{formatCurrency(value)}</span>
+        <span aria-hidden="true">{formatCurrency(shown)}</span>
+      </p>
+      <p className="text-xs text-muted-foreground mt-2">por mês</p>
+    </div>
+  );
+}
+
+function ScoreValue({ value, active, color }: { value: number; active: boolean; color: string }) {
+  const shown = useCountUp(value, active);
+  return (
+    <span className="absolute inset-0 flex items-center justify-center text-lg font-black tabular-nums" style={{ color }}>
+      <span className="sr-only">Nota {value} de 100</span>
+      <span aria-hidden="true">{Math.round(shown)}</span>
+    </span>
+  );
+}
 
 /** Aceita "1.500,50", "1.500", "1500,5" ou "1500.50". */
 function parseGoal(raw: string): number {
@@ -89,8 +113,6 @@ export function InvestorModeView({
 }: InvestorModeViewProps) {
   const { allSources, totalRendaMensal, chartMonths, CDI_MENSAL } = investorData;
   const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
-  const circumference = 2 * Math.PI * 118;
-
   const [editingGoal, setEditingGoal] = useState(false);
   const [savingGoal, setSavingGoal] = useState(false);
 
@@ -159,26 +181,10 @@ export function InvestorModeView({
             <div className="flex flex-col items-center text-center mb-14 sm:mb-20">
               <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-4">Sua renda passiva mensal</p>
 
-              <div className="relative flex items-center justify-center mb-2" style={{ width: 280, height: 280 }}>
-                <svg width="280" height="280" className="absolute inset-0 -rotate-90">
-                  <circle cx="140" cy="140" r="118" fill="none" strokeWidth="6"
-                    style={{ stroke: "hsl(var(--foreground) / 0.12)" }} />
-                  {incomeGoal > 0 && (
-                    <circle
-                      cx="140" cy="140" r="118" fill="none"
-                      strokeWidth="6" strokeLinecap="round"
-                      strokeDasharray={circumference}
-                      strokeDashoffset={circumference - (goalProgress / 100) * circumference}
-                      style={{ stroke: "hsl(var(--foreground))", transition: "stroke-dashoffset 1s ease" }}
-                    />
-                  )}
-                </svg>
-                <div className="flex flex-col items-center px-6">
-                  <p className="text-3xl sm:text-4xl font-black tabular-nums text-foreground leading-none text-center font-display">
-                    {formatCurrency(totalRendaMensal)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">por mês</p>
-                </div>
+              <div className="mb-2">
+                <ProgressRing size={280} radius={118} stroke={6} progress={incomeGoal > 0 ? goalProgress : 0} color="hsl(var(--foreground))" duration={1.8}>
+                  {(inView) => <HeroValue value={totalRendaMensal} active={inView} />}
+                </ProgressRing>
               </div>
 
               {incomeGoal > 0 && (
@@ -248,15 +254,15 @@ export function InvestorModeView({
             </div>
 
             {/* Fontes de renda */}
-            <div className="mb-14 sm:mb-20">
+            <Reveal className="mb-14 sm:mb-20">
               <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Fontes de renda</h3>
               {allSources.length === 0 ? (
                 <p className="text-muted-foreground text-center py-12 text-sm">Nenhuma fonte de renda identificada ainda.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {allSources.map((src, i) => (
-                    <div key={i}
-                      className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 transition-all hover:bg-muted/60 hover:border-border"
+                    <Reveal key={i} delay={Math.min(i, 7) * 0.06} y={20}
+                      className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 transition-colors hover:bg-muted/60 hover:border-border"
                     >
                       <div className="flex items-center gap-1.5 mb-3">
                         <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
@@ -268,15 +274,15 @@ export function InvestorModeView({
                         +{formatCurrency(src.rendaMensal)}
                       </p>
                       <p className="text-xs text-muted-foreground/60 mt-1">/mês · capital {formatCurrency(src.capital)}</p>
-                    </div>
+                    </Reveal>
                   ))}
                 </div>
               )}
-            </div>
+            </Reveal>
 
             {/* Evolução */}
             {chartMonths.length > 0 && (
-              <div className="mb-14 sm:mb-20">
+              <Reveal className="mb-14 sm:mb-20">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Evolução registrada</h3>
                 <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
                   <ResponsiveContainer width="100%" height={220}>
@@ -308,11 +314,11 @@ export function InvestorModeView({
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
-              </div>
+              </Reveal>
             )}
 
             {/* Alocação */}
-            <div className="mb-14 sm:mb-20">
+            <Reveal className="mb-14 sm:mb-20">
               <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-1">
                 Alocação atual e alvo{portfolioAnalysis ? ` do perfil ${RISK_PROFILES[portfolioAnalysis.profile].label.toLowerCase()}` : ""}
               </h3>
@@ -354,7 +360,7 @@ export function InvestorModeView({
                   </div>
                 ))}
               </div>
-            </div>
+            </Reveal>
 
             {/* Simulador */}
             {(() => {
@@ -362,7 +368,7 @@ export function InvestorModeView({
               const remainingGap = Math.max(0, goalValue - totalRendaMensal);
               const goalReached = remainingGap === 0;
               return (
-                <div>
+                <Reveal>
                   <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">
                     Simulador · capital adicional para chegar em {formatCurrency(goalValue)}/mês
                   </h3>
@@ -381,12 +387,12 @@ export function InvestorModeView({
                           { label: "Fundos imobiliários (cerca de 0,85% ao mês)", value: formatCurrency(remainingGap / 0.0085), sub: "a mais em fundos imobiliários" },
                           { label: "Caixinha Turbo a 115% do CDI", value: formatCurrency(remainingGap / (1.15 * CDI_MENSAL)), sub: "a mais na caixinha Turbo" },
                           { label: "Dividendos (cerca de 0,4% ao mês)", value: formatCurrency(remainingGap / 0.004), sub: "a mais em ações pagadoras" },
-                        ].map((item) => (
-                          <div key={item.label} className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
+                        ].map((item, i) => (
+                          <Reveal key={item.label} delay={i * 0.08} y={20} className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
                             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">{item.label}</p>
                             <p className="text-2xl font-extrabold tabular-nums text-foreground">{item.value}</p>
                             <p className="text-xs text-muted-foreground mt-1">{item.sub}</p>
-                          </div>
+                          </Reveal>
                         ))}
                       </div>
                       <p className="text-xs text-muted-foreground mt-4 text-center">
@@ -394,7 +400,7 @@ export function InvestorModeView({
                       </p>
                     </>
                   )}
-                </div>
+                </Reveal>
               );
             })()}
 
@@ -412,8 +418,10 @@ export function InvestorModeView({
               const levelColors: Record<string, string> = { critical: "#f87171", warning: "#fbbf24", ok: "#34d399", suggestion: "#a3a3a3" };
               const levelBgs: Record<string, string> = { critical: "border-red-500/20 bg-red-500/[0.06]", warning: "border-amber-500/20 bg-amber-500/[0.06]", ok: "border-emerald-500/20 bg-emerald-500/[0.06]", suggestion: "border-border bg-muted/30" };
               const levelLabels: Record<string, string> = { critical: "CRÍTICO", warning: "ATENÇÃO", ok: "OK", suggestion: "SUGESTÃO" };
-              const scoreColor = score >= 70 ? "#34d399" : score >= 40 ? "#fbbf24" : "#f87171";
-              const circumS = 2 * Math.PI * 28;
+              const critico = insights.some((i) => i.level === "critical");
+              const saudavel = score >= 70 && !critico;
+              const scoreColor = saudavel ? "#34d399" : score >= 40 ? "#fbbf24" : "#f87171";
+              const scoreTitle = saudavel ? "Carteira saudável" : score >= 40 ? "Precisa de ajustes" : "Atenção necessária";
               return (
                 <div className="mt-14 sm:mt-20">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
@@ -430,25 +438,21 @@ export function InvestorModeView({
                   </div>
 
                   {/* Score */}
-                  <div className="flex items-center gap-5 mb-8 rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
-                    <div className="relative flex-shrink-0" style={{ width: 64, height: 64 }}>
-                      <svg width="64" height="64" className="-rotate-90 absolute inset-0">
-                        <circle cx="32" cy="32" r="28" fill="none" strokeWidth="6" style={{ stroke: "hsl(var(--foreground) / 0.12)" }} />
-                        <circle cx="32" cy="32" r="28" fill="none" stroke={scoreColor} strokeWidth="6" strokeLinecap="round"
-                          strokeDasharray={circumS} strokeDashoffset={circumS * (1 - score / 100)}
-                          style={{ transition: "stroke-dashoffset 1s ease" }} />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-lg font-black" style={{ color: scoreColor }}>{score}</span>
+                  <Reveal className="flex items-center gap-5 mb-8 rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
+                    <div className="flex-shrink-0">
+                      <ProgressRing size={64} radius={28} stroke={6} progress={score} color={scoreColor}>
+                        {(inView) => <ScoreValue value={score} active={inView} color={scoreColor} />}
+                      </ProgressRing>
                     </div>
                     <div>
-                      <p className="text-lg font-bold text-foreground">{score >= 70 ? "Carteira saudável" : score >= 40 ? "Precisa de ajustes" : "Atenção necessária"}</p>
+                      <p className="text-lg font-bold text-foreground">{scoreTitle}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">Nota pelos pontos de melhoria abaixo e pela distância da alocação-alvo do seu perfil</p>
                     </div>
-                  </div>
+                  </Reveal>
 
                   {/* Evolução do score */}
                   {scoreHistory.length > 1 && (
-                    <div className="mb-10">
+                    <Reveal className="mb-10">
                       <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Evolução do score</h3>
                       <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
                         <ResponsiveContainer width="100%" height={160}>
@@ -483,13 +487,13 @@ export function InvestorModeView({
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
-                    </div>
+                    </Reveal>
                   )}
 
                   {/* Insights */}
                   <div className="space-y-3 mb-10">
                     {insights.map((ins, i) => (
-                      <div key={i} className={`rounded-xl border ${levelBgs[ins.level]} p-4 backdrop-blur-xl`}>
+                      <Reveal key={i} delay={Math.min(i, 5) * 0.05} y={20} className={`rounded-xl border ${levelBgs[ins.level]} p-4 backdrop-blur-xl`}>
                         <div className="flex items-start gap-2.5">
                           <span
                             className="flex-shrink-0 rounded text-[10px] font-black px-1.5 py-0.5 mt-0.5"
@@ -515,11 +519,12 @@ export function InvestorModeView({
                             )}
                           </div>
                         </div>
-                      </div>
+                      </Reveal>
                     ))}
                   </div>
 
                   {/* Próximos aportes */}
+                  <Reveal>
                   <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Onde aportar este mês</h3>
                   <div className="rounded-2xl border border-border bg-card backdrop-blur-xl overflow-hidden">
                     {nextMoves.length === 0 && (
@@ -549,6 +554,7 @@ export function InvestorModeView({
                       </div>
                     ))}
                   </div>
+                  </Reveal>
                 </div>
               );
             })()}
