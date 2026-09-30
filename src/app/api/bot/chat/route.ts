@@ -33,6 +33,13 @@ function parsePage(body: unknown): string | null {
   return json.length <= 3000 ? json : null;
 }
 
+/** Avisos que o usuário adiou ou desconsiderou no app: a IA não volta a insistir neles. */
+function parseHiddenAlerts(body: unknown): Set<string> {
+  const raw = (body as { hiddenAlerts?: unknown })?.hiddenAlerts;
+  if (!Array.isArray(raw)) return new Set();
+  return new Set(raw.filter((id): id is string => typeof id === "string" && id.length <= 100).slice(0, 50));
+}
+
 export async function POST(request: Request) {
   const auth = await requireBotUser();
   if (auth instanceof NextResponse) return auth;
@@ -50,7 +57,9 @@ export async function POST(request: Request) {
       getCachedSnapshot(auth.userId, (body as { fresh?: unknown })?.fresh === true),
       recentDislikes(auth.userId).catch(() => []),
     ]);
-    const raw = await completeChat(buildBotSystemPrompt(snap, parsePage(body), peekTesouroLive(), dislikes), messages);
+    const hidden = parseHiddenAlerts(body);
+    const visible = hidden.size ? { ...snap, alerts: snap.alerts.filter((a) => !hidden.has(a.id)) } : snap;
+    const raw = await completeChat(buildBotSystemPrompt(visible, parsePage(body), peekTesouroLive(), dislikes), messages);
     const { text, actions } = extractActions(raw ?? "", snap.stocks.map((s) => s.ticker));
     if (!text || looksUnanswered(text)) {
       const question = feedbackText(messages[messages.length - 1].content);

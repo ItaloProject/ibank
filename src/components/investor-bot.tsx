@@ -6,9 +6,11 @@ import { readBotPageContext } from "@/lib/bot-page-context";
 import type { BotAlert } from "@/lib/alerts";
 import type { GoalProjection } from "@/lib/goal-projection";
 import { detectIntent, keywordIntent, type Intent } from "@/lib/bot-intent";
+import { SNOOZE_DAYS, alertStatus, parseAlertChoices, snoozeChoice, trimAlertChoices, type AlertChoices } from "@/lib/alert-choices";
 import {
   X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
   Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal, ThumbsUp, ThumbsDown,
+  Clock, EyeOff,
   type LucideIcon,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -60,7 +62,8 @@ type Block =
   | { kind: "pdf" }
   | { kind: "whatsapp" }
   | { kind: "profile" }
-  | { kind: "actions"; items: BotAction[] };
+  | { kind: "actions"; items: BotAction[] }
+  | { kind: "notice"; alert: BotAlert };
 
 type Msg =
   | { id: string; role: "user"; text: string }
@@ -80,6 +83,7 @@ const INTENTS: Record<Exclude<Intent, "help">, { label: string; ask: string; ico
 const STORAGE_CHAT = "muvo_bot_chat_v3";
 const STORAGE_EXPANDED = "muvo_bot_expanded";
 const STORAGE_SEEN_ALERTS = "muvo_bot_alerts_seen";
+const STORAGE_ALERT_CHOICES = "muvo_bot_alert_choices";
 const MAX_STORED = 60;
 const THINK_MS = 650;
 
@@ -190,22 +194,21 @@ function rebalReply(a: AnalysisPayload): Msg {
   return { id, role: "bot", blocks, followups: a.profileDefinido ? ["whatsapp", "perfil", "visao"] : ["whatsapp", "visao"] };
 }
 
-function alertsReply(alerts: BotAlert[]): Msg {
+/** `hidden`: avisos adiados ou desconsiderados, fora da lista. */
+function alertsReply(alerts: BotAlert[], hidden = 0): Msg {
   if (alerts.length === 0) {
-    return {
-      id: uid(), role: "bot", followups: ["visao", "rebal"],
-      blocks: [{ kind: "alert", tone: "pos", text: "Nenhum aviso agora: nada parado, nenhum vencimento próximo e vendas de ações dentro do limite de isenção." }],
-    };
+    const text = hidden
+      ? `Nenhum aviso novo. ${hidden === 1 ? "Um aviso está adiado ou desconsiderado" : `${hidden} avisos estão adiados ou desconsiderados`}.`
+      : "Nenhum aviso agora: nada parado, nenhum vencimento próximo e vendas de ações dentro do limite de isenção.";
+    return { id: uid(), role: "bot", followups: ["visao", "rebal"], blocks: [{ kind: "alert", tone: "pos", text }] };
   }
-  const actions = alerts.map((a) => a.acao).filter((a): a is BotAction => !!a).slice(0, 3);
   return {
     id: uid(),
     role: "bot",
     followups: ["rebal", "visao"],
     blocks: [
       { kind: "heading", text: alerts.length === 1 ? "Tenho um aviso para você" : `Tenho ${alerts.length} avisos para você` },
-      { kind: "list", items: alerts.map((a) => ({ title: a.titulo, meta: a.nivel === "alta" ? "Importante" : "Atenção", detail: a.detalhe })) },
-      ...(actions.length ? [{ kind: "actions", items: actions } as Block] : []),
+      ...alerts.map((alert): Block => ({ kind: "notice", alert })),
     ],
   };
 }
@@ -427,6 +430,7 @@ function blocksSummary(blocks: Block[]): string {
     else if (b.kind === "bars") lines.push(`${b.title}: ${b.items.map((x) => `${x.label} ${x.atual}% (alvo ${x.ideal}%)`).join("; ")}`);
     else if (b.kind === "list") lines.push(`${b.title ? `${b.title}: ` : ""}${b.items.map((x) => [x.title, x.value, x.detail].filter(Boolean).join(" ")).join("; ")}`);
     else if (b.kind === "actions") lines.push(`Botões oferecidos: ${b.items.map(actionLabel).join("; ")}`);
+    else if (b.kind === "notice") lines.push(`Aviso: ${b.alert.titulo}. ${b.alert.detalhe}`);
   }
   return lines.join("\n").slice(0, 800);
 }
@@ -482,8 +486,57 @@ function Markdown({ text }: { text: string }) {
   );
 }
 
-function BlockView({ block, onPdf, onProfile, onAction }: { block: Block; onPdf: () => void; onProfile: () => void; onAction: (a: BotAction) => void }) {
+type NoticeHandlers = {
+  status: (id: string) => "snoozed" | "dismissed" | null;
+  choose: (id: string, choice: "snooze" | "dismiss" | "undo") => void;
+};
+
+function NoticeCard({ alert, onAction, notice }: { alert: BotAlert; onAction: (a: BotAction) => void; notice: NoticeHandlers }) {
+  const status = notice.status(alert.id);
+  const secondary = cn("inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-medium text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white", FOCUS);
+  return (
+    <section className={cn("rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 transition-opacity", status && "opacity-60")}>
+      <p className="text-sm font-semibold text-white">{alert.titulo}</p>
+      <p className={cn("mt-0.5 text-[11px]", alert.nivel === "alta" ? "text-amber-400" : "text-white/45")}>
+        {alert.nivel === "alta" ? "Importante" : "Atenção"}
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-white/60">{alert.detalhe}</p>
+      {status ? (
+        <div className="mt-2.5 flex items-center justify-between gap-2" role="status">
+          <span className="text-xs text-white/55">
+            {status === "snoozed" ? `Vou te lembrar em ${SNOOZE_DAYS} dias.` : "Aviso desconsiderado. Ele não volta a aparecer."}
+          </span>
+          <button type="button" className={secondary} onClick={() => notice.choose(alert.id, "undo")}>Desfazer</button>
+        </div>
+      ) : (
+        <div className="mt-2.5 space-y-1.5">
+          {alert.acao && <BlockView block={{ kind: "actions", items: [alert.acao] }} onPdf={() => {}} onProfile={() => {}} onAction={onAction} />}
+          <div className="flex flex-wrap gap-1">
+            <button type="button" className={secondary} onClick={() => notice.choose(alert.id, "snooze")}>
+              <Clock className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              Lembrar em {SNOOZE_DAYS} dias
+            </button>
+            <button type="button" className={secondary} onClick={() => notice.choose(alert.id, "dismiss")}>
+              <EyeOff className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              Desconsiderar
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function BlockView({ block, onPdf, onProfile, onAction, notice }: {
+  block: Block;
+  onPdf: () => void;
+  onProfile: () => void;
+  onAction: (a: BotAction) => void;
+  notice?: NoticeHandlers;
+}) {
   switch (block.kind) {
+    case "notice":
+      return notice ? <NoticeCard alert={block.alert} onAction={onAction} notice={notice} /> : null;
     case "actions":
       if (block.items.length === 0) return null;
       return (
@@ -670,7 +723,11 @@ export function InvestorBot({
   const [revealId, setRevealId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [seenAlerts, setSeenAlerts] = useState<Set<string>>(() => new Set());
-  const unseenAlerts = hydrated ? context.alerts.filter((a) => !seenAlerts.has(a.id)) : [];
+  const [alertChoices, setAlertChoices] = useState<AlertChoices>({});
+  const visibleAlerts = context.alerts.filter((a) => !alertStatus(alertChoices[a.id]));
+  const hiddenAlertIds = context.alerts.filter((a) => alertStatus(alertChoices[a.id])).map((a) => a.id);
+  const unseenAlerts = hydrated ? visibleAlerts.filter((a) => !seenAlerts.has(a.id)) : [];
+  const botContext = { ...context, alerts: visibleAlerts };
 
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -692,6 +749,7 @@ export function InvestorBot({
       setExpanded(localStorage.getItem(STORAGE_EXPANDED) === "1");
       const seen: unknown = JSON.parse(localStorage.getItem(STORAGE_SEEN_ALERTS) ?? "[]");
       if (Array.isArray(seen)) setSeenAlerts(new Set(seen.filter((s): s is string => typeof s === "string")));
+      setAlertChoices(parseAlertChoices(JSON.parse(localStorage.getItem(STORAGE_ALERT_CHOICES) ?? "{}")));
     } catch { /* conversa nova */ }
     setHydrated(true);
   }, []);
@@ -761,16 +819,17 @@ export function InvestorBot({
     const res = await fetch("/api/bot/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: turns.slice(-12), fresh, page: readBotPageContext() }),
+      body: JSON.stringify({ messages: turns.slice(-12), fresh, page: readBotPageContext(), hiddenAlerts: hiddenAlertIds }),
     });
     if (res.ok) askedVersion.current = version;
     const data = await res.json().catch(() => null);
     if (res.status === 503 && data?.code === "no_llm") {
       const kw = keywordIntent(userText);
       if (kw === "rebal") return rebalance();
-      if (kw) return replyFor(kw, context, await loadResearch());
+      if (kw === "avisos") return alertsReply(visibleAlerts, hiddenAlertIds.length);
+      if (kw) return replyFor(kw, botContext, await loadResearch());
       sendFeedback("sem_resposta", userText, "");
-      return replyFor("help", context, researchCache.current);
+      return replyFor("help", botContext, researchCache.current);
     }
     if (!res.ok) return errorReply(data?.error ?? "Não consegui responder agora. Tente de novo em instantes.");
     const reply = String(data?.reply ?? "");
@@ -812,7 +871,7 @@ export function InvestorBot({
           needsMarket ? loadResearch() : Promise.resolve(researchCache.current),
           new Promise((r) => setTimeout(r, THINK_MS)),
         ]);
-        reply = replyFor(intent, context, research);
+        reply = intent === "avisos" ? alertsReply(visibleAlerts, hiddenAlertIds.length) : replyFor(intent, botContext, research);
       }
       setRevealId(reply.id);
       setMessages((prev) => [...prev, reply]);
@@ -850,6 +909,28 @@ export function InvestorBot({
     setSeenAlerts(next);
     try { localStorage.setItem(STORAGE_SEEN_ALERTS, JSON.stringify([...next].slice(-100))); } catch { /* cheio */ }
   }
+
+  /** Adiar tira o aviso de "visto" para ele voltar com selo quando o prazo acabar. */
+  function chooseAlert(id: string, choice: "snooze" | "dismiss" | "undo") {
+    const nextChoices = { ...alertChoices };
+    const nextSeen = new Set(seenAlerts);
+    if (choice === "undo") {
+      delete nextChoices[id];
+      nextSeen.add(id);
+    } else {
+      nextChoices[id] = choice === "snooze" ? snoozeChoice() : { kind: "dismiss" };
+      if (choice === "snooze") nextSeen.delete(id);
+    }
+    const trimmed = trimAlertChoices(nextChoices);
+    setAlertChoices(trimmed);
+    setSeenAlerts(nextSeen);
+    try {
+      localStorage.setItem(STORAGE_ALERT_CHOICES, JSON.stringify(trimmed));
+      localStorage.setItem(STORAGE_SEEN_ALERTS, JSON.stringify([...nextSeen].slice(-100)));
+    } catch { /* cheio */ }
+  }
+
+  const noticeHandlers: NoticeHandlers = { status: (id) => alertStatus(alertChoices[id]), choose: chooseAlert };
 
   /** Fecha o painel para a folha de investir/vender ficar livre na tela. */
   function runAction(a: BotAction) {
@@ -952,7 +1033,7 @@ export function InvestorBot({
                           className={cn(m.id === revealId && "muvo-reveal")}
                           style={m.id === revealId ? { animationDelay: `${i * 90}ms` } : undefined}
                         >
-                          <BlockView block={b} onPdf={onGeneratePdf} onProfile={() => void ask("Refaz o plano com o novo perfil", "rebal")} onAction={runAction} />
+                          <BlockView block={b} onPdf={onGeneratePdf} onProfile={() => void ask("Refaz o plano com o novo perfil", "rebal")} onAction={runAction} notice={noticeHandlers} />
                         </div>
                       ))}
                       {m.ai && m.q && <FeedbackRow rated={m.rated} onRate={(r) => rate(m.id, r)} />}
