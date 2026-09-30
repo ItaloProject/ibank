@@ -17,6 +17,9 @@ export async function ensureOnboardingColumns() {
       WHERE investment_profile IS NOT NULL
     `;
   }
+  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS risk_profile VARCHAR(20) DEFAULT NULL`;
+  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS risk_quiz_at TIMESTAMPTZ DEFAULT NULL`;
+  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS declared_spending NUMERIC(12,2) DEFAULT NULL`;
   ensured = true;
 }
 
@@ -25,4 +28,9 @@ export function hasSeenCarteira(row: {
   carteira_vista_profile?: string | null;
 }): boolean {
   return !!row.investment_profile && row.carteira_vista_profile === row.investment_profile;
+}
+
+/** Sem perfil de risco e sem ter respondido ou pulado o questionário: mostra o passo a passo. */
+export function needsRiskQuiz(row: { risk_profile?: string | null; risk_quiz_at?: unknown }): boolean {
+  return !row.risk_profile && !row.risk_quiz_at;
 }

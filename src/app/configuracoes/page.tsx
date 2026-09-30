@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useUser } from "@/context/user-context";
 import {
-  Eye, EyeOff, CheckCircle2, User, Lock, LayoutList, Home,
-  Landmark, TrendingUp, Scale, MessageCircle,
+  Eye, EyeOff, User, Lock, LayoutList, Home,
+  Scale, MessageCircle,
 } from "lucide-react";
+import Link from "next/link";
 import { RiskProfilePicker } from "@/components/bot/risk-profile-picker";
+import { OBJETIVO_LABEL, type Objetivo } from "@/lib/risk-quiz";
 import { WhatsappPanel } from "@/components/bot/whatsapp-panel";
 import { cn } from "@/lib/utils";
 import {
@@ -46,7 +48,7 @@ function saveHidden(set: Set<string>) {
 }
 
 export default function ConfiguracoesPage() {
-  const { user, investmentProfile, setProfile, botEnabled } = useUser();
+  const { user, investmentProfile, botEnabled } = useUser();
 
   // Senha
   const [senhaAtual, setSenhaAtual] = useState("");
@@ -68,9 +70,7 @@ export default function ConfiguracoesPage() {
     saveHidden(next);
   }
 
-  // Perfil
-  const [perfilLoading, setPerfilLoading] = useState(false);
-  const [perfilMsg, setPerfilMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
+  const objetivoLabel = investmentProfile && investmentProfile in OBJETIVO_LABEL ? OBJETIVO_LABEL[investmentProfile as Objetivo] : null;
 
   async function handleSenha(e: React.FormEvent) {
     e.preventDefault();
@@ -95,20 +95,6 @@ export default function ConfiguracoesPage() {
     }
   }
 
-  async function handlePerfil(p: string) {
-    if (p === investmentProfile) return;
-    setPerfilLoading(true);
-    setPerfilMsg(null);
-    await setProfile(p);
-    setPerfilLoading(false);
-    setPerfilMsg({ tipo: "ok", texto: "Perfil atualizado! Você verá sua nova carteira sugerida." });
-  }
-
-  const perfis = [
-    { id: "aposentadoria", label: "Aposentadoria", tagline: "Crescimento de longo prazo", icon: Landmark, cor: "border-blue-500 bg-blue-50 dark:bg-blue-950/30" },
-    { id: "renda_mensal", label: "Renda Mensal", tagline: "Proventos todo mês", icon: TrendingUp, cor: "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30" },
-  ];
-
   return (
     <PageShell>
       <PageHeader title="Configurações" description="Gerencie seu perfil e segurança" />
@@ -127,55 +113,24 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
-      {/* Perfil de investimento */}
-      <section>
-        <div className="flex items-center gap-2 mb-3">
-          <User className="h-4 w-4 text-muted-foreground" />
-          <h2 className="font-semibold text-sm">Perfil de Investimento</h2>
-        </div>
-        <div className="flex flex-col gap-2">
-          {perfis.map((p) => {
-            const Icon = p.icon;
-            const ativo = investmentProfile === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                disabled={perfilLoading}
-                onClick={() => handlePerfil(p.id)}
-                className={cn(
-                  "flex items-center gap-3 border rounded-xl px-4 py-3 text-left transition-all",
-                  ativo ? p.cor : "border-border bg-card hover:bg-muted/50",
-                  "disabled:opacity-60",
-                )}
-              >
-                <Icon className={cn("h-5 w-5 shrink-0", ativo ? (p.id === "aposentadoria" ? "text-blue-500" : "text-emerald-500") : "text-muted-foreground")} />
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{p.label}</div>
-                  <div className="text-xs text-muted-foreground">{p.tagline}</div>
-                </div>
-                {ativo && <CheckCircle2 className={cn("h-4 w-4 shrink-0", p.id === "aposentadoria" ? "text-blue-500" : "text-emerald-500")} />}
-              </button>
-            );
-          })}
-        </div>
-        {perfilMsg && (
-          <p className={cn("text-xs mt-2", perfilMsg.tipo === "ok" ? "text-emerald-600" : "text-destructive")}>
-            {perfilMsg.texto}
-          </p>
-        )}
-      </section>
-
-      {/* Perfil de risco */}
+      {/* Perfil de investidor */}
       <section>
         <div className="flex items-center gap-2 mb-1">
           <Scale className="h-4 w-4 text-muted-foreground" />
-          <h2 className="font-semibold text-sm">Perfil de Risco</h2>
+          <h2 className="font-semibold text-sm">Perfil de investidor</h2>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
-          Define a alocação-alvo usada no rebalanceamento do assistente Muvo e no relatório.
+          Define a alocação-alvo usada no rebalanceamento, no assistente Muvo e no relatório.
+          {objetivoLabel ? ` Objetivo: ${objetivoLabel.toLowerCase()}.` : ""}
         </p>
         <RiskProfilePicker />
+        <Link
+          href="/perfil"
+          className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted/50"
+        >
+          <User className="h-4 w-4" aria-hidden="true" />
+          Refazer o questionário de perfil
+        </Link>
       </section>
 
       {botEnabled && (

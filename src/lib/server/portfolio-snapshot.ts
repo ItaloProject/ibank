@@ -6,6 +6,7 @@
 import sql from "@/lib/db";
 import { ensureAccountColumns } from "@/lib/account-schema";
 import { ensureBotSchema } from "@/lib/bot-schema";
+import { ensureOnboardingColumns } from "@/lib/onboarding";
 import { toAccount, toInvestment, toStockTrade } from "@/lib/normalize";
 import { fetchMarketRates, type MarketRates } from "@/lib/market-research";
 import { fetchYahooQuote } from "@/lib/market-quotes";
@@ -180,9 +181,9 @@ export function invalidateSnapshot(userId: string) {
 }
 
 export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
-  await Promise.all([ensureAccountColumns(), ensureBotSchema()]);
-  const [users, accRows, invRows, tradeRows, quoteRows, gastoMensal, rates, proventoRows, historyRows] = await Promise.all([
-    sql`SELECT name, risk_profile, goal_target, goal_deadline_year, goal_monthly_contribution FROM app_users WHERE user_id = ${userId}`,
+  await Promise.all([ensureAccountColumns(), ensureBotSchema(), ensureOnboardingColumns()]);
+  const [users, accRows, invRows, tradeRows, quoteRows, gastoPlanejado, rates, proventoRows, historyRows] = await Promise.all([
+    sql`SELECT name, risk_profile, goal_target, goal_deadline_year, goal_monthly_contribution, declared_spending FROM app_users WHERE user_id = ${userId}`,
     sql`SELECT * FROM investment_accounts WHERE user_id = ${userId} ORDER BY created_at`,
     sql`SELECT * FROM investments WHERE user_id = ${userId} ORDER BY date`,
     sql`SELECT * FROM stock_trades WHERE user_id = ${userId} ORDER BY date`,
@@ -198,6 +199,7 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
     `, [] as Record<string, unknown>[]),
   ]);
   const user = users[0] ?? {};
+  const gastoMensal = gastoPlanejado ?? (Number(user.declared_spending) > 0 ? Number(user.declared_spending) : null);
   const accounts: InvestmentAccount[] = accRows.map(toAccount);
   const investments: Investment[] = invRows.map(toInvestment);
   const trades: StockTrade[] = tradeRows.map(toStockTrade);

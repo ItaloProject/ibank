@@ -11,6 +11,7 @@ interface AuthUser {
   isAdmin?: boolean;
   investmentProfile?: string | null;
   carteiraVista?: boolean;
+  needsRiskQuiz?: boolean;
   botEnabled?: boolean;
   subscriptionActive?: boolean;
   paidUntil?: string | null;
@@ -23,9 +24,12 @@ interface UserContextType {
   isAdmin: boolean;
   investmentProfile: string | null;
   carteiraVista: boolean;
+  needsRiskQuiz: boolean;
   botEnabled: boolean;
   subscriptionActive: boolean;
   setProfile: (profile: string) => void;
+  /** Questionário respondido ou pulado; `objetivo` atualiza o objetivo salvo. */
+  finishRiskQuiz: (objetivo?: string) => void;
   markCarteiraVista: () => Promise<void>;
   login: (user: AuthUser) => void;
   logout: () => Promise<void>;
@@ -39,9 +43,11 @@ const UserContext = createContext<UserContextType>({
   isAdmin: false,
   investmentProfile: null,
   carteiraVista: false,
+  needsRiskQuiz: false,
   botEnabled: false,
   subscriptionActive: true,
   setProfile: () => {},
+  finishRiskQuiz: () => {},
   markCarteiraVista: async () => {},
   login: () => {},
   logout: async () => {},
@@ -97,6 +103,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
+  function finishRiskQuiz(objetivo?: string) {
+    setUser((prev) =>
+      prev
+        ? { ...prev, needsRiskQuiz: false, ...(objetivo ? { investmentProfile: objetivo, carteiraVista: true } : {}) }
+        : prev,
+    );
+  }
+
   async function markCarteiraVista() {
     setUser((prev) => (prev ? { ...prev, carteiraVista: true } : prev));
     try {
@@ -116,9 +130,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         isAdmin: user?.isAdmin ?? false,
         investmentProfile: user?.investmentProfile ?? null,
         carteiraVista: user?.carteiraVista ?? false,
+        needsRiskQuiz: user?.needsRiskQuiz ?? false,
         botEnabled: user?.botEnabled ?? false,
         subscriptionActive: user?.subscriptionActive !== false,
         setProfile,
+        finishRiskQuiz,
         markCarteiraVista,
         login,
         logout,

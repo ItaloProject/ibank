@@ -7,7 +7,7 @@ import {
   hasBotAccess,
   isSubscriptionActive,
 } from "@/lib/subscription";
-import { ensureOnboardingColumns, hasSeenCarteira } from "@/lib/onboarding";
+import { ensureOnboardingColumns, hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";
 
 export async function POST(request: Request) {
   try {
@@ -60,6 +60,7 @@ export async function POST(request: Request) {
         isAdmin: user.is_admin ?? false,
         investmentProfile: user.investment_profile ?? null,
         carteiraVista: hasSeenCarteira(user),
+        needsRiskQuiz: needsRiskQuiz(user),
         botEnabled,
         subscriptionActive,
         paidUntil: user.paid_until ? String(user.paid_until).slice(0, 10) : null,

@@ -8,8 +8,7 @@ import { Sidebar } from "./sidebar";
 import { BottomNav } from "./bottom-nav";
 import { MoreNavSheet } from "./more-nav-sheet";
 import { LoginScreen } from "@/components/login-screen";
-import { ProfileSelectScreen } from "@/components/profile-select-screen";
-import { CarteiraSugeridaScreen } from "@/components/carteira-sugerida-screen";
+import { RiskQuiz } from "@/components/onboarding/risk-quiz";
 import { SubscriptionGate } from "@/components/subscription-gate";
 import { SessionTimeout } from "@/components/session-timeout";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
@@ -21,7 +20,7 @@ const PUBLIC_PATHS = new Set(["/vender", "/comecar", "/politica-privacidade", "/
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { userId, investmentProfile, carteiraVista, markCarteiraVista, subscriptionActive, isAdmin } = useUser();
+  const { userId, user, needsRiskQuiz, finishRiskQuiz, subscriptionActive, isAdmin } = useUser();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -82,13 +81,9 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
   if (!userId) return <LoginScreen />;
   if (!subscriptionActive && !isAdmin) return <SubscriptionGate />;
-  if (!investmentProfile) return <ProfileSelectScreen />;
-  if (!carteiraVista) return (
-    <CarteiraSugeridaScreen
-      profile={investmentProfile}
-      onContinuar={() => { void markCarteiraVista(); }}
-    />
-  );
+  if (needsRiskQuiz && pathname !== "/perfil") {
+    return <RiskQuiz mode="first" name={user?.name} onDone={(r) => finishRiskQuiz(r?.objetivo)} />;
+  }
 
   return (
     <div className="flex h-[100dvh] overflow-hidden">
