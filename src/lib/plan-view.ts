@@ -3,7 +3,7 @@
  * nota da carteira, diagnóstico, próximos aportes e alocação por classe.
  * Uma única fonte de regras: tudo sai de buildRebalancePlan.
  */
-import { RISK_PROFILES, alocacaoRelevante, type Bucket, type RebalancePlan, type RiskProfile, type Suggestion } from "@/lib/rebalance";
+import { RISK_PROFILES, alocacaoRelevante, isRiskProfile, type Bucket, type RebalancePlan, type RiskProfile, type Suggestion } from "@/lib/rebalance";
 import type { BotAlert } from "@/lib/alerts";
 import type { GoalProjection } from "@/lib/goal-projection";
 
@@ -35,15 +35,19 @@ export const SECTION_LABEL: Record<InvestSection, string> = {
 /** Ação que o assistente pode oferecer como botão. */
 export type BotAction =
   | { kind: "investir"; section: InvestSection; amount?: number }
-  | { kind: "vender"; ticker: string };
+  | { kind: "vender"; ticker: string }
+  | { kind: "perfil"; to: RiskProfile };
 
+/** `perfil` fica no próprio assistente; fora dele, abre o questionário. */
 export function actionHref(a: BotAction): string {
+  if (a.kind === "perfil") return "/perfil";
   if (a.kind === "vender") return `/investimentos?vender=${encodeURIComponent(a.ticker)}`;
   const valor = a.amount && a.amount > 0 ? `&valor=${Math.round(a.amount * 100) / 100}` : "";
   return `/investimentos?investir=${a.section}${valor}`;
 }
 
 export function actionLabel(a: BotAction): string {
+  if (a.kind === "perfil") return `Ver o caminho para o perfil ${RISK_PROFILES[a.to].label.toLowerCase()}`;
   if (a.kind === "vender") return `Vender ${a.ticker}`;
   if (a.section === "hub") return a.amount ? `Investir ${brl(a.amount)}` : "Abrir Investir";
   const dest = SECTION_LABEL[a.section];
@@ -51,14 +55,19 @@ export function actionLabel(a: BotAction): string {
 }
 
 /**
- * Marcadores que a IA escreve no fim da resposta: <<investir:eme:500>> e <<vender:PTR4>>.
+ * Marcadores que a IA escreve no fim da resposta: <<investir:eme:500>>, <<vender:PTR4>> e <<perfil:arrojado>>.
  * Remove os marcadores do texto e devolve só as ações válidas (no máximo 3).
  */
 export function extractActions(text: string, ownedTickers: string[]): { text: string; actions: BotAction[] } {
   const owned = new Set(ownedTickers.map((t) => t.toUpperCase()));
   const actions: BotAction[] = [];
-  const clean = text.replace(/<<\s*(investir|vender)\s*:\s*([a-z0-9]+)\s*(?::\s*([\d.,]+))?\s*>>/gi, (_, kind: string, arg: string, num?: string) => {
+  const clean = text.replace(/<<\s*(investir|vender|perfil)\s*:\s*([a-z0-9]+)\s*(?::\s*([\d.,]+))?\s*>>/gi, (_, kind: string, arg: string, num?: string) => {
     if (actions.length >= 3) return "";
+    if (kind.toLowerCase() === "perfil") {
+      const to = arg.toLowerCase() === "agressivo" ? "arrojado" : arg.toLowerCase();
+      if (isRiskProfile(to)) actions.push({ kind: "perfil", to });
+      return "";
+    }
     if (kind.toLowerCase() === "vender") {
       const ticker = arg.toUpperCase();
       if (owned.has(ticker)) actions.push({ kind: "vender", ticker });

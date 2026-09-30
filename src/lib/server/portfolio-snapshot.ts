@@ -61,6 +61,7 @@ export type UserSnapshot = {
   portfolio: Portfolio | null;
   plan: RebalancePlan | null;
   holdings: Holding[];
+  turbos: TurboCap[];
   accounts: SnapshotAccount[];
   saldoEmConta: number;
   stocks: SnapshotStock[];
@@ -75,6 +76,18 @@ export type UserSnapshot = {
 };
 
 const DEFAULT_APORTE = 1000;
+
+/** Mesmo plano do snapshot, calculado com outro perfil sem salvar. */
+export function planForProfile(s: UserSnapshot, profile: RiskProfile, over: { aporte?: number; gastoMensal?: number } = {}): RebalancePlan {
+  return buildRebalancePlan({
+    rows: s.portfolio?.rows ?? [],
+    profile,
+    aporte: over.aporte ?? s.aporte,
+    gastoMensal: over.gastoMensal ?? s.gastoMensal,
+    holdings: s.holdings,
+    turbos: s.turbos,
+  });
+}
 
 async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
   try {
@@ -287,6 +300,7 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
     portfolio,
     plan,
     holdings,
+    turbos,
     accounts: snapAccounts,
     saldoEmConta: r2(saldoEmConta),
     stocks,

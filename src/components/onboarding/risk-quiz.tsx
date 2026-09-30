@@ -6,6 +6,7 @@ import { BrandLockup } from "@/components/brand-lockup";
 import { formatBRLMask, parseBRLMask } from "@/components/investimentos/live-money-sheets";
 import type { RefObject } from "react";
 import { BUCKET_LABEL, RISK_PROFILES, type InvestBucket, type RiskProfile } from "@/lib/rebalance";
+import { formatMonths, type ProfileTransition } from "@/lib/profile-transition";
 import { OBJETIVO_LABEL, QUIZ_QUESTIONS, scoreQuiz, type QuizAnswers, type QuizResult } from "@/lib/risk-quiz";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -265,6 +266,60 @@ function MoneyField({ id, label, hint, value, onChange }: { id: string; label: s
   );
 }
 
+/** Da carteira que o usuário já tem até o perfil escolhido; some quando não há carteira para ajustar. */
+function CarteiraPath({ profile, gasto, aporte }: { profile: RiskProfile; gasto: number; aporte: number }) {
+  const [t, setT] = useState<ProfileTransition | null>(null);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const q = new URLSearchParams({ to: profile });
+    if (aporte > 0) q.set("aporte", String(aporte));
+    if (gasto > 0) q.set("gasto", String(gasto));
+    fetch(`/api/risk-profile/transition?${q}`, { cache: "no-store", signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setT(d?.transition ?? null))
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [profile, gasto, aporte]);
+
+  if (!t || t.to !== profile || t.carteiraPequena) return null;
+  const minimo = Math.max(100, t.investido * 0.01);
+  const mudancas = t.classes.filter((c) => Math.abs(c.diff) >= minimo).sort((a, b) => b.diff - a.diff).slice(0, 4);
+  const alinhada = t.mesesSoAportes === 0;
+  return (
+    <section className="muvo-reveal mt-8 rounded-2xl border border-border bg-card p-4" aria-labelledby="quiz-caminho">
+      <h2 id="quiz-caminho" className="text-sm font-semibold">Da sua carteira até este perfil</h2>
+      {alinhada ? (
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Sua carteira já está perto dessa alocação. Basta seguir os aportes.</p>
+      ) : (
+        <>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Hoje sua carteira está {Math.round(t.desvio)} pontos percentuais fora dessa alocação.{" "}
+            {t.mesesSoAportes !== null
+              ? <>Só redirecionando os aportes de {formatCurrency(t.aporte)}, sem vender nada, a carteira chega lá em <strong className="font-semibold text-foreground">{formatMonths(t.mesesSoAportes)}</strong>.</>
+              : "Só com aportes levaria mais de 20 anos; o assistente mostra o que realocar para acelerar."}
+          </p>
+          {mudancas.length > 0 && (
+            <ul className="mt-3 divide-y divide-border">
+              {mudancas.map((c) => (
+                <li key={c.bucket} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+                  <span className="min-w-0 truncate">{c.label}</span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                    {c.diff > 0 ? `faltam ${formatCurrency(c.diff)}` : `sobram ${formatCurrency(-c.diff)}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            Depois de confirmar, o passo a passo fica no Rebalanceamento e no assistente Muvo.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 function ResultView({
   result, profile, changing, gasto, aporte, headingRef, onChange, onToggleChange, onBack, onConfirm, saving, error,
 }: {
@@ -328,6 +383,8 @@ function ResultView({
           {gasto > 0 ? `, ou ${formatCurrency(gasto * cfg.reservaMeses)}` : ""}, em aplicação com resgate diário.
         </p>
       </section>
+
+      <CarteiraPath profile={profile} gasto={gasto} aporte={aporte} />
 
       {changing && (
         <div role="radiogroup" aria-label="Escolher outro perfil" className="mt-6 grid grid-cols-3 gap-2">

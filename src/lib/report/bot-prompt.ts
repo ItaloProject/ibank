@@ -1,4 +1,4 @@
-import { RISK_PROFILES } from "@/lib/rebalance";
+import { BUCKET_LABEL, RISK_PROFILES, type InvestBucket } from "@/lib/rebalance";
 import { bankRatesForBot } from "@/lib/bank-rates";
 import type { UserSnapshot } from "@/lib/server/portfolio-snapshot";
 import {
@@ -10,6 +10,10 @@ import {
 import { tesouroCatalog, type TesouroLive } from "@/lib/tesouro-rates";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
+
+const PROFILE_TARGETS = Object.values(RISK_PROFILES)
+  .map((p) => `${p.label.toLowerCase()} (${Object.entries(p.alvo).map(([b, v]) => `${BUCKET_LABEL[b as InvestBucket].toLowerCase()} ${Math.round(v * 100)}%`).join(", ")}; reserva de ${p.reservaMeses} meses)`)
+  .join("; ");
 
 /** Títulos do Tesouro e faixas de renda fixa privada que o app oferece na tela de investir. */
 function catalogJson(live: TesouroLive | null) {
@@ -130,6 +134,7 @@ export function buildBotSystemPrompt(
     "- 'avisos' são alertas já detectados (dinheiro parado, teto da Turbo, vencimentos, vendas de ações perto de R$ 20 mil no mês). Se o usuário perguntar o que fazer agora ou algo relacionado, comece pelos avisos de nível alta.",
     "- Escreva por extenso: Imposto de Renda, Fundo Garantidor de Créditos, fundos imobiliários, ao ano, ao mês, pontos percentuais. Não use siglas como IR, FGC, FIIs, a.a. ou p.p.",
     "- Rebalanceamento: priorize redirecionar aportes em vez de vender; se sugerir venda, lembre do Imposto de Renda (renda fixa: tabela regressiva 22,5% a 15%; ações: 15% sobre o ganho, isento se as vendas de ações no mês somarem até R$ 20 mil; fundos imobiliários: 20% sobre o ganho de capital).",
+    `- Mudança de perfil: os alvos da parte fora da reserva são ${PROFILE_TARGETS}. Compare a 'alocacao' atual com o alvo do perfil desejado, diga o que falta e o que sobra em reais, e explique que o caminho mais barato é redirecionar os aportes; vender acelera, mas tem Imposto de Renda. Avise que mais risco significa mais oscilação no curto prazo. Não mude o perfil por conta própria: ofereça o botão <<perfil:PERFIL>>.`,
     "- Recomende classes de ativos (pós-fixado, IPCA+, prefixado, fundos imobiliários, ações) e produtos genéricos (Tesouro Selic, Tesouro IPCA+, CDB, LCI/LCA). Não indique ações ou fundos específicos para comprar; pode comentar os ativos que o usuário já tem.",
     "- Bancos: você conhece as taxas de caixinhas, cofrinhos, CDB, LCI, LCA e poupança dos bancos em 'taxasDosBancos'. Pode comparar bancos e produtos citando nomes e taxas dessa tabela.",
     "- Ao comparar, converta para rendimento líquido: CDB, RDB e RDC pagam Imposto de Renda (22,5% até 180 dias, 20% até 360, 17,5% até 720, 15% acima); LCI e LCA são isentas, então 90% do CDI em LCA equivale a cerca de 106% do CDI em CDB acima de 2 anos. Poupança rende 0,5% ao mês mais TR quando a Selic está acima de 8,5% ao ano e é isenta.",
@@ -141,6 +146,7 @@ export function buildBotSystemPrompt(
     "- Botões de ação: quando sugerir aplicar ou vender algo concreto, escreva no fim da resposta, cada um em uma linha, até 3 marcadores. O app transforma em botões que abrem a tela já preenchida e o usuário confirma.",
     "  - <<investir:SECAO:VALOR>> com SECAO entre eme (reserva de emergência), rendafixa (CDB, LCI, LCA, debêntures), tesouro, turbo (caixinha Turbo), fiis (fundos imobiliários), acoes ou hub (tela inicial de investir). VALOR em reais, só números, opcional.",
     "  - <<vender:TICKER>> apenas para ativos que o usuário já tem em 'bolsa'.",
+    "  - <<perfil:PERFIL>> com PERFIL entre conservador, moderado ou arrojado, quando o usuário falar em mudar de perfil (\"agressivo\" é o arrojado). O botão abre o caminho calculado da carteira atual até o perfil novo, com o passo a passo e a confirmação da mudança.",
     "  - Não mencione os marcadores no texto nem explique a sintaxe.",
     "",
     "Dados do usuário (JSON):",

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { readBotPageContext } from "@/lib/bot-page-context";
 import type { BotAlert } from "@/lib/alerts";
 import type { GoalProjection } from "@/lib/goal-projection";
-import { detectIntent, keywordIntent, type Intent } from "@/lib/bot-intent";
+import { detectIntent, keywordIntent, profileTarget, type Intent } from "@/lib/bot-intent";
 import { SNOOZE_DAYS, alertStatus, parseAlertChoices, snoozeChoice, trimAlertChoices, type AlertChoices } from "@/lib/alert-choices";
 import {
   X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
@@ -16,10 +16,11 @@ import {
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MarketResearchPayload } from "@/lib/market-research";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
-import { RISK_PROFILES, alocacaoRelevante } from "@/lib/rebalance";
+import { RISK_PROFILES, alocacaoRelevante, type RiskProfile } from "@/lib/rebalance";
+import { formatMonths as duration, type ProfileTransition } from "@/lib/profile-transition";
 import { BUCKET_SECTION, actionHref, actionLabel, type AnalysisPayload, type BotAction } from "@/lib/plan-view";
 import { WhatsappPanel } from "@/components/bot/whatsapp-panel";
-import { RiskProfilePicker } from "@/components/bot/risk-profile-picker";
+import { RiskProfilePicker, saveRiskProfile } from "@/components/bot/risk-profile-picker";
 
 /** Mascote do Muvo; o desenho tem fundo claro próprio, então serve nos dois temas. */
 function BotAvatar({ className }: { className?: string }) {
@@ -62,6 +63,7 @@ type Block =
   | { kind: "pdf" }
   | { kind: "whatsapp" }
   | { kind: "profile" }
+  | { kind: "confirmProfile"; to: RiskProfile; from: RiskProfile | null }
   | { kind: "actions"; items: BotAction[] }
   | { kind: "notice"; alert: BotAlert };
 
@@ -69,7 +71,7 @@ type Msg =
   | { id: string; role: "user"; text: string }
   | { id: string; role: "bot"; blocks: Block[]; followups?: Intent[]; ai?: string; q?: string; rated?: "up" | "down" };
 
-const INTENTS: Record<Exclude<Intent, "help">, { label: string; ask: string; icon: LucideIcon }> = {
+const INTENTS: Partial<Record<Intent, { label: string; ask: string; icon: LucideIcon }>> = {
   avisos: { label: "Avisos", ask: "Tem algum aviso para mim?", icon: Bell },
   visao: { label: "Visão da carteira", ask: "Quero a visão completa da carteira", icon: PieChart },
   rebal: { label: "Rebalancear carteira", ask: "Como rebalancear minha carteira?", icon: Scale },
@@ -369,14 +371,6 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
   ], ["visao", "rebal", "whatsapp", "meta"]);
 }
 
-function duration(meses: number): string {
-  const anos = Math.floor(meses / 12);
-  const resto = meses % 12;
-  const a = anos ? `${anos} ${anos === 1 ? "ano" : "anos"}` : "";
-  const m = resto ? `${resto} ${resto === 1 ? "mês" : "meses"}` : "";
-  return [a, m].filter(Boolean).join(" e ");
-}
-
 /** Prazo da meta no ritmo atual e aporte para chegar no ano desejado. */
 function goalBlocks(g: NonNullable<BotPortfolioContext["goal"]>): Block[] {
   if (g.meses === 0) {
@@ -421,6 +415,99 @@ function goalBlocks(g: NonNullable<BotPortfolioContext["goal"]>): Block[] {
   return blocks;
 }
 
+const DIRECAO_TEXTO: Record<ProfileTransition["direcao"], string | null> = {
+  mais_risco: "Mais ações e fundos imobiliários, menos renda fixa. A carteira oscila mais no curto prazo em troca de um retorno esperado maior no longo prazo. Faz sentido para dinheiro que você não vai precisar pelos próximos 5 anos.",
+  menos_risco: "Mais renda fixa e reserva maior, menos ações. A carteira oscila menos, e o retorno esperado no longo prazo também fica menor.",
+  igual: null,
+};
+
+/** Caminho da carteira atual até o perfil novo, com o passo a passo e a confirmação no fim. */
+function transitionReply(t: ProfileTransition, profileSalvo: RiskProfile | null): Msg {
+  const bot = (blocks: Block[], followups: Intent[]): Msg => ({ id: uid(), role: "bot", blocks, followups });
+  const para = RISK_PROFILES[t.to].label;
+  if (profileSalvo === t.to && (t.from === null || t.from === t.to)) {
+    return bot([
+      { kind: "alert", tone: "pos", text: `Seu perfil já é ${para.toLowerCase()}. O rebalanceamento e os aportes já seguem essa alocação.` },
+    ], ["rebal", "perfil"]);
+  }
+  const de = t.from ? RISK_PROFILES[t.from].label : null;
+  const blocks: Block[] = [
+    { kind: "heading", text: de ? `De ${de.toLowerCase()} para ${para.toLowerCase()}` : `Caminho para o perfil ${para.toLowerCase()}` },
+    { kind: "text", text: DIRECAO_TEXTO[t.direcao] ?? RISK_PROFILES[t.to].descricao },
+  ];
+
+  if (t.carteiraPequena) {
+    blocks.push({ kind: "text", muted: true, text: `Com ${formatCurrency(t.investido)} fora da reserva, não há o que ajustar: a partir da confirmação, os aportes já seguem a alocação do perfil ${para.toLowerCase()}.` });
+  } else {
+    blocks.push({
+      kind: "bars",
+      title: `Sua carteira hoje e o alvo ${para.toLowerCase()}`,
+      items: t.classes.map((c) => ({ label: c.label, atual: c.atualPct, ideal: c.alvoNovoPct })),
+    });
+    const minimo = Math.max(100, t.investido * 0.01);
+    const mudancas = t.classes.filter((c) => Math.abs(c.diff) >= minimo).sort((a, b) => b.diff - a.diff);
+    if (mudancas.length > 0) {
+      blocks.push({
+        kind: "list",
+        title: "O que muda",
+        items: mudancas.map((c) => ({
+          title: c.label,
+          meta: c.alvoAntesPct !== null ? `Alvo de ${pct(c.alvoAntesPct)} para ${pct(c.alvoNovoPct)}` : `Alvo de ${pct(c.alvoNovoPct)}`,
+          value: c.diff > 0 ? `faltam ${formatCurrency(c.diff)}` : `sobram ${formatCurrency(-c.diff)}`,
+        })),
+      });
+    }
+  }
+
+  const prazo = t.mesesSoAportes === 0
+    ? { value: "Já alinhada", hint: "a carteira já está perto do alvo", tone: "pos" as Tone }
+    : t.mesesSoAportes !== null
+      ? { value: duration(t.mesesSoAportes), hint: `aportando ${formatCurrency(t.aporte)} por mês, sem vender nada` }
+      : { value: t.aporte > 0 ? "Mais de 20 anos" : "Sem aporte", hint: t.aporte > 0 ? "considere realocar parte da carteira" : "defina um aporte mensal em Metas", tone: "warn" as Tone };
+  const reservaHint = t.reserva.falta > 0
+    ? `faltam ${formatCurrency(t.reserva.falta)}`
+    : t.reserva.liberada > 0
+      ? `${t.reserva.mesesNovo} meses de gastos · libera ${formatCurrency(t.reserva.liberada)} para investir`
+      : `${t.reserva.mesesNovo} meses de gastos · completa`;
+  blocks.push({
+    kind: "stats",
+    items: [
+      { label: "Só com aportes", ...prazo },
+      { label: "Reserva de emergência", value: formatCurrency(t.reserva.alvoNovo), hint: reservaHint, tone: t.reserva.falta > 0 ? "warn" : "pos" },
+    ],
+  });
+
+  const passos: Extract<Block, { kind: "list" }>["items"] = [];
+  if (t.reserva.falta > 0) {
+    passos.push({ title: "Complete a reserva de emergência", value: formatCurrency(t.reserva.falta), detail: `O perfil ${para.toLowerCase()} pede ${t.reserva.mesesNovo} meses de gastos em aplicação com liquidez diária. Os primeiros aportes vão para ela.` });
+  }
+  if (t.aporteDoMes.length > 0) {
+    passos.push({ title: `Aporte ${formatCurrency(t.aporte)} deste mês`, detail: t.aporteDoMes.map((a) => `${a.label}: ${formatCurrency(a.valor)}`).join(" · ") });
+  }
+  const acima = t.vendas.map((v) => v.label.toLowerCase());
+  if (acima.length > 0) {
+    passos.push({ title: `Pare de aportar em ${acima.join(" e ")}`, detail: "Deixe os novos aportes equilibrarem a carteira, sem vender e sem pagar Imposto de Renda." });
+  }
+  passos.push({ title: `Confirme o perfil ${para.toLowerCase()}`, detail: "O rebalanceamento, os avisos e o relatório passam a seguir a nova alocação." });
+  blocks.push({ kind: "list", title: "Passo a passo", ordered: true, items: passos });
+
+  if (t.aporteDoMes.length > 0) {
+    blocks.push({ kind: "actions", items: t.aporteDoMes.slice(0, 3).map((p): BotAction => ({ kind: "investir", section: BUCKET_SECTION[p.bucket], amount: p.valor })) });
+  }
+  if (t.vendas.length > 0 && !t.carteiraPequena) {
+    blocks.push({
+      kind: "list",
+      title: "Para chegar mais rápido (opcional)",
+      items: t.vendas.map((v) => ({ title: `Realocar de ${v.label.toLowerCase()}`, value: `até ${formatCurrency(v.valor)}`, detail: v.nota })),
+    });
+  }
+  blocks.push(
+    { kind: "confirmProfile", to: t.to, from: profileSalvo },
+    { kind: "text", muted: true, text: "Valores de hoje, sem contar rendimentos. Análise educativa, não é recomendação de investimento." },
+  );
+  return bot(blocks, ["rebal", "perfil"]);
+}
+
 /** Resumo em texto de uma resposta pronta, para a IA saber o que já foi mostrado na conversa. */
 function blocksSummary(blocks: Block[]): string {
   const lines: string[] = [];
@@ -431,6 +518,7 @@ function blocksSummary(blocks: Block[]): string {
     else if (b.kind === "list") lines.push(`${b.title ? `${b.title}: ` : ""}${b.items.map((x) => [x.title, x.value, x.detail].filter(Boolean).join(" ")).join("; ")}`);
     else if (b.kind === "actions") lines.push(`Botões oferecidos: ${b.items.map(actionLabel).join("; ")}`);
     else if (b.kind === "notice") lines.push(`Aviso: ${b.alert.titulo}. ${b.alert.detalhe}`);
+    else if (b.kind === "confirmProfile") lines.push(`Botão oferecido: mudar para o perfil ${RISK_PROFILES[b.to].label.toLowerCase()}`);
   }
   return lines.join("\n").slice(0, 800);
 }
@@ -527,14 +615,68 @@ function NoticeCard({ alert, onAction, notice }: { alert: BotAlert; onAction: (a
   );
 }
 
+function ConfirmProfile({ to, from }: { to: RiskProfile; from: RiskProfile | null }) {
+  const [state, setState] = useState<"idle" | "saving" | "done" | "kept" | "error">("idle");
+  const para = RISK_PROFILES[to].label.toLowerCase();
+
+  async function confirm() {
+    setState("saving");
+    try {
+      await saveRiskProfile(to);
+      setState("done");
+    } catch {
+      setState("error");
+    }
+  }
+
+  if (state === "done" || state === "kept") {
+    return (
+      <p role="status" className="flex items-start gap-2 rounded-lg bg-white/[0.04] px-3 py-2 text-xs leading-relaxed text-white/80">
+        <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
+        <span>
+          {state === "done"
+            ? `Pronto, seu perfil agora é ${para}. O rebalanceamento e os próximos aportes já seguem a nova alocação.`
+            : `Perfil ${from ? RISK_PROFILES[from].label.toLowerCase() : "atual"} mantido. Nada foi alterado.`}
+        </span>
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button
+        type="button"
+        disabled={state === "saving"}
+        onClick={() => void confirm()}
+        className={cn("inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-[#0D0D0D] transition-colors hover:bg-white/90 disabled:opacity-60", FOCUS)}
+      >
+        <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+        {state === "saving" ? "Salvando…" : `Mudar para o perfil ${para}`}
+      </button>
+      {from && from !== to && (
+        <button
+          type="button"
+          disabled={state === "saving"}
+          onClick={() => setState("kept")}
+          className={cn("inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-white/15 px-4 text-sm font-medium text-white/75 transition-colors hover:bg-white/[0.08] hover:text-white", FOCUS)}
+        >
+          Manter o perfil {RISK_PROFILES[from].label.toLowerCase()}
+        </button>
+      )}
+      {state === "error" && <p role="alert" className="text-xs text-red-400">Não consegui salvar o perfil. Tente de novo.</p>}
+    </div>
+  );
+}
+
 function BlockView({ block, onPdf, onProfile, onAction, notice }: {
   block: Block;
   onPdf: () => void;
-  onProfile: () => void;
+  onProfile: (p: RiskProfile, prev: RiskProfile | null) => void;
   onAction: (a: BotAction) => void;
   notice?: NoticeHandlers;
 }) {
   switch (block.kind) {
+    case "confirmProfile":
+      return <ConfirmProfile to={block.to} from={block.from} />;
     case "notice":
       return notice ? <NoticeCard alert={block.alert} onAction={onAction} notice={notice} /> : null;
     case "actions":
@@ -563,7 +705,7 @@ function BlockView({ block, onPdf, onProfile, onAction, notice }: {
     case "whatsapp":
       return <WhatsappPanel variant="bot" />;
     case "profile":
-      return <RiskProfilePicker variant="bot" onChange={onProfile} />;
+      return <RiskProfilePicker variant="bot" preview onChange={onProfile} />;
     case "heading":
       return <h3 className="font-display text-[17px] font-semibold leading-tight tracking-tight text-white">{block.text}</h3>;
     case "text":
@@ -803,6 +945,15 @@ export function InvestorBot({
     return rebalReply(data as AnalysisPayload);
   }
 
+  async function transition(to: RiskProfile, from?: RiskProfile | null): Promise<Msg> {
+    const q = new URLSearchParams({ to });
+    if (from) q.set("from", from);
+    const res = await fetch(`/api/risk-profile/transition?${q}`, { cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.transition) return errorReply(data?.error ?? "Não consegui calcular o caminho agora. Tente de novo em instantes.", ["perfil", "rebal"]);
+    return transitionReply(data.transition as ProfileTransition, data.profileSalvo ?? null);
+  }
+
   /** Pergunta aberta: IA com os dados da carteira; sem IA configurada, cai no menu de ajuda. */
   async function askAi(history: Msg[], userText: string): Promise<Msg> {
     const turns: { role: "user" | "assistant"; content: string }[] = [];
@@ -826,6 +977,8 @@ export function InvestorBot({
     if (res.status === 503 && data?.code === "no_llm") {
       const kw = keywordIntent(userText);
       if (kw === "rebal") return rebalance();
+      const alvo = profileTarget(userText);
+      if (kw === "transicao" && alvo) return transition(alvo);
       if (kw === "avisos") return alertsReply(visibleAlerts, hiddenAlertIds.length);
       if (kw) return replyFor(kw, botContext, await loadResearch());
       sendFeedback("sem_resposta", userText, "");
@@ -854,14 +1007,17 @@ export function InvestorBot({
     sendFeedback(rated, m.q, m.ai ?? "");
   }
 
-  async function ask(userText: string, intent: Intent) {
+  async function ask(userText: string, intent: Intent, change?: { to: RiskProfile; from: RiskProfile | null }) {
     if (busy) return;
     const history = messages;
     setMessages((prev) => [...prev, { id: uid(), role: "user", text: userText }]);
     setBusy(true);
     try {
       let reply: Msg;
-      if (intent === "rebal") {
+      const alvo = change?.to ?? (intent === "transicao" ? profileTarget(userText) : null);
+      if (alvo) {
+        reply = await transition(alvo, change?.from);
+      } else if (intent === "rebal") {
         reply = await rebalance();
       } else if (intent === "help") {
         reply = await askAi(history, userText);
@@ -934,6 +1090,10 @@ export function InvestorBot({
 
   /** Fecha o painel para a folha de investir/vender ficar livre na tela. */
   function runAction(a: BotAction) {
+    if (a.kind === "perfil") {
+      void ask(`Quero ver o caminho para o perfil ${RISK_PROFILES[a.to].label.toLowerCase()}`, "transicao", { to: a.to, from: null });
+      return;
+    }
     setOpen(false);
     router.push(actionHref(a), { scroll: false });
   }
@@ -1033,7 +1193,13 @@ export function InvestorBot({
                           className={cn(m.id === revealId && "muvo-reveal")}
                           style={m.id === revealId ? { animationDelay: `${i * 90}ms` } : undefined}
                         >
-                          <BlockView block={b} onPdf={onGeneratePdf} onProfile={() => void ask("Refaz o plano com o novo perfil", "rebal")} onAction={runAction} notice={noticeHandlers} />
+                          <BlockView
+                            block={b}
+                            onPdf={onGeneratePdf}
+                            onProfile={(p, prev) => void ask(`Quero mudar para o perfil ${RISK_PROFILES[p].label.toLowerCase()}`, "transicao", { to: p, from: prev })}
+                            onAction={runAction}
+                            notice={noticeHandlers}
+                          />
                         </div>
                       ))}
                       {m.ai && m.q && <FeedbackRow rated={m.rated} onRate={(r) => rate(m.id, r)} />}

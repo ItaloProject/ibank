@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectIntent, keywordIntent } from "./bot-intent";
+import { detectIntent, keywordIntent, profileTarget } from "./bot-intent";
 
 describe("detectIntent", () => {
   it("pedidos curtos e diretos abrem a resposta pronta", () => {
@@ -22,6 +22,17 @@ describe("detectIntent", () => {
     expect(detectIntent("quando chego na meta?")).toBe("meta");
     expect(detectIntent("quanto falta pra minha meta?")).toBe("meta");
     expect(detectIntent("onde aportar este mês?")).toBe("rebal");
+  });
+
+  it("mudar para um perfil citado abre o caminho de transição", () => {
+    expect(detectIntent("quero mudar para arrojado")).toBe("transicao");
+    expect(detectIntent("Perfil agressivo")).toBe("transicao");
+    expect(detectIntent("e se eu fosse conservador?")).toBe("transicao");
+    expect(detectIntent("como fica minha carteira no perfil agressivo?")).toBe("transicao");
+    expect(detectIntent("mudei de ideia, quero passar para o perfil moderado agora")).toBe("transicao");
+    expect(detectIntent("o que é perfil arrojado?")).toBe("help");
+    expect(profileTarget("agressivo")).toBe("arrojado");
+    expect(profileTarget("rebalancear")).toBeNull();
   });
 
   it("palavra-chave serve de reserva sem inteligência artificial", () => {

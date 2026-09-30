@@ -24,12 +24,14 @@ export async function saveRiskProfile(profile: RiskProfile): Promise<void> {
   window.dispatchEvent(new CustomEvent("muvo_profile_changed", { detail: profile }));
 }
 
+/** `preview`: não salva; só avisa a escolha (com o perfil anterior) para quem vai mostrar o caminho e confirmar. */
 export function RiskProfilePicker({
-  variant = "app", value: controlled, onChange,
+  variant = "app", value: controlled, onChange, preview = false,
 }: {
   variant?: Variant;
   value?: RiskProfile | null;
-  onChange?: (p: RiskProfile) => void;
+  onChange?: (p: RiskProfile, prev: RiskProfile | null) => void;
+  preview?: boolean;
 }) {
   const [value, setValue] = useState<RiskProfile | null>(controlled ?? null);
   const [saving, setSaving] = useState<RiskProfile | null>(null);
@@ -45,12 +47,16 @@ export function RiskProfilePicker({
 
   async function pick(p: RiskProfile) {
     if (p === value || saving) return;
+    if (preview) {
+      onChange?.(p, value);
+      return;
+    }
     setSaving(p);
     setError(null);
     try {
       await saveRiskProfile(p);
       setValue(p);
-      onChange?.(p);
+      onChange?.(p, value);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
     } finally {

@@ -1,8 +1,22 @@
-export type Intent = "visao" | "rebal" | "fiis" | "meta" | "whatsapp" | "perfil" | "pdf" | "avisos" | "help";
+import type { RiskProfile } from "@/lib/rebalance";
+
+export type Intent = "visao" | "rebal" | "fiis" | "meta" | "whatsapp" | "perfil" | "transicao" | "pdf" | "avisos" | "help";
 
 function normalize(raw: string): string {
   return raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
+
+/** Perfil citado na mensagem, aceitando sinônimos ("agressivo" é o arrojado). */
+export function profileTarget(raw: string): RiskProfile | null {
+  const t = normalize(raw);
+  if (/arrojad|agressiv|mais arriscad|mais risco/.test(t)) return "arrojado";
+  if (/conservador|mais segur|menos risco/.test(t)) return "conservador";
+  if (/moderad/.test(t)) return "moderado";
+  return null;
+}
+
+const CHANGE = /mud|troc|pass(ar|o) (a|pro|para)|virar|ir (pro|para)|quero ser|e se|fosse|seria|como fica|ajust|migr|ficar|trocar|novo perfil/;
+const DEFINITION = /^(o que|oque|qual a diferenca|diferenca|explica|me explica)\b/;
 
 /** Assunto indicado por palavra-chave, sem olhar se é pergunta ou pedido. */
 export function keywordIntent(raw: string): Intent | null {
@@ -10,7 +24,8 @@ export function keywordIntent(raw: string): Intent | null {
   if (/quanto falta|minha meta|quando chego|que ano|prazo da meta|ritmo atual/.test(t)) return "meta";
   if (/whats|zap|relator/.test(t)) return "whatsapp";
   if (/pdf|baixar|download|imprim/.test(t)) return "pdf";
-  if (/perfil|conservador|moderado|arrojado/.test(t)) return "perfil";
+  if (profileTarget(t) && CHANGE.test(t) && !DEFINITION.test(t)) return "transicao";
+  if (/perfil|conservador|moderado|arrojado|agressivo/.test(t)) return "perfil";
   if (/aviso|alerta/.test(t)) return "avisos";
   if (/rebalanc|equilibr|onde aportar|aloca/.test(t)) return "rebal";
   if (/^(visao|resumo|diagnostico|score|minha carteira)/.test(t)) return "visao";
@@ -24,10 +39,14 @@ const TEMPLATE_QUESTION = /quanto falta|quando chego|que ano chego|onde aportar|
 
 /**
  * Atalhos para pedidos curtos e diretos ("rebalancear", "meu PDF"); perguntas e mensagens longas vão para a IA ("help").
+ * Mudança para um perfil citado ("quero mudar para arrojado", "e se eu fosse agressivo?") abre o caminho calculado.
  */
 export function detectIntent(raw: string): Intent {
   const t = normalize(raw);
-  if (t.split(/\s+/).length > 7) return "help";
+  const words = t.split(/\s+/).length;
+  if (words <= 16 && keywordIntent(t) === "transicao") return "transicao";
+  if (words <= 3 && profileTarget(t) && !DEFINITION.test(t)) return "transicao";
+  if (words > 7) return "help";
   if (QUESTION.test(t) && !TEMPLATE_QUESTION.test(t)) return "help";
   return keywordIntent(t) ?? "help";
 }

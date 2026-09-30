@@ -14,7 +14,7 @@ function snapshot(over: Partial<UserSnapshot> = {}): UserSnapshot {
   const plan = buildRebalancePlan({ rows, profile: "moderado", aporte: 1000, gastoMensal: 2000 });
   return {
     userId: "u", nome: "italo silva", profile: "moderado", profileDefinido: true, metaRenda: null, aporte: 1000, aporteOrigem: "media",
-    gastoMensal: 2000, portfolio: { total: 40000, caixa: 0, rows, positions: [] }, plan, holdings: [],
+    gastoMensal: 2000, portfolio: { total: 40000, caixa: 0, rows, positions: [] }, plan, holdings: [], turbos: [],
     accounts: [], saldoEmConta: 0, stocks: [], movements: [], alerts: [], proventos: [], history: [], goal: null,
     rates: { selicAnual: 15, cdiAnual: 14.9, source: "bcb", updatedAt: "" } as UserSnapshot["rates"],
     curve: { selic: [15], cdi: [14.9], ipca: [4.5], source: "neutro" },
