@@ -5,6 +5,7 @@
  */
 import { RISK_PROFILES, alocacaoRelevante, type Bucket, type RebalancePlan, type RiskProfile, type Suggestion } from "@/lib/rebalance";
 import type { BotAlert } from "@/lib/alerts";
+import type { GoalProjection } from "@/lib/goal-projection";
 
 /** Seção da tela de investir do LIVE (?investir=<seção>). */
 export type InvestSection = "hub" | "acoes" | "fiis" | "tesouro" | "rendafixa" | "turbo" | "eme";
@@ -99,6 +100,7 @@ export type AnalysisPayload = {
   metaRenda?: number | null;
   plan: RebalancePlan | null;
   alerts?: BotAlert[];
+  goal?: GoalProjection | null;
   rates: { selic: number; cdi: number; ipca12m: number | null; source: string; focusData: string | null };
 };
 

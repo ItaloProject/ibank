@@ -20,6 +20,7 @@ export async function GET() {
       plan: s.plan,
       rows: s.portfolio?.rows ?? [],
       alerts: s.alerts,
+      goal: s.goal,
       rates: { selic: s.rates.selicAnual, cdi: s.rates.cdiAnual, ipca12m: s.rates.ipca12m ?? null, source: s.rates.source, focusData: s.rates.focus?.data ?? null },
       geradoEm: s.geradoEm,
     });

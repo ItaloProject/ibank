@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { readBotPageContext } from "@/lib/bot-page-context";
 import type { BotAlert } from "@/lib/alerts";
+import type { GoalProjection } from "@/lib/goal-projection";
 import {
   X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
   Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal, ThumbsUp, ThumbsDown,
@@ -38,6 +39,8 @@ export type BotPortfolioContext = {
   insights: { level: string; title: string; detail: string }[];
   sources: { nome: string; tipo: string; capital: number; rendaMensal: number }[];
   alerts: BotAlert[];
+  /** Projeção do servidor para a meta atual; null se a meta mudou e a análise ainda não voltou. */
+  goal: (GoalProjection & { aporte: number; aporteOrigem: AnalysisPayload["aporteOrigem"] }) | null;
   holdings: { ticker: string; kind: string; value: number }[];
 };
 
@@ -326,6 +329,7 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
           { label: "Falta", value: formatCurrency(gap), tone: gap === 0 ? "pos" : undefined },
         ],
       },
+      ...(ctx.goal && gap > 0 ? goalBlocks(ctx.goal) : []),
       gap > 0
         ? {
             kind: "list",
@@ -362,6 +366,58 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
   ], ["visao", "rebal", "whatsapp", "meta"]);
 }
 
+function duration(meses: number): string {
+  const anos = Math.floor(meses / 12);
+  const resto = meses % 12;
+  const a = anos ? `${anos} ${anos === 1 ? "ano" : "anos"}` : "";
+  const m = resto ? `${resto} ${resto === 1 ? "mês" : "meses"}` : "";
+  return [a, m].filter(Boolean).join(" e ");
+}
+
+/** Prazo da meta no ritmo atual e aporte para chegar no ano desejado. */
+function goalBlocks(g: NonNullable<BotPortfolioContext["goal"]>): Block[] {
+  if (g.meses === 0) {
+    return [{ kind: "alert", tone: "pos", text: `Seu patrimônio já passa dos ${formatCurrency(g.capitalNecessario)} que sustentam a meta. Falta levar o dinheiro para aplicações que paguem renda.` }];
+  }
+  const taxa = g.rendimentoRealAnualPct.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+  const items: Extract<Block, { kind: "stats" }>["items"] = [
+    { label: "Patrimônio necessário", value: formatCurrency(g.capitalNecessario), hint: `rendendo ${taxa}% ao ano acima da inflação` },
+    {
+      label: "No ritmo atual",
+      value: g.anoPrevisto ? String(g.anoPrevisto) : "Mais de 100 anos",
+      hint: g.meses ? `em ${duration(g.meses)}` : "aumente o aporte",
+      tone: g.noPrazo === null ? undefined : g.noPrazo ? "pos" : "warn",
+    },
+  ];
+  if (g.prazoAno && g.aporteParaPrazo !== null) {
+    items.push({
+      label: `Para chegar em ${g.prazoAno}`,
+      value: formatCurrency(g.aporteParaPrazo),
+      hint: "de aporte por mês",
+      tone: g.noPrazo ? "pos" : "warn",
+    });
+  }
+  const blocks: Block[] = [
+    { kind: "stats", items },
+    {
+      kind: "text",
+      muted: true,
+      text: `Com aporte de ${formatCurrency(g.aporte)} por mês (${APORTE_ORIGEM[g.aporteOrigem]}), em valores de hoje: o rendimento já desconta a inflação esperada.`,
+    },
+  ];
+  if (!g.prazoAno) {
+    blocks.push({ kind: "text", text: "Defina o **ano da meta** em Metas e eu calculo quanto aportar por mês para chegar lá." });
+  } else if (g.aporteParaPrazo === null) {
+    blocks.push({ kind: "alert", tone: "warn", text: `O prazo de ${g.prazoAno} já passou. Atualize o ano da meta em Metas.` });
+  } else if (!g.noPrazo && g.aporteParaPrazo > g.aporte) {
+    blocks.push(
+      { kind: "alert", tone: "warn", text: `Para chegar em ${g.prazoAno}, aumente o aporte em **${formatCurrency(g.aporteParaPrazo - g.aporte)}** por mês ou adie o prazo.` },
+      { kind: "actions", items: [{ kind: "investir", section: "hub", amount: g.aporteParaPrazo }] },
+    );
+  }
+  return blocks;
+}
+
 /**
  * Atalhos para mensagens curtas e diretas; perguntas abertas vão para a IA ("help").
  */
@@ -374,8 +430,7 @@ function detectIntent(raw: string): Intent {
   if (/aviso|alerta/.test(t)) return "avisos";
   if (/rebalanc|equilibr|onde aportar|aloca/.test(t)) return "rebal";
   if (/^(visao|resumo|diagnostico|score|minha carteira)/.test(t)) return "visao";
-  if (/quando|que ano|prazo|ritmo/.test(t)) return "help";
-  if (/quanto falta|minha meta/.test(t)) return "meta";
+  if (/quanto falta|minha meta|quando chego|que ano|prazo da meta|ritmo atual/.test(t)) return "meta";
   return "help";
 }
 

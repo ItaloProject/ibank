@@ -5,7 +5,7 @@ import type { AnalysisPayload } from "@/lib/plan-view";
 
 /**
  * Plano de rebalanceamento do servidor (mesmo motor do bot, do PDF e do WhatsApp).
- * Recarrega quando `version` muda (carteira alterada) ou quando o perfil de risco é salvo.
+ * Recarrega quando `version` muda (carteira alterada) ou quando o perfil de risco ou a meta são salvos.
  */
 export function useRebalanceAnalysis(enabled: boolean, version: string) {
   const [analysis, setAnalysis] = useState<AnalysisPayload | null>(null);
@@ -14,7 +14,11 @@ export function useRebalanceAnalysis(enabled: boolean, version: string) {
   useEffect(() => {
     const bump = () => setProfileTick((n) => n + 1);
     window.addEventListener("muvo_profile_changed", bump);
-    return () => window.removeEventListener("muvo_profile_changed", bump);
+    window.addEventListener("ibank_goal_changed", bump);
+    return () => {
+      window.removeEventListener("muvo_profile_changed", bump);
+      window.removeEventListener("ibank_goal_changed", bump);
+    };
   }, []);
 
   useEffect(() => {

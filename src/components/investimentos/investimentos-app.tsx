@@ -567,6 +567,9 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     emerTotal: portfolioAnalysis?.emerTotal ?? null,
     insights: portfolioAnalysis?.insights ?? [],
     alerts: analysis?.alerts ?? [],
+    goal: analysis?.goal && analysis.metaRenda === incomeGoal
+      ? { ...analysis.goal, aporte: analysis.aporte, aporteOrigem: analysis.aporteOrigem }
+      : null,
     sources: investorData.allSources.map((s) => ({ nome: s.nome, tipo: s.tipo, capital: s.capital, rendaMensal: s.rendaMensal })),
     holdings: stockPositions.map((p) => {
       const q = quoteMap.get(p.ticker);
