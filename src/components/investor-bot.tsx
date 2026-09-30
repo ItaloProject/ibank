@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { readBotPageContext } from "@/lib/bot-page-context";
 import type { BotAlert } from "@/lib/alerts";
 import type { GoalProjection } from "@/lib/goal-projection";
+import { detectIntent, keywordIntent, type Intent } from "@/lib/bot-intent";
 import {
   X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
   Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal, ThumbsUp, ThumbsDown,
@@ -46,7 +47,6 @@ export type BotPortfolioContext = {
 
 /* ── Modelo da conversa ─────────────────────────────────────────── */
 
-type Intent = "visao" | "rebal" | "fiis" | "meta" | "whatsapp" | "perfil" | "pdf" | "avisos" | "help";
 type Tone = "pos" | "warn" | "neg";
 
 type Block =
@@ -418,22 +418,6 @@ function goalBlocks(g: NonNullable<BotPortfolioContext["goal"]>): Block[] {
   return blocks;
 }
 
-/**
- * Atalhos para mensagens curtas e diretas; perguntas abertas vão para a IA ("help").
- */
-function detectIntent(raw: string): Intent {
-  const t = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  if (t.split(/\s+/).length > 7) return "help";
-  if (/whats|zap|relator/.test(t)) return "whatsapp";
-  if (/pdf|baixar|download|imprim/.test(t)) return "pdf";
-  if (/perfil|conservador|moderado|arrojado/.test(t)) return "perfil";
-  if (/aviso|alerta/.test(t)) return "avisos";
-  if (/rebalanc|equilibr|onde aportar|aloca/.test(t)) return "rebal";
-  if (/^(visao|resumo|diagnostico|score|minha carteira)/.test(t)) return "visao";
-  if (/quanto falta|minha meta|quando chego|que ano|prazo da meta|ritmo atual/.test(t)) return "meta";
-  return "help";
-}
-
 /** Resumo em texto de uma resposta pronta, para a IA saber o que já foi mostrado na conversa. */
 function blocksSummary(blocks: Block[]): string {
   const lines: string[] = [];
@@ -782,6 +766,9 @@ export function InvestorBot({
     if (res.ok) askedVersion.current = version;
     const data = await res.json().catch(() => null);
     if (res.status === 503 && data?.code === "no_llm") {
+      const kw = keywordIntent(userText);
+      if (kw === "rebal") return rebalance();
+      if (kw) return replyFor(kw, context, await loadResearch());
       sendFeedback("sem_resposta", userText, "");
       return replyFor("help", context, researchCache.current);
     }
