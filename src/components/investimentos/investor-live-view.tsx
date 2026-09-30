@@ -8,6 +8,7 @@ import {
   CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Trash2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { PlanLeftoverOffer } from "@/components/investimentos/plan-leftover-offer";
 import { CdiHelp, TetoHelp, TipoCaixinhaHelp } from "./help-texts";
 import {
   FOCUS, LABEL, MONEY, BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, BTN_DANGER_OUTLINE,
@@ -781,6 +782,16 @@ export function InvestorLiveView({
     }
   }
 
+  async function takeLeftover(month: string, amount: number) {
+    try {
+      await actions.addLeftover(month, amount);
+      setCashSheetOpen(false);
+    } catch (err) {
+      console.error("Erro ao somar a sobra:", err);
+      toast.error("Não foi possível somar a sobra. Tente novamente.");
+    }
+  }
+
   function onCashMaskChange(raw: string) {
     const digits = raw.replace(/\D/g, "").slice(0, 12);
     setCashInput(formatBRLMask(digits));
@@ -1394,6 +1405,9 @@ export function InvestorLiveView({
             <button type="button" disabled={savingCash} onClick={() => setCashSheetOpen(false)} className={BTN_SECONDARY}>
               Cancelar
             </button>
+          </div>
+          <div className="mt-5">
+            <PlanLeftoverOffer open={cashSheetOpen} done={actions.leftoverDone} disabled={savingCash} onUse={takeLeftover} />
           </div>
         </form>
       </LiveSheet>

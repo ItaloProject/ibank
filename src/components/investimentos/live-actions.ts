@@ -15,6 +15,7 @@ import {
 } from "@/lib/api";
 import type { Investment, StockTrade } from "@/types/database";
 import type { AccountRate } from "@/lib/account-rate";
+import { leftoverDescription, leftoverMonthOf, monthName } from "@/lib/plan-leftover";
 
 export type LiveAccount = {
   id: string;
@@ -251,6 +252,30 @@ export function useLiveActions(d: Deps) {
     toast.success("Saldo em conta atualizado");
   }
 
+  /** Soma a sobra do mês do Planejamento ao saldo em conta, uma vez por mês. */
+  async function addLeftover(month: string, amount: number) {
+    if (!(amount > 0) || leftoverDone.has(month)) return;
+    const cid = await ensureCashAccount();
+    await createInvestment({
+      account_id: cid,
+      type: "deposito",
+      amount: Math.round(amount * 100) / 100,
+      description: leftoverDescription(month),
+      date: today(),
+    });
+    await d.onRefresh();
+    toast.success(`Sobra de ${monthName(month)} somada ao saldo em conta`);
+  }
+
+  const leftoverDone = useMemo(() => {
+    const done = new Set<string>();
+    for (const inv of d.investments) {
+      const m = inv.account_id === d.cashAccountId ? leftoverMonthOf(inv.description) : null;
+      if (m) done.add(m);
+    }
+    return done;
+  }, [d.investments, d.cashAccountId]);
+
   const movements = useMemo((): LiveMovement[] => {
     const items: LiveMovement[] = [];
     const byId = new Map(allAccounts.map((a) => [a.id, a]));
@@ -272,7 +297,18 @@ export function useLiveActions(d: Deps) {
 
     for (const inv of d.investments) {
       if (inv.account_id === d.cashAccountId) {
-        if (inv.description === CASH_ADJUST_DESC) {
+        const sobraDe = leftoverMonthOf(inv.description);
+        if (sobraDe) {
+          items.push({
+            id: `inv-${inv.id}`,
+            kind: "ajuste-saldo",
+            title: `Sobra de ${monthName(sobraDe)}`,
+            subtitle: "Do Planejamento para o saldo em conta",
+            amount: inv.amount,
+            direction: 1,
+            date: inv.date,
+          });
+        } else if (inv.description === CASH_ADJUST_DESC) {
           items.push({
             id: `inv-${inv.id}`,
             kind: "ajuste-saldo",
@@ -376,7 +412,7 @@ export function useLiveActions(d: Deps) {
     toast.success(`Desfeito: ${mov.title}.${cashNote}`);
   }
 
-  return { buyStock, sellStock, aporte, buyFixedIncome, withdraw, updateValue, setCash, undo, movements };
+  return { buyStock, sellStock, aporte, buyFixedIncome, withdraw, updateValue, setCash, addLeftover, leftoverDone, undo, movements };
 }
 
 export type LiveActions = ReturnType<typeof useLiveActions>;

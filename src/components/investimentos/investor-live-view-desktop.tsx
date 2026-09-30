@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { X, Plus, Wallet, Trash2 } from "lucide-react";
+import { PlanLeftoverOffer } from "@/components/investimentos/plan-leftover-offer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
 import { isEmergencyAccountName } from "@/lib/account-groups";
@@ -354,6 +355,16 @@ export function InvestorLiveViewDesktop({
       toast.error("Não foi possível salvar o saldo. Tente novamente.");
     } finally {
       setCashSaving(false);
+    }
+  }
+
+  async function takeLeftover(month: string, amount: number) {
+    try {
+      await actions.addLeftover(month, amount);
+      setCashSheetOpen(false);
+    } catch (err) {
+      console.error("Erro ao somar a sobra:", err);
+      toast.error("Não foi possível somar a sobra. Tente novamente.");
     }
   }
 
@@ -1059,6 +1070,7 @@ export function InvestorLiveViewDesktop({
           <button type="submit" disabled={!cashChanged || cashSaving} className={BTN_PRIMARY}>
             {cashSaving ? "Salvando…" : "Salvar saldo"}
           </button>
+          <PlanLeftoverOffer open={cashSheetOpen} done={actions.leftoverDone} disabled={cashSaving} onUse={takeLeftover} />
         </form>
       </LiveSheet>
     </div>
