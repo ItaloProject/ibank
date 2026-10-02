@@ -143,7 +143,7 @@ async function googleFont(family: string, weight: OgFont["weight"], name: string
 
 let fonts: Promise<OgFont[]> | null = null;
 
-function loadFonts(): Promise<OgFont[]> {
+export function loadFonts(): Promise<OgFont[]> {
   fonts ??= Promise.all([
     googleFont("DM Sans", 400, "DM Sans"),
     googleFont("DM Sans", 700, "DM Sans"),

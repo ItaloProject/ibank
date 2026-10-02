@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -23,11 +23,11 @@ import {
 } from "@/components/ui/select";
 import {
   Plus, Pencil, FolderPlus, TrendingUp, TrendingDown,
-  ChevronLeft, ChevronRight, Copy, FileDown,
+  ChevronLeft, ChevronRight, Copy, FileDown, Loader2,
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { generatePlanReport } from "@/lib/generate-plan-report";
+import type { PlanReportGroup } from "@/lib/report/plan-share";
 import { USERS } from "@/lib/user";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 import { PAGE_CONTENT } from "@/components/mobile/page-shell";
@@ -37,6 +37,7 @@ import { HelpTip } from "@/components/ui/help-tip";
 import { IncomeDialog, type PlanIncome } from "@/components/planejamento/income-dialog";
 import { GroupSection, type ExpenseGroup, type ExpenseItem } from "@/components/planejamento/group-section";
 import { PlanGenie } from "@/components/planejamento/plan-genie";
+import { GroupShareDialog } from "@/components/planejamento/group-share-dialog";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -387,6 +388,26 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   const sobra        = salary - totalActual;
   const sobraPlanned = salary - totalPlanned;
 
+  // ── Relatórios ─────────────────────────────────────────────────────────────
+
+  const [shareGroupId, setShareGroupId] = useState<string | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  const reportGroups = useMemo<PlanReportGroup[]>(
+    () => groups.map((g) => ({
+      name: g.name,
+      color: g.color,
+      items: items
+        .filter((i) => i.group_id === g.id)
+        .map((i) => ({ name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
+    })),
+    [groups, items],
+  );
+  const shareGroup = useMemo(() => {
+    const index = groups.findIndex((g) => g.id === shareGroupId);
+    return index >= 0 ? reportGroups[index] : null;
+  }, [groups, reportGroups, shareGroupId]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -408,13 +429,38 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     );
   }
 
-  function exportPdf() {
-    const userName = USERS.find(u => u.id === userId)?.name ?? userId;
-    generatePlanReport(
-      groups.map(g => ({ id: g.id, name: g.name, color: g.color })),
-      items.map(i => ({ id: i.id, groupId: i.group_id, name: i.name, type: i.type, planned: i.planned, actual: i.actual })),
-      monthLabel, userName, salary, incomes,
-    );
+  async function exportPdf() {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const userName = currentUser?.name ?? userId;
+      const [{ renderPlanPdf, planPdfFilename }, logo] = await Promise.all([
+        import("@/lib/report/plan-pdf"),
+        fetch("/brand/muvo-lockup-light.png").then((r) => {
+          if (!r.ok) throw new Error("logo");
+          return r.arrayBuffer();
+        }),
+      ]);
+      const bytes = await renderPlanPdf({
+        groups: reportGroups,
+        monthLabel,
+        userName,
+        incomes: incomes.map((i) => ({ description: i.description, amount: i.amount })),
+        logo: new Uint8Array(logo),
+      });
+      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = planPdfFilename(userName, monthLabel);
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      toast.success("Relatório de planejamento gerado.");
+    } catch (err) {
+      console.error("Erro ao gerar PDF do planejamento:", err);
+      toast.error("Não foi possível gerar o PDF. Tente novamente.");
+    } finally {
+      setPdfBusy(false);
+    }
   }
   const allCollapsed = groups.length > 0 && groups.every(g => collapsed.has(g.id));
 
@@ -448,8 +494,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 Copiar mês anterior
               </Button>
               {items.length > 0 && (
-                <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={exportPdf}>
-                  <FileDown className="h-3.5 w-3.5" />
+                <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={exportPdf} disabled={pdfBusy}>
+                  {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
                   Gerar PDF
                 </Button>
               )}
@@ -610,10 +656,10 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           <button
             type="button"
             onClick={exportPdf}
-            disabled={items.length === 0}
+            disabled={items.length === 0 || pdfBusy}
             className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
           >
-            <FileDown className="h-3.5 w-3.5" />
+            {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
             PDF
           </button>
         </div>
@@ -655,6 +701,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     collapsed={collapsed.has(group.id)}
                     onToggle={() => toggleGroup(group.id)}
                     onAddItem={() => openNewItem(group.id)}
+                    onShare={() => setShareGroupId(group.id)}
                     onEditGroup={() => openEditGroup(group)}
                     onDeleteGroup={() => openDeleteGroup(group)}
                     onEditItem={openEditItem}
@@ -675,6 +722,12 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           )}
         </div>
       </PageBody>
+
+      <GroupShareDialog
+        group={shareGroup}
+        monthLabel={monthLabel}
+        onOpenChange={(open) => { if (!open) setShareGroupId(null); }}
+      />
 
       {/* ── Dialog: Renda do mês ─────────────────────────────────────────────── */}
       <IncomeDialog

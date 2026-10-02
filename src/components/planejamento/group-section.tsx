@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, Layers, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Layers, Pencil, Plus, Share2, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export interface ExpenseGroup { id: string; user_id: string; name: string; color: string; }
@@ -18,13 +18,14 @@ function fmt(v: number) {
 const ICON_BTN = "flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation md:h-9 md:w-9";
 
 export function GroupSection({
-  group, items, collapsed, onToggle, onAddItem, onEditGroup, onDeleteGroup, onEditItem, onDeleteItem, onActual,
+  group, items, collapsed, onToggle, onAddItem, onShare, onEditGroup, onDeleteGroup, onEditItem, onDeleteItem, onActual,
 }: {
   group: ExpenseGroup;
   items: ExpenseItem[];
   collapsed: boolean;
   onToggle: () => void;
   onAddItem: () => void;
+  onShare: () => void;
   onEditGroup: () => void;
   onDeleteGroup: () => void;
   onEditItem: (item: ExpenseItem) => void;
@@ -66,6 +67,9 @@ export function GroupSection({
         </button>
         <button type="button" className={ICON_BTN} onClick={onAddItem} aria-label={`Adicionar item em ${group.name}`} title="Adicionar item">
           <Plus className="h-4 w-4" />
+        </button>
+        <button type="button" className={ICON_BTN} onClick={onShare} aria-label={`Compartilhar ${group.name} no WhatsApp`} title="Compartilhar">
+          <Share2 className="h-3.5 w-3.5" />
         </button>
         <button type="button" className={ICON_BTN} onClick={onEditGroup} aria-label={`Editar grupo ${group.name}`} title="Editar grupo">
           <Pencil className="h-3.5 w-3.5" />
