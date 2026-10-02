@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const auth = await requireUserId();
   if (auth instanceof NextResponse) return auth;
 
-  const body = (await request.json().catch(() => null)) as { text?: unknown; context?: unknown; fresh?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { text?: unknown; context?: unknown; fresh?: unknown; memoryOnly?: unknown } | null;
   const query = buildSearchQuery(typeof body?.text === "string" ? body.text : "", typeof body?.context === "string" ? body.context : null);
   if (!query) return NextResponse.json({ error: "Pergunta vazia." }, { status: 400 });
   const fresh = body?.fresh === true;
@@ -35,6 +35,8 @@ export async function POST(request: Request) {
     const known = await recall(query).catch(() => null);
     if (known) return NextResponse.json({ answer: known.answer, sources: known.sources, id: known.id, learned: true } satisfies Result);
   }
+  // O assistente de investimentos só consulta o que já foi aprendido; o resto vai para a inteligência artificial dele.
+  if (body?.memoryOnly === true) return NextResponse.json({ error: "Ainda não aprendi." }, { status: 404 });
 
   const key = process.env.TAVILY_API_KEY?.trim();
   if (!key) return NextResponse.json({ error: "Pesquisa na web desligada." }, { status: 503 });

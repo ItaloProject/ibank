@@ -25,7 +25,7 @@ export async function GET() {
   const admin = await requireAdmin();
   if (admin instanceof NextResponse) return admin;
   await ensureBotSchema();
-  const [counts, pending] = await Promise.all([
+  const [counts, pending, grouped] = await Promise.all([
     sql`
       SELECT kind, COUNT(*)::int AS n FROM bot_feedback
       WHERE created_at > NOW() - INTERVAL '30 days' GROUP BY kind
@@ -34,9 +34,30 @@ export async function GET() {
       SELECT kind, question, answer, created_at FROM bot_feedback
       WHERE kind IN ('down', 'sem_resposta', 'genio') ORDER BY created_at DESC LIMIT 50
     `,
+    sql`
+      SELECT LOWER(TRIM(question)) AS pergunta,
+             COUNT(*)::int AS vezes,
+             COUNT(DISTINCT user_id)::int AS pessoas,
+             ARRAY_AGG(DISTINCT kind) AS tipos,
+             BOOL_OR(kind = 'genio' AND answer = 'web') AS internet,
+             MAX(created_at) AS ultima
+      FROM bot_feedback
+      WHERE kind IN ('down', 'sem_resposta', 'genio') AND created_at > NOW() - INTERVAL '30 days'
+      GROUP BY LOWER(TRIM(question))
+      ORDER BY vezes DESC, ultima DESC
+      LIMIT 100
+    `,
   ]);
   return NextResponse.json({
     ultimos30Dias: Object.fromEntries(counts.map((r) => [r.kind, r.n])),
     paraEnsinar: pending.map((r) => ({ tipo: r.kind, pergunta: r.question, resposta: r.answer, em: r.created_at })),
+    porPergunta: grouped.map((r) => ({
+      pergunta: r.pergunta,
+      vezes: r.vezes,
+      pessoas: r.pessoas,
+      tipos: r.tipos,
+      internet: Boolean(r.internet),
+      ultima: r.ultima,
+    })),
   });
 }

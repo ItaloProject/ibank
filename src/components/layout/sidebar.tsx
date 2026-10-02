@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LogOut, ChevronLeft, X, Sun, Moon, Users,
+  LogOut, ChevronLeft, X, Sun, Moon, Users, MessageCircleQuestion,
 } from "lucide-react";
 import Image from "next/image";
 import { BrandLockup } from "@/components/brand-lockup";
@@ -27,6 +27,11 @@ import {
   isPageVisible,
   readHiddenPages,
 } from "@/lib/nav";
+
+const ADMIN_LINKS = [
+  { href: "/admin/usuarios", label: "Usuários", icon: Users },
+  { href: "/admin/perguntas", label: "Perguntas sem resposta", icon: MessageCircleQuestion },
+];
 
 interface SidebarProps {
   collapsed: boolean;
@@ -289,24 +294,27 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
                 </Link>
               );
             })}
-            {isAdmin && (
-              <Link href="/admin/usuarios"
-                title={isCollapsed ? "Usuários" : undefined}
-                onClick={onMobileClose}
-                className={cn(
-                  "group flex items-center rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
-                  isCollapsed ? "justify-center gap-0" : "gap-3",
-                  isNavItemActive(pathname, "/admin/usuarios")
-                    ? "bg-sidebar-primary/15 text-sidebar-primary"
-                    : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                )}>
-                <Users className={cn("shrink-0", isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
-                  isNavItemActive(pathname, "/admin/usuarios") ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground")} />
-                <span className={cn("whitespace-nowrap overflow-hidden transition-all duration-150", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
-                  Usuários
-                </span>
-              </Link>
-            )}
+            {isAdmin && ADMIN_LINKS.map(({ href, label, icon: Icon }) => {
+              const active = isNavItemActive(pathname, href);
+              return (
+                <Link key={href} href={href}
+                  title={isCollapsed ? label : undefined}
+                  onClick={onMobileClose}
+                  className={cn(
+                    "group flex items-center rounded-xl px-2.5 py-2.5 text-[13px] font-medium transition-all duration-100",
+                    isCollapsed ? "justify-center gap-0" : "gap-3",
+                    active
+                      ? "bg-sidebar-primary/15 text-sidebar-primary"
+                      : "text-sidebar-foreground/65 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                  )}>
+                  <Icon className={cn("shrink-0", isCollapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
+                    active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground")} />
+                  <span className={cn("whitespace-nowrap overflow-hidden transition-all duration-150", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
+                    {label}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </nav>

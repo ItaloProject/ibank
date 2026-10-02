@@ -4,6 +4,7 @@ import { findGroup, type GenieCommand, type ItemType } from "./parse";
 import { chatReply } from "./chat";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
 import { askAbout, termById, type Term } from "@/lib/glossary";
+import { financeAnswer } from "./finance-answer";
 
 export type PlanItem = { id: string; name: string; groupId: string; type: ItemType; planned: number; actual: number };
 export type PlanGroup = { id: string; name: string };
@@ -33,6 +34,15 @@ export type GenieAnswer = {
   /** Explicação em texto corrido, como a definição de um termo. */
   text?: string;
 };
+
+/** Resposta pronta em Markdown simples, para o assistente de investimentos. */
+export function answerMarkdown(a: GenieAnswer): string {
+  const parts = [a.value ? `${a.title}: **${a.value}**` : `**${a.title}**`];
+  if (a.text) parts.push(a.text);
+  if (a.lines?.length) parts.push(a.lines.map((l) => `- ${l.label}: **${l.value}**`).join("\n"));
+  if (a.note) parts.push(a.note);
+  return parts.join("\n\n");
+}
 
 /** Definição do glossário no formato do Gênio; os botões levam aos termos relacionados. */
 export function termAnswer(term: Term): GenieAnswer {
@@ -212,6 +222,13 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
       return term ? termAnswer(term) : null;
     }
 
+    case "netYield": case "compareYield": case "equivalent": case "realReturn": case "freedom":
+    case "budgetRule": case "debt": case "payOrInvest": case "amortization":
+      return financeAnswer(cmd, FALLBACK_CDI, {
+        salary: s.salary, planned: t.planned, actual: t.actual,
+        fixo: t.fixoPlanned, variavel: t.varPlanned, sobraPlanned: t.sobraPlanned,
+      });
+
     case "help":
       return {
         title: "Eu calculo e organizo seu mês",
@@ -227,6 +244,9 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
           { label: "Renda", value: "recebi 800 de freela" },
           { label: "Planos", value: "quanto posso gastar por dia?" },
           { label: "Simulações", value: "500 por mês a 1% ao mês por 2 anos" },
+          { label: "Investimentos", value: "quanto rendem 10 mil no CDB a 110% do CDI em 2 anos · LCI a 90% ou CDB a 110%?" },
+          { label: "Metas", value: "viver de renda · regra 50/30/20" },
+          { label: "Dívidas", value: "2.000 no rotativo · quitar dívida de 3% ao mês ou investir? · SAC ou Price" },
           { label: "Termos", value: "o que é CDB? · diferença entre LCI e CDB" },
         ],
       };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TERMS, askAbout, findTerms, termById } from "./glossary";
+import { TERMS, askAbout, asksExample, findTerms, termById, termExample } from "./glossary";
 import { parseGenie } from "./genie/parse";
 
 const ids = (s: string, bare?: boolean) => findTerms(s, { bare }).map((t) => t.id);
@@ -45,6 +45,35 @@ describe("glossário", () => {
     expect(parseGenie("juros compostos", [], 13.65)).toEqual({ kind: "term", ids: ["juros-compostos"] });
     expect(parseGenie("500 por mês a 1% ao mês por 2 anos", [], 13.65).kind).toBe("compound");
     expect(parseGenie("dicas para economizar", [], 13.65).kind).toBe("query");
+  });
+
+  it("entende erros de digitação nos termos", () => {
+    expect(ids("o que é tezouro selic?")).toEqual(["tesouro-selic"]);
+    expect(ids("o que sao debentures incentivadas")).toEqual(["debentures"]);
+    expect(ids("me explica a marcaçao a mercado")).toEqual(["marcacao-mercado"]);
+    expect(ids("o que é previdensia privada")).toEqual(["previdencia"]);
+  });
+
+  it("conhece os termos novos", () => {
+    expect(ids("o que é come-cotas?")).toEqual(["come-cotas"]);
+    expect(ids("o que é IOF")).toEqual(["iof"]);
+    expect(ids("diferença entre PGBL e VGBL")).toEqual(["previdencia"]);
+    expect(ids("o que é tesouro prefixado")).toEqual(["tesouro-prefixado"]);
+    expect(ids("o que é P/VP?")).toEqual(["preco-valor-patrimonial"]);
+    expect(ids("o que é CET")).toEqual(["cet"]);
+    expect(ids("sac ou price?")).toEqual(["sac-price"]);
+  });
+
+  it("reconhece pedido de exemplo", () => {
+    expect(asksExample("dá um exemplo")).toBe(true);
+    expect(asksExample("me dá um exemplo?")).toBe(true);
+    expect(asksExample("não entendi")).toBe(true);
+    expect(asksExample("exemplo de item")).toBe(false);
+    for (const t of TERMS) if (termExample(t)) expect(termExample(t)!.length).toBeGreaterThan(20);
+  });
+
+  it("o Gênio não troca nome de item por definição numa resposta curta", () => {
+    expect(parseGenie("adicionar Previdência 300 em casa", ["CASA"], 13.65).kind).toBe("addItems");
   });
 
   it("monta as perguntas dos botões sem a sigla por extenso", () => {

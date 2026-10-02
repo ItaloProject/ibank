@@ -6,7 +6,10 @@ import { readBotPageContext } from "@/lib/bot-page-context";
 import type { BotAlert } from "@/lib/alerts";
 import type { GoalProjection } from "@/lib/goal-projection";
 import { detectIntent, keywordIntent, profileTarget, type Intent } from "@/lib/bot-intent";
-import { askAbout, findTerms, termById, termMarkdown, type Term } from "@/lib/glossary";
+import { askAbout, asksExample, findTerms, holdingsFor, termById, termExample, termMarkdown, type Term } from "@/lib/glossary";
+import { financeReply } from "@/lib/genie/local-answer";
+import { answerMarkdown } from "@/lib/genie/answer";
+import { looksLikeWebQuestion } from "@/lib/genie/chat";
 import { SNOOZE_DAYS, alertStatus, parseAlertChoices, snoozeChoice, trimAlertChoices, type AlertChoices } from "@/lib/alert-choices";
 import {
   X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
@@ -857,6 +860,8 @@ export function InvestorBot({
   dataVersion?: string;
 }) {
   const askedVersion = useRef<string | null>(null);
+  /** Último termo do glossário explicado, para "dá um exemplo". */
+  const lastTermRef = useRef<Term | null>(null);
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -939,9 +944,50 @@ export function InvestorBot({
     return { id: uid(), role: "bot", blocks: [{ kind: "alert", tone: "warn", text }], followups };
   }
 
-  /** Definição pronta do glossário: mesma explicação do Gênio, sem chamar a inteligência artificial. */
+  /** Glossário ou conta pronta: a mesma resposta do Gênio, sem chamar a inteligência artificial. */
+  function localReply(question: string): Msg | null {
+    const prev = lastTermRef.current;
+    lastTermRef.current = null;
+    if (prev && asksExample(question)) {
+      const example = termExample(prev);
+      const text = example ? `**${prev.name.replace(/\s*\(.*\)$/, "")} na prática**\n\n${example}` : termMarkdown(prev);
+      lastTermRef.current = prev;
+      return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
+    }
+    const terms = findTerms(question);
+    if (terms.length) {
+      lastTermRef.current = terms[terms.length - 1];
+      return glossaryReply(question, terms);
+    }
+    const calc = financeReply(question, FALLBACK_CDI);
+    if (!calc) return null;
+    const text = answerMarkdown(calc);
+    return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
+  }
+
+  /** Pergunta geral que o Muvo já aprendeu numa pesquisa anterior do Gênio; perguntas sobre a carteira ficam com a inteligência artificial. */
+  async function learnedReply(question: string): Promise<Msg | null> {
+    if (!looksLikeWebQuestion(question) || /\b(?:minha|meu|meus|minhas|tenho|carteira|aportei|investi)\b/i.test(question)) return null;
+    const res = await fetch("/api/genie/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: question, memoryOnly: true }),
+    }).catch(() => null);
+    const data = res?.ok ? ((await res.json().catch(() => null)) as { answer?: string } | null) : null;
+    if (!data?.answer) return null;
+    const text = `${data.answer}\n\nResposta que o Muvo aprendeu numa pesquisa anterior na web: pode conter erros.`;
+    return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
+  }
+
+  /** Definição pronta do glossário, ligada ao que a pessoa já tem na carteira. */
   function glossaryReply(question: string, terms: Term[]): Msg {
-    const text = terms.map(termMarkdown).join("\n\n");
+    const text = terms.map((t) => {
+      const own = holdingsFor(t, context.sources, context.holdings);
+      const name = t.name.replace(/\s*\(.*\)$/, "");
+      return own
+        ? `${termMarkdown(t)}\n\n**Na sua carteira:** ${formatCurrency(own.total)} em ${name} (${own.count} ${own.count === 1 ? "aplicação" : "aplicações"}).`
+        : termMarkdown(t);
+    }).join("\n\n");
     const related = [...new Set(terms.flatMap((t) => t.related ?? []))]
       .filter((id) => !terms.some((t) => t.id === id))
       .map(termById)
@@ -1033,11 +1079,10 @@ export function InvestorBot({
         reply = await transition(alvo, change?.from);
       } else if (intent === "rebal") {
         reply = await rebalance();
-      } else if (intent === "help" && findTerms(userText).length) {
-        await new Promise((r) => setTimeout(r, THINK_MS));
-        reply = glossaryReply(userText, findTerms(userText));
       } else if (intent === "help") {
-        reply = await askAi(history, userText);
+        const local = localReply(userText);
+        if (local) await new Promise((r) => setTimeout(r, THINK_MS));
+        reply = local ?? (await learnedReply(userText)) ?? (await askAi(history, userText));
       } else {
         const needsMarket = intent === "fiis" || intent === "visao" || intent === "meta";
         const [research] = await Promise.all([

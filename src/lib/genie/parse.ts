@@ -3,6 +3,7 @@ import { fixTypos, similar } from "./fuzzy";
 import { INTENT_VERBS, canonicalize, extractSlots, guessIntent, type Intent } from "./translate";
 import { chatTopic, type ChatTopic } from "./chat";
 import { findTerms } from "@/lib/glossary";
+import { parseFinance, type FinanceCommand } from "./finance-parse";
 
 export type ItemType = "fixo" | "variavel";
 /** `calc`: a conta que o pedido trazia, como "1,19 + 34,01", para o Gênio mostrar de onde veio o valor. */
@@ -38,6 +39,7 @@ export type GenieCommand =
   | { kind: "chat"; topic: ChatTopic }
   /** Pedido de definição de termos de investimento ("o que é CDB?"), respondido pelo glossário. */
   | { kind: "term"; ids: string[] }
+  | FinanceCommand
   | { kind: "unknown" };
 
 const N = NUMBER_RE;
@@ -317,6 +319,8 @@ function mentionedGroup(t: string, groups: string[]): string | null {
 
 function parseRules(t: string, groups: string[], cdiAnual: number): GenieCommand {
   if (/^(ajuda|help|o que (voce|vc) faz|o que (voce|vc) sabe( fazer)?|comandos|exemplos|como (te )?uso|como funciona)$/.test(t)) return { kind: "help" };
+  const finance = parseFinance(t);
+  if (finance) return finance;
   if (!/\d/.test(t)) {
     if (/^(?:volta|voltar|volte)\s+(?:ao|pro|para o)\s+normal$|^modo normal$/.test(t)) return { kind: "focus", group: null, reset: true };
     const g = mentionedGroup(t, groups);

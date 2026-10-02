@@ -39,3 +39,5 @@ public/swe-worker*
 
 # Impeccable binaries
 .claude/skills/impeccable/scripts/bin/
+
+.vercel

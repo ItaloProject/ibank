@@ -14,7 +14,7 @@ import { buildSearchQuery, looksLikeWebQuestion } from "@/lib/genie/chat";
 import { suggest } from "@/lib/genie/suggest";
 import { applyLearned, looksLikeRephrase, toTemplate, type LearnedPhrase } from "@/lib/genie/learn";
 import { answer, findItem, guessType, money, plain, termAnswer, type GenieAnswer, type PlanSnapshot } from "@/lib/genie/answer";
-import { termById } from "@/lib/glossary";
+import { asksExample, termById, termExample } from "@/lib/glossary";
 import type { ExpenseGroup, ExpenseItem } from "@/components/planejamento/group-section";
 import type { PlanIncome } from "@/components/planejamento/income-dialog";
 
@@ -72,6 +72,8 @@ type Memory = {
   income: { cmd: Extract<GenieCommand, { kind: "addIncome" }>; undo: () => Promise<void> } | null;
   /** O que veio por último: conta no visor ou mudança no planejamento. */
   recent: "calc" | "action" | null;
+  /** Último termo explicado, para "dá um exemplo" e "explica melhor". */
+  lastTerm?: string | null;
 };
 
 /** Combinados que valem para os próximos pedidos: grupo em foco e gasto real (para todos ou só um grupo). */
@@ -770,6 +772,7 @@ export function PlanGenie(props: Props) {
   }
 
   async function run(cmd: GenieCommand, text: string) {
+    if (cmd.kind !== "term") mem.current = { ...mem.current, lastTerm: null };
     switch (cmd.kind) {
       case "addItems": return addItems(cmd);
       case "spend": return spend(cmd);
@@ -832,6 +835,7 @@ export function PlanGenie(props: Props) {
           const term = termById(id);
           if (term) showAnswer(termAnswer(term));
         }
+        mem.current = { ...mem.current, lastTerm: cmd.ids[cmd.ids.length - 1] };
         return;
       case "unknown": return looksLikeWebQuestion(text) ? searchWeb(text) : notUnderstood(text);
       default: {
@@ -846,8 +850,8 @@ export function PlanGenie(props: Props) {
     const value = cmd.kind === "calc" ? asInput(cmd.value) : text;
     const inGroup = (g: string | null) => (g ? ` em ${g}` : "");
     switch (p.kind) {
-      case "groupName": return cmd.kind === "unknown" || cmd.kind === "chat" ? `criar grupo ${text}` : null;
-      case "item": return cmd.kind === "unknown" || cmd.kind === "addItems" ? `adicionar ${text}${cmd.kind === "addItems" && cmd.group ? "" : inGroup(p.group)}` : null;
+      case "groupName": return cmd.kind === "unknown" || cmd.kind === "chat" || cmd.kind === "term" ? `criar grupo ${text}` : null;
+      case "item": return cmd.kind === "unknown" || cmd.kind === "addItems" || cmd.kind === "term" ? `adicionar ${text}${cmd.kind === "addItems" && cmd.group ? "" : inGroup(p.group)}` : null;
       case "itemValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `adicionar ${p.name} ${value}${inGroup(p.group)}` : null;
       case "spendValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `gastei ${value} em ${p.name}${inGroup(p.group)}` : null;
       case "incomeValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `recebi ${value}${p.description ? ` de ${p.description}` : ""}` : null;
@@ -893,6 +897,13 @@ export function PlanGenie(props: Props) {
           return await answerReal(openReal, "these");
         }
         if (/^(?:nao|n|so planejado|ainda nao|nao sao|planejado|nao so planejado)$/.test(n)) return await answerReal(openReal, "no");
+      }
+      const lastTerm = !pending && mem.current.lastTerm ? termById(mem.current.lastTerm) : undefined;
+      if (lastTerm && asksExample(text)) {
+        const example = termExample(lastTerm);
+        return showAnswer(example
+          ? { title: `${lastTerm.name.replace(/\s*\(.*\)$/, "")} na prática`, text: example, chips: termAnswer(lastTerm).chips }
+          : { ...termAnswer(lastTerm), title: "Ainda não tenho um exemplo pronto. Veja de novo, com os pontos principais:" });
       }
       const miss = missRef.current;
       missRef.current = null;
