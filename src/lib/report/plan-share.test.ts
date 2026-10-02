@@ -32,7 +32,7 @@ describe("plan share", () => {
     expect(text).toContain("⏳ Railway · R$ 35,20 planejado");
     expect(text).toContain("⚠️ Mercado top · *R$ 520,00* (R$ 20,00 acima do planejado)");
     expect(text).toContain("✅ Uber · *R$ 60,00* de R$ 100,00");
-    expect(text).toContain("✨ *Ainda cabe:* R$ 55,20");
+    expect(text).toContain("✨ *Sobra do planejado:* R$ 55,20");
     expect(text).toContain("3 de 4 itens pagos");
     expect(text.endsWith("_Organizado no Muvo_")).toBe(true);
   });

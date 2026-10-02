@@ -71,7 +71,7 @@ function GroupCard({ group, monthLabel, logoSrc, display }: { group: PlanReportG
         {[
           t.planned > 0
             ? rest >= 0
-              ? { label: "Ainda cabe", value: brl(rest), color: FG }
+              ? { label: "Sobra do planejado", value: brl(rest), color: FG }
               : { label: "Acima do planejado", value: brl(-rest), color: AMBER }
             : null,
           { label: "Itens pagos", value: `${t.paid} de ${group.items.length}`, color: FG },

@@ -54,7 +54,7 @@ export function groupWhatsAppText(group: PlanReportGroup, monthLabel: string, ma
   if (t.planned > 0) {
     tail.push(`📋 *Planejado:* ${brl(t.planned)}`);
     const rest = t.planned - t.actual;
-    tail.push(rest >= -0.004 ? `✨ *Ainda cabe:* ${brl(Math.max(0, rest))}` : `🔺 *Acima do planejado:* ${brl(-rest)}`);
+    tail.push(rest >= -0.004 ? `✨ *Sobra do planejado:* ${brl(Math.max(0, rest))}` : `🔺 *Acima do planejado:* ${brl(-rest)}`);
   }
   if (group.items.length > 0) {
     const n = group.items.length;
