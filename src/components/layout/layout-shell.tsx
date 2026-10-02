@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Menu } from "lucide-react";
 import { BrandLockup } from "@/components/brand-lockup";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { BottomNav } from "./bottom-nav";
@@ -17,6 +18,25 @@ import { cn } from "@/lib/utils";
 import { NavigationSplash } from "@/components/navigation-splash";
 
 const PUBLIC_PATHS = new Set(["/vender", "/comecar", "/politica-privacidade", "/termos-de-uso", "/~offline"]);
+/** Abertas a todos; assinantes as veem dentro do app. Vídeos: o YouTube proíbe cobrar para assistir no player incorporado. */
+const OPEN_PATHS = new Set(["/videos"]);
+
+function OpenFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-[100dvh] bg-background text-foreground safe-pt safe-pb">
+      <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
+          <Link href="/vender" aria-label="Conhecer o MUVO"><BrandLockup className="h-8" priority /></Link>
+          <div className="flex items-center gap-2 text-sm">
+            <Link href="/" className="rounded-lg px-3 py-2 text-muted-foreground hover:text-foreground transition-colors">Entrar</Link>
+            <Link href="/vender" className="rounded-lg bg-foreground px-3 py-2 font-semibold text-background hover:bg-foreground/90 transition-colors">Conhecer o MUVO</Link>
+          </div>
+        </div>
+      </header>
+      <main>{children}</main>
+    </div>
+  );
+}
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -78,6 +98,9 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   }
 
   if (isPublic) return <>{children}</>;
+
+  const member = !!userId && (subscriptionActive || isAdmin);
+  if (!member && OPEN_PATHS.has(pathname)) return <OpenFrame>{children}</OpenFrame>;
 
   if (!userId) return <LoginScreen />;
   if (!subscriptionActive && !isAdmin) return <SubscriptionGate />;

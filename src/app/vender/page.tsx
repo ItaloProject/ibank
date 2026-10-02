@@ -105,7 +105,10 @@ export default function VenderPage() {
           Estimativas de renda não são recomendação de investimento (CVM).
         </p>
 
-        <div className="text-center">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <Link href="/videos" className="text-sm text-muted-foreground hover:text-foreground hover:underline">
+            Assistir aos vídeos gratuitos de educação financeira
+          </Link>
           <Link href="/" className="text-sm text-primary hover:underline">
             Já sou assinante — entrar
           </Link>
