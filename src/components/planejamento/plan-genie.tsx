@@ -31,6 +31,8 @@ type Msg =
       suggested?: string;
     }
   | { id: string; role: "ask"; prompt: string; hint?: string; chips?: string[] }
+  /** Pergunta padrão ao lançar num grupo: os gastos já são reais? `batch` vazio é a pergunta ao fixar o grupo. */
+  | { id: string; role: "realAsk"; group: string; batch: Target[]; done?: "these" | "always" | "no" | "moved" }
   | { id: string; role: "confirm"; title: string; detail: string; label: string; run: () => Promise<void>; done?: boolean }
   | { id: string; role: "learned"; said: string; means: string; phrase: string; forgotten?: boolean }
   | { id: string; role: "error"; text: string };
@@ -63,8 +65,20 @@ type Memory = {
 };
 
 /** Combinados que valem para os próximos pedidos: grupo em foco e gasto real (para todos ou só um grupo). */
-type Session = { group: string | null; real: boolean; realGroup: string | null };
-const NO_SESSION: Session = { group: null, real: false, realGroup: null };
+type Session = {
+  group: string | null;
+  /** Gasto real ligado para todos os grupos. */
+  realAll: boolean;
+  /** Grupos em que itens novos entram também como gasto real. */
+  realGroups: string[];
+  /** Grupos em que a pessoa já respondeu se os gastos são reais; o Gênio não pergunta de novo. */
+  decided: string[];
+  /** "Voltar ao planejado": não pergunta mais sobre gasto real. */
+  quiet: boolean;
+};
+const NO_SESSION: Session = { group: null, realAll: false, realGroups: [], decided: [], quiet: false };
+const sameName = (a: string, b: string) => normalize(a) === normalize(b);
+const withName = (list: string[], name: string) => (list.some((x) => sameName(x, name)) ? list : [...list, name]);
 
 const GROUP_IDEAS = ["LAZER", "SAÚDE", "ASSINATURAS", "EDUCAÇÃO", "PETS", "VIAGEM", "FILHOS", "INVESTIMENTOS"];
 
@@ -130,7 +144,12 @@ export function PlanGenie(props: Props) {
   /** Lança como real quando o modo está ligado para todos ou para o grupo do item. */
   const paidIn = (groupName: string | null, explicit?: boolean) => {
     const s = sessionRef.current;
-    return !!explicit || (s.real && (!s.realGroup || (!!groupName && normalize(groupName) === normalize(s.realGroup))));
+    return !!explicit || s.realAll || (!!groupName && s.realGroups.some((g) => sameName(g, groupName)));
+  };
+  /** Pergunta padrão "esses gastos já são reais?", uma vez por grupo. */
+  const shouldAskReal = (groupName: string) => {
+    const s = sessionRef.current;
+    return !s.realAll && !s.quiet && !s.decided.some((g) => sameName(g, groupName)) && !s.realGroups.some((g) => sameName(g, groupName));
   };
   const remember = (change: Partial<Memory>) => { mem.current = { ...mem.current, recent: "action", ...change }; };
   const [learned, setLearned] = useState<LearnedPhrase[]>([]);
@@ -286,6 +305,32 @@ export function PlanGenie(props: Props) {
       },
       retry: { cmd: { ...cmd, group: null }, fromGroup: group.name },
     });
+    if (!paid && shouldAskReal(group.name)) askReal(group.name, batch);
+  }
+
+  /** Faz a pergunta padrão; se já havia uma aberta para o grupo, junta os itens numa só, no fim da conversa. */
+  function askReal(groupName: string, batch: Target[]) {
+    const open = msgs.filter((m): m is Extract<Msg, { role: "realAsk" }> => m.role === "realAsk" && !m.done && sameName(m.group, groupName));
+    open.forEach((m) => patch(m.id, { done: "moved" }));
+    const earlier = open.flatMap((m) => m.batch).filter((t) => !batch.some((b) => b.id === t.id));
+    push({ id: uid(), role: "realAsk", group: groupName, batch: [...earlier, ...batch] });
+  }
+
+  /** Resposta à pergunta "esses gastos já são reais?". */
+  async function answerReal(msg: Extract<Msg, { role: "realAsk" }>, choice: "these" | "always" | "no") {
+    if (msg.done) return;
+    patch(msg.id, { done: choice });
+    const s = sessionRef.current;
+    setSession({
+      ...s,
+      decided: withName(s.decided, msg.group),
+      realGroups: choice === "always" || (choice === "these" && !msg.batch.length) ? withName(s.realGroups, msg.group) : s.realGroups,
+    });
+    if (choice === "no") return showAnswer({ title: `Certo: itens de ${msg.group} entram só como planejado.`, note: "Quando pagar, diga \"gastei 50 em Netflix\" ou \"coloque como real\"." });
+    if (msg.batch.length) await markPaidList(msg.batch);
+    if (choice === "always" || !msg.batch.length) {
+      showAnswer({ title: `Combinado: os próximos itens de ${msg.group} entram como planejado e gasto real.`, note: "Para parar, diga \"voltar ao planejado\" ou toque em Parar, acima do campo." });
+    }
   }
 
   async function spend(cmd: Extract<GenieCommand, { kind: "spend" }>) {
@@ -464,6 +509,18 @@ export function PlanGenie(props: Props) {
     if (!list.length) {
       return showAnswer({ title: "Não sei qual item marcar como gasto real.", note: "Diga o item e o valor, por exemplo \"gastei 180 na luz\"." });
     }
+    if (!(await markPaidList(list))) showAnswer({ title: "Já está com o gasto real igual ao planejado." });
+  }
+
+  async function markPaidList(targets: Target[]): Promise<boolean> {
+    const m = mem.current;
+    const list = targets
+      .map((t) => {
+        const row = items.find((i) => i.id === t.id);
+        return row ? { ...t, name: row.name, type: row.type, planned: row.planned, actual: row.actual } : null;
+      })
+      .filter((t): t is Target => !!t && t.planned > 0 && t.actual !== t.planned);
+    if (!list.length) return false;
     const body = (t: Target, actual: number) => ({ group_id: t.groupId, name: t.name, type: t.type, planned: t.planned, actual });
     await Promise.all(list.map((t) => api(`/api/plan-items/${t.id}`, "PATCH", body(t, t.planned))));
     await reloadItems();
@@ -480,6 +537,14 @@ export function PlanGenie(props: Props) {
         remember({ target: list[list.length - 1], batch: m.batch });
       },
     });
+    const answered = msgs.filter((x): x is Extract<Msg, { role: "realAsk" }> =>
+      x.role === "realAsk" && !x.done && x.batch.some((b) => list.some((t) => t.id === b.id)));
+    answered.forEach((x) => patch(x.id, { done: "these" }));
+    if (answered.length) {
+      const s = sessionRef.current;
+      setSession({ ...s, decided: answered.reduce((acc, x) => withName(acc, x.group), s.decided) });
+    }
+    return true;
   }
 
   /** Pedido fora do que o Gênio sabe: registra a frase para ensinar depois e mostra exemplos. */
@@ -591,8 +656,13 @@ export function PlanGenie(props: Props) {
       case "draftIncome":
         return ask({ kind: "incomeValue", description: cmd.description }, `Qual o valor${cmd.description ? ` de ${cmd.description}` : " da renda"}?`, cmd.description ? "Só o valor, por exemplo 5.000." : "Exemplo: 5.000 de salário.");
       case "realMode": {
-        const focus = sessionRef.current.group;
-        setSession({ ...sessionRef.current, real: cmd.on, realGroup: cmd.on ? focus : null });
+        const s = sessionRef.current;
+        const focus = s.group;
+        setSession(cmd.on
+          ? focus
+            ? { ...s, quiet: false, realGroups: withName(s.realGroups, focus), decided: withName(s.decided, focus) }
+            : { ...s, quiet: false, realAll: true }
+          : { ...s, realAll: false, realGroups: [], quiet: true });
         return showAnswer(cmd.on
           ? {
             title: `Combinado: os próximos itens${focus ? ` de ${focus}` : ""} entram como planejado e gasto real.`,
@@ -607,17 +677,21 @@ export function PlanGenie(props: Props) {
           return showAnswer({ title: "De volta ao normal: sem grupo fixo e itens só como planejado." });
         }
         if (!cmd.group) {
-          setSession({ group: null, real: s.realGroup ? false : s.real, realGroup: null });
+          setSession({ ...s, group: null });
           return showAnswer({ title: s.group ? `Saí de ${s.group}. Vou perguntar o grupo de novo.` : "Não havia grupo fixo." });
         }
         const found = findGroup(cmd.group, groupNames);
         if (!found) return showAnswer({ title: `Não encontrei o grupo ${cmd.group}.`, note: "Crie antes com \"criar grupo " + cmd.group + "\"." });
-        setSession(cmd.real ? { group: found, real: true, realGroup: found } : { ...s, group: found });
+        setSession(cmd.real
+          ? { ...s, group: found, quiet: false, realGroups: withName(s.realGroups, found), decided: withName(s.decided, found) }
+          : { ...s, group: found });
         remember({ group: found });
-        return showAnswer({
-          title: `Combinado: os próximos itens vão para ${found}${cmd.real ? " como planejado e gasto real" : ""}.`,
+        showAnswer({
+          title: `Combinado: os próximos itens vão para ${found}${paidIn(found) ? " como planejado e gasto real" : ""}.`,
           note: `É só mandar nome e valor, por exemplo "Netflix 55". Para sair, diga "sair de ${found.toLowerCase()}" ou toque em Parar.`,
         });
+        if (shouldAskReal(found)) askReal(found, []);
+        return;
       }
       case "unknown": return notUnderstood(text);
       default: {
@@ -669,6 +743,17 @@ export function PlanGenie(props: Props) {
           return await run({ ...openPick.cmd, group: named }, "");
         }
       }
+      const openReal = pending || openPick ? undefined : [...msgs].reverse().find((m): m is Extract<Msg, { role: "realAsk" }> => m.role === "realAsk" && !m.done);
+      if (openReal) {
+        const n = normalize(text).replace(/[?!.]+$/, "");
+        if (/^(?:sim|s|pode|isso|ok|claro|sempre|todos|todas|e os proximos|os proximos)\b/.test(n) && /\b(?:sempre|proxim\w*|todos|todas|daqui|a partir|tambem os proximos)\b/.test(n)) {
+          return await answerReal(openReal, "always");
+        }
+        if (/^(?:sim|s|ss|pode|pode ser|isso|ok|claro|aham|sao|sao sim|ja|ja sao|ja paguei|foi pago|foram pagos|gasto real|real|reais|so estes|so esses|sim so estes|sim so esses)$/.test(n)) {
+          return await answerReal(openReal, "these");
+        }
+        if (/^(?:nao|n|so planejado|ainda nao|nao sao|planejado|nao so planejado)$/.test(n)) return await answerReal(openReal, "no");
+      }
       const miss = missRef.current;
       missRef.current = null;
       const fromLearned = pending ? null : applyLearned(text, learned);
@@ -715,6 +800,18 @@ export function PlanGenie(props: Props) {
     setBusy(true);
     try {
       await run({ ...msg.cmd, group: groupName }, "");
+    } catch (err) {
+      push({ id: uid(), role: "error", text: err instanceof Error ? err.message : "Algo deu errado. Tente de novo." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function realClick(msg: Extract<Msg, { role: "realAsk" }>, choice: "these" | "always" | "no") {
+    if (busy || msg.done) return;
+    setBusy(true);
+    try {
+      await answerReal(msg, choice);
     } catch (err) {
       push({ id: uid(), role: "error", text: err instanceof Error ? err.message : "Algo deu errado. Tente de novo." });
     } finally {
@@ -849,7 +946,7 @@ export function PlanGenie(props: Props) {
                   </div>
                 </div>
               ) : (
-                msgs.map((m) => (
+                msgs.filter((m) => !(m.role === "realAsk" && m.done === "moved")).map((m) => (
                   <motion.div
                     key={m.id}
                     initial={reduced ? false : { opacity: 0, y: 8 }}
@@ -863,6 +960,7 @@ export function PlanGenie(props: Props) {
                       active={!!pending && m.id === lastAskId}
                       onPick={pickGroup}
                       onCancel={(p) => patch(p.id, { done: true, cancelled: true })}
+                      onReal={realClick}
                       onUndo={undo}
                       onConfirm={confirm}
                       onForget={forget}
@@ -905,15 +1003,15 @@ export function PlanGenie(props: Props) {
               </p>
             </div>
 
-            {(session.group || session.real) && (
+            {(session.group || session.realAll || session.realGroups.length > 0) && (
               <div className="mx-3 mb-2 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1 pl-3 pr-1 text-xs">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
                 <span className="min-w-0 flex-1 font-medium">
-                  {!session.group
-                    ? "Itens novos entram como planejado e gasto real"
-                    : `Itens novos vão para ${session.group}${
-                      !session.real ? "" : !session.realGroup || session.realGroup === session.group ? ", como planejado e gasto real" : ` · gasto real só em ${session.realGroup}`
-                    }`}
+                  {session.group
+                    ? `Itens novos vão para ${session.group}${paidIn(session.group) ? ", como planejado e gasto real" : ""}`
+                    : session.realAll
+                      ? "Itens novos entram como planejado e gasto real"
+                      : `Gasto real ligado em ${session.realGroups.join(", ")}`}
                 </span>
                 <button
                   type="button"
@@ -1019,9 +1117,10 @@ export function PlanGenie(props: Props) {
 }
 
 function MessageView({
-  msg, groups, busy, active, onPick, onCancel, onUndo, onConfirm, onForget, onChip,
+  msg, groups, busy, active, onPick, onCancel, onReal, onUndo, onConfirm, onForget, onChip,
 }: {
   onForget: (m: Extract<Msg, { role: "learned" }>) => void;
+  onReal: (m: Extract<Msg, { role: "realAsk" }>, choice: "these" | "always" | "no") => void;
   msg: Msg;
   groups: ExpenseGroup[];
   busy: boolean;
@@ -1033,6 +1132,48 @@ function MessageView({
   onChip: (text: string) => void;
 }) {
   switch (msg.role) {
+    case "realAsk": {
+      if (msg.done === "moved") return null;
+      const n = msg.batch.length;
+      const prompt = n === 0
+        ? `Os itens de ${msg.group} já entram como gasto real?`
+        : n === 1 ? `${msg.batch[0].name} já é um gasto real?` : `Esses ${n} itens já são gastos reais?`;
+      const answered = msg.done === "no" ? "Só planejado" : msg.done === "always" ? `Real, e os próximos de ${msg.group} também` : msg.done ? "Lançado como real" : null;
+      const options: { id: "these" | "always" | "no"; label: string }[] = n === 0
+        ? [{ id: "these", label: "Sim" }, { id: "no", label: "Não, só planejado" }]
+        : [{ id: "these", label: n === 1 ? "Sim" : "Sim, estes" }, { id: "always", label: `Sim, e os próximos de ${msg.group}` }, { id: "no", label: "Não, só planejado" }];
+      return (
+        <div className="flex gap-2">
+          <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border bg-white">
+            <Image src="/bot/genio-avatar.webp" alt="" width={28} height={28} className="h-full w-full object-cover" />
+          </div>
+          <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border px-3.5 py-2.5">
+            <p className="text-sm font-semibold [overflow-wrap:anywhere]">{prompt}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {answered ?? "Gasto real é o que já saiu do bolso. Se sim, o valor vai para o planejado e para o real."}
+            </p>
+            {!msg.done && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {options.map((o, i) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onReal(msg, o.id)}
+                    className={cn(
+                      "inline-flex min-h-9 items-center rounded-full border px-3 text-xs font-semibold transition-colors disabled:opacity-50",
+                      i === 0 ? "border-foreground bg-foreground text-background hover:bg-foreground/90" : "hover:bg-muted",
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
     case "ask":
       return (
         <div className="flex gap-2">
