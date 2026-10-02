@@ -1,5 +1,5 @@
 import {
-  GraduationCap, Wallet, CreditCard, Percent, Landmark, Receipt, TrendingUp, PiggyBank, Globe, ShieldAlert,
+  GraduationCap, Wallet, CreditCard, Percent, Landmark, Receipt, TrendingUp, PiggyBank, Globe, ShieldAlert, Tv, Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -281,3 +281,75 @@ export const TRACKS: Track[] = [
     ],
   },
 ];
+
+export type Kind = "resumos" | "aulas";
+export type View = "tema" | "canal";
+
+export type Group = {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: LucideIcon;
+  channelUrl?: string;
+  videos: Video[];
+};
+
+const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+const ENTRIES = TRACKS.flatMap((track) =>
+  track.videos.map((video) => ({
+    video,
+    track,
+    text: fold([video.title, video.description, video.channel, track.title].join(" ")),
+  })),
+);
+
+/** Todas as palavras da busca precisam aparecer no título, na descrição, no canal ou no tema, sem ligar para acentos. */
+function select(kind: Kind, query: string) {
+  const words = fold(query).split(/\s+/).filter(Boolean);
+  return ENTRIES.filter((e) => (kind === "resumos") === isQuick(e.video) && words.every((w) => e.text.includes(w)));
+}
+
+export const countVideos = (kind: Kind, query = "") => select(kind, query).length;
+
+/**
+ * Por tema segue a ordem das trilhas. Por canal, do canal com mais vídeos para o com menos;
+ * sem busca, canais com um vídeo só ficam juntos em "Outros canais" para a lista não virar uma fila de grupos de um item.
+ */
+export function groupVideos(kind: Kind, view: View, query = ""): Group[] {
+  const entries = select(kind, query);
+  if (view === "tema") {
+    return TRACKS.map((t) => ({
+      id: t.id,
+      title: t.title,
+      subtitle: t.subtitle,
+      icon: t.icon,
+      videos: entries.filter((e) => e.track.id === t.id).map((e) => e.video),
+    })).filter((g) => g.videos.length);
+  }
+
+  const byChannel = new Map<string, Video[]>();
+  for (const { video } of entries) byChannel.set(video.channel, [...(byChannel.get(video.channel) ?? []), video]);
+  const sorted = [...byChannel.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], "pt-BR"));
+  const own = query.trim() ? sorted : sorted.filter(([, vs]) => vs.length > 1);
+  const rest = query.trim() ? [] : sorted.filter(([, vs]) => vs.length === 1).sort((a, b) => a[0].localeCompare(b[0], "pt-BR"));
+
+  const groups: Group[] = own.map(([channel, videos]) => ({
+    id: `canal-${fold(channel).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`,
+    title: channel,
+    subtitle: `${videos.length} ${videos.length === 1 ? "vídeo" : "vídeos"} deste canal`,
+    icon: Tv,
+    channelUrl: videos[0].channelUrl,
+    videos,
+  }));
+  if (rest.length) {
+    groups.push({
+      id: "outros-canais",
+      title: "Outros canais",
+      subtitle: `${rest.length} canais com um vídeo cada`,
+      icon: Users,
+      videos: rest.map(([, [video]]) => video),
+    });
+  }
+  return groups;
+}

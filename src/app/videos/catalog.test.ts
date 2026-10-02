@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TRACKS, isQuick, seconds } from "./catalog";
+import { TRACKS, countVideos, groupVideos, isQuick, seconds } from "./catalog";
 
 const all = TRACKS.flatMap((t) => t.videos);
 
@@ -26,6 +26,29 @@ describe("catálogo de vídeos", () => {
 
   it("tem pelo menos 100 resumos rápidos", () => {
     expect(all.filter(isQuick).length).toBeGreaterThanOrEqual(100);
+  });
+
+  it("pesquisa por assunto e por canal, sem ligar para acentos", () => {
+    const titles = (q: string) => groupVideos("resumos", "tema", q).flatMap((g) => g.videos.map((v) => v.title));
+    expect(titles("cartao").some((t) => /cartão/i.test(t))).toBe(true);
+    expect(titles("ME POUPE").length).toBeGreaterThan(0);
+    expect(groupVideos("resumos", "tema", "me poupe").flatMap((g) => g.videos).every((v) => v.channel === "Me Poupe!" || /me poupe/i.test(v.title + v.description))).toBe(true);
+    expect(titles("tesouro selic")).toContain("Tesouro Selic ou fundo DI?");
+    expect(countVideos("resumos", "palavra que não existe em nenhum vídeo")).toBe(0);
+  });
+
+  it("agrupa por canal sem repetir nem perder vídeos", () => {
+    const groups = groupVideos("resumos", "canal");
+    const ids = groups.flatMap((g) => g.videos.map((v) => v.youtubeId));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.length).toBe(countVideos("resumos"));
+    for (const g of groups.filter((g) => g.id !== "outros-canais")) {
+      expect(g.videos.length, g.title).toBeGreaterThan(1);
+      expect(new Set(g.videos.map((v) => v.channel)).size, g.title).toBe(1);
+    }
+    expect(groups[0].videos.length).toBeGreaterThanOrEqual(groups[1].videos.length);
+    const searched = groupVideos("resumos", "canal", "anbima");
+    expect(searched[0].title).toBe("Anbima");
   });
 
   it("toda trilha tem resumos rápidos", () => {
