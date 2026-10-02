@@ -5,7 +5,7 @@ import { Check, Copy, Download, ImageIcon, Loader2, MessageCircle, Share2 } from
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { groupWhatsAppText, slug, type PlanReportGroup } from "@/lib/report/plan-share";
+import { CAPTION_MAX, groupWhatsAppText, slug, type PlanReportGroup } from "@/lib/report/plan-share";
 
 /** Mostra *negrito* e _itálico_ como o WhatsApp vai exibir. */
 function WhatsAppPreview({ text }: { text: string }) {
@@ -42,6 +42,7 @@ export function GroupShareDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const text = useMemo(() => (group ? groupWhatsAppText(group, monthLabel) : ""), [group, monthLabel]);
+  const caption = useMemo(() => (group ? groupWhatsAppText(group, monthLabel, CAPTION_MAX) : ""), [group, monthLabel]);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,17 +94,30 @@ export function GroupShareDialog({
 
   async function share() {
     if (!file) return;
-    if (navigator.canShare?.({ files: [file] })) {
+    if (navigator.canShare?.({ files: [file], text: caption })) {
       try {
-        await navigator.share({ files: [file], text });
+        await navigator.share({ files: [file], text: caption });
         return;
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
       }
     }
-    download();
-    openWhatsApp();
-    toast.success("Imagem baixada. Anexe no WhatsApp junto com o texto.");
+    // Sem compartilhamento de arquivos (computador): o texto abre no WhatsApp e a imagem fica copiada para colar na conversa.
+    let copied = false;
+    if (canCopyImage) {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": file })]);
+        copied = true;
+      } catch { /* baixa a imagem */ }
+    }
+    if (!copied) download();
+    window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, "_blank", "noopener,noreferrer");
+    toast.success(
+      copied
+        ? "Texto aberto no WhatsApp e imagem copiada: escolha a conversa e cole a imagem (Ctrl+V)."
+        : "Texto aberto no WhatsApp e imagem baixada: escolha a conversa e anexe a imagem.",
+      { duration: 7000 },
+    );
   }
 
   async function copyText() {

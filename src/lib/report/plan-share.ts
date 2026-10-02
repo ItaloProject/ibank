@@ -40,24 +40,39 @@ function itemLine(i: PlanReportItem) {
   return `${EMOJI.pago} ${name} · *${brl(i.actual)}*${of}`;
 }
 
-/** Mensagem de um grupo pronta para colar no WhatsApp. */
-export function groupWhatsAppText(group: PlanReportGroup, monthLabel: string): string {
+/** Legendas de imagem no WhatsApp são cortadas perto de 1.000 caracteres. */
+export const CAPTION_MAX = 1000;
+
+/**
+ * Mensagem de um grupo pronta para o WhatsApp. Com `max`, a lista de itens é encurtada
+ * para caber como legenda da imagem, mantendo cabeçalho e totais.
+ */
+export function groupWhatsAppText(group: PlanReportGroup, monthLabel: string, max = Infinity): string {
   const t = groupTotals(group.items);
-  const lines = [`*${plain(group.name).toUpperCase()}* · ${capitalize(monthLabel)}`, "_Planejamento do mês_", ""];
-  if (group.items.length === 0) lines.push("Nenhum item neste grupo ainda.");
-  else lines.push(...group.items.map(itemLine));
-  lines.push("", `💰 *Gasto real:* ${brl(t.actual)}`);
+  const head = [`*${plain(group.name).toUpperCase()}* · ${capitalize(monthLabel)}`, "_Planejamento do mês_", ""];
+  const tail = ["", `💰 *Gasto real:* ${brl(t.actual)}`];
   if (t.planned > 0) {
-    lines.push(`📋 *Planejado:* ${brl(t.planned)}`);
+    tail.push(`📋 *Planejado:* ${brl(t.planned)}`);
     const rest = t.planned - t.actual;
-    lines.push(rest >= -0.004 ? `✨ *Ainda cabe:* ${brl(Math.max(0, rest))}` : `🔺 *Acima do planejado:* ${brl(-rest)}`);
+    tail.push(rest >= -0.004 ? `✨ *Ainda cabe:* ${brl(Math.max(0, rest))}` : `🔺 *Acima do planejado:* ${brl(-rest)}`);
   }
   if (group.items.length > 0) {
     const n = group.items.length;
-    lines.push(`${t.paid} de ${n} ${n === 1 ? "item pago" : "itens pagos"}`);
+    tail.push(`${t.paid} de ${n} ${n === 1 ? "item pago" : "itens pagos"}`);
   }
-  lines.push("", "_Organizado no Muvo_");
-  return lines.join("\n");
+  tail.push("", "_Organizado no Muvo_");
+
+  if (group.items.length === 0) return [...head, "Nenhum item neste grupo ainda.", ...tail].join("\n");
+  const all = group.items.map(itemLine);
+  const build = (shown: number) => {
+    const rest = all.length - shown;
+    const more = rest > 0 ? [`_… e mais ${rest} ${rest === 1 ? "item" : "itens"} na imagem_`] : [];
+    return [...head, ...all.slice(0, shown), ...more, ...tail].join("\n");
+  };
+  let shown = all.length;
+  let text = build(shown);
+  while (text.length > max && shown > 1) text = build(--shown);
+  return text;
 }
 
 export function slug(text: string) {

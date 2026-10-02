@@ -43,6 +43,16 @@ describe("plan share", () => {
     expect(text).toContain("1 de 1 item pago");
   });
 
+  it("encurta a legenda de grupos grandes sem perder os totais", () => {
+    const items = Array.from({ length: 40 }, (_, i) => ({ name: `Compra número ${i + 1} do mês`, type: "variavel" as const, planned: 50, actual: 50 }));
+    const text = groupWhatsAppText({ ...cartao, items }, "outubro 2026", 1000);
+    expect(text.length).toBeLessThanOrEqual(1000);
+    expect(text).toMatch(/_… e mais \d+ itens na imagem_/);
+    expect(text).toContain("💰 *Gasto real:* R$ 2.000,00");
+    expect(text).toContain("40 de 40 itens pagos");
+    expect(groupWhatsAppText({ ...cartao, items }, "outubro 2026")).not.toContain("e mais");
+  });
+
   it("gera nome de arquivo sem acento", () => {
     expect(slug("Alimentação & Casa")).toBe("alimentacao-casa");
   });
