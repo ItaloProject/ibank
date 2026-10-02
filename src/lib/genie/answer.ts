@@ -1,4 +1,5 @@
 import { normalize } from "./calc";
+import { similar } from "./fuzzy";
 import { findGroup, type GenieCommand, type ItemType } from "./parse";
 
 export type PlanItem = { id: string; name: string; groupId: string; type: ItemType; planned: number; actual: number };
@@ -47,6 +48,7 @@ export function findItem(name: string, items: PlanItem[], groupId?: string | nul
   return norm.find(([, x]) => x === n)?.[0]
     ?? norm.find(([, x]) => x.startsWith(n) || n.startsWith(x))?.[0]
     ?? norm.find(([, x]) => x.includes(n) || (n.length >= 4 && n.includes(x)))?.[0]
+    ?? norm.find(([, x]) => similar(n, x))?.[0]
     ?? null;
 }
 
@@ -193,6 +195,7 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
           { label: "Gastos", value: "gastei 80 no mercado" },
           { label: "Grupos", value: "novo grupo · criar grupo Lazer" },
           { label: "Ajustes", value: "muda aluguel para 1.900 · apagar Netflix" },
+          { label: "Na sequência", value: "e o Spotify 22 · na verdade é 60 · mais 20 nele" },
           { label: "Renda", value: "recebi 800 de freela" },
           { label: "Planos", value: "quanto posso gastar por dia?" },
           { label: "Simulações", value: "500 por mês a 1% ao mês por 2 anos" },

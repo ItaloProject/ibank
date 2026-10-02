@@ -1,4 +1,5 @@
 import { NUMBER_RE, evaluate, looksLikeMath, mathBody, normalize, parseNumber } from "./calc";
+import { fixTypos, similar } from "./fuzzy";
 
 export type ItemType = "fixo" | "variavel";
 export type NewItem = { name: string; value: number; type: ItemType | null };
@@ -149,6 +150,7 @@ export function findGroup(name: string, groups: string[]): string | null {
   return norm.find(([, g]) => g === n)?.[0]
     ?? norm.find(([, g]) => g.replace(/s$/, "") === n.replace(/s$/, ""))?.[0]
     ?? norm.find(([, g]) => g.startsWith(n) || n.startsWith(g))?.[0]
+    ?? norm.find(([, g]) => similar(n, g))?.[0]
     ?? null;
 }
 
@@ -220,7 +222,7 @@ function stripPolite(t: string): string {
 const CREATE_GROUP = /\b(?:cri[aeo]r?|crie|abr[aei]r?|mont[aeo]r?|faz(?:er)?|faca)\b.*\b(?:grupos?|categorias?)\b|\b(?:nov[oa]s?)\s+(?:grupos?|categorias?)\b|\b(?:grupos?|categorias?)\s+nov[oa]s?\b|\b(?:adiciona\w*|add|inclui\w*|coloca\w*)\s+(?:um\s+|o\s+)?(?:grupos?|categorias?)\b/;
 
 function parseNormalized(input: string, groups: string[], cdiAnual: number): GenieCommand {
-  const t = stripPolite(input);
+  const t = fixTypos(stripPolite(input));
   if (/^(ajuda|help|o que (voce|vc) faz|o que (voce|vc) sabe( fazer)?|comandos|exemplos|como (te )?uso|como funciona)$/.test(t)) return { kind: "help" };
 
   // Grupo novo: basta "grupo" com criar, novo, abrir ou adicionar

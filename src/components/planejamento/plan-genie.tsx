@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
 import { readBotPageContext, useBotPageContext } from "@/lib/bot-page-context";
 import { normalize } from "@/lib/genie/calc";
-import { findGroup, parseGenie, type GenieCommand } from "@/lib/genie/parse";
+import { findGroup, parseGenie, type GenieCommand, type ItemType } from "@/lib/genie/parse";
+import { followUp, type GenieMemory } from "@/lib/genie/context";
+import { suggest } from "@/lib/genie/suggest";
 import { answer, findItem, guessType, money, plain, type GenieAnswer, type PlanSnapshot } from "@/lib/genie/answer";
 import type { ExpenseGroup, ExpenseItem } from "@/components/planejamento/group-section";
 import type { PlanIncome } from "@/components/planejamento/income-dialog";
@@ -39,6 +41,23 @@ type Pending =
   | { kind: "itemValue"; name: string; group: string | null }
   | { kind: "spendValue"; name: string; group: string | null }
   | { kind: "incomeValue"; description: string | null };
+
+/** Último item mexido, para "na verdade é 110" e "mais 20 nele". */
+type Target = {
+  id: string; name: string; groupId: string; groupName: string; type: ItemType;
+  planned: number; actual: number;
+  /** Campo que o último pedido mudou; "base" é o gasto antes dele. */
+  field: "planned" | "actual"; base: number;
+};
+
+type Memory = {
+  target: Target | null;
+  group: string | null;
+  last: GenieMemory["last"];
+  income: { cmd: Extract<GenieCommand, { kind: "addIncome" }>; undo: () => Promise<void> } | null;
+  /** O que veio por último: conta no visor ou mudança no planejamento. */
+  recent: "calc" | "action" | null;
+};
 
 const GROUP_IDEAS = ["LAZER", "SAÚDE", "ASSINATURAS", "EDUCAÇÃO", "PETS", "VIAGEM", "FILHOS", "INVESTIMENTOS"];
 
@@ -110,6 +129,8 @@ export function PlanGenie(props: Props) {
   const [pending, setPending] = useState<Pending | null>(null);
   const tapeRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mem = useRef<Memory>({ target: null, group: null, last: null, income: null, recent: null });
+  const remember = (change: Partial<Memory>) => { mem.current = { ...mem.current, recent: "action", ...change }; };
 
   const snapshot: PlanSnapshot = useMemo(() => ({
     month,
@@ -119,6 +140,8 @@ export function PlanGenie(props: Props) {
     items: items.map((i) => ({ id: i.id, name: i.name, groupId: i.group_id, type: i.type, planned: i.planned, actual: i.actual })),
   }), [month, monthLabel, salary, groups, items]);
   const groupNames = useMemo(() => groups.map((g) => g.name), [groups]);
+  const knownNames = useMemo(() => [...items.map((i) => i.name), ...groupNames], [items, groupNames]);
+  const suggestions = useMemo(() => suggest(input, knownNames), [input, knownNames]);
 
   useBotPageContext("planejamento", {
     mes: monthLabel,
@@ -161,7 +184,10 @@ export function PlanGenie(props: Props) {
 
   function showAnswer(a: GenieAnswer) {
     push({ id: uid(), role: "answer", answer: a });
-    if (a.raw !== undefined && a.value) setLast({ label: a.title, value: a.value, raw: a.raw });
+    if (a.raw !== undefined && a.value) {
+      setLast({ label: a.title, value: a.value, raw: a.raw });
+      mem.current = { ...mem.current, recent: "calc" };
+    }
   }
 
   // ── Ações no planejamento ────────────────────────────────────────────────
@@ -202,6 +228,15 @@ export function PlanGenie(props: Props) {
     ));
     if (created) await reloadGroups();
     await reloadItems();
+    const lastItem = cmd.items[cmd.items.length - 1];
+    remember({
+      last: "addItems",
+      group: group.name,
+      target: {
+        id: rows[rows.length - 1].id, name: lastItem.name, groupId: group.id, groupName: group.name,
+        type: guessType(lastItem.name, lastItem.type), planned: lastItem.value, actual: 0, field: "planned", base: 0,
+      },
+    });
     push({
       id: uid(),
       role: "action",
@@ -225,6 +260,12 @@ export function PlanGenie(props: Props) {
       const body = (actual: number) => ({ group_id: found.groupId, name: found.name, type: found.type, planned: found.planned, actual });
       await api(`/api/plan-items/${found.id}`, "PATCH", body(next));
       await reloadItems();
+      const groupName = groups.find((g) => g.id === found.groupId)?.name ?? "";
+      remember({
+        last: "spend",
+        group: groupName || mem.current.group,
+        target: { ...found, groupName, actual: next, field: "actual", base: cmd.value === null ? 0 : prev },
+      });
       const over = found.planned > 0 && next > found.planned;
       push({
         id: uid(),
@@ -254,6 +295,14 @@ export function PlanGenie(props: Props) {
     });
     if (created) await reloadGroups();
     await reloadItems();
+    remember({
+      last: "spend",
+      group: group.name,
+      target: {
+        id: row.id, name: cmd.name.charAt(0).toUpperCase() + cmd.name.slice(1), groupId: group.id, groupName: group.name,
+        type: guessType(cmd.name, null), planned: 0, actual: cmd.value, field: "actual", base: 0,
+      },
+    });
     push({
       id: uid(),
       role: "action",
@@ -278,6 +327,7 @@ export function PlanGenie(props: Props) {
     const created: ExpenseGroup[] = [];
     for (let i = 0; i < fresh.length; i++) created.push(await createGroup(fresh[i], i));
     await reloadGroups();
+    remember({ group: created[created.length - 1].name });
     push({
       id: uid(),
       role: "action",
@@ -303,16 +353,64 @@ export function PlanGenie(props: Props) {
     onIncomes(next);
     const added = next.find((i) => !before.has(i.id));
     const total = next.reduce((s, i) => s + i.amount, 0);
+    const id = uid();
+    const undo = added ? async () => {
+      const { incomes: after } = await api<{ incomes: PlanIncome[] }>(`/api/plan-income/${added.id}`, "DELETE");
+      onIncomes(after);
+      patch(id, { undone: true });
+      mem.current = { ...mem.current, income: null, last: null };
+    } : undefined;
+    remember({ last: "addIncome", income: undo ? { cmd, undo } : null });
     push({
-      id: uid(),
+      id,
       role: "action",
       title: `Renda: + ${money(cmd.value)} de ${cmd.description}`,
       lines: [`Renda de ${monthLabel}: ${money(total)}`],
-      undo: added ? async () => {
-        const { incomes: after } = await api<{ incomes: PlanIncome[] }>(`/api/plan-income/${added.id}`, "DELETE");
-        onIncomes(after);
-      } : undefined,
+      undo,
     });
+  }
+
+  /** Muda o planejado ou o gasto do último item mexido, com Desfazer. */
+  async function setField(t: Target, field: "planned" | "actual", value: number, title: string, base = t.base) {
+    const before = { planned: t.planned, actual: t.actual };
+    const after = { ...before, [field]: Math.round(value * 100) / 100 };
+    const body = (v: typeof before) => ({ group_id: t.groupId, name: t.name, type: t.type, ...v });
+    await api(`/api/plan-items/${t.id}`, "PATCH", body(after));
+    await reloadItems();
+    remember({ target: { ...t, ...after, field, base } });
+    const label = field === "planned" ? "Planejado" : "Gasto";
+    push({
+      id: uid(),
+      role: "action",
+      title,
+      lines: [`${label} ${money(before[field])} → ${money(after[field])}${t.groupName ? ` · ${t.groupName}` : ""}`],
+      undo: async () => {
+        await api(`/api/plan-items/${t.id}`, "PATCH", body(before));
+        await reloadItems();
+        remember({ target: t });
+      },
+    });
+  }
+
+  /** "Na verdade é 110": corrige o último pedido. */
+  async function correct(value: number) {
+    const m = mem.current;
+    if (m.last === "addIncome" && m.income) {
+      const { cmd, undo } = m.income;
+      await undo();
+      return addIncome({ ...cmd, value });
+    }
+    const t = m.target;
+    if (!t) return showAnswer({ title: "Não sei o que corrigir.", note: "Diga o item, por exemplo \"muda Netflix para 60\"." });
+    const next = t.field === "actual" ? t.base + value : value;
+    return setField(t, t.field, next, `${t.name}: corrigido para ${money(t.field === "actual" ? value : next)}`);
+  }
+
+  /** "Mais 20 nele": soma no último item, no mesmo campo do último pedido. */
+  async function addMore(value: number) {
+    const t = mem.current.target;
+    if (!t) return;
+    return setField(t, t.field, t[t.field] + value, `${t.name}: + ${money(value)}`, t.field === "actual" ? t.actual : t.base);
   }
 
   async function askAi(text: string) {
@@ -393,6 +491,8 @@ export function PlanGenie(props: Props) {
     const body = (planned: number) => ({ group_id: found.groupId, name: found.name, type: found.type, planned, actual: found.actual });
     await api(`/api/plan-items/${found.id}`, "PATCH", body(cmd.value));
     await reloadItems();
+    const groupName = groups.find((g) => g.id === found.groupId)?.name ?? "";
+    remember({ last: "setPlanned", group: groupName || mem.current.group, target: { ...found, groupName, planned: cmd.value, field: "planned", base: 0 } });
     push({
       id: uid(),
       role: "action",
@@ -427,7 +527,13 @@ export function PlanGenie(props: Props) {
         return ask({ kind: "spendValue", name: cmd.name, group: cmd.group }, `Quanto você gastou em ${cmd.name}?`, "Só o valor, por exemplo 80.");
       case "draftIncome":
         return ask({ kind: "incomeValue", description: cmd.description }, `Qual o valor${cmd.description ? ` de ${cmd.description}` : " da renda"}?`, cmd.description ? "Só o valor, por exemplo 5.000." : "Exemplo: 5.000 de salário.");
-      case "unknown": return askAi(text);
+      case "unknown":
+        void fetch("/api/genie/miss", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, fallback: botEnabled ? "inteligencia artificial" : "ajuda" }),
+        }).catch(() => {});
+        return askAi(text);
       default: {
         const a = answer(cmd, snapshot);
         if (a) showAnswer(a);
@@ -455,7 +561,20 @@ export function PlanGenie(props: Props) {
     push({ id: uid(), role: "user", text });
     setBusy(true);
     try {
-      let cmd = parseGenie(text, groupNames, FALLBACK_CDI);
+      let said = text;
+      if (!pending) {
+        const m = mem.current;
+        const afterAction = m.recent === "action";
+        const fu = followUp(text, {
+          item: afterAction ? m.target?.name ?? null : null,
+          group: m.group,
+          last: afterAction ? m.last : null,
+        });
+        if (fu?.kind === "correct") return await correct(fu.value);
+        if (fu?.kind === "more") return await addMore(fu.value);
+        if (fu?.kind === "text") said = fu.text;
+      }
+      let cmd = parseGenie(said, groupNames, FALLBACK_CDI);
       if (pending) {
         const joined = complete(pending, text, cmd);
         setPending(null);
@@ -663,6 +782,21 @@ export function PlanGenie(props: Props) {
                 {display ? (display.live ? `= ${display.value}` : display.value) : "0"}
               </p>
             </div>
+
+            {suggestions.length > 0 && !busy && (
+              <div className="flex gap-1.5 overflow-x-auto px-3 pb-2 [scrollbar-width:none]" aria-label="Sugestões">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => { setInput(s.value); inputRef.current?.focus(); }}
+                    className="min-h-9 shrink-0 rounded-full border bg-muted/40 px-3 text-xs font-semibold transition-colors hover:bg-muted"
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Entrada */}
             <form

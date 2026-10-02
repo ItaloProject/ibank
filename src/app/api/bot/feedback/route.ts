@@ -32,7 +32,7 @@ export async function GET() {
     `,
     sql`
       SELECT kind, question, answer, created_at FROM bot_feedback
-      WHERE kind IN ('down', 'sem_resposta') ORDER BY created_at DESC LIMIT 50
+      WHERE kind IN ('down', 'sem_resposta', 'genio') ORDER BY created_at DESC LIMIT 50
     `,
   ]);
   return NextResponse.json({

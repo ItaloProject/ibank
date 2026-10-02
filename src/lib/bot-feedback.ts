@@ -1,4 +1,5 @@
-export type FeedbackKind = "up" | "down" | "sem_resposta";
+/** "genio": pedido que o MUVO Gênio do Planejamento não entendeu. */
+export type FeedbackKind = "up" | "down" | "sem_resposta" | "genio";
 
 export const FEEDBACK_KINDS: FeedbackKind[] = ["up", "down", "sem_resposta"];
 
