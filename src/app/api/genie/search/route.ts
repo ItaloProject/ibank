@@ -52,7 +52,8 @@ export async function POST(request: Request) {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        query,
+        // Sem o pedido explícito, a Visão geral do Tavily vem em inglês mesmo com a pergunta em português.
+        query: `${query.replace(/[.?!\s]+$/, "")}? Responda em português do Brasil.`,
         search_depth: "basic",
         topic: "general",
         country: "brazil",
