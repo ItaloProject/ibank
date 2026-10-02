@@ -137,6 +137,22 @@ export function looksLikeMath(raw: string): boolean {
   return /^[\d\s.,+\-*/^()%×÷r$]+$/.test(stripped) && /[+\-*/^%×÷]|\b(vezes|mais|menos|dividido|multiplicado|elevado|x)\b/.test(s);
 }
 
+const OP = String.raw`(?:[+*/^×÷x]|-(?=\s*(?:r\$\s*)?\d)|\bmais\b|\bmenos\b|\bvezes\b|\bdividido por\b|\bmultiplicado por\b)`;
+
+/** Resolve contas no meio de um pedido: "adicionar 1,19 + 34,01 de railway" → "adicionar 35,20 de railway". */
+export function foldMath(text: string): { text: string; exprs: { expr: string; value: number }[] } {
+  const exprs: { expr: string; value: number }[] = [];
+  const re = new RegExp(String.raw`${NUMBER_RE}%?(?:\s*${OP}\s*${NUMBER_RE}%?)+`, "g");
+  const out = text.replace(re, (m) => {
+    const v = evaluate(m);
+    if (v === null || v < 0) return m;
+    const value = Math.round(v * 100) / 100;
+    exprs.push({ expr: m.trim(), value });
+    return value.toFixed(2).replace(".", ",");
+  });
+  return { text: out, exprs };
+}
+
 export function mathBody(raw: string): string {
   return normalize(raw)
     .replace(/^(quanto (e|da|fica|sao)|calcul[ae]r?|conta|resultado de)\s*:?\s*/, "")

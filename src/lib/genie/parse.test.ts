@@ -30,6 +30,18 @@ describe("calculadora", () => {
 });
 
 describe("pedidos ao planejamento", () => {
+  it("resolve contas dentro do pedido", () => {
+    expect(p("vamos adicionar em CASA o valor de 1,19 + 34,01 referente a Railway")).toEqual({
+      kind: "addItems", group: "CASA", items: [{ name: "Railway", value: 35.2, type: null, calc: "1,19 + 34,01" }],
+    });
+    expect(p("adicionar mercado 200 mais 50 em casa")).toMatchObject({ items: [{ name: "Mercado", value: 250, calc: "200 mais 50" }] });
+    expect(p("adicionar 3 x 45 de academia")).toMatchObject({ items: [{ name: "Academia", value: 135 }] });
+    expect(p("gastei 30 + 12,50 no mercado")).toMatchObject({ kind: "spend", name: "mercado", value: 42.5, calc: "30 + 12,50" });
+    expect(p("muda aluguel para 1800 + 150")).toMatchObject({ kind: "setPlanned", value: 1950 });
+    expect(p("adicionar em casa o item 20 - no valor de 38,50")).toMatchObject({ items: [{ name: "Item 20", value: 38.5 }] });
+    expect(p("1,19 + 34,01")).toMatchObject({ kind: "calc", value: 35.2 });
+  });
+
   it("grupo logo depois do verbo, sem a palavra grupo", () => {
     expect(p("Vamos adicionar em CASA o item 20 - no valor de 38,50")).toMatchObject({ kind: "addItems", items: [{ name: "Item 20", value: 38.5 }], group: "CASA" });
     expect(p("adicionar em casa mercado 38,50")).toMatchObject({ kind: "addItems", items: [{ name: "Mercado", value: 38.5 }], group: "casa" });

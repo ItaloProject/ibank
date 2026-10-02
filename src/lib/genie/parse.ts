@@ -1,14 +1,15 @@
-import { NUMBER_RE, evaluate, looksLikeMath, mathBody, normalize, parseNumber } from "./calc";
+import { NUMBER_RE, evaluate, foldMath, looksLikeMath, mathBody, normalize, parseNumber } from "./calc";
 import { fixTypos, similar } from "./fuzzy";
 import { INTENT_VERBS, canonicalize, extractSlots, guessIntent, type Intent } from "./translate";
 
 export type ItemType = "fixo" | "variavel";
-export type NewItem = { name: string; value: number; type: ItemType | null };
+/** `calc`: a conta que o pedido trazia, como "1,19 + 34,01", para o Gênio mostrar de onde veio o valor. */
+export type NewItem = { name: string; value: number; type: ItemType | null; calc?: string };
 
 export type GenieCommand =
   | { kind: "calc"; expr: string; value: number }
   | { kind: "addItems"; items: NewItem[]; group: string | null }
-  | { kind: "spend"; name: string; value: number | null; group: string | null }
+  | { kind: "spend"; name: string; value: number | null; group: string | null; calc?: string }
   | { kind: "createGroups"; names: string[] }
   | { kind: "addIncome"; description: string; value: number }
   | { kind: "query"; topic: "sobra" | "dia" | "gasto" | "renda" | "fixos" | "maiores" | "estourados" | "resumo"; target: string | null }
@@ -17,7 +18,7 @@ export type GenieCommand =
   | { kind: "compound"; monthly: number; initial: number; rateMonth: number; months: number; rateLabel: string }
   | { kind: "installment"; principal: number; parcelas: number; rateMonth: number }
   | { kind: "remove"; target: string; what: "item" | "group" | null }
-  | { kind: "setPlanned"; name: string; value: number }
+  | { kind: "setPlanned"; name: string; value: number; calc?: string }
   /** Pedido de item sem valor (ou sem nome): o Gênio pergunta o que falta. */
   | { kind: "draftItem"; name: string | null; group: string | null }
   | { kind: "draftIncome"; description: string | null }
@@ -249,8 +250,21 @@ function stripPolite(t: string): string {
 
 const CREATE_GROUP = /\b(?:cri[aeo]r?|crie|abr[aei]r?|mont[aeo]r?|faz(?:er)?|faca)\b.*\b(?:grupos?|categorias?)\b|\b(?:nov[oa]s?)\s+(?:grupos?|categorias?)\b|\b(?:grupos?|categorias?)\s+nov[oa]s?\b|\b(?:adiciona\w*|add|inclui\w*|coloca\w*)\s+(?:um\s+|o\s+)?(?:grupos?|categorias?)\b/;
 
+const ACTION_WITH_VALUE = new RegExp(String.raw`^(?:${ADD_VERB}|gastei|gastamos|paguei|pagamos|comprei|compramos|lancei|recebi|entrou|ganhei|(?:muda|altera|atualiza|ajusta|troca|corrig)\w*)\b|\bagora\s+(?:e|custa|fica|vale)\b`);
+
 function parseNormalized(input: string, groups: string[], cdiAnual: number): GenieCommand {
   const t = canonicalize(fixTypos(stripPolite(input)));
+  if (!ACTION_WITH_VALUE.test(t) || looksLikeMath(t)) return parseRules(t, groups, cdiAnual);
+  const { text, exprs } = foldMath(t);
+  const cmd = parseRules(text, groups, cdiAnual);
+  if (!exprs.length) return cmd;
+  const calcOf = (v: number | null) => exprs.find((e) => e.value === v)?.expr;
+  if (cmd.kind === "addItems") return { ...cmd, items: cmd.items.map((x) => (calcOf(x.value) ? { ...x, calc: calcOf(x.value) } : x)) };
+  if ((cmd.kind === "spend" || cmd.kind === "setPlanned") && calcOf(cmd.value)) return { ...cmd, calc: calcOf(cmd.value) };
+  return cmd;
+}
+
+function parseRules(t: string, groups: string[], cdiAnual: number): GenieCommand {
   if (/^(ajuda|help|o que (voce|vc) faz|o que (voce|vc) sabe( fazer)?|comandos|exemplos|como (te )?uso|como funciona)$/.test(t)) return { kind: "help" };
 
   // Grupo novo: basta "grupo" com criar, novo, abrir ou adicionar

@@ -248,7 +248,7 @@ export function PlanGenie(props: Props) {
       id: uid(),
       role: "action",
       title: `${created ? `Criei o grupo ${group.name} e adicionei` : "Adicionei"} ${rows.length === 1 ? "1 item" : `${rows.length} itens`}${created ? "" : ` em ${group.name}`}`,
-      lines: cmd.items.map((it) => `${it.name} · ${money(it.value)} planejado · ${guessType(it.name, it.type) === "fixo" ? "fixo" : "variável"}`),
+      lines: cmd.items.map((it) => `${it.name} · ${money(it.value)} planejado${it.calc ? ` (${it.calc})` : ""} · ${guessType(it.name, it.type) === "fixo" ? "fixo" : "variável"}`),
       undo: async () => {
         await Promise.all(rows.map((r) => api(`/api/plan-items/${r.id}`, "DELETE")));
         if (created) { await api(`/api/plan-groups/${group.id}`, "DELETE"); await reloadGroups(); }
@@ -279,6 +279,7 @@ export function PlanGenie(props: Props) {
         role: "action",
         title: cmd.value === null ? `${found.name} marcado como pago` : `${found.name}: + ${money(cmd.value)}`,
         lines: [
+          ...(cmd.calc ? [`Conta: ${cmd.calc} = ${money(cmd.value ?? 0)}`] : []),
           `Gasto ${money(prev)} → ${money(next)}`,
           found.planned > 0 ? (over ? `Passou ${money(next - found.planned)} do planejado` : `Ainda cabe ${money(found.planned - next)}`) : "Sem valor planejado",
         ],
@@ -314,7 +315,7 @@ export function PlanGenie(props: Props) {
       id: uid(),
       role: "action",
       title: `Lancei ${money(cmd.value)} em ${cmd.name}`,
-      lines: [`Item novo em ${group.name}, sem valor planejado`],
+      lines: [...(cmd.calc ? [`Conta: ${cmd.calc} = ${money(cmd.value)}`] : []), `Item novo em ${group.name}, sem valor planejado`],
       undo: async () => {
         await api(`/api/plan-items/${row.id}`, "DELETE");
         if (created) { await api(`/api/plan-groups/${group.id}`, "DELETE"); await reloadGroups(); }
@@ -498,7 +499,7 @@ export function PlanGenie(props: Props) {
       id: uid(),
       role: "action",
       title: `${found.name}: planejado agora é ${money(cmd.value)}`,
-      lines: [`Antes ${money(prev)} · diferença ${cmd.value >= prev ? "+" : "−"} ${money(Math.abs(cmd.value - prev))}`],
+      lines: [...(cmd.calc ? [`Conta: ${cmd.calc} = ${money(cmd.value)}`] : []), `Antes ${money(prev)} · diferença ${cmd.value >= prev ? "+" : "−"} ${money(Math.abs(cmd.value - prev))}`],
       undo: async () => { await api(`/api/plan-items/${found.id}`, "PATCH", body(prev)); await reloadItems(); },
     });
   }
