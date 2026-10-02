@@ -36,13 +36,13 @@ function typeOf(s: string): { type: ItemType | null; rest: string } {
 /** "netflix 55", "55 de netflix", "netflix por r$ 55" → { name, value }. */
 function nameAndValue(part: string): { name: string; value: number } | null {
   const p = part.trim();
-  let m = p.match(new RegExp(String.raw`^(.+?)\s+(?:por\s+|de\s+|no valor de\s+|=\s*)?(${N})$`));
+  let m = p.match(new RegExp(String.raw`^(.+?)(?:\s*:\s*|\s+(?:por\s+|de\s+|no valor de\s+|=\s*)?)(${N})$`));
   if (m) {
     const value = num(m[2]);
     const name = cleanName(m[1]);
     if (value !== null && name) return { name, value };
   }
-  m = p.match(new RegExp(String.raw`^(${N})\s+(?:de\s+|do\s+|da\s+|em\s+|no\s+|na\s+|com\s+)?(.+)$`));
+  m = p.match(new RegExp(String.raw`^(${N})\s+(?:(?:referente|referentes|relativo|relativa)\s+(?:a|ao|aos|as)\s+|ref\.?\s+|para\s+(?:o\s+|a\s+)?|pro\s+|pra\s+|de\s+|do\s+|da\s+|em\s+|no\s+|na\s+|com\s+)?(.+)$`));
   if (m) {
     const value = num(m[1]);
     const name = cleanName(m[2]);
@@ -62,6 +62,26 @@ function splitGroup(body: string, groups: string[]): { list: string; group: stri
     if (strong || findGroup(after, groups)) return { list: body.slice(0, m.index).trim(), group: cleanName(after) };
   }
   return { list: body, group: null };
+}
+
+/** Grupo no começo do pedido: "ao grupo de pagamento 98,95 referente a noroeste", "em casa: aluguel 1800". */
+function leadingGroup(body: string, groups: string[]): { list: string; group: string } | null {
+  const colon = body.match(/^(?:em|no|na|ao|para)\s+(?:grupo\s+)?([^:\d]+?)\s*:\s*(.+)$/);
+  if (colon) return { group: cleanName(colon[1]), list: colon[2].trim() };
+  const m = body.match(/^(?:(?:ao|no|na|para o|para a|pro|pra|em|dentro do|dentro da)\s+)?(?:grupo|categoria)\s+(?:de\s+|do\s+|da\s+|dos\s+|das\s+)?(.+)$/);
+  if (!m) return null;
+  const words = m[1].split(" ");
+  const firstNum = words.findIndex((w) => /\d/.test(w));
+  const maxLen = Math.min(3, firstNum === -1 ? words.length - 1 : firstNum);
+  if (maxLen < 1) return null;
+  const same = (a: string, b: string) => normalize(a).replace(/s$/, "") === normalize(b).replace(/s$/, "");
+  let take = 1;
+  for (let k = maxLen; k > 1; k--) {
+    const cand = words.slice(0, k).join(" ");
+    if (groups.some((g) => same(g, cand))) { take = k; break; }
+  }
+  const list = words.slice(take).join(" ").trim();
+  return list ? { list, group: cleanName(words.slice(0, take).join(" ")) } : null;
 }
 
 export function findGroup(name: string, groups: string[]): string | null {
@@ -149,8 +169,9 @@ function parseNormalized(t: string, groups: string[], cdiAnual: number): GenieCo
   // Adicionar itens
   m = t.match(new RegExp(String.raw`^${ADD_VERB}\s+(.+)$`));
   if (m && /\d/.test(m[1])) {
-    const { type, rest } = typeOf(m[1]);
-    const { list, group } = splitGroup(rest.replace(/\s+/g, " ").trim(), groups);
+    const { type, rest } = typeOf(m[1].replace(/["“”'‘’]/g, " "));
+    const lead = leadingGroup(rest.replace(/\s+/g, " ").trim(), groups);
+    const { list, group } = lead ?? splitGroup(rest.replace(/\s+/g, " ").trim(), groups);
     const items = splitList(list).map(nameAndValue).filter((x): x is { name: string; value: number } => !!x).map((x) => ({ ...x, name: capitalize(x.name), type }));
     if (items.length) return { kind: "addItems", items, group };
   }
