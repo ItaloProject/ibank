@@ -584,6 +584,11 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <span className="text-[11px] text-muted-foreground">Variáveis</span>
               <span className="text-[11px] font-display font-black tabular-nums">{fmt(totalVarActual)}</span>
             </span>
+            <span className="text-border/60 text-xs select-none">·</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground">Total</span>
+              <span className="text-[11px] font-display font-black tabular-nums">{fmt(totalActual)}</span>
+            </span>
             {salary > 0 && (
               <>
                 <span className="text-border/60 text-xs select-none">·</span>
@@ -598,7 +603,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             )}
           </div>
           {/* Desktop: 3-card grid */}
-          <div className="hidden md:grid grid-cols-3 gap-2">
+          <div className="hidden md:grid grid-cols-4 gap-2">
             <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
               <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-500">
                 Fixos
@@ -618,6 +623,16 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               </p>
               <p className="text-base font-display font-black tabular-nums leading-none">{fmt(totalVarActual)}</p>
               <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(totalVarPlanned)}</p>
+            </div>
+            <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${totalPlanned > 0 && totalActual > totalPlanned ? "border-destructive/20" : "border-foreground/15"}`}>
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-foreground/80">
+                Gasto total
+                <HelpTip label="gasto total">
+                  Soma de tudo o que você já gastou (valor real) no mês, fixos e variáveis. O &quot;de R$&quot; abaixo é o total planejado.
+                </HelpTip>
+              </p>
+              <p className={`text-base font-display font-black tabular-nums leading-none ${totalPlanned > 0 && totalActual > totalPlanned ? "text-destructive" : ""}`}>{fmt(totalActual)}</p>
+              <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(totalPlanned)}</p>
             </div>
             <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
               <p className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>
