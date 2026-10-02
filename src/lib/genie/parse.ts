@@ -8,7 +8,8 @@ export type NewItem = { name: string; value: number; type: ItemType | null; calc
 
 export type GenieCommand =
   | { kind: "calc"; expr: string; value: number }
-  | { kind: "addItems"; items: NewItem[]; group: string | null }
+  /** `paid`: "como gasto real" no pedido; o valor vai para o planejado e para o real. */
+  | { kind: "addItems"; items: NewItem[]; group: string | null; paid?: boolean }
   | { kind: "spend"; name: string; value: number | null; group: string | null; calc?: string }
   | { kind: "createGroups"; names: string[] }
   | { kind: "addIncome"; description: string; value: number }
@@ -252,8 +253,21 @@ const CREATE_GROUP = /\b(?:cri[aeo]r?|crie|abr[aei]r?|mont[aeo]r?|faz(?:er)?|fac
 
 const ACTION_WITH_VALUE = new RegExp(String.raw`^(?:${ADD_VERB}|gastei|gastamos|paguei|pagamos|comprei|compramos|lancei|recebi|entrou|ganhei|(?:muda|altera|atualiza|ajusta|troca|corrig)\w*)\b|\bagora\s+(?:e|custa|fica|vale)\b`);
 
+/** "coloque como real", "como gasto real", "planejado e real", "já paguei" junto de um pedido de adicionar. */
+const PAID = /\s*[,;-]?\s*(?:e\s+)?(?:(?:coloca(?:r)?|coloque|bota(?:r)?|bote|poe|marca(?:r)?|marque|lanca(?:r)?|lance|deixa(?:r)?|deixe)\s+)?(?:(?:tambem|ja)\s+)?(?:(?:como|no|em|com)\s+(?:o\s+)?(?:(?:planejado|previsto)\s+e\s+)?(?:gasto\s+|valor\s+)?real|(?:gasto|valor)\s+real|planejado\s+e\s+real|ja\s+(?:foi\s+)?(?:pag[oa]s?|gast[oa]s?)|ja\s+(?:paguei|gastei))\b/;
+
 function parseNormalized(input: string, groups: string[], cdiAnual: number): GenieCommand {
   const t = canonicalize(fixTypos(stripPolite(input)));
+  const paid = t.match(PAID);
+  if (paid && paid.index! > 0) {
+    const rest = `${t.slice(0, paid.index)} ${t.slice(paid.index! + paid[0].length)}`.replace(/\s+/g, " ").trim();
+    const cmd = parseWithMath(rest, groups, cdiAnual);
+    if (cmd.kind === "addItems") return { ...cmd, paid: true };
+  }
+  return parseWithMath(t, groups, cdiAnual);
+}
+
+function parseWithMath(t: string, groups: string[], cdiAnual: number): GenieCommand {
   if (!ACTION_WITH_VALUE.test(t) || looksLikeMath(t)) return parseRules(t, groups, cdiAnual);
   const { text, exprs } = foldMath(t);
   const cmd = parseRules(text, groups, cdiAnual);

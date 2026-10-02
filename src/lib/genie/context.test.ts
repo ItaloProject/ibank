@@ -7,6 +7,24 @@ import { suggest } from "./suggest";
 
 const MEM: GenieMemory = { item: "Netflix", group: "ASSINATURAS", last: "addItems" };
 
+describe("gasto real junto do planejado", () => {
+  const G = ["CASA", "CARTAO"];
+  it("no mesmo pedido", () => {
+    expect(parseGenie("adicionar luz 180 em casa como gasto real", G, 10)).toMatchObject({ kind: "addItems", paid: true, items: [{ name: "Luz", value: 180 }], group: "casa" });
+    expect(parseGenie("adicionar em cartao netflix 55, coloque como real", G, 10)).toMatchObject({ kind: "addItems", paid: true, items: [{ name: "Netflix", value: 55 }] });
+    expect(parseGenie("adicionar aluguel 1800 em casa como planejado e real", G, 10)).toMatchObject({ paid: true, items: [{ name: "Aluguel", value: 1800 }] });
+    expect(parseGenie("adicionar mercado 300 em casa ja paguei", G, 10)).toMatchObject({ paid: true, items: [{ name: "Mercado", value: 300 }] });
+    expect(parseGenie("adicionar luz 180 em casa", G, 10)).not.toHaveProperty("paid");
+    expect(parseGenie("adicionar pao 1 real em casa", G, 10)).not.toHaveProperty("paid");
+  });
+  it("logo depois de adicionar", () => {
+    for (const s of ["coloque como real", "gasto real", "coloca como gasto real", "como real", "marca como planejado e real", "já paguei", "foi pago", "coloca eles como real"]) {
+      expect(followUp(s, MEM), s).toEqual({ kind: "paid" });
+    }
+    expect(followUp("gasto real", { item: null, group: null, last: null })).toBeNull();
+  });
+});
+
 describe("memória da conversa", () => {
   it("correção do último valor", () => {
     expect(followUp("na verdade é 110", MEM)).toEqual({ kind: "correct", value: 110 });

@@ -13,9 +13,13 @@ export type GenieMemory = {
 export type FollowUp =
   | { kind: "correct"; value: number }
   | { kind: "more"; value: number }
+  /** "Coloque como real": o gasto real dos últimos itens passa a ser o planejado. */
+  | { kind: "paid" }
   | { kind: "text"; text: string };
 
 const N = NUMBER_RE;
+
+const PAID_ALONE = /^(?:(?:coloca|coloque|bota|bote|poe|marca|marque|lanca|lance|deixa|deixe|adiciona|adicione|salva|salve)\s+)?(?:(?:isso|ele|ela|eles|elas|esse|essa|esses|essas|os dois|todos|tambem|ja)\s+)*(?:(?:como|no|em)\s+(?:o\s+)?(?:(?:planejado|previsto)\s+e\s+)?(?:gasto\s+|valor\s+)?real|(?:gasto|valor)\s+real|(?:como\s+)?planejado\s+e\s+real|(?:ja\s+)?(?:foi\s+|foram\s+)?(?:pag[oa]s?)|ja\s+paguei|paguei)(?:\s+(?:tambem|ja))?$/;
 
 /** Reescreve pedidos que dependem do que veio antes; null se a frase se sustenta sozinha. */
 export function followUp(raw: string, mem: GenieMemory): FollowUp | null {
@@ -34,6 +38,7 @@ export function followUp(raw: string, mem: GenieMemory): FollowUp | null {
       ?? t.match(new RegExp(String.raw`^(?:soma|acrescenta|adiciona|coloca|bota)\s+(${N})\s+(?:nele|nela|nisso|nesse item|neste item)$`));
     const value = more ? parseNumber(more[1]) : null;
     if (value !== null) return { kind: "more", value };
+    if (PAID_ALONE.test(t)) return { kind: "paid" };
   }
 
   let text = r;

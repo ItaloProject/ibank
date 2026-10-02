@@ -51,6 +51,8 @@ type Target = {
 
 type Memory = {
   target: Target | null;
+  /** Itens criados no último "adicionar", para "coloque como real" valer para todos. */
+  batch: Target[];
   group: string | null;
   last: GenieMemory["last"];
   income: { cmd: Extract<GenieCommand, { kind: "addIncome" }>; undo: () => Promise<void> } | null;
@@ -115,7 +117,7 @@ export function PlanGenie(props: Props) {
   const [pending, setPending] = useState<Pending | null>(null);
   const tapeRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const mem = useRef<Memory>({ target: null, group: null, last: null, income: null, recent: null });
+  const mem = useRef<Memory>({ target: null, batch: [], group: null, last: null, income: null, recent: null });
   const remember = (change: Partial<Memory>) => { mem.current = { ...mem.current, recent: "action", ...change }; };
   const [learned, setLearned] = useState<LearnedPhrase[]>([]);
   const learnedLoaded = useRef(false);
@@ -230,25 +232,21 @@ export function PlanGenie(props: Props) {
     const rows = await Promise.all(cmd.items.map((it) =>
       api<{ id: string }>("/api/plan-items", "POST", {
         user_id: userId, group_id: group.id, month,
-        name: it.name, type: guessType(it.name, it.type), planned: it.value, actual: 0,
+        name: it.name, type: guessType(it.name, it.type), planned: it.value, actual: cmd.paid ? it.value : 0,
       }),
     ));
     if (created) await reloadGroups();
     await reloadItems();
-    const lastItem = cmd.items[cmd.items.length - 1];
-    remember({
-      last: "addItems",
-      group: group.name,
-      target: {
-        id: rows[rows.length - 1].id, name: lastItem.name, groupId: group.id, groupName: group.name,
-        type: guessType(lastItem.name, lastItem.type), planned: lastItem.value, actual: 0, field: "planned", base: 0,
-      },
-    });
+    const batch: Target[] = cmd.items.map((it, i) => ({
+      id: rows[i].id, name: it.name, groupId: group.id, groupName: group.name,
+      type: guessType(it.name, it.type), planned: it.value, actual: cmd.paid ? it.value : 0, field: "planned", base: 0,
+    }));
+    remember({ last: "addItems", group: group.name, target: batch[batch.length - 1], batch });
     push({
       id: uid(),
       role: "action",
       title: `${created ? `Criei o grupo ${group.name} e adicionei` : "Adicionei"} ${rows.length === 1 ? "1 item" : `${rows.length} itens`}${created ? "" : ` em ${group.name}`}`,
-      lines: cmd.items.map((it) => `${it.name} · ${money(it.value)} planejado${it.calc ? ` (${it.calc})` : ""} · ${guessType(it.name, it.type) === "fixo" ? "fixo" : "variável"}`),
+      lines: cmd.items.map((it) => `${it.name} · ${money(it.value)} ${cmd.paid ? "planejado e gasto real" : "planejado"}${it.calc ? ` (${it.calc})` : ""} · ${guessType(it.name, it.type) === "fixo" ? "fixo" : "variável"}`),
       undo: async () => {
         await Promise.all(rows.map((r) => api(`/api/plan-items/${r.id}`, "DELETE")));
         if (created) { await api(`/api/plan-groups/${group.id}`, "DELETE"); await reloadGroups(); }
@@ -421,6 +419,37 @@ export function PlanGenie(props: Props) {
     return setField(t, t.field, t[t.field] + value, `${t.name}: + ${money(value)}`, t.field === "actual" ? t.actual : t.base);
   }
 
+  /** "Coloque como real": o gasto real dos itens recém-mexidos passa a ser o planejado. */
+  async function markPaid() {
+    const m = mem.current;
+    const fresh = (t: Target) => {
+      const row = items.find((i) => i.id === t.id);
+      return row ? { ...t, name: row.name, type: row.type, planned: row.planned, actual: row.actual } : null;
+    };
+    const list = (m.last === "addItems" && m.batch.length ? m.batch : m.target ? [m.target] : [])
+      .map(fresh)
+      .filter((t): t is Target => !!t && t.planned > 0);
+    if (!list.length) {
+      return showAnswer({ title: "Não sei qual item marcar como gasto real.", note: "Diga o item e o valor, por exemplo \"gastei 180 na luz\"." });
+    }
+    const body = (t: Target, actual: number) => ({ group_id: t.groupId, name: t.name, type: t.type, planned: t.planned, actual });
+    await Promise.all(list.map((t) => api(`/api/plan-items/${t.id}`, "PATCH", body(t, t.planned))));
+    await reloadItems();
+    const done = list.map((t) => ({ ...t, actual: t.planned, field: "actual" as const, base: t.actual }));
+    remember({ target: done[done.length - 1], batch: m.last === "addItems" ? done : m.batch });
+    push({
+      id: uid(),
+      role: "action",
+      title: list.length === 1 ? `${list[0].name}: gasto real igual ao planejado` : `${list.length} itens com gasto real igual ao planejado`,
+      lines: list.map((t) => `${t.name} · gasto ${money(t.actual)} → ${money(t.planned)}`),
+      undo: async () => {
+        await Promise.all(list.map((t) => api(`/api/plan-items/${t.id}`, "PATCH", body(t, t.actual))));
+        await reloadItems();
+        remember({ target: list[list.length - 1], batch: m.batch });
+      },
+    });
+  }
+
   /** Pedido fora do que o Gênio sabe: registra a frase para ensinar depois e mostra exemplos. */
   function notUnderstood(text: string) {
     missRef.current = { text, at: Date.now() };
@@ -571,6 +600,7 @@ export function PlanGenie(props: Props) {
         });
         if (fu?.kind === "correct") return await correct(fu.value);
         if (fu?.kind === "more") return await addMore(fu.value);
+        if (fu?.kind === "paid") return await markPaid();
         if (fu?.kind === "text") said = fu.text;
       }
       let cmd = parseGenie(said, groupNames, FALLBACK_CDI);
