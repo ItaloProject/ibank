@@ -1,14 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { PlayCircle, X, ExternalLink, Info } from "lucide-react";
+import { PlayCircle, X, ExternalLink, Info, Zap, BookOpen } from "lucide-react";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
-import { TRACKS, type Track, type Video } from "./catalog";
+import { TRACKS, isQuick, type Track, type Video } from "./catalog";
 
 // Esta página fica aberta a todos (veja OPEN_PATHS no layout): o YouTube proíbe cobrar para assistir no player incorporado.
 
 const watchUrl = (v: Video) => `https://www.youtube.com/watch?v=${v.youtubeId}`;
-const TOTAL = TRACKS.reduce((n, t) => n + t.videos.length, 0);
+
+type Tab = "resumos" | "aulas";
+
+const BY_TAB: Record<Tab, Track[]> = {
+  resumos: TRACKS.map((t) => ({ ...t, videos: t.videos.filter(isQuick) })).filter((t) => t.videos.length),
+  aulas: TRACKS.map((t) => ({ ...t, videos: t.videos.filter((v) => !isQuick(v)) })).filter((t) => t.videos.length),
+};
+const count = (tab: Tab) => BY_TAB[tab].reduce((n, t) => n + t.videos.length, 0);
+
+const TABS: { id: Tab; label: string; hint: string; icon: typeof Zap }[] = [
+  { id: "resumos", label: "Resumos rápidos", hint: "até 10 minutos", icon: Zap },
+  { id: "aulas", label: "Aulas completas", hint: "mais de 10 minutos", icon: BookOpen },
+];
 
 function removalUrl() {
   const phone = (process.env.NEXT_PUBLIC_WHATSAPP ?? "").replace(/\D/g, "");
@@ -89,17 +101,46 @@ function TrackSection({ track, onPlay }: { track: Track; onPlay: (v: Video) => v
 
 export default function VideosPage() {
   const [playing, setPlaying] = useState<Video | null>(null);
+  const [tab, setTab] = useState<Tab>("resumos");
   const removal = removalUrl();
+  const tracks = BY_TAB[tab];
 
   return (
     <PageShell>
       <PageHeader
         title="Vídeos"
-        description={`Seleção gratuita de ${TOTAL} vídeos públicos do YouTube para aprender a investir, do básico à renda variável`}
+        description="Seleção gratuita de vídeos públicos do YouTube para aprender a investir, do básico à renda variável"
       />
-      <PageBody width="wide" className="space-y-8">
+      <PageBody width="wide" className="space-y-6">
+      <div role="tablist" aria-label="Tipo de vídeo" className="grid grid-cols-2 gap-2 rounded-xl border bg-muted/30 p-1 sm:inline-grid sm:w-auto">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-left transition-colors ${
+                active ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className={`h-4 w-4 shrink-0 ${active ? "text-primary" : ""}`} />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold leading-tight">
+                  {t.label} <span className="font-normal text-muted-foreground tabular-nums">({count(t.id)})</span>
+                </span>
+                <span className="block text-[11px] text-muted-foreground">{t.hint}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <nav aria-label="Temas" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-none">
-        {TRACKS.map((t) => {
+        {tracks.map((t) => {
           const Icon = t.icon;
           return (
             <button
@@ -114,9 +155,11 @@ export default function VideosPage() {
         })}
       </nav>
 
-      {TRACKS.map((t) => (
-        <TrackSection key={t.id} track={t} onPlay={setPlaying} />
-      ))}
+      <div className="space-y-8">
+        {tracks.map((t) => (
+          <TrackSection key={`${tab}-${t.id}`} track={t} onPlay={setPlaying} />
+        ))}
+      </div>
 
       <aside className="rounded-xl border bg-muted/30 px-4 py-3 flex gap-3 text-xs text-muted-foreground leading-relaxed">
         <Info className="h-4 w-4 shrink-0 mt-0.5" />
