@@ -56,6 +56,15 @@ describe("pedidos ao planejamento", () => {
       items: [{ name: "Hotel", value: 900 }, { name: "Passagem", value: 1200 }],
     });
     expect(p("adiciona academia: 120 na casa")).toMatchObject({ group: "casa", items: [{ name: "Academia", value: 120 }] });
+    expect(p("Adicione esse item no grupo cartão - noroeste com valor de 98,95")).toEqual({
+      kind: "addItems",
+      group: "cartão",
+      items: [{ name: "Noroeste", value: 98.95, type: null }],
+    });
+    expect(p("adiciona conta de luz no grupo casa com valor de 180")).toMatchObject({ group: "casa", items: [{ name: "Conta de luz", value: 180 }] });
+    expect(p("coloca no grupo cartão: Shopee 230")).toMatchObject({ group: "cartão", items: [{ name: "Shopee", value: 230 }] });
+    expect(p("adicionar Uber no grupo veículo no valor de 45")).toMatchObject({ group: "veículo", items: [{ name: "Uber", value: 45 }] });
+    expect(p("adicione esse item no grupo cartão - noroeste")).toEqual({ kind: "draftItem", name: "Noroeste", group: "cartão" });
     expect(p("lançar 40 de lava jato")).toMatchObject({ kind: "addItems", group: null, items: [{ name: "Lava jato", value: 40 }] });
   });
 

@@ -18,8 +18,15 @@ import type { PlanIncome } from "@/components/planejamento/income-dialog";
 type Msg =
   | { id: string; role: "user"; text: string }
   | { id: string; role: "answer"; answer: GenieAnswer }
-  | { id: string; role: "action"; title: string; lines: string[]; undo?: () => Promise<void>; undone?: boolean }
-  | { id: string; role: "pick"; prompt: string; cmd: Extract<GenieCommand, { kind: "addItems" | "spend" }>; done?: boolean }
+  | {
+      id: string; role: "action"; title: string; lines: string[]; undo?: () => Promise<void>; undone?: boolean;
+      /** Depois do Desfazer, oferece repetir o pedido em outro grupo. */
+      retry?: { cmd: Extract<GenieCommand, { kind: "addItems" | "spend" }>; fromGroup: string };
+    }
+  | {
+      id: string; role: "pick"; prompt: string; cmd: Extract<GenieCommand, { kind: "addItems" | "spend" }>;
+      done?: boolean; exclude?: string; cancelled?: boolean;
+    }
   | { id: string; role: "ask"; prompt: string; hint?: string; chips?: string[] }
   | { id: string; role: "confirm"; title: string; detail: string; label: string; run: () => Promise<void>; done?: boolean }
   | { id: string; role: "ai"; text: string }
@@ -205,6 +212,7 @@ export function PlanGenie(props: Props) {
         if (created) { await api(`/api/plan-groups/${group.id}`, "DELETE"); await reloadGroups(); }
         await reloadItems();
       },
+      retry: { cmd: { ...cmd, group: null }, fromGroup: group.name },
     });
   }
 
@@ -256,6 +264,7 @@ export function PlanGenie(props: Props) {
         if (created) { await api(`/api/plan-groups/${group.id}`, "DELETE"); await reloadGroups(); }
         await reloadItems();
       },
+      retry: { cmd: { ...cmd, group: null }, fromGroup: group.name },
     });
   }
 
@@ -492,6 +501,9 @@ export function PlanGenie(props: Props) {
     try {
       await msg.undo();
       patch(msg.id, { undone: true });
+      if (msg.retry && groups.some((g) => g.name !== msg.retry!.fromGroup)) {
+        push({ id: uid(), role: "pick", prompt: "Desfeito. Quer colocar em outro grupo?", cmd: msg.retry.cmd, exclude: msg.retry.fromGroup });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não consegui desfazer.");
     } finally {
@@ -610,6 +622,7 @@ export function PlanGenie(props: Props) {
                       busy={busy}
                       active={!!pending && m.id === lastAskId}
                       onPick={pickGroup}
+                      onCancel={(p) => patch(p.id, { done: true, cancelled: true })}
                       onUndo={undo}
                       onConfirm={confirm}
                       onChip={(c) => send(c)}
@@ -730,13 +743,14 @@ export function PlanGenie(props: Props) {
 }
 
 function MessageView({
-  msg, groups, busy, active, onPick, onUndo, onConfirm, onChip,
+  msg, groups, busy, active, onPick, onCancel, onUndo, onConfirm, onChip,
 }: {
   msg: Msg;
   groups: ExpenseGroup[];
   busy: boolean;
   active: boolean;
   onPick: (m: Extract<Msg, { role: "pick" }>, group: string) => void;
+  onCancel: (m: Extract<Msg, { role: "pick" }>) => void;
   onUndo: (m: Extract<Msg, { role: "action" }>) => void;
   onConfirm: (m: Extract<Msg, { role: "confirm" }>) => void;
   onChip: (text: string) => void;
@@ -864,20 +878,34 @@ function MessageView({
       return (
         <div className="rounded-2xl border px-3.5 py-3">
           <p className="text-sm">{msg.prompt}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {groups.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                disabled={msg.done || busy}
-                onClick={() => onPick(msg, g.name)}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} />
-                {g.name}
-              </button>
-            ))}
-          </div>
+          {msg.cancelled ? (
+            <p className="mt-1 text-[11px] font-medium text-muted-foreground">Cancelado</p>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {groups.filter((g) => g.name !== msg.exclude).map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  disabled={msg.done || busy}
+                  onClick={() => onPick(msg, g.name)}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} />
+                  {g.name}
+                </button>
+              ))}
+              {!msg.done && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onCancel(msg)}
+                  className="inline-flex min-h-9 items-center rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              )}
+            </div>
+          )}
         </div>
       );
 

@@ -90,6 +90,58 @@ function leadingGroup(body: string, groups: string[]): { list: string; group: st
   return list ? { list, group: cleanName(words.slice(0, take).join(" ")) } : null;
 }
 
+const FILLER = /^\s*(?:(?:(?:ess[ea]|est[ea]|aquel[ea]|o|um|uma|nov[oa])\s+)?(?:item|gasto|despesa)|(?:essa|esta|aquela)\s+conta)\b\s*(?:chamad[oa]\s+|de nome\s+|com (?:o )?nome(?: de)?\s+)?/;
+
+/**
+ * Leitura por palavras-chave quando o pedido cita "grupo" em qualquer lugar:
+ * "esse item no grupo cartão - noroeste com valor de 98,95". Acha o valor, o grupo e trata o resto como nome.
+ */
+function keywordItem(body: string, groups: string[]): { name: string; value: number | null; group: string } | null {
+  const gm = body.match(/\b(?:(?:no|na|ao|para o|para a|pro|pra|em|dentro do|dentro da)\s+)?(?:grupo|categoria)\s+(?:de\s+|do\s+|da\s+)?(.+)$/);
+  if (!gm) return null;
+  const numbers = [...body.matchAll(new RegExp(N, "g"))];
+  if (numbers.length > 1) return null;
+  let value: number | null = null;
+  let text = body;
+  if (numbers.length === 1) {
+    value = num(numbers[0][0]);
+    text = text.replace(
+      new RegExp(String.raw`\s*(?:(?:com|no|pelo|por|pelo)\s+(?:o\s+)?valor\s+(?:de\s+)?|valor\s+(?:de\s+)?|custando\s+|de\s+|por\s+|=\s*)?${N}(?:\s*reais)?`),
+      " ",
+    );
+  }
+  const g = text.match(/\b(?:(?:no|na|ao|para o|para a|pro|pra|em|dentro do|dentro da)\s+)?(?:grupo|categoria)\s+(?:de\s+|do\s+|da\s+)?(.+)$/);
+  if (!g) return null;
+  const before = text.slice(0, g.index).trim();
+  const tail = g[1].trim();
+  const sep = tail.match(/\s*(?:\s-\s|-\s|\s-|:|,|;|\s+com\s+|\s+referente\s+(?:a|ao)\s+|\s+chamad[oa]\s+|\s+de nome\s+)\s*/);
+  let group: string;
+  let after: string;
+  if (sep && sep.index! > 0) {
+    group = tail.slice(0, sep.index).trim();
+    after = tail.slice(sep.index! + sep[0].length).trim();
+  } else {
+    const words = tail.split(" ");
+    const same = (a: string, b: string) => normalize(a).replace(/s$/, "") === normalize(b).replace(/s$/, "");
+    let take = 1;
+    for (let k = Math.min(3, words.length); k > 1; k--) {
+      if (groups.some((x) => same(x, words.slice(0, k).join(" ")))) { take = k; break; }
+    }
+    group = words.slice(0, take).join(" ");
+    after = words.slice(take).join(" ");
+  }
+  const name = cleanName(
+    `${before} ${after}`
+      .replace(FILLER, " ")
+      .replace(/^\s*(?:-|:)\s*|\s*(?:-|:)\s*$/g, " ")
+      .replace(/\b(?:referente|relativo|relativa)\s+(?:a|ao|as|aos)\b/g, " ")
+      .replace(/\s+com\s*$/, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  ).replace(/^(?:-|:)\s*/, "");
+  return { name, value, group: cleanName(group) };
+}
+
 export function findGroup(name: string, groups: string[]): string | null {
   const n = normalize(name).replace(/^grupo\s+/, "");
   if (!n) return null;
@@ -233,6 +285,15 @@ function parseNormalized(input: string, groups: string[], cdiAnual: number): Gen
 
   // Adicionar itens
   m = t.match(new RegExp(String.raw`^${ADD_VERB}\s+(.+)$`));
+  if (m && /\b(?:grupo|categoria)\b/.test(m[1])) {
+    const { type, rest } = typeOf(m[1].replace(/["“”'‘’]/g, " ").replace(/\s+/g, " ").trim());
+    const kw = keywordItem(rest.replace(/\s+/g, " ").trim(), groups);
+    if (kw) {
+      if (kw.value !== null && kw.name) return { kind: "addItems", items: [{ name: capitalize(kw.name), value: kw.value, type }], group: kw.group };
+      if (kw.value === null) return { kind: "draftItem", name: kw.name || null, group: kw.group };
+      return { kind: "draftItem", name: null, group: kw.group };
+    }
+  }
   if (m && /\d/.test(m[1])) {
     const { type, rest } = typeOf(m[1].replace(/["“”'‘’]/g, " "));
     const lead = leadingGroup(rest.replace(/\s+/g, " ").trim(), groups);
