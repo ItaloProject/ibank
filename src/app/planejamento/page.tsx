@@ -36,6 +36,7 @@ import { SplashScreen } from "@/components/splash-screen";
 import { HelpTip } from "@/components/ui/help-tip";
 import { IncomeDialog, type PlanIncome } from "@/components/planejamento/income-dialog";
 import { GroupSection, type ExpenseGroup, type ExpenseItem } from "@/components/planejamento/group-section";
+import { PlanGenie } from "@/components/planejamento/plan-genie";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -632,7 +633,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
             </motion.div>
           ) : (
-            <div className={cn(PAGE_CONTENT, "space-y-3 py-4 sm:py-6")}>
+            <div className={cn(PAGE_CONTENT, "space-y-3 pt-4 pb-24 sm:pt-6")}>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-foreground/55">
                   {groups.length} {groups.length === 1 ? "grupo" : "grupos"}
@@ -685,6 +686,20 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         prevMonthLabel={prevMonthLabel}
         incomes={incomes}
         onChange={setIncomes}
+      />
+
+      <PlanGenie
+        userId={userId}
+        month={currentMonth}
+        monthLabel={monthLabel}
+        salary={salary}
+        groups={groups}
+        items={items}
+        incomes={incomes}
+        colors={GROUP_COLORS}
+        reloadGroups={loadGroups}
+        reloadItems={() => loadItems(currentMonth)}
+        onIncomes={setIncomes}
       />
 
       {/* ── Dialog: Copiar mês anterior ─────────────────────────────────────── */}
