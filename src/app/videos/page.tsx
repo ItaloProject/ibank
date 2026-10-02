@@ -1,92 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { PlayCircle, GraduationCap, Lightbulb, X, ExternalLink, Info } from "lucide-react";
+import { PlayCircle, X, ExternalLink, Info } from "lucide-react";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { TRACKS, type Track, type Video } from "./catalog";
 
-type Video = {
-  title: string;
-  description: string;
-  youtubeId: string;
-  duration: string;
-  channel: string;
-  channelUrl: string;
-};
-
-// Vídeos públicos do YouTube, sempre pelo player oficial: nunca baixar nem hospedar cópias.
-// Esta página fica aberta a todos (veja PUBLIC_PATHS no layout): o YouTube proíbe cobrar para assistir no player incorporado.
-// youtubeId = código depois de "v=" no link do vídeo; o canal vem de youtube.com/oembed.
-const INICIANTES: Video[] = [
-  {
-    title: "Educação financeira para iniciantes: o que é e como começar",
-    description: "Pilares básicos: receitas, despesas, reserva e uso consciente do crédito.",
-    youtubeId: "7NNsg7N6__Q",
-    duration: "8:00",
-    channel: "Alfa | Safra Financeira",
-    channelUrl: "https://www.youtube.com/@AlfaConsignado",
-  },
-  {
-    title: "Como organizar sua vida financeira em 30 dias",
-    description: "Um método simples para mapear para onde o dinheiro vai.",
-    youtubeId: "85NKII6eLmE",
-    duration: "12:00",
-    channel: "Me Poupe!",
-    channelUrl: "https://www.youtube.com/@MePoupe",
-  },
-  {
-    title: "Orçamento familiar de forma simples",
-    description: "Como montar um orçamento e comparar o planejado com o realizado.",
-    youtubeId: "_LetMq26HJU",
-    duration: "15:00",
-    channel: "Taí Souza",
-    channelUrl: "https://www.youtube.com/@Taisouzaaaa",
-  },
-];
-
-const DICAS: Video[] = [
-  {
-    title: "Guia da renda fixa: CDB, CDI, Selic, LCI e LCA",
-    description: "Entenda as siglas que aparecem nos investimentos de renda fixa.",
-    youtubeId: "LLG2RrpMwkA",
-    duration: "18:00",
-    channel: "Bruno Perini - Você MAIS Rico",
-    channelUrl: "https://www.youtube.com/@brunoperini",
-  },
-  {
-    title: "Tesouro Direto: guia completo para iniciantes",
-    description: "Como funciona o Tesouro e por onde começar com segurança.",
-    youtubeId: "bolG9pgxEAU",
-    duration: "20:00",
-    channel: "Me Poupe!",
-    channelUrl: "https://www.youtube.com/@MePoupe",
-  },
-  {
-    title: "Tesouro Selic: passo a passo para investir",
-    description: "Ideal para reserva de emergência, com liquidez e baixo risco.",
-    youtubeId: "9q8fWrCR2ZI",
-    duration: "14:00",
-    channel: "Luciana Fiaux | dominesuasfinancas",
-    channelUrl: "https://www.youtube.com/@lucianafiauxdomine",
-  },
-  {
-    title: "Aula sobre fundos imobiliários (FIIs)",
-    description: "Tijolo, papel e o essencial para começar.",
-    youtubeId: "xQOWiQMzq3M",
-    duration: "25:00",
-    channel: "POP SHOW TV",
-    channelUrl: "https://www.youtube.com/@pobreshow",
-  },
-  {
-    title: "10 anos investindo em FIIs: o que aprendi",
-    description: "Lições práticas sobre carteira, vacância e tese de longo prazo.",
-    youtubeId: "xOWMQloIlGM",
-    duration: "21:00",
-    channel: "Finclass - Aprenda a investir do zero",
-    channelUrl: "https://www.youtube.com/@Finclass",
-  },
-];
+// Esta página fica aberta a todos (veja OPEN_PATHS no layout): o YouTube proíbe cobrar para assistir no player incorporado.
 
 const watchUrl = (v: Video) => `https://www.youtube.com/watch?v=${v.youtubeId}`;
+const TOTAL = TRACKS.reduce((n, t) => n + t.videos.length, 0);
 
 function removalUrl() {
   const phone = (process.env.NEXT_PUBLIC_WHATSAPP ?? "").replace(/\D/g, "");
@@ -109,7 +31,7 @@ function VideoCard({ video, onPlay }: { video: Video; onPlay: () => void }) {
           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/35 transition-colors flex items-center justify-center">
             <PlayCircle className="h-12 w-12 text-white drop-shadow-lg" />
           </div>
-          <span className="absolute bottom-2 right-2 text-[10px] font-medium bg-black/70 text-white px-1.5 py-0.5 rounded">
+          <span className="absolute bottom-2 right-2 text-[10px] font-medium bg-black/70 text-white px-1.5 py-0.5 rounded tabular-nums">
             {video.duration}
           </span>
         </div>
@@ -141,35 +63,26 @@ function VideoCard({ video, onPlay }: { video: Video; onPlay: () => void }) {
   );
 }
 
-function VideoSection({
-  icon: Icon,
-  title,
-  videos,
-  onPlay,
-}: {
-  icon: React.ElementType;
-  title: string;
-  videos: Video[];
-  onPlay: (v: Video) => void;
-}) {
+function TrackSection({ track, onPlay }: { track: Track; onPlay: (v: Video) => void }) {
+  const Icon = track.icon;
   return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-semibold">{title}</h2>
-        <span className="text-xs text-muted-foreground">({videos.length})</span>
+    <section id={track.id} className="space-y-3 scroll-mt-20">
+      <div className="flex items-start gap-2.5">
+        <div className="mt-0.5 h-7 w-7 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Icon className="h-4 w-4 text-primary" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold">
+            {track.title} <span className="text-xs font-normal text-muted-foreground">({track.videos.length})</span>
+          </h2>
+          <p className="text-xs text-muted-foreground">{track.subtitle}</p>
+        </div>
       </div>
-      {videos.length === 0 ? (
-        <div className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">
-          Em breve novos vídeos nesta seção.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {videos.map((v) => (
-            <VideoCard key={v.youtubeId} video={v} onPlay={() => onPlay(v)} />
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {track.videos.map((v) => (
+          <VideoCard key={v.youtubeId} video={v} onPlay={() => onPlay(v)} />
+        ))}
+      </div>
     </section>
   );
 }
@@ -182,18 +95,35 @@ export default function VideosPage() {
     <PageShell>
       <PageHeader
         title="Vídeos"
-        description="Seleção gratuita de vídeos públicos do YouTube sobre educação financeira"
+        description={`Seleção gratuita de ${TOTAL} vídeos públicos do YouTube para aprender a investir, do básico à renda variável`}
       />
       <PageBody width="wide" className="space-y-8">
-      <VideoSection icon={GraduationCap} title="Iniciantes" videos={INICIANTES} onPlay={setPlaying} />
-      <VideoSection icon={Lightbulb} title="Dicas" videos={DICAS} onPlay={setPlaying} />
+      <nav aria-label="Temas" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-none">
+        {TRACKS.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => document.getElementById(t.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+            >
+              <Icon className="h-3.5 w-3.5" /> {t.title}
+            </button>
+          );
+        })}
+      </nav>
+
+      {TRACKS.map((t) => (
+        <TrackSection key={t.id} track={t} onPlay={setPlaying} />
+      ))}
 
       <aside className="rounded-xl border bg-muted/30 px-4 py-3 flex gap-3 text-xs text-muted-foreground leading-relaxed">
         <Info className="h-4 w-4 shrink-0 mt-0.5" />
         <p>
           Os vídeos são públicos, pertencem aos seus criadores e tocam pelo player oficial do YouTube. Cada visualização conta
           para o canal. O MUVO não tem parceria com esses canais, não recebe nada por eles e os vídeos não são recomendação
-          de investimento.{" "}
+          de investimento. Taxas e regras citadas podem ter mudado desde a gravação.{" "}
           {removal ? (
             <>
               É o criador de algum deles e prefere que não apareça aqui?{" "}
