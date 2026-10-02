@@ -672,7 +672,7 @@ export function PlanGenie(props: Props) {
       >
         {open
           ? <X className="h-6 w-6 text-black" aria-hidden="true" />
-          : <Image src="/bot/genio-lampada.webp" alt="" width={56} height={56} className="h-full w-full object-cover" priority />}
+          : <Image src="/bot/genio-avatar.webp" alt="" width={56} height={56} className="h-full w-full object-cover" priority />}
       </motion.button>
 
       <AnimatePresence>
@@ -693,7 +693,7 @@ export function PlanGenie(props: Props) {
             {/* Cabeçalho */}
             <header className="flex items-center gap-3 border-b px-4 py-3">
               <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-foreground bg-white">
-                <Image src="/bot/genio-lampada.webp" alt="" width={40} height={40} className="h-full w-full object-cover" />
+                <Image src="/bot/genio-avatar.webp" alt="" width={40} height={40} className="h-full w-full object-cover" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-display text-lg font-medium leading-tight tracking-tight">Muvo Gênio</p>
@@ -898,7 +898,7 @@ function MessageView({
       return (
         <div className="flex gap-2">
           <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border bg-white">
-            <Image src="/bot/genio-lampada.webp" alt="" width={28} height={28} className="h-full w-full object-cover" />
+            <Image src="/bot/genio-avatar.webp" alt="" width={28} height={28} className="h-full w-full object-cover" />
           </div>
           <div className={cn("min-w-0 flex-1 rounded-2xl rounded-tl-md border px-3.5 py-2.5", active && "border-foreground/40")}>
             <p className="text-sm font-semibold">{msg.prompt}</p>
