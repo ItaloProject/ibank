@@ -485,9 +485,9 @@ export function PlanGenie(props: Props) {
             </div>
 
             {/* Visor */}
-            <div className="mx-3 mb-2 rounded-2xl bg-foreground px-4 py-3 text-background">
+            <div className="mx-3 mb-2 rounded-2xl bg-foreground px-4 py-3 text-background dark:border dark:border-white/10 dark:bg-white/5 dark:text-foreground">
               <div className="flex items-baseline justify-between gap-3">
-                <p className="min-w-0 truncate text-[11px] text-background/60">
+                <p className="min-w-0 truncate text-[11px] text-background/60 dark:text-muted-foreground">
                   {display ? display.label : "Visor"}
                 </p>
                 {display && !display.live && (
@@ -495,7 +495,7 @@ export function PlanGenie(props: Props) {
                     type="button"
                     onClick={() => { void navigator.clipboard?.writeText(display.value); toast.success("Copiado"); }}
                     aria-label="Copiar resultado"
-                    className="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-background/60 hover:text-background"
+                    className="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-background/60 hover:text-background dark:text-muted-foreground dark:hover:text-foreground"
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </button>
