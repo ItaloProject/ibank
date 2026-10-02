@@ -20,8 +20,20 @@ type Msg =
   | { id: string; role: "answer"; answer: GenieAnswer }
   | { id: string; role: "action"; title: string; lines: string[]; undo?: () => Promise<void>; undone?: boolean }
   | { id: string; role: "pick"; prompt: string; cmd: Extract<GenieCommand, { kind: "addItems" | "spend" }>; done?: boolean }
+  | { id: string; role: "ask"; prompt: string; hint?: string; chips?: string[] }
+  | { id: string; role: "confirm"; title: string; detail: string; label: string; run: () => Promise<void>; done?: boolean }
   | { id: string; role: "ai"; text: string }
   | { id: string; role: "error"; text: string };
+
+/** O que o Gênio perguntou e espera na próxima mensagem. */
+type Pending =
+  | { kind: "groupName" }
+  | { kind: "item"; group: string | null }
+  | { kind: "itemValue"; name: string; group: string | null }
+  | { kind: "spendValue"; name: string; group: string | null }
+  | { kind: "incomeValue"; description: string | null };
+
+const GROUP_IDEAS = ["LAZER", "SAÚDE", "ASSINATURAS", "EDUCAÇÃO", "PETS", "VIAGEM", "FILHOS", "INVESTIMENTOS"];
 
 type Props = {
   userId: string;
@@ -88,6 +100,7 @@ export function PlanGenie(props: Props) {
   const [busy, setBusy] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [last, setLast] = useState<{ label: string; value: string; raw: number } | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
   const tapeRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -314,17 +327,115 @@ export function PlanGenie(props: Props) {
     push({ id: uid(), role: "ai", text: String(data?.reply ?? "") });
   }
 
+  async function remove(cmd: Extract<GenieCommand, { kind: "remove" }>) {
+    const gName = cmd.what !== "item" ? findGroup(cmd.target, groupNames) : null;
+    const hit = cmd.what !== "group" ? findItem(cmd.target, snapshot.items) : null;
+    const item = hit && (cmd.what === "item" || !gName || normalize(hit.name) === normalize(cmd.target))
+      ? items.find((i) => i.id === hit.id) ?? null
+      : null;
+    if (item) {
+      if (item.installment_id) {
+        showAnswer({ title: `${item.name} vem de um parcelamento.`, note: "Para tirar, apague o parcelamento na página Parcelamentos." });
+        return;
+      }
+      await api(`/api/plan-items/${item.id}`, "DELETE");
+      await reloadItems();
+      const groupName = groups.find((g) => g.id === item.group_id)?.name ?? "";
+      push({
+        id: uid(),
+        role: "action",
+        title: `${item.name} apagado`,
+        lines: [`${money(item.planned)} planejado · ${money(item.actual)} gasto${groupName ? ` · ${groupName}` : ""}`],
+        undo: async () => {
+          await api("/api/plan-items", "POST", {
+            user_id: userId, group_id: item.group_id, month,
+            name: item.name, type: item.type, planned: item.planned, actual: item.actual,
+          });
+          await reloadItems();
+        },
+      });
+      return;
+    }
+    const group = gName ? groups.find((g) => g.name === gName) : null;
+    if (group) {
+      const count = items.filter((i) => i.group_id === group.id).length;
+      push({
+        id: uid(),
+        role: "confirm",
+        title: `Apagar o grupo ${group.name}?`,
+        detail: `${count ? `Os ${count} ${count === 1 ? "item" : "itens"} dele em ${monthLabel} e os` : "Os"} itens dele nos outros meses também serão apagados. Isso não dá para desfazer.`,
+        label: "Apagar grupo",
+        run: async () => {
+          await api(`/api/plan-groups/${group.id}`, "DELETE");
+          await reloadGroups();
+          await reloadItems();
+          push({ id: uid(), role: "action", title: `Grupo ${group.name} apagado`, lines: [] });
+        },
+      });
+      return;
+    }
+    showAnswer({ title: `Não encontrei "${cmd.target}" em ${monthLabel}.`, note: "Confira o nome do item ou do grupo." });
+  }
+
+  async function setPlanned(cmd: Extract<GenieCommand, { kind: "setPlanned" }>) {
+    const found = findItem(cmd.name, snapshot.items);
+    if (!found) return addItems({ kind: "addItems", items: [{ name: cmd.name, value: cmd.value, type: null }], group: null });
+    const prev = found.planned;
+    const body = (planned: number) => ({ group_id: found.groupId, name: found.name, type: found.type, planned, actual: found.actual });
+    await api(`/api/plan-items/${found.id}`, "PATCH", body(cmd.value));
+    await reloadItems();
+    push({
+      id: uid(),
+      role: "action",
+      title: `${found.name}: planejado agora é ${money(cmd.value)}`,
+      lines: [`Antes ${money(prev)} · diferença ${cmd.value >= prev ? "+" : "−"} ${money(Math.abs(cmd.value - prev))}`],
+      undo: async () => { await api(`/api/plan-items/${found.id}`, "PATCH", body(prev)); await reloadItems(); },
+    });
+  }
+
+  function ask(next: Pending, prompt: string, hint?: string, chips?: string[]) {
+    setPending(next);
+    push({ id: uid(), role: "ask", prompt, hint, chips });
+  }
+
   async function run(cmd: GenieCommand, text: string) {
     switch (cmd.kind) {
       case "addItems": return addItems(cmd);
       case "spend": return spend(cmd);
-      case "createGroups": return createGroups(cmd.names);
+      case "createGroups":
+        if (!cmd.names.length) {
+          const ideas = GROUP_IDEAS.filter((g) => !groupNames.some((n) => normalize(n) === normalize(g))).slice(0, 5);
+          return ask({ kind: "groupName" }, "Qual o nome do grupo?", "Pode mandar mais de um: \"Lazer e Saúde\".", ideas);
+        }
+        return createGroups(cmd.names);
       case "addIncome": return addIncome(cmd);
+      case "remove": return remove(cmd);
+      case "setPlanned": return setPlanned(cmd);
+      case "draftItem":
+        if (!cmd.name) return ask({ kind: "item", group: cmd.group }, `Qual item e quanto planejar${cmd.group ? ` em ${cmd.group.toUpperCase()}` : ""}?`, "Exemplo: Netflix 55. Pode mandar vários: Netflix 55, Spotify 22.");
+        return ask({ kind: "itemValue", name: cmd.name, group: cmd.group }, `Quanto planejar para ${cmd.name}?`, "Só o valor, por exemplo 55.");
+      case "draftSpend":
+        return ask({ kind: "spendValue", name: cmd.name, group: cmd.group }, `Quanto você gastou em ${cmd.name}?`, "Só o valor, por exemplo 80.");
+      case "draftIncome":
+        return ask({ kind: "incomeValue", description: cmd.description }, `Qual o valor${cmd.description ? ` de ${cmd.description}` : " da renda"}?`, cmd.description ? "Só o valor, por exemplo 5.000." : "Exemplo: 5.000 de salário.");
       case "unknown": return askAi(text);
       default: {
         const a = answer(cmd, snapshot);
         if (a) showAnswer(a);
       }
+    }
+  }
+
+  /** Junta a resposta curta ("Lazer", "55") ao que o Gênio tinha perguntado. */
+  function complete(p: Pending, text: string, cmd: GenieCommand): string | null {
+    const value = cmd.kind === "calc" ? asInput(cmd.value) : text;
+    const inGroup = (g: string | null) => (g ? ` em ${g}` : "");
+    switch (p.kind) {
+      case "groupName": return cmd.kind === "unknown" ? `criar grupo ${text}` : null;
+      case "item": return cmd.kind === "unknown" ? `adicionar ${text}${inGroup(p.group)}` : null;
+      case "itemValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `adicionar ${p.name} ${value}${inGroup(p.group)}` : null;
+      case "spendValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `gastei ${value} em ${p.name}${inGroup(p.group)}` : null;
+      case "incomeValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `recebi ${value}${p.description ? ` de ${p.description}` : ""}` : null;
     }
   }
 
@@ -335,7 +446,13 @@ export function PlanGenie(props: Props) {
     push({ id: uid(), role: "user", text });
     setBusy(true);
     try {
-      await run(parseGenie(text, groupNames, FALLBACK_CDI), text);
+      let cmd = parseGenie(text, groupNames, FALLBACK_CDI);
+      if (pending) {
+        const joined = complete(pending, text, cmd);
+        setPending(null);
+        if (joined) cmd = parseGenie(joined, groupNames, FALLBACK_CDI);
+      }
+      await run(cmd, text);
     } catch (err) {
       push({ id: uid(), role: "error", text: err instanceof Error ? err.message : "Algo deu errado. Tente de novo." });
     } finally {
@@ -349,6 +466,19 @@ export function PlanGenie(props: Props) {
     setBusy(true);
     try {
       await run({ ...msg.cmd, group: groupName }, "");
+    } catch (err) {
+      push({ id: uid(), role: "error", text: err instanceof Error ? err.message : "Algo deu errado. Tente de novo." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm(msg: Extract<Msg, { role: "confirm" }>) {
+    if (busy || msg.done) return;
+    patch(msg.id, { done: true });
+    setBusy(true);
+    try {
+      await msg.run();
     } catch (err) {
       push({ id: uid(), role: "error", text: err instanceof Error ? err.message : "Algo deu errado. Tente de novo." });
     } finally {
@@ -383,6 +513,8 @@ export function PlanGenie(props: Props) {
     const op = /^[+−×÷]$/.test(key);
     setInput((v) => (op ? `${v.trimEnd()} ${key} ` : v + key));
   }
+
+  const lastAskId = [...msgs].reverse().find((m) => m.role === "ask")?.id;
 
   const display = preview !== null
     ? { label: withLast(input), value: plain(preview), live: true }
@@ -472,7 +604,16 @@ export function PlanGenie(props: Props) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <MessageView msg={m} groups={groups} busy={busy} onPick={pickGroup} onUndo={undo} />
+                    <MessageView
+                      msg={m}
+                      groups={groups}
+                      busy={busy}
+                      active={!!pending && m.id === lastAskId}
+                      onPick={pickGroup}
+                      onUndo={undo}
+                      onConfirm={confirm}
+                      onChip={(c) => send(c)}
+                    />
                   </motion.div>
                 ))
               )}
@@ -531,7 +672,7 @@ export function PlanGenie(props: Props) {
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={last ? "Continue a conta: + 10%, × 12…" : "Conta ou pedido…"}
+                placeholder={pending ? "Responda aqui…" : last ? "Continue a conta: + 10%, × 12…" : "Conta ou pedido…"}
                 aria-label="Conta ou pedido para o MUVO Gênio"
                 enterKeyHint="send"
                 autoComplete="off"
@@ -589,15 +730,68 @@ export function PlanGenie(props: Props) {
 }
 
 function MessageView({
-  msg, groups, busy, onPick, onUndo,
+  msg, groups, busy, active, onPick, onUndo, onConfirm, onChip,
 }: {
   msg: Msg;
   groups: ExpenseGroup[];
   busy: boolean;
+  active: boolean;
   onPick: (m: Extract<Msg, { role: "pick" }>, group: string) => void;
   onUndo: (m: Extract<Msg, { role: "action" }>) => void;
+  onConfirm: (m: Extract<Msg, { role: "confirm" }>) => void;
+  onChip: (text: string) => void;
 }) {
   switch (msg.role) {
+    case "ask":
+      return (
+        <div className="flex gap-2">
+          <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border bg-white">
+            <Image src="/bot/muvo-genio.webp" alt="" width={28} height={28} className="h-full w-full object-cover" />
+          </div>
+          <div className={cn("min-w-0 flex-1 rounded-2xl rounded-tl-md border px-3.5 py-2.5", active && "border-foreground/40")}>
+            <p className="text-sm font-semibold">{msg.prompt}</p>
+            {msg.hint && <p className="mt-0.5 text-xs text-muted-foreground">{msg.hint}</p>}
+            {active && msg.chips && msg.chips.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {msg.chips.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onChip(c)}
+                    className="min-h-9 rounded-full border px-3 text-xs font-semibold transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+
+    case "confirm":
+      return (
+        <div className="rounded-2xl border border-destructive/30 px-3.5 py-3">
+          <p className="text-sm font-semibold">{msg.title}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{msg.detail}</p>
+          <div className="mt-2 flex justify-end">
+            {msg.done
+              ? <span className="text-[11px] font-medium text-muted-foreground">Confirmado</span>
+              : (
+                <button
+                  type="button"
+                  onClick={() => onConfirm(msg)}
+                  disabled={busy}
+                  className="inline-flex min-h-9 items-center rounded-full bg-destructive px-3.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {msg.label}
+                </button>
+              )}
+          </div>
+        </div>
+      );
+
     case "user":
       return (
         <div className="flex justify-end">

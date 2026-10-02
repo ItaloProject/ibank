@@ -70,6 +70,45 @@ describe("pedidos ao planejamento", () => {
     expect(p("recebi 800 de freela")).toEqual({ kind: "addIncome", description: "Freela", value: 800 });
   });
 
+  it("grupo novo por palavra-chave, com ou sem nome", () => {
+    for (const q of ["Criar novo grupo", "criar grupo", "novo grupo", "quero criar um grupo", "adicionar grupo", "grupo novo", "pode criar uma categoria nova?"]) {
+      expect(p(q), q).toEqual({ kind: "createGroups", names: [] });
+    }
+    expect(p("Criar novo grupo Lazer")).toEqual({ kind: "createGroups", names: ["Lazer"] });
+    expect(p("criar novo grupo chamado Pets por favor")).toEqual({ kind: "createGroups", names: ["Pets"] });
+    expect(p("novo grupo: Viagem e Educação")).toEqual({ kind: "createGroups", names: ["Viagem", "Educação"] });
+    expect(p("criar grupo com o nome Saúde")).toEqual({ kind: "createGroups", names: ["Saúde"] });
+  });
+
+  it("pedidos incompletos viram pergunta", () => {
+    expect(p("adicionar item")).toEqual({ kind: "draftItem", name: null, group: null });
+    expect(p("novo item")).toEqual({ kind: "draftItem", name: null, group: null });
+    expect(p("adicionar Netflix")).toEqual({ kind: "draftItem", name: "Netflix", group: null });
+    expect(p("adicionar Netflix em Assinaturas")).toEqual({ kind: "draftItem", name: "Netflix", group: "Assinaturas" });
+    expect(p("adicionar item no grupo casa")).toEqual({ kind: "draftItem", name: null, group: "casa" });
+    expect(p("gastei no mercado")).toEqual({ kind: "draftSpend", name: "mercado", group: null });
+    expect(p("adicionar renda")).toEqual({ kind: "draftIncome", description: null });
+    expect(p("recebi o salário")).toEqual({ kind: "draftIncome", description: "Salário" });
+  });
+
+  it("resposta curta completa a pergunta", () => {
+    expect(p("criar grupo Lazer e Saúde")).toEqual({ kind: "createGroups", names: ["Lazer", "Saúde"] });
+    expect(p("adicionar Netflix 55 em Assinaturas")).toMatchObject({ group: "Assinaturas", items: [{ name: "Netflix", value: 55 }] });
+    expect(p("adicionar netflix 55, spotify 22 em casa")).toMatchObject({ group: "casa", items: [{ value: 55 }, { value: 22 }] });
+    expect(p("gastei 80 em mercado em alimentação")).toEqual({ kind: "spend", name: "mercado", value: 80, group: "ALIMENTAÇÃO" });
+    expect(p("recebi 5.000 de Salário")).toEqual({ kind: "addIncome", description: "Salário", value: 5000 });
+  });
+
+  it("apagar, mudar valor, gasto com valor no fim e renda pelo nome", () => {
+    expect(p("apagar Netflix")).toEqual({ kind: "remove", target: "Netflix", what: null });
+    expect(p("excluir o grupo Lazer")).toEqual({ kind: "remove", target: "Lazer", what: "group" });
+    expect(p("muda aluguel para 1.900")).toEqual({ kind: "setPlanned", name: "Aluguel", value: 1900 });
+    expect(p("o valor do mercado agora é 800")).toMatchObject({ kind: "setPlanned", value: 800 });
+    expect(p("gastei no mercado 120")).toEqual({ kind: "spend", name: "mercado", value: 120, group: null });
+    expect(p("salário 5.000")).toEqual({ kind: "addIncome", description: "Salário", value: 5000 });
+    expect(p("minha renda é 4.500")).toEqual({ kind: "addIncome", description: "Renda", value: 4500 });
+  });
+
   it("consultas e simulações", () => {
     expect(p("quanto sobra?")).toMatchObject({ kind: "query", topic: "sobra" });
     expect(p("quanto posso gastar por dia")).toMatchObject({ kind: "query", topic: "dia" });

@@ -14,6 +14,12 @@ export type GenieCommand =
   | { kind: "save"; total: number; months: number | null; monthly: number | null }
   | { kind: "compound"; monthly: number; initial: number; rateMonth: number; months: number; rateLabel: string }
   | { kind: "installment"; principal: number; parcelas: number; rateMonth: number }
+  | { kind: "remove"; target: string; what: "item" | "group" | null }
+  | { kind: "setPlanned"; name: string; value: number }
+  /** Pedido de item sem valor (ou sem nome): o Gênio pergunta o que falta. */
+  | { kind: "draftItem"; name: string | null; group: string | null }
+  | { kind: "draftIncome"; description: string | null }
+  | { kind: "draftSpend"; name: string; group: string | null }
   | { kind: "help" }
   | { kind: "unknown" };
 
@@ -136,17 +142,66 @@ export function parseGenie(input: string, groups: string[], cdiAnual: number): G
   if (cmd.kind === "createGroups") return { ...cmd, names: cmd.names.map(recover) };
   if (cmd.kind === "addIncome") return { ...cmd, description: capitalize(recover(cmd.description.toLowerCase())) };
   if (cmd.kind === "spend") return { ...cmd, name: recover(cmd.name) };
+  if (cmd.kind === "setPlanned") return { ...cmd, name: capitalize(recover(cmd.name)) };
+  if (cmd.kind === "remove") return { ...cmd, target: recover(cmd.target) };
+  if (cmd.kind === "draftItem") return { ...cmd, name: cmd.name && capitalize(recover(cmd.name)), group: cmd.group && recover(cmd.group) };
+  if (cmd.kind === "draftSpend") return { ...cmd, name: recover(cmd.name) };
+  if (cmd.kind === "draftIncome") return { ...cmd, description: cmd.description && capitalize(recover(cmd.description)) };
   return cmd;
 }
 
-function parseNormalized(t: string, groups: string[], cdiAnual: number): GenieCommand {
-  if (/^(ajuda|help|o que (voce|vc) faz|comandos|exemplos)$/.test(t)) return { kind: "help" };
+/** Tira cortesias que não mudam o pedido: "quero", "pode", "por favor", "genio,". */
+function stripPolite(t: string): string {
+  let s = t;
+  for (let i = 0; i < 3; i++) {
+    s = s
+      .replace(/^(?:ei|oi|ola|opa|genio|muvo|muvo genio)\s*[,:]?\s+/, "")
+      .replace(/^(?:por favor|pfv|pf)\s*,?\s+/, "")
+      .replace(/^(?:eu\s+)?(?:quero|queria|gostaria de|preciso|vou|vamos|pode|poderia|podia|consegue|me ajuda a|ajuda a|bora|tem como)\s+/, "")
+      .replace(/^(?:me\s+)?(?:ajuda|ajude)\s+a\s+/, "")
+      .replace(/\s*,?\s*(?:por favor|pfv|pf|obrigad[oa]|valeu)$/, "")
+      .trim();
+  }
+  return s || t;
+}
 
-  // Grupo novo
-  let m = t.match(/^(?:cria(?:r)?|crie|novo|nova|adiciona(?:r)?|adicione|faz(?:er)?|abre|abrir)\s+(?:um\s+|o\s+|os\s+)?(?:novo\s+|nova\s+)?(?:grupos?|categorias?)\s+(?:de\s+|chamad[oa]s?\s+)?(.+)$/);
+const CREATE_GROUP = /\b(?:cri[aeo]r?|crie|abr[aei]r?|mont[aeo]r?|faz(?:er)?|faca)\b.*\b(?:grupos?|categorias?)\b|\b(?:nov[oa]s?)\s+(?:grupos?|categorias?)\b|\b(?:grupos?|categorias?)\s+nov[oa]s?\b|\b(?:adiciona\w*|add|inclui\w*|coloca\w*)\s+(?:um\s+|o\s+)?(?:grupos?|categorias?)\b/;
+
+function parseNormalized(input: string, groups: string[], cdiAnual: number): GenieCommand {
+  const t = stripPolite(input);
+  if (/^(ajuda|help|o que (voce|vc) faz|o que (voce|vc) sabe( fazer)?|comandos|exemplos|como (te )?uso|como funciona)$/.test(t)) return { kind: "help" };
+
+  // Grupo novo: basta "grupo" com criar, novo, abrir ou adicionar
+  if (CREATE_GROUP.test(t) && !/\b(apag|exclu|remov|delet)/.test(t)) {
+    let after = t.replace(/^.*?\b(?:grupos?|categorias?)\b\s*/, "");
+    for (let i = 0; i < 3; i++) {
+      after = after.replace(/^(?:nov[oa]s?|chamad[oa]s?|com (?:o )?nome(?: de)?|de nome|nome|com|de|do|da|para|pra|:|-)\s*/, "").trim();
+    }
+    const names = splitList(after.replace(/["“”'‘’]/g, "")).map(cleanName).filter(Boolean);
+    return { kind: "createGroups", names };
+  }
+
+  // Renda pelo nome: "salário 5.000", "minha renda é 4.500"
+  let m = t.match(new RegExp(String.raw`^(?:minha\s+|meu\s+)?(salario|renda|receita|freela|bonus|comissao|decimo terceiro|pro labore|pensao|aposentadoria)\s+(?:(?:do mes|deste mes|desse mes)\s+)?(?:e\s+|de\s+|foi\s+|=\s*|:\s*)?(${N})$`));
   if (m) {
-    const names = splitList(m[1]).map(cleanName).filter((x) => x && !/\d/.test(x));
-    if (names.length) return { kind: "createGroups", names };
+    const value = num(m[2]);
+    if (value !== null && value > 0) return { kind: "addIncome", description: m[1] === "renda" || m[1] === "receita" ? "Renda" : capitalize(m[1]), value };
+  }
+
+  // Apagar
+  m = t.match(/^(?:apaga|apagar|apague|exclui|excluir|exclua|remove|remover|remova|deleta|deletar|delete|tira|tirar|tire)\s+(?:o\s+|a\s+)?(?:(grupo|categoria|item)\s+(?:de\s+|do\s+|da\s+)?)?(.+)$/);
+  if (m) {
+    const target = cleanName(m[2].replace(/["“”'‘’]/g, ""));
+    if (target) return { kind: "remove", target, what: m[1] === "item" ? "item" : m[1] ? "group" : null };
+  }
+
+  // Mudar valor planejado: "muda aluguel para 1.900", "aluguel agora é 1.900"
+  m = t.match(new RegExp(String.raw`^(?:muda|mudar|mude|altera|alterar|altere|atualiza|atualizar|atualize|ajusta|ajustar|ajuste|troca|trocar|troque|corrige|corrigir|corrija)\s+(?:o\s+|a\s+)?(?:valor\s+(?:planejado\s+)?(?:d[eoa]s?\s+)?)?(.+?)\s+(?:para|pra|pro|=)\s+(${N})$`))
+    ?? t.match(new RegExp(String.raw`^(?:o\s+|a\s+)?(.+?)\s+agora\s+(?:e|custa|fica|vale|sera|vai ser)\s+(${N})$`));
+  if (m) {
+    const value = num(m[2]);
+    const name = cleanName(m[1].replace(/["“”'‘’]/g, ""));
+    if (value !== null && name && !/^\d/.test(name)) return { kind: "setPlanned", name, value };
   }
 
   // Renda
@@ -158,12 +213,22 @@ function parseNormalized(t: string, groups: string[], cdiAnual: number): GenieCo
   }
 
   // Gasto real: "gastei 50 no mercado", "paguei a moto"
-  m = t.match(new RegExp(String.raw`^(?:gastei|paguei|comprei|torrei|foi|foram)\s+(?:(${N})\s+(?:reais\s+)?(?:em|no|na|nos|nas|com|de|do|da|pro|pra)\s+)?(.+)$`));
+  m = t.match(/^(gastei|gastamos|paguei|pagamos|pago|comprei|compramos|torrei|lancei|foi|foram|(?:um\s+)?gasto de|despesa de)\s+(.+)$/);
   if (m) {
-    const value = num(m[1]);
-    const { list, group } = splitGroup(m[2], groups);
-    const name = cleanName(list);
-    if (name && !/^\d/.test(name)) return { kind: "spend", name, value, group: group ? findGroup(group, groups) ?? group : null };
+    const verb = m[1];
+    let body = m[2].replace(/["“”'‘’]/g, " ").replace(/\s+/g, " ").trim();
+    let value: number | null = null;
+    const lead = body.match(new RegExp(String.raw`^(${N})\s+(?:reais\s+)?(?:em|no|na|nos|nas|com|de|do|da|pro|pra|para)\s+(.+)$`));
+    const trail = body.match(new RegExp(String.raw`^(.+?)\s+(?:de\s+|por\s+|=\s*)?(${N})(?:\s+reais)?$`));
+    if (lead) { value = num(lead[1]); body = lead[2]; }
+    else if (trail) { value = num(trail[2]); body = trail[1]; }
+    const { list, group } = splitGroup(body.replace(/^(?:em|no|na|nos|nas|com|pro|pra|para)\s+/, ""), groups);
+    const name = cleanName(list.replace(/^(?:em|no|na|nos|nas|com|pro|pra|para)\s+/, ""));
+    const g = group ? findGroup(group, groups) ?? group : null;
+    if (name && !/^\d/.test(name)) {
+      if (value === null && !/^pag/.test(verb)) return { kind: "draftSpend", name, group: g };
+      return { kind: "spend", name, value, group: g };
+    }
   }
 
   // Adicionar itens
@@ -174,6 +239,28 @@ function parseNormalized(t: string, groups: string[], cdiAnual: number): GenieCo
     const { list, group } = lead ?? splitGroup(rest.replace(/\s+/g, " ").trim(), groups);
     const items = splitList(list).map(nameAndValue).filter((x): x is { name: string; value: number } => !!x).map((x) => ({ ...x, name: capitalize(x.name), type }));
     if (items.length) return { kind: "addItems", items, group };
+  }
+
+  // Renda sem valor: "recebi", "adicionar renda"
+  m = t.match(/^(?:recebi|entrou|ganhei|(?:adiciona\w*|lanca\w*|coloca\w*|inclui\w*|add)\s+(?:uma\s+|a\s+|minha\s+|meu\s+)?(?:renda|receita|entrada|salario))\b\s*(.*)$/);
+  if (m && !/\d/.test(m[1])) {
+    return { kind: "draftIncome", description: cleanName(m[1].replace(/^(?:o|a|meu|minha)\s+/, "")) || null };
+  }
+
+  // Item sem valor ou sem nome: o Gênio pergunta o que falta
+  m = t.match(new RegExp(String.raw`^${ADD_VERB}(?:\s+(.*))?$`))
+    ?? t.match(/^(?:nov[oa]\s+(?:item|gasto|despesa|conta)|(?:um\s+)?(?:item|gasto|despesa|conta)\s+nov[oa])(?:\s+(.*))?$/);
+  if (m && !/\d/.test(m[1] ?? "")) {
+    const body = (m[1] ?? "")
+      .replace(/["“”'‘’]/g, " ")
+      .replace(/^(?:um\s+|uma\s+|o\s+|a\s+)?(?:nov[oa]s?\s+)?(?:itens|item|gastos?|despesas?|contas?)\b\s*/, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const onlyGroup = body.match(/^(?:em|no|na|ao|nos|nas|para o|para a|pro|pra)\s+(grupo\s+(?:de\s+|do\s+|da\s+)?)?(.+)$/);
+    if (onlyGroup && (onlyGroup[1] || findGroup(onlyGroup[2], groups))) return { kind: "draftItem", name: null, group: cleanName(onlyGroup[2]) };
+    const lead = body ? leadingGroup(body, groups) : null;
+    const { list, group } = lead ?? splitGroup(body, groups);
+    return { kind: "draftItem", name: cleanName(list) || null, group };
   }
 
   // Simulação de corte
