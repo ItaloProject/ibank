@@ -61,6 +61,7 @@ const T2 = ch("T2 Educação", "T2educacao");
 const INFOMONEY = ch("InfoMoney", "infomoney");
 const APP_RENDA_FIXA = ch("App Renda Fixa", "AppRendaFixa");
 const SARDINHA = ch("Investidor Sardinha l Raul Sena", "investidorsardinha");
+const JOVENS_NA_BOLSA = ch("Jovens na Bolsa | Caroline Francisco", "jovensnabolsa");
 
 export const TRACKS: Track[] = [
   {
@@ -108,6 +109,7 @@ export const TRACKS: Track[] = [
       { title: "Melhor lugar para a reserva de emergência", description: "Segurança e resgate rápido: onde deixar o dinheiro guardado.", youtubeId: "m9tKdU1Vh-g", duration: "8:47", ...PRIMO_POBRE },
       { title: "Orçamento familiar de forma simples", description: "Como montar um orçamento e comparar o planejado com o realizado.", youtubeId: "_LetMq26HJU", duration: "10:10", ...ch("Taí Souza", "Taisouzaaaa") },
       { title: "Onde investir a reserva de emergência", description: "Tesouro Selic, CDB de liquidez diária ou fundo DI: qual rende mais.", youtubeId: "HgubixK-zbI", duration: "19:54", ...PERINI },
+      { title: "Como formar a reserva de emergência em 3 fases", description: "Do primeiro valor guardado até a reserva completa, com exemplos ilustrados.", youtubeId: "Dnl6Y4jghbo", duration: "12:26", ...MANUAL_EVOLUCAO },
     ],
   },
   {
@@ -129,6 +131,8 @@ export const TRACKS: Track[] = [
       { title: "Cartão de crédito sem ser refém da fatura", description: "Seis cuidados para usar o cartão a seu favor.", youtubeId: "GtR7O0vApK4", duration: "9:44", ...ME_POUPE },
       { title: "Comprar à vista ou parcelado?", description: "Quando o desconto à vista vale mais que deixar o dinheiro rendendo.", youtubeId: "QQ4hY6Iup_A", duration: "8:02", ...PRIMATA },
       { title: "Quando comprar à vista e quando parcelar", description: "Uma regra prática para decidir sem se enrolar.", youtubeId: "2HhddMqscd0", duration: "5:41", ...CERBASI },
+      { title: "Como sair das dívidas com um plano realista", description: "Cortes, renegociação e a ordem certa para pagar o que deve.", youtubeId: "8zj0GJKTWwE", duration: "13:07", ...PRIMO_RICO },
+      { title: "Aula sobre cartão de crédito", description: "Fatura, limite, rotativo e como usar o cartão sem cair em dívida.", youtubeId: "SFVMh69Roas", duration: "17:13", ...PRIMO_POBRE },
     ],
   },
   {
@@ -152,6 +156,10 @@ export const TRACKS: Track[] = [
       { title: "O que é a política monetária", description: "Como o Banco Central usa os juros para controlar a inflação.", youtubeId: "0iUuaJr9EdI", duration: "3:24", ...BC },
       { title: "Qual é o papel do Banco Central", description: "As funções do Banco Central e por que ele importa para o seu dinheiro.", youtubeId: "LPGPpj_ZYtI", duration: "3:21", ...BC },
       { title: "PIB: o que é e como é calculado", description: "O IBGE explica o indicador que mede o tamanho da economia.", youtubeId: "lVjPv33T0hk", duration: "4:47", ...IBGE },
+      { title: "Aula fácil sobre a taxa Selic", description: "Quem define a Selic, por que ela muda e como chega ao seu bolso.", youtubeId: "GgBfeGdGZdM", duration: "10:42", ...PRIMO_POBRE },
+      { title: "IPCA e o poder destruidor da inflação", description: "Como o índice oficial é medido e quanto a inflação corrói o dinheiro parado.", youtubeId: "LLANnZaSdQ0", duration: "10:54", ...ch("Clube do Valor", "ClubedoValor") },
+      { title: "Quanto rendem CDI, Selic e IPCA em dinheiro", description: "Como transformar as porcentagens dos investimentos em reais, passo a passo.", youtubeId: "dss4yx6HVl0", duration: "16:54", ...PRIMO_POBRE },
+      { title: "Como funciona a economia", description: "Juros, inflação, crédito e crescimento ligados em uma explicação só.", youtubeId: "EA2aFfOXPA8", duration: "14:39", ...PRIMO_RICO },
     ],
   },
   {
@@ -205,6 +213,7 @@ export const TRACKS: Track[] = [
       { title: "DARF: o que é, quando emitir e como pagar", description: "A guia para pagar o imposto sobre lucros na bolsa.", youtubeId: "NTpxyw1FduI", duration: "8:38", ...ch("Investindo com Lacôrte", "InvestindocomLac%C3%B4rte") },
       { title: "Como declarar investimentos no imposto de renda", description: "Onde informar cada investimento na declaração anual.", youtubeId: "_l0Ib5OgTWo", duration: "5:46", ...ch("Bruno OM", "canalbrunoom") },
       { title: "Impostos na renda fixa: IOF e imposto de renda", description: "Aula completa sobre como cada imposto é calculado e cobrado.", youtubeId: "LZp0FjamLRo", duration: "14:17", ...PRIMO_POBRE },
+      { title: "Imposto de renda para investidores", description: "O que é tributado, o que é isento e como cada investimento entra na declaração.", youtubeId: "OyMsizSuH_E", duration: "18:02", ...JOVENS_NA_BOLSA },
     ],
   },
   {
@@ -236,6 +245,7 @@ export const TRACKS: Track[] = [
       { title: "Fundos multimercado", description: "Os fundos que misturam renda fixa, ações, câmbio e outros mercados.", youtubeId: "YzNLufo4Iw0", duration: "3:39", ...ANBIMA },
       { title: "Guia do ETF: o que são e como escolher", description: "Fundos que seguem um índice e dicas para escolher na B3.", youtubeId: "z2_3yV3nqgY", duration: "10:40", ...ch("Professor Mira", "ProfessorMira") },
       { title: "10 anos investindo em FIIs: o que aprendi", description: "Lições práticas sobre carteira, vacância e tese de longo prazo.", youtubeId: "xOWMQloIlGM", duration: "21:49", ...ch("Finclass - Aprenda a investir do zero", "Finclass") },
+      { title: "Como investir em ações: aula para iniciantes", description: "O que é uma ação, como comprar e o que analisar antes de escolher.", youtubeId: "qQ1f8o_zF-o", duration: "11:28", ...JOVENS_NA_BOLSA },
       { title: "Aula sobre fundos imobiliários (FIIs)", description: "Tijolo, papel e o essencial para começar.", youtubeId: "xQOWiQMzq3M", duration: "1:05:34", ...ch("POP SHOW TV", "pobreshow") },
     ],
   },
@@ -251,6 +261,8 @@ export const TRACKS: Track[] = [
       { title: "PGBL e VGBL descomplicados", description: "A diferença entre os dois planos e para quem cada um serve.", youtubeId: "lUndwv8MZvo", duration: "4:30", ...C6 },
       { title: "Previdência VGBL: o que é e como funciona", description: "Como o plano é tributado e quando faz sentido.", youtubeId: "nbXpvfrp8hU", duration: "5:40", ...BTG },
       { title: "Tabela regressiva ou progressiva na previdência?", description: "Como escolher o regime de imposto do seu plano.", youtubeId: "x2Vi5DudYIg", duration: "8:33", ...ch("Grão Investimentos", "Graoinvestimentos") },
+      { title: "VGBL e PGBL: aula sobre previdência privada", description: "Como cada plano é tributado, as tabelas de imposto e para quem cada um serve.", youtubeId: "hgT2QZBXTKM", duration: "11:59", ...T2 },
+      { title: "Como se aposentar em 15 anos", description: "Quanto investir por mês e quanto juntar para viver de renda.", youtubeId: "GuunpX6hIVg", duration: "11:37", ...SARDINHA },
     ],
   },
   {
@@ -264,6 +276,8 @@ export const TRACKS: Track[] = [
       { title: "Bitcoin e blockchain: como funcionam", description: "Por que não dá para copiar e colar um bitcoin.", youtubeId: "0Mt16eeCv78", duration: "8:41", ...MANUAL_MUNDO },
       { title: "Quais são os riscos do bitcoin", description: "Volatilidade, golpes e cuidados antes de comprar criptomoedas.", youtubeId: "JZhT6Ll23Cs", duration: "3:24", ...ch("BTC em Portugues", "BTCemPortugues") },
       { title: "O que são stablecoins", description: "As criptomoedas atreladas ao dólar e como elas funcionam.", youtubeId: "PRQFgtFZtGg", duration: "3:06", ...BTG },
+      { title: "Taxa de câmbio: como funciona", description: "Por que o dólar sobe e desce e como isso afeta preços e investimentos.", youtubeId: "ygjjcwZLm_4", duration: "11:52", ...ch("Gabriela Mosmann", "gabimosmann") },
+      { title: "Bitcoin para leigos", description: "O básico sobre o que é o bitcoin, como funciona e quais são os riscos.", youtubeId: "HpfCXch-pno", duration: "16:27", ...ch("Breno Perrucho - Jovens de Negócios", "jovensdenegocios") },
     ],
   },
   {
@@ -278,6 +292,8 @@ export const TRACKS: Track[] = [
       { title: "Golpe do falso investimento", description: "Como identificar e evitar ofertas falsas de investimento.", youtubeId: "srIYGAJJ-bs", duration: "3:51", ...C6 },
       { title: "O golpe da falsa corretora", description: "Como funciona o golpe e como conferir se a empresa é autorizada.", youtubeId: "mQk7Nnls4vI", duration: "6:42", ...ch("TV Pajuçara", "tvpajucara") },
       { title: "O que é a CVM e o que ela faz", description: "O órgão que fiscaliza o mercado e onde conferir quem é autorizado.", youtubeId: "Itd1BqAWE2g", duration: "4:45", ...T2 },
+      { title: "Fraudes financeiras: como funcionam", description: "Pirâmides, falsas promessas e os sinais de alerta, explicados pela Anbima.", youtubeId: "rR6xfooSKkk", duration: "11:13", ...ANBIMA },
+      { title: "Por que as pessoas caem em fraudes financeiras", description: "Os atalhos da mente que os golpistas usam e como se defender.", youtubeId: "zmTmGfS9pK4", duration: "10:07", ...ANBIMA },
     ],
   },
 ];

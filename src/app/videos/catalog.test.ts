@@ -28,6 +28,10 @@ describe("catálogo de vídeos", () => {
     expect(all.filter(isQuick).length).toBeGreaterThanOrEqual(100);
   });
 
+  it("tem pelo menos 30 aulas completas", () => {
+    expect(all.filter((v) => !isQuick(v)).length).toBeGreaterThanOrEqual(30);
+  });
+
   it("pesquisa por assunto e por canal, sem ligar para acentos", () => {
     const titles = (q: string) => groupVideos("resumos", "tema", q).flatMap((g) => g.videos.map((v) => v.title));
     expect(titles("cartao").some((t) => /cartão/i.test(t))).toBe(true);
