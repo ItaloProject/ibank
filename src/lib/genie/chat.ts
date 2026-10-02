@@ -1,7 +1,7 @@
 import { normalize } from "./calc";
 import type { GenieAnswer } from "./answer";
 
-export type ChatTopic = "greet" | "howAreYou" | "thanks" | "ack" | "praise" | "complaint" | "who" | "bye" | "laugh";
+export type ChatTopic = "greet" | "howAreYou" | "thanks" | "ack" | "praise" | "complaint" | "who" | "bye" | "laugh" | "test";
 
 const TOPICS: [ChatTopic, RegExp][] = [
   ["who", /\b(?:quem (?:e|es) (?:voce|vc|tu)|o que (?:e|es) (?:voce|vc)|qual (?:e )?(?:o )?seu nome|como (?:voce|vc) se chama|(?:voce|vc) e (?:um |uma )?(?:robo|ia|humano|pessoa|inteligencia artificial|bot))\b/],
@@ -10,6 +10,7 @@ const TOPICS: [ChatTopic, RegExp][] = [
   ["praise", /^(?:(?:voce|vc) e (?:muito |demais de )?(?:bom|boa|otimo|otima|incrivel|demais|top|fera|genial)|gostei(?: muito)?|adorei|amei|parabens|muito bom|excelente|sensacional|que incrivel)$/],
   ["thanks", /^(?:muito |muitissimo )?(?:obrigad[oa]|brigad[oa]|obg|valeu|vlw|agradeco|thanks|grato|grata)(?: (?:genio|muvo|demais|mesmo|pela ajuda|viu))*$/],
   ["bye", /^(?:tchau|ate mais|ate logo|ate amanha|ate depois|flw|falou|fui|bye|boa noite e ate amanha)$/],
+  ["test", /^(?:teste+|testando|testar|test|testing|so (?:um )?teste|(?:e )?(?:um )?teste|alguem ai|tem alguem ai|(?:voce|vc) (?:esta|ta) (?:ai|funcionando|on|online)|funciona|ta funcionando|esta funcionando)$/],
   ["laugh", /^(?:k{3,}|(?:ha){2,}h?|(?:he){2,}h?|(?:rs)+|kk+k*)$/],
   ["greet", /^(?:oi+|ola|opa|e ai|eai|eae|salve|hey|hello|hi|bom dia|boa tarde|boa noite|fala|alo)(?: (?:genio|muvo|muvo genio|tudo|pessoal))?$/],
   ["ack", /^(?:ok|okay|certo|entendi|entendido|beleza|blz|show|top|legal|massa|interessante|bacana|otimo|otima|perfeito|joia|tranquilo|de boa|faz sentido|uau|nossa|caramba|que legal|que bom|boa|hum+|hm+|ah+|aham|ata|ah ta|saquei|ta bom|ta|ta certo|sim|nao|pode ser|isso|exato|verdade|imagino|serio|que interessante|muito interessante|bem interessante|show de bola|maravilha|massa demais)$/],
@@ -52,8 +53,26 @@ export function chatReply(topic: ChatTopic): GenieAnswer {
       };
     case "bye":
       return { title: "Até mais! Seu planejamento fica salvo aqui." };
+    case "test":
+      return { title: "Estou funcionando! Pode mandar.", note: "Peça uma conta, lance um gasto ou pergunte sobre o seu mês.", chips: ["ajuda", ...IDEAS.slice(0, 2)] };
     case "laugh":
       return { title: pick(["Bom te ver de bom humor!", "Dinheiro organizado deixa qualquer um mais leve."]), chips: IDEAS };
+  }
+}
+
+/** A mesma conversa curta no assistente de investimentos, voltada para a carteira. */
+export function investorChatText(topic: ChatTopic): string {
+  switch (topic) {
+    case "greet": return "Oi! Sou o assistente de investimentos do Muvo. Posso explicar termos, fazer contas de rendimento e analisar a sua carteira.";
+    case "howAreYou": return "Tudo ótimo por aqui! Quer que eu dê uma olhada em como a sua carteira está?";
+    case "thanks": return "Por nada! Estou aqui quando precisar.";
+    case "ack": return "Combinado! Se quiser, explico um termo ou comparo dois investimentos para você.";
+    case "praise": return "Obrigado! Fico feliz em ajudar.";
+    case "complaint": return "Desculpe, ainda estou aprendendo. Escreva de outro jeito ou toque em uma das sugestões abaixo.";
+    case "who": return "Sou o assistente de investimentos do Muvo. Explico termos, faço contas de rendimento e de dívidas e analiso a sua carteira com os seus números.";
+    case "bye": return "Até mais! Sua carteira fica salva aqui.";
+    case "laugh": return "Bom te ver de bom humor!";
+    case "test": return "Estou funcionando! Pergunte sobre a sua carteira, um termo como CDB ou uma conta de rendimento.";
   }
 }
 

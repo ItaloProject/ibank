@@ -9,7 +9,7 @@ import { detectIntent, keywordIntent, profileTarget, type Intent } from "@/lib/b
 import { askAbout, asksExample, findTerms, holdingsFor, termById, termExample, termMarkdown, type Term } from "@/lib/glossary";
 import { financeReply } from "@/lib/genie/local-answer";
 import { answerMarkdown } from "@/lib/genie/answer";
-import { looksLikeWebQuestion } from "@/lib/genie/chat";
+import { chatTopic, investorChatText, looksLikeWebQuestion } from "@/lib/genie/chat";
 import { SNOOZE_DAYS, alertStatus, parseAlertChoices, snoozeChoice, trimAlertChoices, type AlertChoices } from "@/lib/alert-choices";
 import {
   X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
@@ -952,6 +952,11 @@ export function InvestorBot({
       const example = termExample(prev);
       const text = example ? `**${prev.name.replace(/\s*\(.*\)$/, "")} na prática**\n\n${example}` : termMarkdown(prev);
       lastTermRef.current = prev;
+      return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
+    }
+    const topic = chatTopic(question);
+    if (topic) {
+      const text = investorChatText(topic);
       return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
     }
     const terms = findTerms(question);

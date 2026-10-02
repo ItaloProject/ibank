@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildSearchQuery, chatTopic, looksLikeWebQuestion } from "./chat";
 import { parseGenie } from "./parse";
 import { answer, type PlanSnapshot } from "./answer";
+import { investorAnswersLocally } from "./local-answer";
 
 const p = (s: string) => parseGenie(s, ["CASA", "CARTÃO"], 13.65);
 
@@ -18,6 +19,15 @@ describe("conversa simples", () => {
     expect(chatTopic("quem é você?")).toBe("who");
     expect(chatTopic("kkkk")).toBe("laugh");
     expect(chatTopic("tchau")).toBe("bye");
+    expect(chatTopic("teste")).toBe("test");
+    expect(chatTopic("tá funcionando?")).toBe("test");
+  });
+
+  it("assistente de investimentos responde conversa, termos e contas sozinho", () => {
+    expect(investorAnswersLocally("teste")).toBe(true);
+    expect(investorAnswersLocally("o que é CDB?")).toBe(true);
+    expect(investorAnswersLocally("LCI a 90% ou CDB a 110%?")).toBe(true);
+    expect(investorAnswersLocally("devo vender minhas ações da Petrobras amanhã?")).toBe(false);
   });
 
   it("não confunde pedidos com conversa", () => {

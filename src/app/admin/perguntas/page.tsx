@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageCircleQuestion, Globe, ThumbsDown, Sparkles, Bot, Users } from "lucide-react";
+import { MessageCircleQuestion, Globe, ThumbsDown, Sparkles, Bot, Users, CheckCircle2 } from "lucide-react";
 import { useUser } from "@/context/user-context";
+import { parseGenie } from "@/lib/genie/parse";
+import { investorAnswersLocally } from "@/lib/genie/local-answer";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 
 interface Grouped {
@@ -26,7 +28,16 @@ const KIND_LABEL: Record<string, { label: string; icon: typeof Bot; className: s
   down: { label: "Resposta ruim", icon: ThumbsDown, className: "bg-destructive/10 text-destructive" },
 };
 
+/** Confere com a versão atual dos robôs; respostas marcadas como ruins sempre ficam para revisar. */
+function learnedNow(r: Grouped): boolean {
+  if (r.tipos.includes("down")) return false;
+  if (r.tipos.includes("genio") && parseGenie(r.pergunta, [], 0.1).kind === "unknown") return false;
+  if (r.tipos.includes("sem_resposta") && !investorAnswersLocally(r.pergunta)) return false;
+  return true;
+}
+
 const FILTERS = [
+  { id: "pendentes", label: "Ainda sem resposta" },
   { id: "todas", label: "Todas" },
   { id: "genio", label: "Gênio" },
   { id: "sem_resposta", label: "Assistente" },
@@ -40,7 +51,7 @@ export default function PerguntasPage() {
   const router = useRouter();
   const [report, setReport] = useState<Report | null>(null);
   const [failed, setFailed] = useState(false);
-  const [filter, setFilter] = useState<Filter>("todas");
+  const [filter, setFilter] = useState<Filter>("pendentes");
 
   useEffect(() => {
     if (!isAdmin) { router.replace("/"); return; }
@@ -50,10 +61,14 @@ export default function PerguntasPage() {
       .catch(() => setFailed(true));
   }, [isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const rows = useMemo(
-    () => (report?.porPergunta ?? []).filter((r) => filter === "todas" || r.tipos.includes(filter)),
-    [report, filter],
+  const all = useMemo(
+    () => (report?.porPergunta ?? []).map((r) => ({ ...r, learned: learnedNow(r) })),
+    [report],
   );
+  const rows = all.filter((r) =>
+    filter === "todas" ? true : filter === "pendentes" ? !r.learned : r.tipos.includes(filter),
+  );
+  const learnedCount = all.filter((r) => r.learned).length;
 
   if (!isAdmin) return null;
 
@@ -112,7 +127,11 @@ export default function PerguntasPage() {
           ) : rows.length === 0 ? (
             <div className="py-14 text-center space-y-2">
               <MessageCircleQuestion className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-              <p className="text-sm text-muted-foreground">Nenhuma pergunta sem resposta neste período.</p>
+              <p className="text-sm text-muted-foreground">
+                {filter === "pendentes" && learnedCount > 0
+                  ? `Tudo em dia: ${learnedCount === 1 ? "a pergunta registrada já foi aprendida" : `as ${learnedCount} perguntas registradas já foram aprendidas`}.`
+                  : "Nenhuma pergunta sem resposta neste período."}
+              </p>
             </div>
           ) : (
             <ul className="divide-y">
@@ -134,6 +153,11 @@ export default function PerguntasPage() {
                           </span>
                         );
                       })}
+                      {r.learned && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="h-3 w-3" /> Já aprendida
+                        </span>
+                      )}
                       {r.internet && (
                         <span className="inline-flex items-center gap-1 rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 dark:text-sky-400">
                           <Globe className="h-3 w-3" /> Respondida pela internet
