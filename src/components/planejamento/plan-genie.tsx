@@ -80,6 +80,40 @@ const NO_SESSION: Session = { group: null, realAll: false, realGroups: [], decid
 const sameName = (a: string, b: string) => normalize(a) === normalize(b);
 const withName = (list: string[], name: string) => (list.some((x) => sameName(x, name)) ? list : [...list, name]);
 
+type Viewport = { mobile: boolean; height: number; top: number; keyboard: boolean };
+
+/**
+ * No celular o Gênio ocupa a área visível da tela, que encolhe quando o teclado abre:
+ * assim o campo de digitação nunca fica escondido atrás do teclado.
+ */
+function useMobileViewport(active: boolean): Viewport {
+  const [vp, setVp] = useState<Viewport>({ mobile: false, height: 0, top: 0, keyboard: false });
+  useEffect(() => {
+    if (!active) return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const vv = window.visualViewport;
+    let full = 0;
+    const update = () => {
+      const height = vv?.height ?? window.innerHeight;
+      full = Math.max(full, height, window.innerHeight * 0.6);
+      setVp({ mobile: mq.matches, height, top: vv?.offsetTop ?? 0, keyboard: mq.matches && height < full - 120 });
+    };
+    const reset = () => { full = 0; update(); };
+    update();
+    vv?.addEventListener("resize", update);
+    vv?.addEventListener("scroll", update);
+    window.addEventListener("orientationchange", reset);
+    mq.addEventListener("change", reset);
+    return () => {
+      vv?.removeEventListener("resize", update);
+      vv?.removeEventListener("scroll", update);
+      window.removeEventListener("orientationchange", reset);
+      mq.removeEventListener("change", reset);
+    };
+  }, [active]);
+  return vp;
+}
+
 const GROUP_IDEAS = ["LAZER", "SAÚDE", "ASSINATURAS", "EDUCAÇÃO", "PETS", "VIAGEM", "FILHOS", "INVESTIMENTOS"];
 
 type Props = {
@@ -228,13 +262,30 @@ export function PlanGenie(props: Props) {
     tapeRef.current?.scrollTo({ top: tapeRef.current.scrollHeight, behavior: reduced ? "auto" : "smooth" });
   }, [msgs, busy, reduced]);
 
+  const vp = useMobileViewport(open);
+  const [touch, setTouch] = useState(false);
+  useEffect(() => { setTouch(window.matchMedia("(pointer: coarse)").matches); }, []);
+
   useEffect(() => {
     if (!open) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 120);
+    // No toque, focar abriria o teclado por cima da conversa antes da pessoa pedir.
+    const t = window.matchMedia("(pointer: fine)").matches ? setTimeout(() => inputRef.current?.focus(), 120) : undefined;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", onKey);
     return () => { clearTimeout(t); window.removeEventListener("keydown", onKey); };
   }, [open]);
+
+  useEffect(() => {
+    if (vp.keyboard) tapeRef.current?.scrollTo({ top: tapeRef.current.scrollHeight });
+  }, [vp.keyboard, vp.height]);
+
+  useEffect(() => {
+    if (!open || !vp.mobile) return;
+    const html = document.documentElement;
+    const prev = html.style.overflow;
+    html.style.overflow = "hidden";
+    return () => { html.style.overflow = prev; };
+  }, [open, vp.mobile]);
 
   /** Prévia ao vivo no visor enquanto a pessoa digita uma conta. */
   const preview = useMemo(() => {
@@ -897,6 +948,8 @@ export function PlanGenie(props: Props) {
   const display = preview !== null
     ? { label: withLast(input), value: plain(preview), live: true }
     : last ? { label: last.label, value: last.value, live: false } : null;
+  /** Com o teclado aberto ou em telas baixas, o visor vira uma linha para sobrar espaço à conversa. */
+  const compactVisor = vp.keyboard || (vp.mobile && vp.height < 720);
 
   return (
     <>
@@ -913,6 +966,7 @@ export function PlanGenie(props: Props) {
           "fixed z-40 right-[max(1rem,var(--safe-right))] bottom-[calc(var(--bottom-nav-offset)+0.75rem)] md:bottom-5 md:right-5",
           "flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-foreground bg-white shadow-2xl touch-manipulation",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          open && "max-md:hidden",
         )}
       >
         {open
@@ -929,14 +983,16 @@ export function PlanGenie(props: Props) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.98 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            style={vp.mobile ? { top: vp.top, height: vp.height } : undefined}
             className={cn(
-              "fixed z-40 flex flex-col overflow-hidden rounded-3xl border bg-background shadow-2xl",
-              "inset-x-2 bottom-[calc(var(--bottom-nav-offset)+5rem)] h-[min(78dvh,680px)] max-h-[calc(100dvh_-_var(--bottom-nav-offset)_-_6rem)]",
-              "md:inset-x-auto md:right-5 md:bottom-[5.5rem] md:w-[400px] md:origin-bottom-right",
+              "fixed flex flex-col overflow-hidden bg-background",
+              "inset-x-0 top-0 z-[60] h-[100dvh]",
+              "md:inset-x-auto md:top-auto md:right-5 md:bottom-[5.5rem] md:z-40 md:h-[min(78dvh,680px)] md:max-h-[calc(100dvh_-_7rem)] md:w-[400px]",
+              "md:origin-bottom-right md:rounded-3xl md:border md:shadow-2xl",
             )}
           >
             {/* Cabeçalho */}
-            <header className="flex items-center gap-3 border-b px-4 py-3">
+            <header className="flex shrink-0 items-center gap-3 border-b px-4 pb-2.5 pt-[max(0.625rem,var(--safe-top))] md:py-3">
               <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-foreground bg-white">
                 <Image src="/bot/genio-avatar.webp" alt="" width={40} height={40} className="h-full w-full object-cover" />
               </div>
@@ -967,10 +1023,10 @@ export function PlanGenie(props: Props) {
             </header>
 
             {/* Fita de cálculos e conversas */}
-            <div ref={tapeRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-2.5" aria-live="polite">
+            <div ref={tapeRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-3 space-y-2.5" aria-live="polite">
               {msgs.length === 0 ? (
                 <div className="flex flex-col items-center pt-2 text-center">
-                  <Image src="/bot/genio-lampada-full.webp" alt="Mascote do Muvo Gênio: um rato de óculos escuros e terno saindo de uma lâmpada mágica" width={720} height={931} className="h-40 w-auto select-none" />
+                  <Image src="/bot/genio-lampada-full.webp" alt="Mascote do Muvo Gênio: um rato de óculos escuros e terno saindo de uma lâmpada mágica" width={720} height={931} className="h-28 w-auto select-none [@media(min-height:720px)]:h-40" />
                   <p className="mt-3 font-display text-lg font-black tracking-tight">Peça uma conta ou uma mudança</p>
                   <p className="mt-1 max-w-[30ch] text-xs text-muted-foreground">Eu faço contas, simulo juros e parcelas, e mexo no seu planejamento por texto. Tudo que eu mudar tem Desfazer.</p>
                   <div className="mt-4 flex flex-wrap justify-center gap-1.5">
@@ -1019,8 +1075,11 @@ export function PlanGenie(props: Props) {
             </div>
 
             {/* Visor */}
-            <div className="mx-3 mb-2 rounded-2xl bg-foreground px-4 py-3 text-background dark:border dark:border-white/10 dark:bg-white/5 dark:text-foreground">
-              <div className="flex items-baseline justify-between gap-3">
+            <div className={cn(
+              "mx-3 mb-2 shrink-0 rounded-2xl bg-foreground text-background dark:border dark:border-white/10 dark:bg-white/5 dark:text-foreground",
+              compactVisor ? "flex items-center gap-3 px-3.5 py-2" : "px-4 py-3",
+            )}>
+              <div className={cn("flex items-baseline justify-between gap-3", compactVisor && "min-w-0 flex-1")}>
                 <p className="min-w-0 truncate text-[11px] text-background/60 dark:text-muted-foreground">
                   {display ? display.label : "Visor"}
                 </p>
@@ -1036,8 +1095,8 @@ export function PlanGenie(props: Props) {
                 )}
               </div>
               <p className={cn(
-                "mt-0.5 text-right font-display font-black tabular-nums leading-none tracking-tight transition-opacity",
-                (display?.value.length ?? 0) > 14 ? "text-2xl" : "text-4xl",
+                "text-right font-display font-black tabular-nums leading-none tracking-tight transition-opacity",
+                compactVisor ? "max-w-[60%] shrink-0 truncate text-xl" : cn("mt-0.5", (display?.value.length ?? 0) > 14 ? "text-2xl" : "text-4xl"),
                 display?.live && "opacity-70",
               )}>
                 {display ? (display.live ? `= ${display.value}` : display.value) : "0"}
@@ -1045,7 +1104,7 @@ export function PlanGenie(props: Props) {
             </div>
 
             {(session.group || session.realAll || session.realGroups.length > 0) && (
-              <div className="mx-3 mb-2 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1 pl-3 pr-1 text-xs">
+              <div className="mx-3 mb-2 flex shrink-0 items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1 pl-3 pr-1 text-xs">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
                 <span className="min-w-0 flex-1 font-medium">
                   {session.group
@@ -1065,7 +1124,7 @@ export function PlanGenie(props: Props) {
             )}
 
             {suggestions.length > 0 && !busy && (
-              <div className="flex gap-1.5 overflow-x-auto px-3 pb-2 [scrollbar-width:none]" aria-label="Sugestões">
+              <div className="flex shrink-0 gap-1.5 overflow-x-auto px-3 pb-2 [scrollbar-width:none]" aria-label="Sugestões">
                 {suggestions.map((s) => (
                   <button
                     key={s.value}
@@ -1080,13 +1139,18 @@ export function PlanGenie(props: Props) {
             )}
 
             {/* Entrada */}
+            <div className={cn("shrink-0", !vp.keyboard && "pb-[var(--safe-bottom)] md:pb-0")}>
             <form
               onSubmit={(e) => { e.preventDefault(); void send(); }}
               className="flex items-center gap-1.5 border-t px-3 py-2.5"
             >
               <button
                 type="button"
-                onClick={() => setKeypad((v) => !v)}
+                onClick={() => {
+                  // No celular, o teclado da calculadora substitui o do sistema.
+                  if (!keypad && touch) inputRef.current?.blur();
+                  setKeypad((v) => !v);
+                }}
                 aria-label={keypad ? "Esconder teclado da calculadora" : "Mostrar teclado da calculadora"}
                 aria-pressed={keypad}
                 className={cn(
@@ -1103,8 +1167,9 @@ export function PlanGenie(props: Props) {
                 placeholder={pending ? "Responda aqui…" : last ? "Continue a conta: + 10%, × 12…" : "Conta ou pedido…"}
                 aria-label="Conta ou pedido para o Muvo Gênio"
                 enterKeyHint="send"
+                inputMode={keypad && touch ? "none" : "text"}
                 autoComplete="off"
-                className="h-11 min-w-0 flex-1 rounded-full border bg-muted/30 px-4 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-foreground/40"
+                className="h-11 min-w-0 flex-1 rounded-full border bg-muted/30 px-4 text-base outline-none md:text-sm transition-colors placeholder:text-muted-foreground/70 focus:border-foreground/40"
               />
               <button
                 type="submit"
@@ -1135,7 +1200,7 @@ export function PlanGenie(props: Props) {
                           onClick={() => press(k)}
                           aria-label={k === "⌫" ? "Apagar" : k === "C" ? "Limpar" : k === "( )" ? "Parênteses" : k}
                           className={cn(
-                            "flex h-11 items-center justify-center rounded-xl font-display text-lg font-bold tabular-nums transition-colors active:scale-95",
+                            "flex h-10 items-center justify-center rounded-xl font-display [@media(min-height:700px)]:h-11 text-lg font-bold tabular-nums transition-colors active:scale-95",
                             k === "=" ? "bg-foreground text-background hover:bg-foreground/90"
                               : op ? "bg-muted text-foreground hover:bg-muted/70"
                               : k === "C" || k === "⌫" ? "text-muted-foreground hover:bg-muted"
@@ -1150,6 +1215,7 @@ export function PlanGenie(props: Props) {
                 </motion.div>
               )}
             </AnimatePresence>
+            </div>
           </motion.section>
         )}
       </AnimatePresence>
