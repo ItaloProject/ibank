@@ -11,6 +11,7 @@ import { normalize } from "@/lib/genie/calc";
 import { findGroup, parseGenie, type GenieCommand, type ItemType } from "@/lib/genie/parse";
 import { followUp, type GenieMemory } from "@/lib/genie/context";
 import { suggest } from "@/lib/genie/suggest";
+import { applyLearned, looksLikeRephrase, toTemplate, type LearnedPhrase } from "@/lib/genie/learn";
 import { answer, findItem, guessType, money, plain, type GenieAnswer, type PlanSnapshot } from "@/lib/genie/answer";
 import type { ExpenseGroup, ExpenseItem } from "@/components/planejamento/group-section";
 import type { PlanIncome } from "@/components/planejamento/income-dialog";
@@ -29,6 +30,7 @@ type Msg =
     }
   | { id: string; role: "ask"; prompt: string; hint?: string; chips?: string[] }
   | { id: string; role: "confirm"; title: string; detail: string; label: string; run: () => Promise<void>; done?: boolean }
+  | { id: string; role: "learned"; said: string; means: string; phrase: string; forgotten?: boolean }
   | { id: string; role: "error"; text: string };
 
 /** O que o Gênio perguntou e espera na próxima mensagem. */
@@ -115,6 +117,37 @@ export function PlanGenie(props: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const mem = useRef<Memory>({ target: null, group: null, last: null, income: null, recent: null });
   const remember = (change: Partial<Memory>) => { mem.current = { ...mem.current, recent: "action", ...change }; };
+  const [learned, setLearned] = useState<LearnedPhrase[]>([]);
+  const learnedLoaded = useRef(false);
+  /** Último pedido não entendido, para aprender se a próxima mensagem o reformular. */
+  const missRef = useRef<{ text: string; at: number } | null>(null);
+
+  useEffect(() => {
+    if (!open || learnedLoaded.current) return;
+    learnedLoaded.current = true;
+    fetch("/api/genie/phrases")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (Array.isArray(d?.phrases)) setLearned(d.phrases); })
+      .catch(() => {});
+  }, [open]);
+
+  function learn(miss: string, means: string) {
+    const tpl = toTemplate(miss, means);
+    if (!tpl) return;
+    setLearned((prev) => [tpl, ...prev.filter((l) => l.phrase !== tpl.phrase)]);
+    void fetch("/api/genie/phrases", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tpl),
+    }).catch(() => {});
+    push({ id: uid(), role: "learned", said: miss, means, phrase: tpl.phrase });
+  }
+
+  function forget(msg: Extract<Msg, { role: "learned" }>) {
+    setLearned((prev) => prev.filter((l) => l.phrase !== msg.phrase));
+    patch(msg.id, { forgotten: true });
+    void fetch(`/api/genie/phrases?phrase=${encodeURIComponent(msg.phrase)}`, { method: "DELETE" }).catch(() => {});
+  }
 
   const snapshot: PlanSnapshot = useMemo(() => ({
     month,
@@ -389,6 +422,7 @@ export function PlanGenie(props: Props) {
 
   /** Pedido fora do que o Gênio sabe: registra a frase para ensinar depois e mostra exemplos. */
   function notUnderstood(text: string) {
+    missRef.current = { text, at: Date.now() };
     void fetch("/api/genie/miss", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -397,7 +431,7 @@ export function PlanGenie(props: Props) {
     showAnswer({
       ...answer({ kind: "help" }, snapshot)!,
       title: "Ainda não sei fazer isso. Tente assim:",
-      note: "Guardei seu pedido para eu aprender a entender esse jeito de falar.",
+      note: "Escreva de outro jeito: se eu entender, aprendo que as duas frases querem dizer a mesma coisa.",
     });
   }
 
@@ -522,11 +556,14 @@ export function PlanGenie(props: Props) {
     push({ id: uid(), role: "user", text });
     setBusy(true);
     try {
-      let said = text;
+      const miss = missRef.current;
+      missRef.current = null;
+      const fromLearned = pending ? null : applyLearned(text, learned);
+      let said = fromLearned ?? text;
       if (!pending) {
         const m = mem.current;
         const afterAction = m.recent === "action";
-        const fu = followUp(text, {
+        const fu = followUp(said, {
           item: afterAction ? m.target?.name ?? null : null,
           group: m.group,
           last: afterAction ? m.last : null,
@@ -542,6 +579,10 @@ export function PlanGenie(props: Props) {
         if (joined) cmd = parseGenie(joined, groupNames, FALLBACK_CDI);
       }
       await run(cmd, text);
+      const understood = cmd.kind !== "unknown" && cmd.kind !== "help";
+      if (miss && understood && !pending && !fromLearned && Date.now() - miss.at < 3 * 60_000 && looksLikeRephrase(miss.text, said)) {
+        learn(miss.text, said);
+      }
     } catch (err) {
       push({ id: uid(), role: "error", text: err instanceof Error ? err.message : "Algo deu errado. Tente de novo." });
     } finally {
@@ -705,6 +746,7 @@ export function PlanGenie(props: Props) {
                       onCancel={(p) => patch(p.id, { done: true, cancelled: true })}
                       onUndo={undo}
                       onConfirm={confirm}
+                      onForget={forget}
                       onChip={(c) => send(c)}
                     />
                   </motion.div>
@@ -838,8 +880,9 @@ export function PlanGenie(props: Props) {
 }
 
 function MessageView({
-  msg, groups, busy, active, onPick, onCancel, onUndo, onConfirm, onChip,
+  msg, groups, busy, active, onPick, onCancel, onUndo, onConfirm, onForget, onChip,
 }: {
+  onForget: (m: Extract<Msg, { role: "learned" }>) => void;
   msg: Msg;
   groups: ExpenseGroup[];
   busy: boolean;
@@ -999,6 +1042,29 @@ function MessageView({
                   Cancelar
                 </button>
               )}
+            </div>
+          )}
+        </div>
+      );
+
+    case "learned":
+      return (
+        <div className={cn("rounded-2xl border border-dashed px-3.5 py-2.5 transition-opacity", msg.forgotten && "opacity-55")}>
+          <p className="text-xs text-muted-foreground">
+            {msg.forgotten ? "Esqueci. " : "Aprendi: "}
+            quando você disser <span className="font-semibold text-foreground">&ldquo;{msg.said}&rdquo;</span>, eu entendo{" "}
+            <span className="font-semibold text-foreground">&ldquo;{msg.means}&rdquo;</span>.
+            {!msg.forgotten && " Os valores podem mudar."}
+          </p>
+          {!msg.forgotten && (
+            <div className="mt-1.5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => onForget(msg)}
+                className="inline-flex min-h-9 items-center rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Esquecer
+              </button>
             </div>
           )}
         </div>
