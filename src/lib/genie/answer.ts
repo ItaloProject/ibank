@@ -3,6 +3,7 @@ import { similar } from "./fuzzy";
 import { findGroup, type GenieCommand, type ItemType } from "./parse";
 import { chatReply } from "./chat";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
+import { askAbout, termById, type Term } from "@/lib/glossary";
 
 export type PlanItem = { id: string; name: string; groupId: string; type: ItemType; planned: number; actual: number };
 export type PlanGroup = { id: string; name: string };
@@ -29,7 +30,20 @@ export type GenieAnswer = {
   raw?: number;
   /** Próximos pedidos sugeridos, mostrados como botões na última resposta. */
   chips?: string[];
+  /** Explicação em texto corrido, como a definição de um termo. */
+  text?: string;
 };
+
+/** Definição do glossário no formato do Gênio; os botões levam aos termos relacionados. */
+export function termAnswer(term: Term): GenieAnswer {
+  return {
+    title: term.category,
+    value: term.name,
+    text: term.text,
+    lines: term.points?.map((p) => ({ label: p.label, value: p.value })),
+    chips: (term.related ?? []).map(termById).filter((x): x is Term => !!x).slice(0, 3).map(askAbout),
+  };
+}
 
 export const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 export const plain = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -193,6 +207,11 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
     case "chat":
       return chatReply(cmd.topic);
 
+    case "term": {
+      const term = termById(cmd.ids[0]);
+      return term ? termAnswer(term) : null;
+    }
+
     case "help":
       return {
         title: "Eu calculo e organizo seu mês",
@@ -208,6 +227,7 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
           { label: "Renda", value: "recebi 800 de freela" },
           { label: "Planos", value: "quanto posso gastar por dia?" },
           { label: "Simulações", value: "500 por mês a 1% ao mês por 2 anos" },
+          { label: "Termos", value: "o que é CDB? · diferença entre LCI e CDB" },
         ],
       };
 

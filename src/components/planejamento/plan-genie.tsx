@@ -13,7 +13,8 @@ import { followUp, type GenieMemory } from "@/lib/genie/context";
 import { buildSearchQuery, looksLikeWebQuestion } from "@/lib/genie/chat";
 import { suggest } from "@/lib/genie/suggest";
 import { applyLearned, looksLikeRephrase, toTemplate, type LearnedPhrase } from "@/lib/genie/learn";
-import { answer, findItem, guessType, money, plain, type GenieAnswer, type PlanSnapshot } from "@/lib/genie/answer";
+import { answer, findItem, guessType, money, plain, termAnswer, type GenieAnswer, type PlanSnapshot } from "@/lib/genie/answer";
+import { termById } from "@/lib/glossary";
 import type { ExpenseGroup, ExpenseItem } from "@/components/planejamento/group-section";
 import type { PlanIncome } from "@/components/planejamento/income-dialog";
 
@@ -826,6 +827,12 @@ export function PlanGenie(props: Props) {
         if (shouldAskReal(found)) askReal(found, []);
         return;
       }
+      case "term":
+        for (const id of cmd.ids) {
+          const term = termById(id);
+          if (term) showAnswer(termAnswer(term));
+        }
+        return;
       case "unknown": return looksLikeWebQuestion(text) ? searchWeb(text) : notUnderstood(text);
       default: {
         const a = answer(cmd, snapshot);
@@ -1399,7 +1406,10 @@ function MessageView({
       return (
         <div className="rounded-2xl border px-3.5 py-3">
           <p className="text-xs text-muted-foreground">{a.title}</p>
-          {a.value && <p className={cn("mt-0.5 font-display text-2xl font-black tabular-nums tracking-tight", toneText)}>{a.value}</p>}
+          {a.value && (
+            <p className={cn("mt-0.5 font-display font-black tabular-nums tracking-tight", a.text ? "text-lg leading-snug" : "text-2xl", toneText)}>{a.value}</p>
+          )}
+          {a.text && <p className="mt-1.5 text-sm leading-relaxed [overflow-wrap:anywhere]">{a.text}</p>}
           {a.lines && a.lines.length > 0 && (() => {
             const stacked = a.lines.some((l) => l.value.length > 28);
             return (

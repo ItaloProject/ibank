@@ -8,6 +8,7 @@ import {
   type FixedIncomeEntry,
 } from "@/lib/fixed-income-catalog";
 import { tesouroCatalog, type TesouroLive } from "@/lib/tesouro-rates";
+import { glossaryForPrompt } from "@/lib/glossary";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -157,6 +158,9 @@ export function buildBotSystemPrompt(
     "",
     "Catálogo de Tesouro Direto e renda fixa privada do app (JSON; taxas das datas indicadas, variam todo dia):",
     JSON.stringify(catalogJson(tesouroLive)),
+    "",
+    "Glossário do Muvo: ao explicar estes termos, use estas definições (são as mesmas que os outros assistentes do app dão) e depois relacione com a carteira do usuário quando fizer sentido:",
+    glossaryForPrompt(),
     "",
     APP_GUIDE,
     ...(dislikes.length

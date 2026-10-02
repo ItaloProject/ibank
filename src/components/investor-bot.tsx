@@ -6,6 +6,7 @@ import { readBotPageContext } from "@/lib/bot-page-context";
 import type { BotAlert } from "@/lib/alerts";
 import type { GoalProjection } from "@/lib/goal-projection";
 import { detectIntent, keywordIntent, profileTarget, type Intent } from "@/lib/bot-intent";
+import { askAbout, findTerms, termById, termMarkdown, type Term } from "@/lib/glossary";
 import { SNOOZE_DAYS, alertStatus, parseAlertChoices, snoozeChoice, trimAlertChoices, type AlertChoices } from "@/lib/alert-choices";
 import {
   X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
@@ -938,6 +939,19 @@ export function InvestorBot({
     return { id: uid(), role: "bot", blocks: [{ kind: "alert", tone: "warn", text }], followups };
   }
 
+  /** Definição pronta do glossário: mesma explicação do Gênio, sem chamar a inteligência artificial. */
+  function glossaryReply(question: string, terms: Term[]): Msg {
+    const text = terms.map(termMarkdown).join("\n\n");
+    const related = [...new Set(terms.flatMap((t) => t.related ?? []))]
+      .filter((id) => !terms.some((t) => t.id === id))
+      .map(termById)
+      .filter((x): x is Term => !!x)
+      .slice(0, 3);
+    const blocks: Block[] = [{ kind: "md", text }];
+    if (related.length) blocks.push({ kind: "text", muted: true, text: `Pergunte também: ${related.map(askAbout).join(" · ")}` });
+    return { id: uid(), role: "bot", blocks, ai: text, q: question, followups: ["visao", "rebal"] };
+  }
+
   async function rebalance(): Promise<Msg> {
     const res = await fetch("/api/bot/analysis", { cache: "no-store" });
     const data = await res.json().catch(() => null);
@@ -1019,6 +1033,9 @@ export function InvestorBot({
         reply = await transition(alvo, change?.from);
       } else if (intent === "rebal") {
         reply = await rebalance();
+      } else if (intent === "help" && findTerms(userText).length) {
+        await new Promise((r) => setTimeout(r, THINK_MS));
+        reply = glossaryReply(userText, findTerms(userText));
       } else if (intent === "help") {
         reply = await askAi(history, userText);
       } else {

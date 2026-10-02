@@ -2,6 +2,7 @@ import { NUMBER_RE, evaluate, foldMath, looksLikeMath, mathBody, normalize, pars
 import { fixTypos, similar } from "./fuzzy";
 import { INTENT_VERBS, canonicalize, extractSlots, guessIntent, type Intent } from "./translate";
 import { chatTopic, type ChatTopic } from "./chat";
+import { findTerms } from "@/lib/glossary";
 
 export type ItemType = "fixo" | "variavel";
 /** `calc`: a conta que o pedido trazia, como "1,19 + 34,01", para o Gênio mostrar de onde veio o valor. */
@@ -35,6 +36,8 @@ export type GenieCommand =
   | { kind: "help" }
   /** Conversa simples ("oi", "interessante", "obrigado"). */
   | { kind: "chat"; topic: ChatTopic }
+  /** Pedido de definição de termos de investimento ("o que é CDB?"), respondido pelo glossário. */
+  | { kind: "term"; ids: string[] }
   | { kind: "unknown" };
 
 const N = NUMBER_RE;
@@ -228,6 +231,8 @@ export function parseGenie(input: string, groups: string[], cdiAnual: number): G
   if (!t) return { kind: "unknown" };
   const topic = chatTopic(raw);
   if (topic) return { kind: "chat", topic };
+  const terms = findTerms(raw);
+  if (terms.length) return { kind: "term", ids: terms.map((x) => x.id) };
   /** Trecho original (com acentos e maiúsculas) do fragmento normalizado. */
   const recover = (frag: string) => {
     const i = t.indexOf(frag);
@@ -462,7 +467,9 @@ function parseRules(t: string, groups: string[], cdiAnual: number): GenieCommand
   }
 
   // Juros compostos e rendimento
-  if (/(juros compostos|rend\w*|investindo|aplicando|guardando|poupando|aportando|aplicar|investir)/.test(t) && /\d/.test(t)) {
+  const growthWords = /(juros compostos|rend\w*|investindo|aplicando|guardando|poupando|aportando|aplicar|investir)/.test(t);
+  const monthlyAtRate = /%/.test(t) && /\b(?:por mes|ao mes|mensal|todo mes)\b/.test(t) && monthsFrom(t) !== null;
+  if ((growthWords || monthlyAtRate) && /\d/.test(t)) {
     const months = monthsFrom(t);
     const cdi = t.match(new RegExp(String.raw`(${N})\s*%\s*do\s*cdi`));
     const rate = cdi
