@@ -27,6 +27,8 @@ type Msg =
   | {
       id: string; role: "pick"; prompt: string; cmd: Extract<GenieCommand, { kind: "addItems" | "spend" }>;
       done?: boolean; exclude?: string; cancelled?: boolean;
+      /** Grupo do último pedido, oferecido primeiro; "sim" escolhe ele. */
+      suggested?: string;
     }
   | { id: string; role: "ask"; prompt: string; hint?: string; chips?: string[] }
   | { id: string; role: "confirm"; title: string; detail: string; label: string; run: () => Promise<void>; done?: boolean }
@@ -118,6 +120,9 @@ export function PlanGenie(props: Props) {
   const tapeRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mem = useRef<Memory>({ target: null, batch: [], group: null, last: null, income: null, recent: null });
+  const [realMode, setRealModeState] = useState(false);
+  const realRef = useRef(false);
+  const setRealMode = (on: boolean) => { realRef.current = on; setRealModeState(on); };
   const remember = (change: Partial<Memory>) => { mem.current = { ...mem.current, recent: "action", ...change }; };
   const [learned, setLearned] = useState<LearnedPhrase[]>([]);
   const learnedLoaded = useRef(false);
@@ -222,31 +227,47 @@ export function PlanGenie(props: Props) {
   }
 
   async function addItems(cmd: Extract<GenieCommand, { kind: "addItems" }>) {
+    const paid = !!cmd.paid || realRef.current;
+    if (!cmd.group && groups.length > 0) {
+      const suggested = groups.find((g) => g.name === mem.current.group)?.name;
+      if (cmd.bare || (suggested && groups.length > 1)) {
+        const list = cmd.items.map((i) => `${i.name} (${money(i.value)})`).join(", ");
+        const how = paid ? " como planejado e gasto real" : "";
+        push({
+          id: uid(),
+          role: "pick",
+          prompt: suggested ? `Adicionar ${list} em ${suggested}${how}?` : `Em qual grupo coloco ${list}${how}?`,
+          cmd: { ...cmd, paid },
+          suggested,
+        });
+        return;
+      }
+    }
     const target = await resolveGroup(cmd.group);
     if (!target) {
       const names = cmd.items.map((i) => i.name).join(", ");
-      push({ id: uid(), role: "pick", prompt: `Em qual grupo coloco ${names}?`, cmd });
+      push({ id: uid(), role: "pick", prompt: `Em qual grupo coloco ${names}?`, cmd: { ...cmd, paid } });
       return;
     }
     const { group, created } = target;
     const rows = await Promise.all(cmd.items.map((it) =>
       api<{ id: string }>("/api/plan-items", "POST", {
         user_id: userId, group_id: group.id, month,
-        name: it.name, type: guessType(it.name, it.type), planned: it.value, actual: cmd.paid ? it.value : 0,
+        name: it.name, type: guessType(it.name, it.type), planned: it.value, actual: paid ? it.value : 0,
       }),
     ));
     if (created) await reloadGroups();
     await reloadItems();
     const batch: Target[] = cmd.items.map((it, i) => ({
       id: rows[i].id, name: it.name, groupId: group.id, groupName: group.name,
-      type: guessType(it.name, it.type), planned: it.value, actual: cmd.paid ? it.value : 0, field: "planned", base: 0,
+      type: guessType(it.name, it.type), planned: it.value, actual: paid ? it.value : 0, field: "planned", base: 0,
     }));
     remember({ last: "addItems", group: group.name, target: batch[batch.length - 1], batch });
     push({
       id: uid(),
       role: "action",
       title: `${created ? `Criei o grupo ${group.name} e adicionei` : "Adicionei"} ${rows.length === 1 ? "1 item" : `${rows.length} itens`}${created ? "" : ` em ${group.name}`}`,
-      lines: cmd.items.map((it) => `${it.name} · ${money(it.value)} ${cmd.paid ? "planejado e gasto real" : "planejado"}${it.calc ? ` (${it.calc})` : ""} · ${guessType(it.name, it.type) === "fixo" ? "fixo" : "variável"}`),
+      lines: cmd.items.map((it) => `${it.name} · ${money(it.value)} ${paid ? "planejado e gasto real" : "planejado"}${it.calc ? ` (${it.calc})` : ""} · ${guessType(it.name, it.type) === "fixo" ? "fixo" : "variável"}`),
       undo: async () => {
         await Promise.all(rows.map((r) => api(`/api/plan-items/${r.id}`, "DELETE")));
         if (created) { await api(`/api/plan-groups/${group.id}`, "DELETE"); await reloadGroups(); }
@@ -558,6 +579,11 @@ export function PlanGenie(props: Props) {
         return ask({ kind: "spendValue", name: cmd.name, group: cmd.group }, `Quanto você gastou em ${cmd.name}?`, "Só o valor, por exemplo 80.");
       case "draftIncome":
         return ask({ kind: "incomeValue", description: cmd.description }, `Qual o valor${cmd.description ? ` de ${cmd.description}` : " da renda"}?`, cmd.description ? "Só o valor, por exemplo 5.000." : "Exemplo: 5.000 de salário.");
+      case "realMode":
+        setRealMode(cmd.on);
+        return showAnswer(cmd.on
+          ? { title: "Combinado: os próximos itens entram como planejado e gasto real.", note: "Para parar, diga \"voltar ao planejado\" ou toque em Parar, acima do campo." }
+          : { title: "Pronto: os próximos itens entram só como planejado." });
       case "unknown": return notUnderstood(text);
       default: {
         const a = answer(cmd, snapshot);
@@ -572,7 +598,7 @@ export function PlanGenie(props: Props) {
     const inGroup = (g: string | null) => (g ? ` em ${g}` : "");
     switch (p.kind) {
       case "groupName": return cmd.kind === "unknown" ? `criar grupo ${text}` : null;
-      case "item": return cmd.kind === "unknown" ? `adicionar ${text}${inGroup(p.group)}` : null;
+      case "item": return cmd.kind === "unknown" || cmd.kind === "addItems" ? `adicionar ${text}${cmd.kind === "addItems" && cmd.group ? "" : inGroup(p.group)}` : null;
       case "itemValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `adicionar ${p.name} ${value}${inGroup(p.group)}` : null;
       case "spendValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `gastei ${value} em ${p.name}${inGroup(p.group)}` : null;
       case "incomeValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `recebi ${value}${p.description ? ` de ${p.description}` : ""}` : null;
@@ -586,6 +612,28 @@ export function PlanGenie(props: Props) {
     push({ id: uid(), role: "user", text });
     setBusy(true);
     try {
+      const openPick = pending ? undefined : [...msgs].reverse().find((m): m is Extract<Msg, { role: "pick" }> => m.role === "pick" && !m.done && !m.cancelled);
+      if (openPick) {
+        const n = normalize(text).replace(/[?!.]+$/, "");
+        const named = n.length >= 3 && n.split(" ").length <= 3 ? findGroup(n.replace(/^(?:em|no|na|no grupo|grupo)\s+/, ""), groupNames) : null;
+        if (/^(?:sim|s|ss|pode|pode ser|isso|ok|okay|beleza|blz|manda|confirma|confirmo|claro|aham|esse|nesse|nele|la|ali|isso mesmo)$/.test(n) && openPick.suggested) {
+          patch(openPick.id, { done: true });
+          return await run({ ...openPick.cmd, group: openPick.suggested }, "");
+        }
+        if (/^(?:nao|n|outro|outro grupo|em outro|noutro)$/.test(n) && openPick.suggested) {
+          patch(openPick.id, { cancelled: true });
+          push({ id: uid(), role: "pick", prompt: "Em qual grupo, então?", cmd: openPick.cmd, exclude: openPick.suggested });
+          return;
+        }
+        if (/^(?:cancela|cancelar|esquece|deixa|deixa pra la)$/.test(n)) {
+          patch(openPick.id, { cancelled: true });
+          return showAnswer({ title: "Cancelado. Nada foi adicionado." });
+        }
+        if (named) {
+          patch(openPick.id, { done: true });
+          return await run({ ...openPick.cmd, group: named }, "");
+        }
+      }
       const miss = missRef.current;
       missRef.current = null;
       const fromLearned = pending ? null : applyLearned(text, learned);
@@ -604,6 +652,11 @@ export function PlanGenie(props: Props) {
         if (fu?.kind === "text") said = fu.text;
       }
       let cmd = parseGenie(said, groupNames, FALLBACK_CDI);
+      if (pending && (pending.kind === "itemValue" || pending.kind === "spendValue" || pending.kind === "incomeValue") && cmd.kind === "unknown" && !/\d/.test(text)) {
+        if (/^(?:cancela|cancelar|esquece|deixa)/.test(normalize(text))) { setPending(null); return showAnswer({ title: "Cancelado." }); }
+        push({ id: uid(), role: "ask", prompt: "Não entendi o valor.", hint: "Mande só o número, por exemplo 80. Para desistir, diga cancelar." });
+        return;
+      }
       if (pending) {
         const joined = complete(pending, text, cmd);
         setPending(null);
@@ -816,6 +869,20 @@ export function PlanGenie(props: Props) {
                 {display ? (display.live ? `= ${display.value}` : display.value) : "0"}
               </p>
             </div>
+
+            {realMode && (
+              <div className="mx-3 mb-2 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1 pl-3 pr-1 text-xs">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+                <span className="min-w-0 flex-1 font-medium">Itens novos entram como planejado e gasto real</span>
+                <button
+                  type="button"
+                  onClick={() => { setRealMode(false); showAnswer({ title: "Pronto: os próximos itens entram só como planejado." }); }}
+                  className="min-h-9 shrink-0 rounded-lg px-3 font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  Parar
+                </button>
+              </div>
+            )}
 
             {suggestions.length > 0 && !busy && (
               <div className="flex gap-1.5 overflow-x-auto px-3 pb-2 [scrollbar-width:none]" aria-label="Sugestões">
@@ -1047,17 +1114,26 @@ function MessageView({
       return (
         <div className="rounded-2xl border px-3.5 py-3">
           <p className="text-sm">{msg.prompt}</p>
+          {msg.suggested && !msg.done && !msg.cancelled && (
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Toque no grupo ou responda &quot;sim&quot;. Para trocar, diga o nome de outro grupo.</p>
+          )}
           {msg.cancelled ? (
             <p className="mt-1 text-[11px] font-medium text-muted-foreground">Cancelado</p>
           ) : (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {groups.filter((g) => g.name !== msg.exclude).map((g) => (
+              {groups
+                .filter((g) => g.name !== msg.exclude)
+                .sort((a, b) => Number(b.name === msg.suggested) - Number(a.name === msg.suggested))
+                .map((g) => (
                 <button
                   key={g.id}
                   type="button"
                   disabled={msg.done || busy}
                   onClick={() => onPick(msg, g.name)}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors hover:bg-muted disabled:opacity-50"
+                  className={cn(
+                    "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors disabled:opacity-50",
+                    g.name === msg.suggested ? "border-foreground bg-foreground text-background hover:bg-foreground/90" : "hover:bg-muted",
+                  )}
                 >
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} />
                   {g.name}

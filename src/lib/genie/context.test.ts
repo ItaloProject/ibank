@@ -17,6 +17,21 @@ describe("gasto real junto do planejado", () => {
     expect(parseGenie("adicionar luz 180 em casa", G, 10)).not.toHaveProperty("paid");
     expect(parseGenie("adicionar pao 1 real em casa", G, 10)).not.toHaveProperty("paid");
   });
+  it("modo gasto real ligado e desligado", () => {
+    for (const s of ["Considere todos os gastos seguintes como reais.", "a partir de agora tudo como real", "lance os próximos como gasto real", "modo real", "gasto real", "coloque como real"]) {
+      expect(parseGenie(s, G, 10), s).toEqual({ kind: "realMode", on: true });
+    }
+    for (const s of ["pare de lançar como real", "voltar ao planejado", "só planejado"]) {
+      expect(parseGenie(s, G, 10), s).toEqual({ kind: "realMode", on: false });
+    }
+  });
+  it("nome e valor sem verbo pedem confirmação do grupo", () => {
+    expect(parseGenie("Netflix - 20,90", G, 10)).toEqual({ kind: "addItems", bare: true, group: null, items: [{ name: "Netflix", value: 20.9, type: null }] });
+    expect(parseGenie("netflix 20,90 e spotify 22", G, 10)).toMatchObject({ bare: true, items: [{ name: "Netflix" }, { name: "Spotify" }] });
+    expect(parseGenie("netflix 20,90 em cartao", G, 10)).toMatchObject({ bare: true, group: "cartao" });
+    expect(parseGenie("salário 5000", G, 10)).toMatchObject({ kind: "addIncome" });
+    expect(parseGenie("20,90", G, 10).kind).not.toBe("addItems");
+  });
   it("logo depois de adicionar", () => {
     for (const s of ["coloque como real", "gasto real", "coloca como gasto real", "como real", "marca como planejado e real", "já paguei", "foi pago", "coloca eles como real"]) {
       expect(followUp(s, MEM), s).toEqual({ kind: "paid" });

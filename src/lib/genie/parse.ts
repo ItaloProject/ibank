@@ -9,7 +9,9 @@ export type NewItem = { name: string; value: number; type: ItemType | null; calc
 export type GenieCommand =
   | { kind: "calc"; expr: string; value: number }
   /** `paid`: "como gasto real" no pedido; o valor vai para o planejado e para o real. */
-  | { kind: "addItems"; items: NewItem[]; group: string | null; paid?: boolean }
+  | { kind: "addItems"; items: NewItem[]; group: string | null; paid?: boolean; bare?: boolean }
+  /** "Considere os próximos gastos como reais": liga ou desliga lançar planejado e real juntos. */
+  | { kind: "realMode"; on: boolean }
   | { kind: "spend"; name: string; value: number | null; group: string | null; calc?: string }
   | { kind: "createGroups"; names: string[] }
   | { kind: "addIncome"; description: string; value: number }
@@ -46,7 +48,7 @@ function typeOf(s: string): { type: ItemType | null; rest: string } {
 /** "netflix 55", "55 de netflix", "netflix por r$ 55" → { name, value }. */
 function nameAndValue(part: string): { name: string; value: number } | null {
   const p = part.trim();
-  let m = p.match(new RegExp(String.raw`^(.+?)(?:\s*:\s*|\s+(?:por\s+|de\s+|no valor de\s+|=\s*)?)(${N})$`));
+  let m = p.match(new RegExp(String.raw`^(.+?)(?:\s*:\s*|\s+-\s*|\s+(?:por\s+|de\s+|no valor de\s+|=\s*)?)(${N})$`));
   if (m) {
     const value = num(m[2]);
     const name = cleanName(m[1]);
@@ -278,8 +280,16 @@ function parseWithMath(t: string, groups: string[], cdiAnual: number): GenieComm
   return cmd;
 }
 
+const REAL_OFF = /^(?:(?:para|pare|parar|chega|desliga|desligar|desative|desativar|cancela|cancelar|sai|sair)\b.*\b(?:reais|real)\b|(?:volta|voltar|volte)\b.*\bplanejado\b|(?:modo\s+)?so\s+(?:o\s+)?planejado|modo planejado)/;
+const REAL_ON = /\b(?:reais|real)\b/;
+const REAL_ON_CUE = /^(?:considere|considera|considerar|trate|trata|tratar|lance|lanca|lancar|coloque|coloca|colocar|marque|marca|marcar|registre|registra|deixe|deixa|bota|bote|a partir de agora|daqui pra frente|daqui para frente|de agora em diante|agora|modo|tudo|todos|todas|os proximos|as proximas)\b/;
+const REAL_ON_SCOPE = /\b(?:tod[oa]s|tudo|seguintes|proxim[oa]s|a partir|daqui|agora|em diante|modo)\b/;
+
 function parseRules(t: string, groups: string[], cdiAnual: number): GenieCommand {
   if (/^(ajuda|help|o que (voce|vc) faz|o que (voce|vc) sabe( fazer)?|comandos|exemplos|como (te )?uso|como funciona)$/.test(t)) return { kind: "help" };
+  if (REAL_OFF.test(t)) return { kind: "realMode", on: false };
+  if (REAL_ON.test(t) && REAL_ON_CUE.test(t) && REAL_ON_SCOPE.test(t) && !/\d/.test(t)) return { kind: "realMode", on: true };
+  if (/^(?:(?:coloca|coloque|lanca|lance|marca|marque|deixa|deixe)\s+)?(?:como\s+)?(?:(?:planejado\s+e\s+)?(?:gasto|valor)\s+)?(?:real|reais)$/.test(t) && t !== "real" && t !== "reais") return { kind: "realMode", on: true };
 
   // Grupo novo: basta "grupo" com criar, novo, abrir ou adicionar
   if (CREATE_GROUP.test(t) && !/\b(apag|exclu|remov|delet)/.test(t)) {
@@ -473,6 +483,14 @@ function parseRules(t: string, groups: string[], cdiAnual: number): GenieCommand
   const single = evaluate(t);
   if (single !== null && /\d/.test(t) && /[+\-*/^%]/.test(t)) return { kind: "calc", expr: t, value: single };
 
+  // Só nome e valor, sem verbo: "Netflix - 20,90". O Gênio confirma o grupo antes de lançar.
+  if (/\d/.test(t)) {
+    const { list, group } = splitGroup(t, groups);
+    const bare = splitList(list).map(nameAndValue);
+    const ok = bare.length > 0 && bare.every((x) => x && x.name.split(" ").length <= 4 && !/\d/.test(x.name));
+    if (ok) return { kind: "addItems", items: bare.map((x) => ({ name: capitalize(x!.name), value: x!.value, type: null })), group, bare: true };
+  }
+
   const intent = guessIntent(t);
   return (intent && fromIntent(intent, t, groups)) ?? { kind: "unknown" };
 }
@@ -498,11 +516,12 @@ function fromIntent(intent: Intent, t: string, groups: string[]): GenieCommand |
     }
     case "spend": {
       const { value, name, group } = extractSlots(t, groups, INTENT_VERBS.spend);
-      if (!name) return null;
+      if (!name || name.split(" ").length > 4) return null;
       return value !== null ? { kind: "spend", name, value, group } : { kind: "draftSpend", name, group };
     }
     case "add": {
       const { value, name, group } = extractSlots(t, groups, INTENT_VERBS.add);
+      if (name && name.split(" ").length > 4) return null;
       if (name && value !== null) return { kind: "addItems", items: [{ name: capitalize(name), value, type: null }], group };
       return { kind: "draftItem", name: name ? capitalize(name) : null, group };
     }

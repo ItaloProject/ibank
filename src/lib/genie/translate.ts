@@ -29,7 +29,7 @@ export function canonicalize(input: string): string {
   sub(/^(.+?)\s+(?:ja\s+)?(?:esta|ta|tá|foi|ficou)\s+pag[oa]$/, "paguei $1");
 
   // Gasto real
-  sub(/^(?:rachei|desembolsei|deixei|larguei|queimei|meti|dei|gastou|gastaram|gastamos|gasto|tive um gasto de|tive gasto de|fiz uma compra de|fiz um gasto de|fiz uma comprinha de|comprinha de|compra de)\s+/, "gastei ");
+  sub(/^(?:rachei|desembolsei|deixei|larguei|queimei|meti|dei|gastou|gastaram|gastamos|gasto(?!\s+(?:real|reais)$)|tive um gasto de|tive gasto de|fiz uma compra de|fiz um gasto de|fiz uma comprinha de|comprinha de|compra de)\s+/, "gastei ");
   sub(new RegExp(String.raw`^(?:saiu|sairam|foi embora|foram embora)\s+(${N})\s+`), "gastei $1 ");
   sub(/^(?:pagamos|pago)\s+/, "paguei ");
 
