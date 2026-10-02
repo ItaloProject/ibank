@@ -1,5 +1,6 @@
 import { NUMBER_RE, evaluate, looksLikeMath, mathBody, normalize, parseNumber } from "./calc";
 import { fixTypos, similar } from "./fuzzy";
+import { INTENT_VERBS, canonicalize, extractSlots, guessIntent, type Intent } from "./translate";
 
 export type ItemType = "fixo" | "variavel";
 export type NewItem = { name: string; value: number; type: ItemType | null };
@@ -222,7 +223,7 @@ function stripPolite(t: string): string {
 const CREATE_GROUP = /\b(?:cri[aeo]r?|crie|abr[aei]r?|mont[aeo]r?|faz(?:er)?|faca)\b.*\b(?:grupos?|categorias?)\b|\b(?:nov[oa]s?)\s+(?:grupos?|categorias?)\b|\b(?:grupos?|categorias?)\s+nov[oa]s?\b|\b(?:adiciona\w*|add|inclui\w*|coloca\w*)\s+(?:um\s+|o\s+)?(?:grupos?|categorias?)\b/;
 
 function parseNormalized(input: string, groups: string[], cdiAnual: number): GenieCommand {
-  const t = fixTypos(stripPolite(input));
+  const t = canonicalize(fixTypos(stripPolite(input)));
   if (/^(ajuda|help|o que (voce|vc) faz|o que (voce|vc) sabe( fazer)?|comandos|exemplos|como (te )?uso|como funciona)$/.test(t)) return { kind: "help" };
 
   // Grupo novo: basta "grupo" com criar, novo, abrir ou adicionar
@@ -412,7 +413,41 @@ function parseNormalized(input: string, groups: string[], cdiAnual: number): Gen
 
   const single = evaluate(t);
   if (single !== null && /\d/.test(t) && /[+\-*/^%]/.test(t)) return { kind: "calc", expr: t, value: single };
-  return { kind: "unknown" };
+
+  const intent = guessIntent(t);
+  return (intent && fromIntent(intent, t, groups)) ?? { kind: "unknown" };
+}
+
+/** Última tentativa: o tipo de pedido veio por semelhança; valor, grupo e nome saem do que sobrou da frase. */
+function fromIntent(intent: Intent, t: string, groups: string[]): GenieCommand | null {
+  switch (intent) {
+    case "sobra": case "dia": case "resumo": case "maiores":
+      return { kind: "query", topic: intent, target: null };
+    case "createGroup": {
+      const { name } = extractSlots(t, [], INTENT_VERBS.createGroup);
+      return { kind: "createGroups", names: name ? splitList(name) : [] };
+    }
+    case "remove": {
+      const { name, group } = extractSlots(t, groups, INTENT_VERBS.remove);
+      if (name) return { kind: "remove", target: name, what: null };
+      return group ? { kind: "remove", target: group, what: "group" } : null;
+    }
+    case "income": {
+      const { value, name } = extractSlots(t, [], INTENT_VERBS.income);
+      if (value !== null && value > 0) return { kind: "addIncome", description: capitalize(name) || "Renda extra", value };
+      return { kind: "draftIncome", description: name ? capitalize(name) : null };
+    }
+    case "spend": {
+      const { value, name, group } = extractSlots(t, groups, INTENT_VERBS.spend);
+      if (!name) return null;
+      return value !== null ? { kind: "spend", name, value, group } : { kind: "draftSpend", name, group };
+    }
+    case "add": {
+      const { value, name, group } = extractSlots(t, groups, INTENT_VERBS.add);
+      if (name && value !== null) return { kind: "addItems", items: [{ name: capitalize(name), value, type: null }], group };
+      return { kind: "draftItem", name: name ? capitalize(name) : null, group };
+    }
+  }
 }
 
 function capitalize(s: string): string {
