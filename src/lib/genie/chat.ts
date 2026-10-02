@@ -47,7 +47,7 @@ export function chatReply(topic: ChatTopic): GenieAnswer {
     case "who":
       return {
         title: "Sou o Muvo Gênio, o assistente do seu planejamento.",
-        note: "Faço contas, lanço itens e gastos, simulo investimentos e dou dicas com os seus números, sem enviar seus valores para fora do Muvo. Perguntas gerais sobre dinheiro eu pesquiso na web.",
+        note: "Faço contas, lanço itens e gastos, simulo investimentos e dou dicas com os seus números, sem enviar seus valores para fora do Muvo. Perguntas gerais sobre dinheiro eu pesquiso na web e aprendo a resposta para as próximas vezes.",
         chips: ["ajuda", ...IDEAS.slice(0, 2)],
       };
     case "bye":

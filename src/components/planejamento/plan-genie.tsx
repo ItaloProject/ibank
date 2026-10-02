@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowUp, Calculator, Check, Copy, Delete, ExternalLink, Loader2, Sparkles, Trash2, Undo2, X } from "lucide-react";
+import { ArrowUp, Brain, Calculator, Check, Copy, Delete, ExternalLink, Loader2, Sparkles, ThumbsDown, ThumbsUp, Trash2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
@@ -36,8 +36,14 @@ type Msg =
   | { id: string; role: "realAsk"; group: string; batch: Target[]; done?: "these" | "always" | "no" | "moved" }
   | { id: string; role: "confirm"; title: string; detail: string; label: string; run: () => Promise<void>; done?: boolean }
   | { id: string; role: "learned"; said: string; means: string; phrase: string; forgotten?: boolean }
-  /** Visão geral da web para perguntas gerais; `query` é o que foi pesquisado. */
-  | { id: string; role: "web"; query: string; answer: string; sources: { title: string; url: string }[] }
+  /**
+   * Resposta a uma pergunta geral; `query` é o que foi pesquisado.
+   * `learned`: veio do que o Gênio já aprendeu, sem pesquisar; `knowledgeId` identifica a resposta para os votos.
+   */
+  | {
+      id: string; role: "web"; query: string; answer: string; sources: { title: string; url: string }[];
+      learned?: boolean; knowledgeId?: number; vote?: "up" | "down";
+    }
   | { id: string; role: "error"; text: string };
 
 /** O que o Gênio perguntou e espera na próxima mensagem. */
@@ -649,20 +655,44 @@ export function PlanGenie(props: Props) {
     });
   }
 
-  /** Pergunta geral: busca a Visão geral na web. Só o texto da pergunta sai do aparelho, nunca os valores do planejamento. */
-  async function searchWeb(text: string) {
-    const prev = [...msgs].reverse().find((m): m is Extract<Msg, { role: "web" }> => m.role === "web");
+  /**
+   * Pergunta geral: primeiro o que o Gênio já aprendeu, senão a Visão geral da web, que fica aprendida.
+   * Só o texto da pergunta sai do aparelho, nunca os valores do planejamento.
+   */
+  async function searchWeb(text: string, fresh = false) {
+    const prev = fresh ? undefined : [...msgs].reverse().find((m): m is Extract<Msg, { role: "web" }> => m.role === "web");
     const res = await fetch("/api/genie/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, context: prev?.query ?? null }),
+      body: JSON.stringify({ text, context: prev?.query ?? null, fresh }),
     }).catch(() => null);
-    const data = res?.ok ? ((await res.json().catch(() => null)) as { answer?: string; sources?: { title: string; url: string }[] } | null) : null;
+    type Found = { answer?: string; sources?: { title: string; url: string }[]; id?: number | null; learned?: boolean };
+    const data = res?.ok ? ((await res.json().catch(() => null)) as Found | null) : null;
     if (!data?.answer) {
+      if (fresh) return showAnswer({ title: "Não consegui pesquisar de novo agora.", note: res?.status === 429 ? "A pesquisa na web chegou ao limite de hoje. Tente amanhã." : "Tente de novo daqui a pouco." });
       return notUnderstood(text, res?.status === 429 ? "A pesquisa na web chegou ao limite de hoje. Enquanto isso, tente assim:" : undefined);
     }
-    logMiss(text, "web");
-    push({ id: uid(), role: "web", query: buildSearchQuery(text, prev?.query ?? null), answer: data.answer, sources: data.sources ?? [] });
+    if (!data.learned) logMiss(text, "web");
+    push({
+      id: uid(), role: "web", query: buildSearchQuery(text, prev?.query ?? null), answer: data.answer, sources: data.sources ?? [],
+      knowledgeId: data.id ?? undefined, learned: !!data.learned,
+    });
+  }
+
+  async function voteWeb(msg: Extract<Msg, { role: "web" }>, vote: "up" | "down") {
+    if (msg.vote || busy) return;
+    patch(msg.id, { vote });
+    if (msg.knowledgeId) {
+      void fetch("/api/genie/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: msg.knowledgeId, vote }),
+      }).catch(() => {});
+    }
+    if (vote === "down" && msg.learned) {
+      setBusy(true);
+      try { await searchWeb(msg.query, true); } finally { setBusy(false); }
+    }
   }
 
   async function remove(cmd: Extract<GenieCommand, { kind: "remove" }>) {
@@ -1085,6 +1115,7 @@ export function PlanGenie(props: Props) {
                       onConfirm={confirm}
                       onForget={forget}
                       onChip={(c) => send(c)}
+                      onVote={voteWeb}
                     />
                   </motion.div>
                 ))
@@ -1247,8 +1278,9 @@ export function PlanGenie(props: Props) {
 }
 
 function MessageView({
-  msg, groups, busy, active, onPick, onCancel, onReal, onUndo, onConfirm, onForget, onChip,
+  msg, groups, busy, active, onPick, onCancel, onReal, onUndo, onConfirm, onForget, onChip, onVote,
 }: {
+  onVote: (m: Extract<Msg, { role: "web" }>, vote: "up" | "down") => void;
   onForget: (m: Extract<Msg, { role: "learned" }>) => void;
   onReal: (m: Extract<Msg, { role: "realAsk" }>, choice: "these" | "always" | "no") => void;
   msg: Msg;
@@ -1410,8 +1442,8 @@ function MessageView({
       return (
         <div className="rounded-2xl border px-3.5 py-3">
           <p className="flex items-center gap-1.5 text-xs font-semibold">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            Visão geral criada por inteligência artificial
+            {msg.learned ? <Brain className="h-3.5 w-3.5" aria-hidden /> : <Sparkles className="h-3.5 w-3.5" aria-hidden />}
+            {msg.learned ? "Resposta que o Muvo aprendeu" : "Visão geral criada por inteligência artificial"}
           </p>
           <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed [overflow-wrap:anywhere]">{msg.answer}</p>
           {msg.sources.length > 0 && (
@@ -1435,8 +1467,40 @@ function MessageView({
             </div>
           )}
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-            Pesquisado na web: pode conter erros. Só a pergunta foi enviada, nenhum valor do seu planejamento.
+            {msg.learned
+              ? "Aprendido numa pesquisa anterior na web: pode conter erros. Se não ajudou, eu pesquiso de novo."
+              : `Pesquisado na web: pode conter erros. Só a pergunta foi enviada, nenhum valor do seu planejamento.${msg.knowledgeId ? " Guardei a resposta para as próximas vezes." : ""}`}
           </p>
+          {msg.knowledgeId !== undefined && (
+            <div className="mt-2 flex flex-wrap items-center justify-end gap-1.5">
+              {msg.vote ? (
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {msg.vote === "up" ? "Obrigado! Vou continuar usando essa resposta." : msg.learned ? "Pesquisei de novo, logo abaixo." : "Obrigado! Na próxima vez eu pesquiso de novo."}
+                </span>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onVote(msg, "up")}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
+                    Ajudou
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onVote(msg, "down")}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    <ThumbsDown className="h-3.5 w-3.5" aria-hidden />
+                    Não ajudou
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       );
 
