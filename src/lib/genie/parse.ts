@@ -92,6 +92,40 @@ function leadingGroup(body: string, groups: string[]): { list: string; group: st
   return list ? { list, group: cleanName(words.slice(0, take).join(" ")) } : null;
 }
 
+/** Grupo existente logo no começo, sem a palavra "grupo": "em cartao o item 20 no valor de 38,50". */
+function prefixGroup(body: string, groups: string[]): { group: string; rest: string } | null {
+  const m = body.match(/^(?:em|no|na|ao|pro|pra|para o|para a|para|dentro do|dentro da)\s+(.+)$/);
+  if (!m) return null;
+  const words = m[1].split(" ");
+  const same = (a: string, b: string) => normalize(a).replace(/s$/, "") === normalize(b).replace(/s$/, "");
+  for (let k = Math.min(3, words.length - 1); k >= 1; k--) {
+    const cand = words.slice(0, k).join(" ");
+    if (/\d/.test(cand)) continue;
+    const hit = groups.find((g) => same(g, cand)) ?? (k === 1 && cand.length >= 4 ? groups.find((g) => similar(normalize(cand), normalize(g))) : undefined);
+    if (hit) return { group: cand, rest: words.slice(k).join(" ") };
+  }
+  return null;
+}
+
+const VALUE_CUE = String.raw`(?:(?:com|no|pelo|por)\s+(?:o\s+)?valor\s+(?:de\s+)?|valor\s+(?:de\s+)?|custando\s+|por\s+|r\$\s*|=\s*)`;
+
+/** Acha o valor do item: o número depois de "valor de"/"por", ou o único número, ou o último quando fecha a frase. */
+function pickValue(text: string): { value: number | null; text: string; ambiguous: boolean } {
+  const all = [...text.matchAll(new RegExp(N, "g"))];
+  if (!all.length) return { value: null, text, ambiguous: false };
+  const cut = (m: RegExpMatchArray, v: string) => ({ value: num(v), text: `${text.slice(0, m.index)} ${text.slice(m.index! + m[0].length)}`, ambiguous: false });
+  const cued = [...text.matchAll(new RegExp(String.raw`\s*${VALUE_CUE}(${N})(?:\s*reais)?`, "g"))].pop();
+  if (cued) return cut(cued, cued[1]);
+  const last = text.match(new RegExp(String.raw`\s*(?:de\s+)?(${N})(?:\s*reais)?\s*$`));
+  const inName = (m: RegExpMatchArray) => /\b(?:item|numero|parcela)\s*$/.test(text.slice(0, m.index));
+  if (last && all.slice(0, -1).every(inName)) return cut(last, last[1]);
+  if (all.length === 1) {
+    const one = text.match(new RegExp(String.raw`\s*(?:de\s+)?(${N})(?:\s*reais)?`))!;
+    return cut(one, one[1]);
+  }
+  return { value: null, text, ambiguous: true };
+}
+
 const FILLER = /^\s*(?:(?:(?:ess[ea]|est[ea]|aquel[ea]|o|um|uma|nov[oa])\s+)?(?:item|gasto|despesa)|(?:essa|esta|aquela)\s+conta)\b\s*(?:chamad[oa]\s+|de nome\s+|com (?:o )?nome(?: de)?\s+)?/;
 
 /**
@@ -101,17 +135,9 @@ const FILLER = /^\s*(?:(?:(?:ess[ea]|est[ea]|aquel[ea]|o|um|uma|nov[oa])\s+)?(?:
 function keywordItem(body: string, groups: string[]): { name: string; value: number | null; group: string } | null {
   const gm = body.match(/\b(?:(?:no|na|ao|para o|para a|pro|pra|em|dentro do|dentro da)\s+)?(?:grupo|categoria)\s+(?:de\s+|do\s+|da\s+)?(.+)$/);
   if (!gm) return null;
-  const numbers = [...body.matchAll(new RegExp(N, "g"))];
-  if (numbers.length > 1) return null;
-  let value: number | null = null;
-  let text = body;
-  if (numbers.length === 1) {
-    value = num(numbers[0][0]);
-    text = text.replace(
-      new RegExp(String.raw`\s*(?:(?:com|no|pelo|por|pelo)\s+(?:o\s+)?valor\s+(?:de\s+)?|valor\s+(?:de\s+)?|custando\s+|de\s+|por\s+|=\s*)?${N}(?:\s*reais)?`),
-      " ",
-    );
-  }
+  const picked = pickValue(body);
+  if (picked.ambiguous) return null;
+  const { value, text } = picked;
   const g = text.match(/\b(?:(?:no|na|ao|para o|para a|pro|pra|em|dentro do|dentro da)\s+)?(?:grupo|categoria)\s+(?:de\s+|do\s+|da\s+)?(.+)$/);
   if (!g) return null;
   const before = text.slice(0, g.index).trim();
@@ -132,7 +158,7 @@ function keywordItem(body: string, groups: string[]): { name: string; value: num
     group = words.slice(0, take).join(" ");
     after = words.slice(take).join(" ");
   }
-  const name = cleanName(
+  let name = cleanName(
     `${before} ${after}`
       .replace(FILLER, " ")
       .replace(/^\s*(?:-|:)\s*|\s*(?:-|:)\s*$/g, " ")
@@ -141,6 +167,7 @@ function keywordItem(body: string, groups: string[]): { name: string; value: num
       .replace(/\s+/g, " ")
       .trim(),
   ).replace(/^(?:-|:)\s*/, "");
+  if (/^[\d\s.,-]+$/.test(name) && /\bitem\b/.test(before)) name = `item ${name.replace(/[\s.,-]+$/, "")}`;
   return { name, value, group: cleanName(group) };
 }
 
@@ -288,8 +315,10 @@ function parseNormalized(input: string, groups: string[], cdiAnual: number): Gen
 
   // Adicionar itens
   m = t.match(new RegExp(String.raw`^${ADD_VERB}\s+(.+)$`));
-  if (m && /\b(?:grupo|categoria)\b/.test(m[1])) {
-    const { type, rest } = typeOf(m[1].replace(/["“”'‘’]/g, " ").replace(/\s+/g, " ").trim());
+  const prefix = m && !/\b(?:grupo|categoria)\b/.test(m[1]) ? prefixGroup(m[1].replace(/\s+/g, " ").trim(), groups) : null;
+  const keywordBody = prefix ? `${prefix.rest} no grupo ${prefix.group}` : m?.[1];
+  if (m && keywordBody && /\b(?:grupo|categoria)\b/.test(keywordBody)) {
+    const { type, rest } = typeOf(keywordBody.replace(/["“”'‘’]/g, " ").replace(/\s+/g, " ").trim());
     const kw = keywordItem(rest.replace(/\s+/g, " ").trim(), groups);
     if (kw) {
       if (kw.value !== null && kw.name) return { kind: "addItems", items: [{ name: capitalize(kw.name), value: kw.value, type }], group: kw.group };
@@ -299,8 +328,10 @@ function parseNormalized(input: string, groups: string[], cdiAnual: number): Gen
   }
   if (m && /\d/.test(m[1])) {
     const { type, rest } = typeOf(m[1].replace(/["“”'‘’]/g, " "));
-    const lead = leadingGroup(rest.replace(/\s+/g, " ").trim(), groups);
-    const { list, group } = lead ?? splitGroup(rest.replace(/\s+/g, " ").trim(), groups);
+    const body = rest.replace(/\s+/g, " ").trim();
+    const pre = prefixGroup(body, groups);
+    const lead = leadingGroup(body, groups) ?? (pre ? { list: pre.rest, group: cleanName(pre.group) } : null);
+    const { list, group } = lead ?? splitGroup(body, groups);
     const items = splitList(list).map(nameAndValue).filter((x): x is { name: string; value: number } => !!x).map((x) => ({ ...x, name: capitalize(x.name), type }));
     if (items.length) return { kind: "addItems", items, group };
   }

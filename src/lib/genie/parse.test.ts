@@ -30,6 +30,14 @@ describe("calculadora", () => {
 });
 
 describe("pedidos ao planejamento", () => {
+  it("grupo logo depois do verbo, sem a palavra grupo", () => {
+    expect(p("Vamos adicionar em CASA o item 20 - no valor de 38,50")).toMatchObject({ kind: "addItems", items: [{ name: "Item 20", value: 38.5 }], group: "CASA" });
+    expect(p("adicionar em casa mercado 38,50")).toMatchObject({ kind: "addItems", items: [{ name: "Mercado", value: 38.5 }], group: "casa" });
+    expect(p("adicionar o item 20 no grupo casa valor 38,50")).toMatchObject({ kind: "addItems", items: [{ name: "Item 20", value: 38.5 }] });
+    expect(p("coloca na casa aluguel 1800 e luz 200")).toMatchObject({ kind: "addItems", items: [{ name: "Aluguel", value: 1800 }, { name: "Luz", value: 200 }], group: "casa" });
+    expect(p("adicionar em casa mercado")).toMatchObject({ kind: "draftItem", name: "Mercado", group: "casa" });
+  });
+
   it("adiciona itens com valor e grupo, mantendo acentos", () => {
     expect(p("adicionar Netflix 55 e Spotify 21,90 em Assinaturas")).toEqual({
       kind: "addItems",
