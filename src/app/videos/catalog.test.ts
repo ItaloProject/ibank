@@ -24,6 +24,10 @@ describe("catálogo de vídeos", () => {
     expect(isQuick({ ...all[0], duration: "10:01" })).toBe(false);
   });
 
+  it("tem pelo menos 100 resumos rápidos", () => {
+    expect(all.filter(isQuick).length).toBeGreaterThanOrEqual(100);
+  });
+
   it("toda trilha tem resumos rápidos", () => {
     for (const t of TRACKS) expect(t.videos.filter(isQuick).length, t.title).toBeGreaterThanOrEqual(3);
   });
