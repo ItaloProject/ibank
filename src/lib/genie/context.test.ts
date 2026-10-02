@@ -25,6 +25,20 @@ describe("gasto real junto do planejado", () => {
       expect(parseGenie(s, G, 10), s).toEqual({ kind: "realMode", on: false });
     }
   });
+  it("foco em um grupo", () => {
+    const F = ["CASA", "CARTÃO", "VEÍCULO"];
+    for (const s of ["considere todos os próximos itens no cartão", "os próximos itens vão no cartão", "considere as próximas coisas no grupo cartão", "a partir de agora coloque tudo no cartão"]) {
+      expect(parseGenie(s, F, 10), s).toEqual({ kind: "focus", group: "CARTÃO" });
+    }
+    expect(parseGenie("considere os próximos itens no cartão como reais", F, 10)).toEqual({ kind: "focus", group: "CARTÃO", real: true });
+    expect(parseGenie("considere os próximos gastos do veículo como gasto real", F, 10)).toEqual({ kind: "focus", group: "VEÍCULO", real: true });
+    for (const s of ["sair do cartão", "pode parar com o cartão", "sair do grupo"]) {
+      expect(parseGenie(s, F, 10), s).toEqual({ kind: "focus", group: null });
+    }
+    expect(parseGenie("voltar ao normal", F, 10)).toEqual({ kind: "focus", group: null, reset: true });
+    expect(parseGenie("considere todos os gastos seguintes como reais", F, 10)).toEqual({ kind: "realMode", on: true });
+    expect(parseGenie("adicionar netflix 55 no cartão", F, 10)).toMatchObject({ kind: "addItems" });
+  });
   it("nome e valor sem verbo pedem confirmação do grupo", () => {
     expect(parseGenie("Netflix - 20,90", G, 10)).toEqual({ kind: "addItems", bare: true, group: null, items: [{ name: "Netflix", value: 20.9, type: null }] });
     expect(parseGenie("netflix 20,90 e spotify 22", G, 10)).toMatchObject({ bare: true, items: [{ name: "Netflix" }, { name: "Spotify" }] });

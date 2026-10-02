@@ -197,6 +197,7 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
           { label: "Ajustes", value: "muda aluguel para 1.900 · apagar Netflix" },
           { label: "Na sequência", value: "e o Spotify 22 · na verdade é 60 · mais 20 nele · coloque como real" },
           { label: "Gasto real", value: "considere os próximos como gasto real · voltar ao planejado" },
+          { label: "Um grupo só", value: "considere os próximos itens no cartão (como reais) · sair do cartão" },
           { label: "Renda", value: "recebi 800 de freela" },
           { label: "Planos", value: "quanto posso gastar por dia?" },
           { label: "Simulações", value: "500 por mês a 1% ao mês por 2 anos" },

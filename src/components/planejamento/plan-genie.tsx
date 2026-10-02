@@ -62,6 +62,10 @@ type Memory = {
   recent: "calc" | "action" | null;
 };
 
+/** Combinados que valem para os próximos pedidos: grupo em foco e gasto real (para todos ou só um grupo). */
+type Session = { group: string | null; real: boolean; realGroup: string | null };
+const NO_SESSION: Session = { group: null, real: false, realGroup: null };
+
 const GROUP_IDEAS = ["LAZER", "SAÚDE", "ASSINATURAS", "EDUCAÇÃO", "PETS", "VIAGEM", "FILHOS", "INVESTIMENTOS"];
 
 type Props = {
@@ -120,9 +124,14 @@ export function PlanGenie(props: Props) {
   const tapeRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mem = useRef<Memory>({ target: null, batch: [], group: null, last: null, income: null, recent: null });
-  const [realMode, setRealModeState] = useState(false);
-  const realRef = useRef(false);
-  const setRealMode = (on: boolean) => { realRef.current = on; setRealModeState(on); };
+  const [session, setSessionState] = useState<Session>(NO_SESSION);
+  const sessionRef = useRef<Session>(NO_SESSION);
+  const setSession = (s: Session) => { sessionRef.current = s; setSessionState(s); };
+  /** Lança como real quando o modo está ligado para todos ou para o grupo do item. */
+  const paidIn = (groupName: string | null, explicit?: boolean) => {
+    const s = sessionRef.current;
+    return !!explicit || (s.real && (!s.realGroup || (!!groupName && normalize(groupName) === normalize(s.realGroup))));
+  };
   const remember = (change: Partial<Memory>) => { mem.current = { ...mem.current, recent: "action", ...change }; };
   const [learned, setLearned] = useState<LearnedPhrase[]>([]);
   const learnedLoaded = useRef(false);
@@ -226,18 +235,19 @@ export function PlanGenie(props: Props) {
     return null;
   }
 
-  async function addItems(cmd: Extract<GenieCommand, { kind: "addItems" }>) {
-    const paid = !!cmd.paid || realRef.current;
+  async function addItems(input: Extract<GenieCommand, { kind: "addItems" }>) {
+    const focus = sessionRef.current.group;
+    const cmd = !input.group && focus && groups.some((g) => g.name === focus) ? { ...input, group: focus, bare: false } : input;
     if (!cmd.group && groups.length > 0) {
       const suggested = groups.find((g) => g.name === mem.current.group)?.name;
       if (cmd.bare || (suggested && groups.length > 1)) {
         const list = cmd.items.map((i) => `${i.name} (${money(i.value)})`).join(", ");
-        const how = paid ? " como planejado e gasto real" : "";
+        const how = paidIn(suggested ?? null, cmd.paid) ? " como planejado e gasto real" : "";
         push({
           id: uid(),
           role: "pick",
           prompt: suggested ? `Adicionar ${list} em ${suggested}${how}?` : `Em qual grupo coloco ${list}${how}?`,
-          cmd: { ...cmd, paid },
+          cmd,
           suggested,
         });
         return;
@@ -246,10 +256,11 @@ export function PlanGenie(props: Props) {
     const target = await resolveGroup(cmd.group);
     if (!target) {
       const names = cmd.items.map((i) => i.name).join(", ");
-      push({ id: uid(), role: "pick", prompt: `Em qual grupo coloco ${names}?`, cmd: { ...cmd, paid } });
+      push({ id: uid(), role: "pick", prompt: `Em qual grupo coloco ${names}?`, cmd });
       return;
     }
     const { group, created } = target;
+    const paid = paidIn(group.name, cmd.paid);
     const rows = await Promise.all(cmd.items.map((it) =>
       api<{ id: string }>("/api/plan-items", "POST", {
         user_id: userId, group_id: group.id, month,
@@ -580,10 +591,29 @@ export function PlanGenie(props: Props) {
       case "draftIncome":
         return ask({ kind: "incomeValue", description: cmd.description }, `Qual o valor${cmd.description ? ` de ${cmd.description}` : " da renda"}?`, cmd.description ? "Só o valor, por exemplo 5.000." : "Exemplo: 5.000 de salário.");
       case "realMode":
-        setRealMode(cmd.on);
+        setSession({ ...sessionRef.current, real: cmd.on, realGroup: null });
         return showAnswer(cmd.on
           ? { title: "Combinado: os próximos itens entram como planejado e gasto real.", note: "Para parar, diga \"voltar ao planejado\" ou toque em Parar, acima do campo." }
           : { title: "Pronto: os próximos itens entram só como planejado." });
+      case "focus": {
+        const s = sessionRef.current;
+        if (cmd.reset) {
+          setSession(NO_SESSION);
+          return showAnswer({ title: "De volta ao normal: sem grupo fixo e itens só como planejado." });
+        }
+        if (!cmd.group) {
+          setSession({ group: null, real: s.realGroup ? false : s.real, realGroup: null });
+          return showAnswer({ title: s.group ? `Saí de ${s.group}. Vou perguntar o grupo de novo.` : "Não havia grupo fixo." });
+        }
+        const found = findGroup(cmd.group, groupNames);
+        if (!found) return showAnswer({ title: `Não encontrei o grupo ${cmd.group}.`, note: "Crie antes com \"criar grupo " + cmd.group + "\"." });
+        setSession(cmd.real ? { group: found, real: true, realGroup: found } : { ...s, group: found });
+        remember({ group: found });
+        return showAnswer({
+          title: `Combinado: os próximos itens vão para ${found}${cmd.real ? " como planejado e gasto real" : ""}.`,
+          note: `É só mandar nome e valor, por exemplo "Netflix 55". Para sair, diga "sair de ${found.toLowerCase()}" ou toque em Parar.`,
+        });
+      }
       case "unknown": return notUnderstood(text);
       default: {
         const a = answer(cmd, snapshot);
@@ -870,13 +900,19 @@ export function PlanGenie(props: Props) {
               </p>
             </div>
 
-            {realMode && (
+            {(session.group || session.real) && (
               <div className="mx-3 mb-2 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1 pl-3 pr-1 text-xs">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
-                <span className="min-w-0 flex-1 font-medium">Itens novos entram como planejado e gasto real</span>
+                <span className="min-w-0 flex-1 font-medium">
+                  {!session.group
+                    ? "Itens novos entram como planejado e gasto real"
+                    : `Itens novos vão para ${session.group}${
+                      !session.real ? "" : !session.realGroup || session.realGroup === session.group ? ", como planejado e gasto real" : ` · gasto real só em ${session.realGroup}`
+                    }`}
+                </span>
                 <button
                   type="button"
-                  onClick={() => { setRealMode(false); showAnswer({ title: "Pronto: os próximos itens entram só como planejado." }); }}
+                  onClick={() => { setSession(NO_SESSION); showAnswer({ title: "De volta ao normal: sem grupo fixo e itens só como planejado." }); }}
                   className="min-h-9 shrink-0 rounded-lg px-3 font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   Parar

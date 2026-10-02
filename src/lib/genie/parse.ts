@@ -12,6 +12,11 @@ export type GenieCommand =
   | { kind: "addItems"; items: NewItem[]; group: string | null; paid?: boolean; bare?: boolean }
   /** "Considere os próximos gastos como reais": liga ou desliga lançar planejado e real juntos. */
   | { kind: "realMode"; on: boolean }
+  /**
+   * "Considere os próximos itens no cartão": itens sem grupo vão para ele; com "como reais", o gasto real vale só ali.
+   * `group: null` sai do foco; `reset` também desliga o gasto real.
+   */
+  | { kind: "focus"; group: string | null; real?: boolean; reset?: boolean }
   | { kind: "spend"; name: string; value: number | null; group: string | null; calc?: string }
   | { kind: "createGroups"; names: string[] }
   | { kind: "addIncome"; description: string; value: number }
@@ -285,8 +290,31 @@ const REAL_ON = /\b(?:reais|real)\b/;
 const REAL_ON_CUE = /^(?:considere|considera|considerar|trate|trata|tratar|lance|lanca|lancar|coloque|coloca|colocar|marque|marca|marcar|registre|registra|deixe|deixa|bota|bote|a partir de agora|daqui pra frente|daqui para frente|de agora em diante|agora|modo|tudo|todos|todas|os proximos|as proximas)\b/;
 const REAL_ON_SCOPE = /\b(?:tod[oa]s|tudo|seguintes|proxim[oa]s|a partir|daqui|agora|em diante|modo)\b/;
 
+const FOCUS_SCOPE = /\b(?:(?:tod[oa]s\s+)?(?:os\s+|as\s+)?(?:proxim[oa]s|seguintes)|a partir de agora|daqui (?:pra|para) frente|de agora em diante|ate eu (?:falar|dizer)|enquanto)\b/;
+const FOCUS_THINGS = /\b(?:itens|item|coisas|gastos|lancamentos|compras|contas|despesas)\b/;
+const FOCUS_OFF = /^(?:(?:pode\s+)?(?:parar|pare|para|chega|sair|sai|saia|solta|desliga|cancela|volta|voltar|volte|libera|libere)\b)/;
+
+/** Grupo existente citado em qualquer parte da frase: "no cartão", "do grupo casa". */
+function mentionedGroup(t: string, groups: string[]): string | null {
+  const byName = groups
+    .map((g) => [g, normalize(g).replace(/s$/, "")] as const)
+    .sort((a, b) => b[1].length - a[1].length)
+    .find(([, g]) => g.length >= 3 && new RegExp(String.raw`\b${g.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}s?\b`).test(t));
+  if (byName) return byName[0];
+  const m = t.match(/\bgrupo\s+(?:de\s+|do\s+|da\s+)?([a-z]+)/);
+  return m ? findGroup(m[1], groups) : null;
+}
+
 function parseRules(t: string, groups: string[], cdiAnual: number): GenieCommand {
   if (/^(ajuda|help|o que (voce|vc) faz|o que (voce|vc) sabe( fazer)?|comandos|exemplos|como (te )?uso|como funciona)$/.test(t)) return { kind: "help" };
+  if (!/\d/.test(t)) {
+    if (/^(?:volta|voltar|volte)\s+(?:ao|pro|para o)\s+normal$|^modo normal$/.test(t)) return { kind: "focus", group: null, reset: true };
+    const g = mentionedGroup(t, groups);
+    if (FOCUS_OFF.test(t) && (g || /\b(?:grupo|foco)\b/.test(t)) && !REAL_ON.test(t)) return { kind: "focus", group: null };
+    if (g && FOCUS_SCOPE.test(t) && (FOCUS_THINGS.test(t) || REAL_ON.test(t) || /\b(?:considere|considera|coloque|coloca|lance|lanca|joga|jogue|bota|bote)\b/.test(t))) {
+      return REAL_ON.test(t) ? { kind: "focus", group: g, real: true } : { kind: "focus", group: g };
+    }
+  }
   if (REAL_OFF.test(t)) return { kind: "realMode", on: false };
   if (REAL_ON.test(t) && REAL_ON_CUE.test(t) && REAL_ON_SCOPE.test(t) && !/\d/.test(t)) return { kind: "realMode", on: true };
   if (/^(?:(?:coloca|coloque|lanca|lance|marca|marque|deixa|deixe)\s+)?(?:como\s+)?(?:(?:planejado\s+e\s+)?(?:gasto|valor)\s+)?(?:real|reais)$/.test(t) && t !== "real" && t !== "reais") return { kind: "realMode", on: true };
