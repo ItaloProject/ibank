@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowUp, Calculator, Check, Copy, Delete, Loader2, Undo2, X } from "lucide-react";
+import { ArrowUp, Calculator, Check, Copy, Delete, Loader2, Trash2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
@@ -156,6 +156,35 @@ export function PlanGenie(props: Props) {
   const learnedLoaded = useRef(false);
   /** Último pedido não entendido, para aprender se a próxima mensagem o reformular. */
   const missRef = useRef<{ text: string; at: number } | null>(null);
+
+  // Conversa e combinados salvos no navegador, por pessoa e mês; Desfazer e confirmações não sobrevivem à recarga.
+  const storeKey = `muvo-genio:${userId}:${month}`;
+  const [hydratedKey, setHydratedKey] = useState<string | null>(null);
+  useEffect(() => {
+    let saved: { msgs?: Msg[]; session?: Partial<Session>; mem?: Partial<Memory>; pending?: Pending | null } | null = null;
+    try { saved = JSON.parse(localStorage.getItem(storeKey) ?? "null"); } catch { saved = null; }
+    setMsgs((saved?.msgs ?? []).map((m) => (m.role === "confirm" && !m.done ? { ...m, done: true } : m)));
+    setSession({ ...NO_SESSION, ...saved?.session });
+    mem.current = { target: null, batch: [], group: null, last: null, ...saved?.mem, income: null, recent: null };
+    setPending(saved?.pending ?? null);
+    setHydratedKey(storeKey);
+  }, [storeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (hydratedKey !== storeKey) return;
+    const { income: _income, ...memToSave } = mem.current;
+    try {
+      localStorage.setItem(storeKey, JSON.stringify({ msgs: msgs.slice(-60), session, mem: memToSave, pending }));
+    } catch { /* armazenamento cheio ou bloqueado: a conversa segue só na tela */ }
+  }, [msgs, session, pending, hydratedKey, storeKey]);
+
+  function clearChat() {
+    setMsgs([]);
+    setPending(null);
+    setLast(null);
+    setSession(NO_SESSION);
+    mem.current = { target: null, batch: [], group: null, last: null, income: null, recent: null };
+    try { localStorage.removeItem(storeKey); } catch { /* sem armazenamento */ }
+  }
 
   useEffect(() => {
     if (!open || learnedLoaded.current) return;
@@ -915,6 +944,18 @@ export function PlanGenie(props: Props) {
                 <p className="font-display text-lg font-medium leading-tight tracking-tight">Muvo Gênio</p>
                 <p className="truncate text-[11px] text-muted-foreground">Calcula e organiza <span className="capitalize">{monthLabel}</span></p>
               </div>
+              {msgs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearChat}
+                  disabled={busy}
+                  aria-label="Limpar conversa"
+                  title="Limpar conversa"
+                  className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setOpen(false)}
