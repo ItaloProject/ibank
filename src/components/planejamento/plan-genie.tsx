@@ -713,7 +713,7 @@ export function PlanGenie(props: Props) {
             <div ref={tapeRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2.5" aria-live="polite">
               {msgs.length === 0 ? (
                 <div className="flex flex-col items-center pt-2 text-center">
-                  <Image src="/bot/muvo-genio-full.webp" alt="Mascote do MUVO Gênio: um rato de óculos escuros e jaqueta" width={720} height={756} className="h-36 w-auto select-none" />
+                  <Image src="/bot/muvo-genio-full.webp" alt="Mascote do MUVO Gênio: um rato de óculos escuros e terno saindo de uma lâmpada mágica" width={720} height={931} className="h-40 w-auto select-none" />
                   <p className="mt-3 font-display text-lg font-black tracking-tight">Peça uma conta ou uma mudança</p>
                   <p className="mt-1 max-w-[30ch] text-xs text-muted-foreground">Eu faço contas, simulo juros e parcelas, e mexo no seu planejamento por texto. Tudo que eu mudar tem Desfazer.</p>
                   <div className="mt-4 flex flex-wrap justify-center gap-1.5">
