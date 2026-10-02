@@ -5,7 +5,7 @@ import { feedbackText } from "@/lib/bot-feedback";
 
 export const dynamic = "force-dynamic";
 
-/** Pedido que o MUVO Gênio não entendeu, para ensinar novas frases. Aparece em GET /api/bot/feedback. */
+/** Pedido que o Muvo Gênio não entendeu, para ensinar novas frases. Aparece em GET /api/bot/feedback. */
 export async function POST(request: Request) {
   const auth = await requireUserId();
   if (auth instanceof NextResponse) return auth;

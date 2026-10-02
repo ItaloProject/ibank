@@ -4,7 +4,7 @@ import { deletePhrase, listPhrases, parsePhrase, savePhrase } from "@/lib/server
 
 export const dynamic = "force-dynamic";
 
-/** Frases que o MUVO Gênio aprendeu com a pessoa logada. */
+/** Frases que o Muvo Gênio aprendeu com a pessoa logada. */
 export async function GET() {
   const auth = await requireUserId();
   if (auth instanceof NextResponse) return auth;

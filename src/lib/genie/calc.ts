@@ -1,5 +1,5 @@
 /**
- * Calculadora do MUVO Gênio: números no formato brasileiro, porcentagem e operações por extenso,
+ * Calculadora do Muvo Gênio: números no formato brasileiro, porcentagem e operações por extenso,
  * sem eval. "15% de 3000" = 450; "3000 + 10%" = 3300; "1.500,50 x 2" = 3001.
  */
 

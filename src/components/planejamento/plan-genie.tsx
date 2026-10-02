@@ -658,7 +658,7 @@ export function PlanGenie(props: Props) {
       <motion.button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Fechar MUVO Gênio" : "Abrir MUVO Gênio, a calculadora do planejamento"}
+        aria-label={open ? "Fechar Muvo Gênio" : "Abrir Muvo Gênio, a calculadora do planejamento"}
         aria-expanded={open}
         initial={reduced ? false : { scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -672,14 +672,14 @@ export function PlanGenie(props: Props) {
       >
         {open
           ? <X className="h-6 w-6 text-black" aria-hidden="true" />
-          : <Image src="/bot/muvo-genio.webp" alt="" width={56} height={56} className="h-full w-full object-cover" priority />}
+          : <Image src="/bot/genio-lampada.webp" alt="" width={56} height={56} className="h-full w-full object-cover" priority />}
       </motion.button>
 
       <AnimatePresence>
         {open && (
           <motion.section
             role="dialog"
-            aria-label="MUVO Gênio"
+            aria-label="Muvo Gênio"
             initial={reduced ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.98 }}
@@ -693,10 +693,10 @@ export function PlanGenie(props: Props) {
             {/* Cabeçalho */}
             <header className="flex items-center gap-3 border-b px-4 py-3">
               <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-foreground bg-white">
-                <Image src="/bot/muvo-genio.webp" alt="" width={40} height={40} className="h-full w-full object-cover" />
+                <Image src="/bot/genio-lampada.webp" alt="" width={40} height={40} className="h-full w-full object-cover" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-display text-base font-black leading-tight tracking-tight">MUVO Gênio</p>
+                <p className="font-display text-lg font-medium leading-tight tracking-tight">Muvo Gênio</p>
                 <p className="truncate text-[11px] text-muted-foreground">Calcula e organiza <span className="capitalize">{monthLabel}</span></p>
               </div>
               <button
@@ -713,7 +713,7 @@ export function PlanGenie(props: Props) {
             <div ref={tapeRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2.5" aria-live="polite">
               {msgs.length === 0 ? (
                 <div className="flex flex-col items-center pt-2 text-center">
-                  <Image src="/bot/muvo-genio-full.webp" alt="Mascote do MUVO Gênio: um rato de óculos escuros e terno saindo de uma lâmpada mágica" width={720} height={931} className="h-40 w-auto select-none" />
+                  <Image src="/bot/genio-lampada-full.webp" alt="Mascote do Muvo Gênio: um rato de óculos escuros e terno saindo de uma lâmpada mágica" width={720} height={931} className="h-40 w-auto select-none" />
                   <p className="mt-3 font-display text-lg font-black tracking-tight">Peça uma conta ou uma mudança</p>
                   <p className="mt-1 max-w-[30ch] text-xs text-muted-foreground">Eu faço contas, simulo juros e parcelas, e mexo no seu planejamento por texto. Tudo que eu mudar tem Desfazer.</p>
                   <div className="mt-4 flex flex-wrap justify-center gap-1.5">
@@ -823,7 +823,7 @@ export function PlanGenie(props: Props) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={pending ? "Responda aqui…" : last ? "Continue a conta: + 10%, × 12…" : "Conta ou pedido…"}
-                aria-label="Conta ou pedido para o MUVO Gênio"
+                aria-label="Conta ou pedido para o Muvo Gênio"
                 enterKeyHint="send"
                 autoComplete="off"
                 className="h-11 min-w-0 flex-1 rounded-full border bg-muted/30 px-4 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-foreground/40"
@@ -898,7 +898,7 @@ function MessageView({
       return (
         <div className="flex gap-2">
           <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border bg-white">
-            <Image src="/bot/muvo-genio.webp" alt="" width={28} height={28} className="h-full w-full object-cover" />
+            <Image src="/bot/genio-lampada.webp" alt="" width={28} height={28} className="h-full w-full object-cover" />
           </div>
           <div className={cn("min-w-0 flex-1 rounded-2xl rounded-tl-md border px-3.5 py-2.5", active && "border-foreground/40")}>
             <p className="text-sm font-semibold">{msg.prompt}</p>

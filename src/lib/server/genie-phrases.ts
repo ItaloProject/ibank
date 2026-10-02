@@ -6,7 +6,7 @@ const MAX_LEN = 300;
 
 let ensured = false;
 
-/** Frases que o MUVO Gênio aprendeu com cada pessoa, uma tabela criada uma vez por processo. */
+/** Frases que o Muvo Gênio aprendeu com cada pessoa, uma tabela criada uma vez por processo. */
 async function ensureGeniePhrasesTable() {
   if (ensured) return;
   await sql`
