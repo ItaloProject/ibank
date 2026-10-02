@@ -1,6 +1,7 @@
 import { NUMBER_RE, evaluate, foldMath, looksLikeMath, mathBody, normalize, parseNumber } from "./calc";
 import { fixTypos, similar } from "./fuzzy";
 import { INTENT_VERBS, canonicalize, extractSlots, guessIntent, type Intent } from "./translate";
+import { chatTopic, type ChatTopic } from "./chat";
 
 export type ItemType = "fixo" | "variavel";
 /** `calc`: a conta que o pedido trazia, como "1,19 + 34,01", para o Gênio mostrar de onde veio o valor. */
@@ -20,7 +21,7 @@ export type GenieCommand =
   | { kind: "spend"; name: string; value: number | null; group: string | null; calc?: string }
   | { kind: "createGroups"; names: string[] }
   | { kind: "addIncome"; description: string; value: number }
-  | { kind: "query"; topic: "sobra" | "dia" | "gasto" | "renda" | "fixos" | "maiores" | "estourados" | "resumo"; target: string | null }
+  | { kind: "query"; topic: "sobra" | "dia" | "gasto" | "renda" | "fixos" | "maiores" | "estourados" | "resumo" | "dicas"; target: string | null }
   | { kind: "cut"; pct: number | null; value: number | null; target: string }
   | { kind: "save"; total: number; months: number | null; monthly: number | null }
   | { kind: "compound"; monthly: number; initial: number; rateMonth: number; months: number; rateLabel: string }
@@ -32,6 +33,8 @@ export type GenieCommand =
   | { kind: "draftIncome"; description: string | null }
   | { kind: "draftSpend"; name: string; group: string | null }
   | { kind: "help" }
+  /** Conversa simples ("oi", "interessante", "obrigado"). */
+  | { kind: "chat"; topic: ChatTopic }
   | { kind: "unknown" };
 
 const N = NUMBER_RE;
@@ -223,6 +226,8 @@ export function parseGenie(input: string, groups: string[], cdiAnual: number): G
   const orig = raw.normalize("NFC").replace(/\s+/g, " ").trim();
   const t = normalize(raw).replace(/[?!.]+$/, "").trim();
   if (!t) return { kind: "unknown" };
+  const topic = chatTopic(raw);
+  if (topic) return { kind: "chat", topic };
   /** Trecho original (com acentos e maiúsculas) do fragmento normalizado. */
   const recover = (frag: string) => {
     const i = t.indexOf(frag);
@@ -498,6 +503,7 @@ function parseRules(t: string, groups: string[], cdiAnual: number): GenieCommand
   }
 
   // Consultas ao planejamento
+  if (!/\d/.test(t) && /\b(?:dicas?|conselhos?|sugest(?:ao|oes)|como (?:posso |devo |faco para |faco pra )?(?:economizar|poupar|guardar dinheiro|gastar menos|sobrar mais)|economizar mais|gastar menos|o que (?:eu )?(?:faco|fazer|devo fazer) com (?:a |minha |essa |o que )?(?:sobra|sobrou|sobrar)|onde (?:coloco|colocar|invisto|investir|guardo|guardar) (?:a |minha )?sobra|reserva de emergencia)\b|^(?:economizar|poupar|gastar menos)$/.test(t)) return { kind: "query", topic: "dicas", target: null };
   if (/por dia|diari|por semana/.test(t) && /(gastar|posso|sobra|tenho)/.test(t)) return { kind: "query", topic: "dia", target: null };
   if (/sobr|saldo do mes|quanto (ainda )?(tenho|resta)|quanto fica livre/.test(t)) return { kind: "query", topic: "sobra", target: null };
   if (/maior(es)? gast|onde (mais )?gasto|gastando mais|top gastos/.test(t)) return { kind: "query", topic: "maiores", target: null };

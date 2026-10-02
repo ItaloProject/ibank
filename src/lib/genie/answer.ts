@@ -1,6 +1,8 @@
 import { normalize } from "./calc";
 import { similar } from "./fuzzy";
 import { findGroup, type GenieCommand, type ItemType } from "./parse";
+import { chatReply } from "./chat";
+import { FALLBACK_CDI } from "@/lib/investment-rates";
 
 export type PlanItem = { id: string; name: string; groupId: string; type: ItemType; planned: number; actual: number };
 export type PlanGroup = { id: string; name: string };
@@ -25,6 +27,8 @@ export type GenieAnswer = {
   note?: string;
   /** Valor numérico do resultado, reaproveitado em contas seguintes. */
   raw?: number;
+  /** Próximos pedidos sugeridos, mostrados como botões na última resposta. */
+  chips?: string[];
 };
 
 export const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -186,6 +190,9 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
     case "query":
       return query(cmd.topic, cmd.target, s, t);
 
+    case "chat":
+      return chatReply(cmd.topic);
+
     case "help":
       return {
         title: "Eu calculo e organizo seu mês",
@@ -307,6 +314,9 @@ function query(topic: Extract<GenieCommand, { kind: "query" }>["topic"], target:
       };
     }
 
+    case "dicas":
+      return tips(s, t);
+
     case "resumo":
       return {
         title: `Resumo de ${s.monthLabel}`,
@@ -321,4 +331,74 @@ function query(topic: Extract<GenieCommand, { kind: "query" }>["topic"], target:
         note: s.salary ? (t.sobra >= 0 ? "O número grande é a sobra até agora." : "O número grande é quanto passou da renda.") : undefined,
       };
   }
+}
+
+/** Dicas tiradas só do planejamento do mês, calculadas no aparelho. */
+function tips(s: PlanSnapshot, t: ReturnType<typeof totals>): GenieAnswer {
+  if (!s.salary) {
+    return {
+      title: "Para dar dicas, preciso da sua renda do mês",
+      note: "Toque em \"Renda do mês\" no topo, ou escreva por exemplo \"recebi 5.000 de salário\".",
+    };
+  }
+  const lines: GenieLine[] = [];
+  const { days, current } = daysLeft(s);
+  const pending = s.items.reduce((sum, i) => sum + Math.max(0, i.planned - i.actual), 0);
+  const free = t.sobra - pending;
+  if (free > 0) {
+    const perDay = round2(free / days);
+    lines.push({ label: "Gasto do dia", value: `Até ${money(perDay)} por dia${current ? " até o fim do mês" : ""}. O que não usar num dia vira sobra.` });
+  } else if (s.items.length) {
+    lines.push({ label: "Atenção", value: `O que falta pagar (${money(pending)}) já consome a sobra. Segure os gastos variáveis até o mês fechar.`, tone: "bad" });
+  }
+
+  const over = s.items.filter((i) => i.planned > 0 && i.actual > i.planned).sort((a, b) => (b.actual - b.planned) - (a.actual - a.planned));
+  if (over.length) {
+    const names = over.slice(0, 2).map((i) => i.name).join(" e ");
+    const extra = over.reduce((sum, i) => sum + i.actual - i.planned, 0);
+    lines.push({ label: "Passou do planejado", value: `${names}${over.length > 2 ? ` e mais ${over.length - 2}` : ""}: ${money(extra)} acima. Ajuste o planejado ou compense em outro item.`, tone: "bad" });
+  }
+
+  if (t.sobraPlanned < 0) {
+    lines.push({ label: "Planejado", value: `O planejado passa da renda em ${money(-t.sobraPlanned)}. Comece cortando os gastos variáveis.`, tone: "bad" });
+  }
+
+  if (t.fixoPlanned / s.salary > 0.5) {
+    lines.push({ label: "Fixos", value: `Os fixos levam ${plain((t.fixoPlanned / s.salary) * 100)}% da renda. Renegociar um plano, seguro ou assinatura rende todo mês.` });
+  }
+
+  const topVar = [...s.items].filter((i) => i.type === "variavel").sort((a, b) => (b.planned || b.actual) - (a.planned || a.actual))[0];
+  const topBase = topVar ? topVar.planned || topVar.actual : 0;
+  if (topVar && topBase >= 50) {
+    const cut = round2(topBase * 0.1);
+    lines.push({ label: "Corte pequeno", value: `Cortar 10% de ${topVar.name} libera ${money(cut)} por mês, ${money(cut * 12)} em um ano.` });
+  }
+
+  if (t.sobraPlanned > 0) {
+    const monthlyCost = t.planned || t.actual;
+    if (monthlyCost > 0) {
+      const reserve = round2(monthlyCost * 6);
+      const n = Math.ceil(reserve / t.sobraPlanned);
+      lines.push({
+        label: "Reserva de emergência",
+        value: n <= 120
+          ? `Seis meses de gastos dão ${money(reserve)}. Guardando a sobra planejada todo mês, você chega lá em ${months(n)}.`
+          : `Seis meses de gastos dão ${money(reserve)}. Com a sobra de hoje levaria mais de 10 anos: vale aumentar a sobra antes.`,
+      });
+    }
+    const rateMonth = Math.pow(1 + FALLBACK_CDI / 100, 1 / 12) - 1;
+    const year = compound(0, t.sobraPlanned, rateMonth, 12);
+    lines.push({ label: "Investir a sobra", value: `Guardar ${money(t.sobraPlanned)} por mês a 100% do CDI vira cerca de ${money(year.fv)} em um ano, ${money(year.interest)} só de rendimento.`, tone: "good" });
+  }
+
+  if (!lines.length) {
+    lines.push({ label: "Comece por aqui", value: "Lance os itens do mês, como aluguel, mercado e contas, para eu calcular dicas com os seus números." });
+  }
+
+  return {
+    title: `Dicas com os seus números de ${s.monthLabel}`,
+    lines: lines.slice(0, 5),
+    note: "Calculado aqui no aparelho com o seu planejamento. Rendimento estimado sem Imposto de Renda.",
+    chips: ["se eu cortar 10% dos variáveis?", "onde mais gasto?", "quanto posso gastar por dia?"],
+  };
 }

@@ -61,13 +61,23 @@ export async function recentDislikes(userId: string, limit = 3): Promise<{ pergu
 }
 
 /** Registra um uso e diz se ainda está dentro do limite diário. */
-export async function consumeDailyQuota(userId: string, kind: "chat" | "whatsapp" | "feedback", limit: number): Promise<boolean> {
+export async function consumeDailyQuota(
+  userId: string,
+  kind: "chat" | "whatsapp" | "feedback" | "search",
+  limit: number,
+  /** Teto somando todos os usuários, para serviços com cota gratuita única. */
+  totalLimit?: number,
+): Promise<boolean> {
   await ensureBotSchema();
   const rows = await sql`
     SELECT COUNT(*)::int AS n FROM bot_usage
     WHERE user_id = ${userId} AND kind = ${kind} AND created_at > NOW() - INTERVAL '24 hours'
   `;
   if (Number(rows[0]?.n ?? 0) >= limit) return false;
+  if (totalLimit !== undefined) {
+    const all = await sql`SELECT COUNT(*)::int AS n FROM bot_usage WHERE kind = ${kind} AND created_at > NOW() - INTERVAL '24 hours'`;
+    if (Number(all[0]?.n ?? 0) >= totalLimit) return false;
+  }
   await sql`INSERT INTO bot_usage (user_id, kind) VALUES (${userId}, ${kind})`;
   return true;
 }

@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowUp, Calculator, Check, Copy, Delete, Loader2, Trash2, Undo2, X } from "lucide-react";
+import { ArrowUp, Calculator, Check, Copy, Delete, ExternalLink, Loader2, Sparkles, Trash2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
 import { normalize } from "@/lib/genie/calc";
 import { findGroup, parseGenie, type GenieCommand, type ItemType } from "@/lib/genie/parse";
 import { followUp, type GenieMemory } from "@/lib/genie/context";
+import { buildSearchQuery, looksLikeWebQuestion } from "@/lib/genie/chat";
 import { suggest } from "@/lib/genie/suggest";
 import { applyLearned, looksLikeRephrase, toTemplate, type LearnedPhrase } from "@/lib/genie/learn";
 import { answer, findItem, guessType, money, plain, type GenieAnswer, type PlanSnapshot } from "@/lib/genie/answer";
@@ -35,6 +36,8 @@ type Msg =
   | { id: string; role: "realAsk"; group: string; batch: Target[]; done?: "these" | "always" | "no" | "moved" }
   | { id: string; role: "confirm"; title: string; detail: string; label: string; run: () => Promise<void>; done?: boolean }
   | { id: string; role: "learned"; said: string; means: string; phrase: string; forgotten?: boolean }
+  /** Visão geral da web para perguntas gerais; `query` é o que foi pesquisado. */
+  | { id: string; role: "web"; query: string; answer: string; sources: { title: string; url: string }[] }
   | { id: string; role: "error"; text: string };
 
 /** O que o Gênio perguntou e espera na próxima mensagem. */
@@ -628,18 +631,38 @@ export function PlanGenie(props: Props) {
   }
 
   /** Pedido fora do que o Gênio sabe: registra a frase para ensinar depois e mostra exemplos. */
-  function notUnderstood(text: string) {
-    missRef.current = { text, at: Date.now() };
+  function logMiss(text: string, fallback: string) {
     void fetch("/api/genie/miss", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, fallback: "ajuda" }),
+      body: JSON.stringify({ text, fallback }),
     }).catch(() => {});
+  }
+
+  function notUnderstood(text: string, title = "Ainda não sei fazer isso. Tente assim:") {
+    missRef.current = { text, at: Date.now() };
+    logMiss(text, "ajuda");
     showAnswer({
       ...answer({ kind: "help" }, snapshot)!,
-      title: "Ainda não sei fazer isso. Tente assim:",
+      title,
       note: "Escreva de outro jeito: se eu entender, aprendo que as duas frases querem dizer a mesma coisa.",
     });
+  }
+
+  /** Pergunta geral: busca a Visão geral na web. Só o texto da pergunta sai do aparelho, nunca os valores do planejamento. */
+  async function searchWeb(text: string) {
+    const prev = [...msgs].reverse().find((m): m is Extract<Msg, { role: "web" }> => m.role === "web");
+    const res = await fetch("/api/genie/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, context: prev?.query ?? null }),
+    }).catch(() => null);
+    const data = res?.ok ? ((await res.json().catch(() => null)) as { answer?: string; sources?: { title: string; url: string }[] } | null) : null;
+    if (!data?.answer) {
+      return notUnderstood(text, res?.status === 429 ? "A pesquisa na web chegou ao limite de hoje. Enquanto isso, tente assim:" : undefined);
+    }
+    logMiss(text, "web");
+    push({ id: uid(), role: "web", query: buildSearchQuery(text, prev?.query ?? null), answer: data.answer, sources: data.sources ?? [] });
   }
 
   async function remove(cmd: Extract<GenieCommand, { kind: "remove" }>) {
@@ -773,7 +796,7 @@ export function PlanGenie(props: Props) {
         if (shouldAskReal(found)) askReal(found, []);
         return;
       }
-      case "unknown": return notUnderstood(text);
+      case "unknown": return looksLikeWebQuestion(text) ? searchWeb(text) : notUnderstood(text);
       default: {
         const a = answer(cmd, snapshot);
         if (a) showAnswer(a);
@@ -786,7 +809,7 @@ export function PlanGenie(props: Props) {
     const value = cmd.kind === "calc" ? asInput(cmd.value) : text;
     const inGroup = (g: string | null) => (g ? ` em ${g}` : "");
     switch (p.kind) {
-      case "groupName": return cmd.kind === "unknown" ? `criar grupo ${text}` : null;
+      case "groupName": return cmd.kind === "unknown" || cmd.kind === "chat" ? `criar grupo ${text}` : null;
       case "item": return cmd.kind === "unknown" || cmd.kind === "addItems" ? `adicionar ${text}${cmd.kind === "addItems" && cmd.group ? "" : inGroup(p.group)}` : null;
       case "itemValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `adicionar ${p.name} ${value}${inGroup(p.group)}` : null;
       case "spendValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `gastei ${value} em ${p.name}${inGroup(p.group)}` : null;
@@ -863,7 +886,7 @@ export function PlanGenie(props: Props) {
         if (joined) cmd = parseGenie(joined, groupNames, FALLBACK_CDI);
       }
       await run(cmd, text);
-      const understood = cmd.kind !== "unknown" && cmd.kind !== "help";
+      const understood = cmd.kind !== "unknown" && cmd.kind !== "help" && cmd.kind !== "chat";
       if (miss && understood && !pending && !fromLearned && Date.now() - miss.at < 3 * 60_000 && looksLikeRephrase(miss.text, said)) {
         learn(miss.text, said);
       }
@@ -1054,7 +1077,7 @@ export function PlanGenie(props: Props) {
                       msg={m}
                       groups={groups}
                       busy={busy}
-                      active={!!pending && m.id === lastAskId}
+                      active={m.role === "ask" ? !!pending && m.id === lastAskId : m.id === msgs[msgs.length - 1]?.id}
                       onPick={pickGroup}
                       onCancel={(p) => patch(p.id, { done: true, cancelled: true })}
                       onReal={realClick}
@@ -1364,9 +1387,58 @@ function MessageView({
             );
           })()}
           {a.note && <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">{a.note}</p>}
+          {active && a.chips && a.chips.length > 0 && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {a.chips.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onChip(c)}
+                  className="min-h-9 rounded-full border px-3 text-xs font-semibold transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
+
+    case "web":
+      return (
+        <div className="rounded-2xl border px-3.5 py-3">
+          <p className="flex items-center gap-1.5 text-xs font-semibold">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            Visão geral criada por inteligência artificial
+          </p>
+          <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed [overflow-wrap:anywhere]">{msg.answer}</p>
+          {msg.sources.length > 0 && (
+            <div className="mt-2.5 border-t pt-2">
+              <p className="text-[11px] text-muted-foreground">Fontes</p>
+              <ul className="mt-1 space-y-1">
+                {msg.sources.map((s) => (
+                  <li key={s.url}>
+                    <a
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-7 max-w-full items-center gap-1.5 text-xs font-medium underline-offset-2 hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                      <span className="truncate">{s.title}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+            Pesquisado na web: pode conter erros. Só a pergunta foi enviada, nenhum valor do seu planejamento.
+          </p>
+        </div>
+      );
 
     case "action":
       return (
