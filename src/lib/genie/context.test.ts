@@ -21,6 +21,10 @@ describe("gasto real junto do planejado", () => {
     for (const s of ["Considere todos os gastos seguintes como reais.", "a partir de agora tudo como real", "lance os próximos como gasto real", "modo real", "gasto real", "coloque como real"]) {
       expect(parseGenie(s, G, 10), s).toEqual({ kind: "realMode", on: true });
     }
+    for (const s of ["Considere também os itens como gasto real.", "considere os itens como reais", "lance as compras como gasto real"]) {
+      expect(parseGenie(s, G, 10), s).toEqual({ kind: "realMode", on: true });
+    }
+    expect(followUp("coloca os itens como real", MEM)).toEqual({ kind: "paid" });
     for (const s of ["pare de lançar como real", "voltar ao planejado", "só planejado"]) {
       expect(parseGenie(s, G, 10), s).toEqual({ kind: "realMode", on: false });
     }

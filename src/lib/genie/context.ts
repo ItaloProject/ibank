@@ -19,7 +19,7 @@ export type FollowUp =
 
 const N = NUMBER_RE;
 
-const PAID_ALONE = /^(?:(?:coloca|coloque|bota|bote|poe|marca|marque|lanca|lance|deixa|deixe|adiciona|adicione|salva|salve)\s+)?(?:(?:isso|ele|ela|eles|elas|esse|essa|esses|essas|os dois|todos|tambem|ja)\s+)*(?:(?:como|no|em)\s+(?:o\s+)?(?:(?:planejado|previsto)\s+e\s+)?(?:gasto\s+|valor\s+)?real|(?:gasto|valor)\s+real|(?:como\s+)?planejado\s+e\s+real|(?:ja\s+)?(?:foi\s+|foram\s+)?(?:pag[oa]s?)|ja\s+paguei|paguei)(?:\s+(?:tambem|ja))?$/;
+const PAID_ALONE = /^(?:(?:coloca|coloque|bota|bote|poe|marca|marque|lanca|lance|deixa|deixe|adiciona|adicione|salva|salve)\s+)?(?:(?:isso|ele|ela|eles|elas|esse|essa|esses|essas|os dois|todos|tambem|ja|(?:os|esses|estes) itens|o item|esse item)\s+)*(?:(?:como|no|em)\s+(?:o\s+)?(?:(?:planejado|previsto)\s+e\s+)?(?:gasto\s+|valor\s+)?real|(?:gasto|valor)\s+real|(?:como\s+)?planejado\s+e\s+real|(?:ja\s+)?(?:foi\s+|foram\s+)?(?:pag[oa]s?)|ja\s+paguei|paguei)(?:\s+(?:tambem|ja))?$/;
 
 /** Reescreve pedidos que dependem do que veio antes; null se a frase se sustenta sozinha. */
 export function followUp(raw: string, mem: GenieMemory): FollowUp | null {

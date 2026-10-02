@@ -590,11 +590,16 @@ export function PlanGenie(props: Props) {
         return ask({ kind: "spendValue", name: cmd.name, group: cmd.group }, `Quanto você gastou em ${cmd.name}?`, "Só o valor, por exemplo 80.");
       case "draftIncome":
         return ask({ kind: "incomeValue", description: cmd.description }, `Qual o valor${cmd.description ? ` de ${cmd.description}` : " da renda"}?`, cmd.description ? "Só o valor, por exemplo 5.000." : "Exemplo: 5.000 de salário.");
-      case "realMode":
-        setSession({ ...sessionRef.current, real: cmd.on, realGroup: null });
+      case "realMode": {
+        const focus = sessionRef.current.group;
+        setSession({ ...sessionRef.current, real: cmd.on, realGroup: cmd.on ? focus : null });
         return showAnswer(cmd.on
-          ? { title: "Combinado: os próximos itens entram como planejado e gasto real.", note: "Para parar, diga \"voltar ao planejado\" ou toque em Parar, acima do campo." }
+          ? {
+            title: `Combinado: os próximos itens${focus ? ` de ${focus}` : ""} entram como planejado e gasto real.`,
+            note: "Para parar, diga \"voltar ao planejado\" ou toque em Parar, acima do campo.",
+          }
           : { title: "Pronto: os próximos itens entram só como planejado." });
+      }
       case "focus": {
         const s = sessionRef.current;
         if (cmd.reset) {
@@ -824,7 +829,7 @@ export function PlanGenie(props: Props) {
             </header>
 
             {/* Fita de cálculos e conversas */}
-            <div ref={tapeRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2.5" aria-live="polite">
+            <div ref={tapeRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-2.5" aria-live="polite">
               {msgs.length === 0 ? (
                 <div className="flex flex-col items-center pt-2 text-center">
                   <Image src="/bot/genio-lampada-full.webp" alt="Mascote do Muvo Gênio: um rato de óculos escuros e terno saindo de uma lâmpada mágica" width={720} height={931} className="h-40 w-auto select-none" />
@@ -1081,7 +1086,7 @@ function MessageView({
     case "user":
       return (
         <div className="flex justify-end">
-          <p className="max-w-[85%] rounded-2xl rounded-br-md bg-muted px-3 py-2 text-sm">{msg.text}</p>
+          <p className="max-w-[85%] rounded-2xl rounded-br-md bg-muted px-3 py-2 text-sm [overflow-wrap:anywhere]">{msg.text}</p>
         </div>
       );
 
@@ -1092,20 +1097,24 @@ function MessageView({
         <div className="rounded-2xl border px-3.5 py-3">
           <p className="text-xs text-muted-foreground">{a.title}</p>
           {a.value && <p className={cn("mt-0.5 font-display text-2xl font-black tabular-nums tracking-tight", toneText)}>{a.value}</p>}
-          {a.lines && a.lines.length > 0 && (
-            <dl className="mt-2 space-y-1 border-t pt-2">
-              {a.lines.map((l, i) => (
-                <div key={i} className="flex items-baseline justify-between gap-3 text-xs">
-                  <dt className="min-w-0 text-muted-foreground">{l.label}</dt>
-                  <dd className={cn(
-                    "shrink-0 text-right font-semibold tabular-nums",
-                    l.tone === "good" && "text-green-600 dark:text-green-400",
-                    l.tone === "bad" && "text-destructive",
-                  )}>{l.value}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
+          {a.lines && a.lines.length > 0 && (() => {
+            const stacked = a.lines.some((l) => l.value.length > 28);
+            return (
+              <dl className={cn("mt-2 border-t pt-2", stacked ? "space-y-2" : "space-y-1")}>
+                {a.lines.map((l, i) => (
+                  <div key={i} className={cn("text-xs", stacked ? "flex flex-col gap-0.5" : "flex items-baseline justify-between gap-3")}>
+                    <dt className={cn("text-muted-foreground", stacked ? "text-[11px]" : "shrink-0 whitespace-nowrap")}>{l.label}</dt>
+                    <dd className={cn(
+                      "min-w-0 font-semibold tabular-nums [overflow-wrap:anywhere]",
+                      !stacked && "text-right",
+                      l.tone === "good" && "text-green-600 dark:text-green-400",
+                      l.tone === "bad" && "text-destructive",
+                    )}>{l.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            );
+          })()}
           {a.note && <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">{a.note}</p>}
         </div>
       );
@@ -1123,7 +1132,7 @@ function MessageView({
             </span>
             <div className="min-w-0 flex-1">
               <p className={cn("text-sm font-semibold", msg.undone && "line-through")}>{msg.title}</p>
-              {msg.lines.map((l, i) => <p key={i} className="mt-0.5 text-xs text-muted-foreground">{l}</p>)}
+              {msg.lines.map((l, i) => <p key={i} className="mt-0.5 text-xs text-muted-foreground [overflow-wrap:anywhere]">{l}</p>)}
             </div>
           </div>
           {msg.undo && (

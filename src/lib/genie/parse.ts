@@ -288,7 +288,7 @@ function parseWithMath(t: string, groups: string[], cdiAnual: number): GenieComm
 const REAL_OFF = /^(?:(?:para|pare|parar|chega|desliga|desligar|desative|desativar|cancela|cancelar|sai|sair)\b.*\b(?:reais|real)\b|(?:volta|voltar|volte)\b.*\bplanejado\b|(?:modo\s+)?so\s+(?:o\s+)?planejado|modo planejado)/;
 const REAL_ON = /\b(?:reais|real)\b/;
 const REAL_ON_CUE = /^(?:considere|considera|considerar|trate|trata|tratar|lance|lanca|lancar|coloque|coloca|colocar|marque|marca|marcar|registre|registra|deixe|deixa|bota|bote|a partir de agora|daqui pra frente|daqui para frente|de agora em diante|agora|modo|tudo|todos|todas|os proximos|as proximas)\b/;
-const REAL_ON_SCOPE = /\b(?:tod[oa]s|tudo|seguintes|proxim[oa]s|a partir|daqui|agora|em diante|modo)\b/;
+const REAL_ON_SCOPE = /\b(?:tod[oa]s|tudo|seguintes|proxim[oa]s|a partir|daqui|agora|em diante|modo|tambem|itens|coisas|gastos|lancamentos|compras|contas|despesas)\b/;
 
 const FOCUS_SCOPE = /\b(?:(?:tod[oa]s\s+)?(?:os\s+|as\s+)?(?:proxim[oa]s|seguintes)|a partir de agora|daqui (?:pra|para) frente|de agora em diante|ate eu (?:falar|dizer)|enquanto)\b/;
 const FOCUS_THINGS = /\b(?:itens|item|coisas|gastos|lancamentos|compras|contas|despesas)\b/;
