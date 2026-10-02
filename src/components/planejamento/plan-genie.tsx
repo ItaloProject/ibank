@@ -1,14 +1,12 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowUp, Calculator, Check, Copy, Delete, Loader2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
-import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
-import { readBotPageContext, useBotPageContext } from "@/lib/bot-page-context";
 import { normalize } from "@/lib/genie/calc";
 import { findGroup, parseGenie, type GenieCommand, type ItemType } from "@/lib/genie/parse";
 import { followUp, type GenieMemory } from "@/lib/genie/context";
@@ -31,7 +29,6 @@ type Msg =
     }
   | { id: string; role: "ask"; prompt: string; hint?: string; chips?: string[] }
   | { id: string; role: "confirm"; title: string; detail: string; label: string; run: () => Promise<void>; done?: boolean }
-  | { id: string; role: "ai"; text: string }
   | { id: string; role: "error"; text: string };
 
 /** O que o Gênio perguntou e espera na próxima mensagem. */
@@ -101,24 +98,11 @@ async function api<T = unknown>(url: string, method: string, body?: unknown): Pr
   return data as T;
 }
 
-function Bold({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
-        p.startsWith("**") && p.endsWith("**")
-          ? <strong key={i} className="font-semibold text-foreground">{p.slice(2, -2)}</strong>
-          : <Fragment key={i}>{p}</Fragment>,
-      )}
-    </>
-  );
-}
-
 /** Número do resultado anterior no formato que o próprio Gênio entende ("1234,5"). */
 const asInput = (v: number) => String(Math.round(v * 100) / 100).replace(".", ",");
 
 export function PlanGenie(props: Props) {
   const { userId, month, monthLabel, salary, groups, items, incomes, colors, reloadGroups, reloadItems, onIncomes } = props;
-  const { botEnabled } = useUser();
   const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -142,16 +126,6 @@ export function PlanGenie(props: Props) {
   const groupNames = useMemo(() => groups.map((g) => g.name), [groups]);
   const knownNames = useMemo(() => [...items.map((i) => i.name), ...groupNames], [items, groupNames]);
   const suggestions = useMemo(() => suggest(input, knownNames), [input, knownNames]);
-
-  useBotPageContext("planejamento", {
-    mes: monthLabel,
-    renda: salary,
-    receitas: incomes.slice(0, 8).map((i) => [i.description.slice(0, 24), i.amount]),
-    grupos: groups.slice(0, 12).map((g) => ({
-      nome: g.name.slice(0, 24),
-      itens: items.filter((i) => i.group_id === g.id).slice(0, 10).map((i) => [i.name.slice(0, 22), i.type, i.planned, i.actual]),
-    })),
-  });
 
   useEffect(() => {
     tapeRef.current?.scrollTo({ top: tapeRef.current.scrollHeight, behavior: reduced ? "auto" : "smooth" });
@@ -413,25 +387,18 @@ export function PlanGenie(props: Props) {
     return setField(t, t.field, t[t.field] + value, `${t.name}: + ${money(value)}`, t.field === "actual" ? t.actual : t.base);
   }
 
-  async function askAi(text: string) {
-    if (!botEnabled) {
-      showAnswer({ ...answer({ kind: "help" }, snapshot)!, title: "Essa eu não sei calcular ainda. Tente assim:" });
-      return;
-    }
-    const res = await fetch("/api/bot/chat", {
+  /** Pedido fora do que o Gênio sabe: registra a frase para ensinar depois e mostra exemplos. */
+  function notUnderstood(text: string) {
+    void fetch("/api/genie/miss", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [{ role: "user", content: `[Pergunta feita no MUVO Gênio, a calculadora do Planejamento mensal] ${text}` }],
-        page: readBotPageContext(),
-      }),
+      body: JSON.stringify({ text, fallback: "ajuda" }),
+    }).catch(() => {});
+    showAnswer({
+      ...answer({ kind: "help" }, snapshot)!,
+      title: "Ainda não sei fazer isso. Tente assim:",
+      note: "Guardei seu pedido para eu aprender a entender esse jeito de falar.",
     });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      showAnswer({ ...answer({ kind: "help" }, snapshot)!, title: "Não entendi esse pedido. Tente assim:" });
-      return;
-    }
-    push({ id: uid(), role: "ai", text: String(data?.reply ?? "") });
   }
 
   async function remove(cmd: Extract<GenieCommand, { kind: "remove" }>) {
@@ -527,13 +494,7 @@ export function PlanGenie(props: Props) {
         return ask({ kind: "spendValue", name: cmd.name, group: cmd.group }, `Quanto você gastou em ${cmd.name}?`, "Só o valor, por exemplo 80.");
       case "draftIncome":
         return ask({ kind: "incomeValue", description: cmd.description }, `Qual o valor${cmd.description ? ` de ${cmd.description}` : " da renda"}?`, cmd.description ? "Só o valor, por exemplo 5.000." : "Exemplo: 5.000 de salário.");
-      case "unknown":
-        void fetch("/api/genie/miss", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, fallback: botEnabled ? "inteligencia artificial" : "ajuda" }),
-        }).catch(() => {});
-        return askAi(text);
+      case "unknown": return notUnderstood(text);
       default: {
         const a = answer(cmd, snapshot);
         if (a) showAnswer(a);
@@ -1040,20 +1001,6 @@ function MessageView({
               )}
             </div>
           )}
-        </div>
-      );
-
-    case "ai":
-      return (
-        <div className="flex gap-2">
-          <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border bg-white">
-            <Image src="/bot/muvo-genio.webp" alt="" width={28} height={28} className="h-full w-full object-cover" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5 rounded-2xl rounded-tl-md border px-3 py-2.5 text-sm leading-relaxed text-foreground/85">
-            {msg.text.split(/\n+/).filter(Boolean).map((line, i) => (
-              <p key={i}><Bold text={line.replace(/^[-•]\s+/, "• ")} /></p>
-            ))}
-          </div>
         </div>
       );
 
