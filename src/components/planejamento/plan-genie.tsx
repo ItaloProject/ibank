@@ -7,6 +7,7 @@ import { ArrowUp, Brain, Calculator, Check, Copy, Delete, ExternalLink, Loader2,
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
+import { caretAfterGrouping, groupCalcNumbers } from "@/lib/money-mask";
 import { normalize } from "@/lib/genie/calc";
 import { findGroup, parseGenie, type GenieCommand, type ItemType } from "@/lib/genie/parse";
 import { followUp, type GenieMemory } from "@/lib/genie/context";
@@ -1002,7 +1003,7 @@ export function PlanGenie(props: Props) {
   function press(key: string) {
     if (key === "=") { void send(); return; }
     if (key === "C") { setInput(""); setLast(null); return; }
-    if (key === "⌫") { setInput((v) => v.slice(0, -1)); return; }
+    if (key === "⌫") { setInput((v) => groupCalcNumbers(v.slice(0, -1))); return; }
     if (key === "( )") {
       setInput((v) => {
         const opened = (v.match(/\(/g) ?? []).length - (v.match(/\)/g) ?? []).length;
@@ -1011,7 +1012,7 @@ export function PlanGenie(props: Props) {
       return;
     }
     const op = /^[+−×÷]$/.test(key);
-    setInput((v) => (op ? `${v.trimEnd()} ${key} ` : v + key));
+    setInput((v) => groupCalcNumbers(op ? `${v.trimEnd()} ${key} ` : v + key));
   }
 
   const lastAskId = [...msgs].reverse().find((m) => m.role === "ask")?.id;
@@ -1235,7 +1236,16 @@ export function PlanGenie(props: Props) {
               <input
                 ref={inputRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  const el = e.currentTarget;
+                  const raw = el.value;
+                  const next = groupCalcNumbers(raw);
+                  setInput(next);
+                  if (next !== raw && el.selectionStart !== null) {
+                    const caret = caretAfterGrouping(raw, el.selectionStart, next);
+                    requestAnimationFrame(() => el.setSelectionRange(caret, caret));
+                  }
+                }}
                 placeholder={pending ? "Responda aqui…" : last ? "Continue a conta: + 10%, × 12…" : "Conta ou pedido…"}
                 aria-label="Conta ou pedido para o Muvo Gênio"
                 enterKeyHint="send"

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HelpTip } from "@/components/ui/help-tip";
+import { maskMoney, toMoneyMask } from "@/lib/money-mask";
 import { useUser } from "@/context/user-context";
 import { UserSelect } from "@/components/user-select";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
@@ -178,7 +179,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
     setEditingPlan(plan);
     setForm({
       description: plan.description,
-      total_amount: Number(plan.total_amount).toFixed(2).replace(".", ","),
+      total_amount: toMoneyMask(Number(plan.total_amount)),
       installments: String(plan.installments),
       paid_installments: String(plan.paid_installments),
       start_date: plan.start_date ? String(plan.start_date).slice(0, 10) : "",
@@ -411,10 +412,10 @@ function ParcelamentosContent({ userId }: { userId: string }) {
                 <Label htmlFor="plan-field-total_amount">Valor total (R$)</Label>
                 <Input
                   id="plan-field-total_amount"
-                  inputMode="decimal"
+                  inputMode="numeric"
                   placeholder="3.000,00"
                   value={form.total_amount}
-                  onChange={(e) => setField("total_amount", e.target.value)}
+                  onChange={(e) => setField("total_amount", maskMoney(e.target.value))}
                   {...fieldA11y("total_amount", errors)}
                 />
                 <FieldError field="total_amount" errors={errors} />

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -182,14 +183,10 @@ export default function ProventosPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Valor (R$)</Label>
-              <Input
-                type="number"
-                placeholder="0,00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+              <MoneyInput
+                value={Number(amount) || 0}
+                onValueChange={(v) => setAmount(v ? String(v) : "")}
                 className="h-8 text-sm"
-                min={0}
-                step={0.01}
               />
             </div>
             <div className="space-y-1.5">

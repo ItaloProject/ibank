@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useUser } from "@/context/user-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -425,8 +426,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     setConfirmDialog(null);
   }
 
-  async function updateActual(item: ExpenseItem, val: string) {
-    const actual = parseFloat(val) || 0;
+  async function updateActual(item: ExpenseItem, actual: number) {
     setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, actual } : i));
     try {
       await fetch(`/api/plan-items/${item.id}`, {
@@ -983,8 +983,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     Quanto você <strong>pretende</strong> gastar com este item no mês: é o seu orçamento. Serve de meta: a barra do grupo mostra quanto do planejado você já usou e fica vermelha se passar.
                   </HelpTip>
                 </Label>
-                <Input id="item-planned-input" type="number" placeholder="0,00" value={itemForm.planned}
-                  onChange={(e) => setItemForm({ ...itemForm, planned: e.target.value })} />
+                <MoneyInput id="item-planned-input" value={Number(itemForm.planned) || 0}
+                  onValueChange={(v) => setItemForm((f) => ({ ...f, planned: v ? String(v) : "" }))} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="item-actual-input" className="flex items-center gap-1.5">
@@ -993,8 +993,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     Quanto você <strong>de fato gastou</strong>. É o valor usado no &quot;Gasto&quot; e na &quot;Sobra&quot; do mês. Você pode preencher depois, direto na lista, conforme as contas chegam.
                   </HelpTip>
                 </Label>
-                <Input id="item-actual-input" type="number" placeholder="0,00" value={itemForm.actual}
-                  onChange={(e) => setItemForm({ ...itemForm, actual: e.target.value })} />
+                <MoneyInput id="item-actual-input" value={Number(itemForm.actual) || 0}
+                  onValueChange={(v) => setItemForm((f) => ({ ...f, actual: v ? String(v) : "" }))} />
               </div>
             </div>
             <div className="flex gap-2 pt-1">

@@ -101,11 +101,13 @@ export function CarteiraSugeridaScreen({ profile, onContinuar }: Props) {
           <div className="relative mt-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">R$</span>
             <input
-              type="number"
-              min="0"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              aria-label="Aporte mensal em reais"
               placeholder="0"
-              value={aporteNum || ""}
-              onChange={(e) => setAporteNum(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+              value={aporteNum ? aporteNum.toLocaleString("pt-BR") : ""}
+              onChange={(e) => setAporteNum(Number(e.target.value.replace(/\D/g, "").slice(0, 10)) || 0)}
               className="w-full border rounded-lg pl-9 pr-4 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 tabular-nums"
             />
           </div>

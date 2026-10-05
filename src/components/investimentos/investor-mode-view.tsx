@@ -9,6 +9,7 @@ import {
 import { InvestorBot, type BotPortfolioContext } from "@/components/investor-bot";
 import { ProgressRing, Reveal, useCountUp } from "@/components/motion/reveal";
 import { formatCurrency } from "@/lib/utils";
+import { maskMoney, toMoneyMask } from "@/lib/money-mask";
 import { RISK_PROFILES, type RiskProfile } from "@/lib/rebalance";
 import { actionHref, type PlanAllocation, type PlanInsight, type PlanMove } from "@/lib/plan-view";
 import Link from "next/link";
@@ -117,7 +118,7 @@ export function InvestorModeView({
   const [savingGoal, setSavingGoal] = useState(false);
 
   function startGoalEdit() {
-    setIncomeGoalInput(incomeGoal > 0 ? incomeGoal.toFixed(2).replace(".", ",") : "");
+    setIncomeGoalInput(toMoneyMask(incomeGoal));
     setEditingGoal(true);
   }
 
@@ -206,14 +207,14 @@ export function InvestorModeView({
                   <input
                     id="income-goal-input"
                     type="text"
-                    inputMode="decimal"
+                    inputMode="numeric"
                     autoFocus
                     autoComplete="off"
                     placeholder="Definir meta"
                     disabled={savingGoal}
                     className="bg-muted/40 border border-border rounded-full px-4 min-h-10 text-sm text-foreground tabular-nums placeholder:text-muted-foreground w-44 text-center focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-shadow disabled:opacity-60"
                     value={incomeGoalInput}
-                    onChange={(e) => setIncomeGoalInput(e.target.value.replace(/[^\d.,]/g, ""))}
+                    onChange={(e) => setIncomeGoalInput(maskMoney(e.target.value))}
                   />
                   <button
                     type="submit"

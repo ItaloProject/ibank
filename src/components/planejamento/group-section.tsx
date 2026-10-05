@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { ChevronDown, Circle, CircleCheck, Layers, Pencil, Plus, Share2, Trash2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { useEffect, useState } from "react";
+import { MoneyInput } from "@/components/ui/money-input";
 import { cn } from "@/lib/utils";
 
 export interface ExpenseGroup { id: string; user_id: string; name: string; color: string; done_months?: string[]; }export interface ExpenseItem {
@@ -14,6 +15,21 @@ export interface ExpenseGroup { id: string; user_id: string; name: string; color
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function ActualField({ item, onCommit }: { item: ExpenseItem; onCommit: (item: ExpenseItem, value: number) => void }) {
+  const [draft, setDraft] = useState(item.actual);
+  useEffect(() => setDraft(item.actual), [item.actual]);
+  return (
+    <MoneyInput
+      aria-label={`Valor real de ${item.name}`}
+      className="h-9 w-[5.5rem] border-border/40 bg-muted/30 text-right text-sm focus:bg-background sm:w-24"
+      value={draft}
+      onValueChange={setDraft}
+      onBlur={() => { if (draft !== item.actual) onCommit(item, draft); }}
+      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+    />
+  );
 }
 
 const ICON_BTN = "flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation md:h-9 md:w-9";
@@ -34,7 +50,7 @@ export function GroupSection({
   onDeleteGroup: () => void;
   onEditItem: (item: ExpenseItem) => void;
   onDeleteItem: (item: ExpenseItem) => void;
-  onActual: (item: ExpenseItem, value: string) => void;
+  onActual: (item: ExpenseItem, value: number) => void;
 }) {
   const planned = items.reduce((s, i) => s + i.planned, 0);
   const actual = items.reduce((s, i) => s + i.actual, 0);
@@ -207,15 +223,7 @@ export function GroupSection({
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-0.5">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      aria-label={`Valor real de ${item.name}`}
-                      className="h-9 w-[5.5rem] border-border/40 bg-muted/30 text-right text-sm tabular-nums focus:bg-background sm:w-24"
-                      defaultValue={item.actual || ""}
-                      placeholder="0,00"
-                      onBlur={(e) => onActual(item, e.target.value)}
-                    />
+                    <ActualField item={item} onCommit={onActual} />
                     <button type="button" className={ICON_BTN} onClick={() => onEditItem(item)} aria-label={`Editar ${item.name}`}>
                       <Pencil className="h-3 w-3" />
                     </button>

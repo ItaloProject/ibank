@@ -5,7 +5,8 @@ import { Trash2, TrendingUp, Pencil, ChevronDown, LineChart } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
+import { toMoneyMask } from "@/lib/money-mask";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -254,12 +255,11 @@ export function AcoesTab({
                     <p className="text-xs text-muted-foreground">médio {formatCurrency(p.avgPrice)} · {p.quantity} {assetType === "FII" || assetType === "ETF" ? "cotas" : "ações"}</p>
                   </div>
                   <div className="w-32">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder={`Ex: ${p.avgPrice.toFixed(2)}`}
-                      value={bulkPrices[p.ticker] ?? ""}
-                      onChange={(e) => setBulkPrices((prev) => ({ ...prev, [p.ticker]: e.target.value }))}
+                    <MoneyInput
+                      aria-label={`Cotação atual de ${p.ticker}`}
+                      placeholder={`Ex: ${toMoneyMask(p.avgPrice) || "0,00"}`}
+                      value={Number(bulkPrices[p.ticker]) || 0}
+                      onValueChange={(v) => setBulkPrices((prev) => ({ ...prev, [p.ticker]: v ? String(v) : "" }))}
                       className="h-8 text-sm text-right"
                     />
                   </div>

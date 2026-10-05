@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
+import { toMoneyMask } from "@/lib/money-mask";
 import { Label } from "@/components/ui/label";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -539,18 +541,18 @@ export function AccountTab({
                       </div>
                       <div className="space-y-1.5">
                         <Label>Rendimento do mês (R$)</Label>
-                        <Input type="number" placeholder="Ex: 59,30" autoFocus value={turboMonthForm.rendimento}
-                          onChange={(e) => setTurboMonthForm({ ...turboMonthForm, rendimento: e.target.value })} />
+                        <MoneyInput placeholder="Ex: 59,30" autoFocus value={Number(turboMonthForm.rendimento) || 0}
+                          onValueChange={(v) => setTurboMonthForm({ ...turboMonthForm, rendimento: v ? String(v) : "" })} />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Total bruto no mês (R$) <span className="text-muted-foreground text-xs">opcional</span></Label>
-                        <Input type="number" placeholder={`Ex: ${(account.current_balance + (parseFloat(turboMonthForm.rendimento) || 0)).toFixed(2)}`} value={turboMonthForm.total_bruto}
-                          onChange={(e) => setTurboMonthForm({ ...turboMonthForm, total_bruto: e.target.value })} />
+                        <MoneyInput placeholder={`Ex: ${toMoneyMask(account.current_balance + (parseFloat(turboMonthForm.rendimento) || 0)) || "0,00"}`} value={Number(turboMonthForm.total_bruto) || 0}
+                          onValueChange={(v) => setTurboMonthForm({ ...turboMonthForm, total_bruto: v ? String(v) : "" })} />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Valor líquido (R$) <span className="text-muted-foreground text-xs">opcional</span></Label>
-                        <Input type="number" placeholder="Ex: 5.086,01" value={turboMonthForm.valor_liquido}
-                          onChange={(e) => setTurboMonthForm({ ...turboMonthForm, valor_liquido: e.target.value })} />
+                        <MoneyInput placeholder="Ex: 5.086,01" value={Number(turboMonthForm.valor_liquido) || 0}
+                          onValueChange={(v) => setTurboMonthForm({ ...turboMonthForm, valor_liquido: v ? String(v) : "" })} />
                       </div>
                       <Button className="w-full" onClick={handleSaveTurboMonth}>Salvar</Button>
                     </div>
@@ -657,9 +659,9 @@ export function AccountTab({
                         </div>
                         <div className="space-y-1.5">
                           <Label>Valor do rendimento (R$)</Label>
-                          <Input type="number" step="0.01" autoFocus placeholder="Ex: 45,30"
-                            value={rendMonthForm.amount}
-                            onChange={(e) => setRendMonthForm({ ...rendMonthForm, amount: e.target.value })} />
+                          <MoneyInput autoFocus placeholder="Ex: 45,30"
+                            value={Number(rendMonthForm.amount) || 0}
+                            onValueChange={(v) => setRendMonthForm({ ...rendMonthForm, amount: v ? String(v) : "" })} />
                         </div>
                         <div className="space-y-1.5">
                           <Label>Descrição <span className="text-muted-foreground text-xs">opcional</span></Label>
