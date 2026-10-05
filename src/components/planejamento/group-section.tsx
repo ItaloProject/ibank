@@ -39,6 +39,7 @@ export function GroupSection({
   const planned = items.reduce((s, i) => s + i.planned, 0);
   const actual = items.reduce((s, i) => s + i.actual, 0);
   const over = planned > 0 && actual > planned;
+  const under = planned > 0 && actual > 0 && actual < planned;
   const pct = planned > 0 ? Math.min(100, (actual / planned) * 100) : 0;
   const bodyId = `grupo-${group.id}`;
   const paidCount = items.filter((i) => i.paid).length;
@@ -75,6 +76,16 @@ export function GroupSection({
               <span className={cn("font-display text-xl font-black leading-none tabular-nums", done ? "text-muted-foreground" : over && "text-destructive")}>
                 {fmt(actual)}
               </span>
+              {(over || under) && (
+                <span
+                  className={cn(
+                    "self-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none tabular-nums",
+                    over ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                  )}
+                >
+                  {fmt(Math.abs(planned - actual))} {over ? "acima" : "abaixo"}
+                </span>
+              )}
               <span className="text-[11px] tabular-nums text-muted-foreground">
                 gasto{planned > 0 ? ` de ${fmt(planned)} planejado` : ""} · {items.length} {items.length === 1 ? "item" : "itens"}
                 {!done && paidCount > 0 && (
@@ -188,6 +199,9 @@ export function GroupSection({
                         <span className={`text-[10px] tabular-nums ${item.actual > item.planned ? "text-destructive" : "text-muted-foreground/70"}`}>
                           Planejado {fmt(item.planned)}
                           {item.actual > item.planned && ` · ${fmt(item.actual - item.planned)} acima`}
+                          {item.actual > 0 && item.actual < item.planned && (
+                            <span className="text-emerald-600 dark:text-emerald-400">{` · ${fmt(item.planned - item.actual)} abaixo`}</span>
+                          )}
                         </span>
                       )}
                     </div>
