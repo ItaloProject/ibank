@@ -59,6 +59,7 @@ export function GroupSection({
   const pct = planned > 0 ? Math.min(100, (actual / planned) * 100) : 0;
   const bodyId = `grupo-${group.id}`;
   const paidCount = items.filter((i) => i.paid).length;
+  const remaining = items.reduce((s, i) => (i.paid ? s : s + Math.max(Number(i.planned) || 0, Number(i.actual) || 0)), 0);
 
   return (
     <section
@@ -108,6 +109,9 @@ export function GroupSection({
                   <span className="text-emerald-600 dark:text-emerald-400">
                     {" · "}{paidCount} {paidCount === 1 ? "pago" : "pagos"}
                   </span>
+                )}
+                {!done && paidCount > 0 && remaining > 0 && (
+                  <span className="font-medium text-foreground/80">{" · "}falta {fmt(remaining)}</span>
                 )}
               </span>
             </span>
