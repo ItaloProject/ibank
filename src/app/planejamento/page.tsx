@@ -280,6 +280,31 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     });
   }
 
+  const isDone = (g: ExpenseGroup) => !!g.done_months?.includes(currentMonth);
+  const doneCount = groups.filter(isDone).length;
+
+  async function toggleDone(g: ExpenseGroup) {
+    const done = !isDone(g);
+    const month = currentMonth;
+    const setMonths = (months: string[]) =>
+      setGroups((prev) => prev.map((x) => (x.id === g.id ? { ...x, done_months: months } : x)));
+    const before = g.done_months ?? [];
+    setMonths(done ? [...before.filter((m) => m !== month), month] : before.filter((m) => m !== month));
+    if (done && !collapsed.has(g.id)) toggleGroup(g.id);
+    try {
+      const res = await fetch(`/api/plan-groups/${g.id}/done`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month, done }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(done ? `${g.name} marcado como feito em ${monthLabel}` : `${g.name} voltou a ficar pendente`);
+    } catch {
+      setMonths(before);
+      toast.error("Não foi possível salvar. Tente novamente.");
+    }
+  }
+
   async function confirmDeleteGroup(id: string) {
     try {
       await fetch(`/api/plan-groups/${id}`, { method: "DELETE" });
@@ -698,6 +723,11 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-foreground/55">
                   {groups.length} {groups.length === 1 ? "grupo" : "grupos"}
+                  {doneCount > 0 && (
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      {" · "}{doneCount === groups.length ? "todos feitos" : `${doneCount} ${doneCount === 1 ? "feito" : "feitos"}`}
+                    </span>
+                  )}
                 </p>
                 <button
                   type="button"
@@ -714,7 +744,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     group={group}
                     items={items.filter((i) => i.group_id === group.id)}
                     collapsed={collapsed.has(group.id)}
+                    done={isDone(group)}
                     onToggle={() => toggleGroup(group.id)}
+                    onToggleDone={() => toggleDone(group)}
                     onAddItem={() => openNewItem(group.id)}
                     onShare={() => setShareGroupId(group.id)}
                     onEditGroup={() => openEditGroup(group)}

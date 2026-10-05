@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
+import { ensurePlanGroupSchema } from "@/lib/plan-groups";
 
 export async function GET() {
   try {
     const auth = await requireUserId();
     if (auth instanceof NextResponse) return auth;
     const { userId } = auth;
+    await ensurePlanGroupSchema();
     const rows = await sql`SELECT * FROM plan_groups WHERE user_id = ${userId} ORDER BY created_at`;
     return NextResponse.json(rows);
   } catch (err) {

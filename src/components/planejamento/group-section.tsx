@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, Layers, Pencil, Plus, Share2, Trash2 } from "lucide-react";
+import { ChevronDown, Circle, CircleCheck, Layers, Pencil, Plus, Share2, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
-export interface ExpenseGroup { id: string; user_id: string; name: string; color: string; }
+export interface ExpenseGroup { id: string; user_id: string; name: string; color: string; done_months?: string[]; }
+
+const DONE_COLOR = "#10b981";
 export interface ExpenseItem {
   id: string; group_id: string; user_id: string; month: string;
   name: string; type: "fixo" | "variavel"; planned: number; actual: number;
@@ -18,12 +21,14 @@ function fmt(v: number) {
 const ICON_BTN = "flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation md:h-9 md:w-9";
 
 export function GroupSection({
-  group, items, collapsed, onToggle, onAddItem, onShare, onEditGroup, onDeleteGroup, onEditItem, onDeleteItem, onActual,
+  group, items, collapsed, done, onToggle, onToggleDone, onAddItem, onShare, onEditGroup, onDeleteGroup, onEditItem, onDeleteItem, onActual,
 }: {
   group: ExpenseGroup;
   items: ExpenseItem[];
   collapsed: boolean;
+  done: boolean;
   onToggle: () => void;
+  onToggleDone: () => void;
   onAddItem: () => void;
   onShare: () => void;
   onEditGroup: () => void;
@@ -39,7 +44,10 @@ export function GroupSection({
   const bodyId = `grupo-${group.id}`;
 
   return (
-    <section aria-labelledby={`${bodyId}-titulo`} className="overflow-hidden rounded-xl border bg-card">
+    <section
+      aria-labelledby={`${bodyId}-titulo`}
+      className={cn("overflow-hidden rounded-xl border bg-card transition-colors", done && "border-emerald-500/40")}
+    >
       <div className="flex items-start gap-1 py-2 pl-3 pr-2">
         <button
           type="button"
@@ -85,16 +93,33 @@ export function GroupSection({
         </button>
       </div>
 
-      {planned > 0 && (
-        <div className="px-4 pb-3" aria-hidden="true">
-          <div className="h-1 overflow-hidden rounded-full" style={{ backgroundColor: `${group.color}26` }}>
+      <div className="flex items-center gap-3 pb-3 pl-4 pr-3">
+        {planned > 0 ? (
+          <div className="h-1 flex-1 overflow-hidden rounded-full" aria-hidden="true" style={{ backgroundColor: `${done ? DONE_COLOR : group.color}26` }}>
             <div
-              className="h-full rounded-full transition-[width] duration-500"
-              style={{ width: `${pct}%`, backgroundColor: over ? "hsl(var(--destructive))" : group.color }}
+              className="h-full rounded-full transition-[width,background-color] duration-500"
+              style={{ width: `${pct}%`, backgroundColor: done ? DONE_COLOR : over ? "hsl(var(--destructive))" : group.color }}
             />
           </div>
-        </div>
-      )}
+        ) : (
+          <span className="flex-1" />
+        )}
+        <button
+          type="button"
+          onClick={onToggleDone}
+          aria-pressed={done}
+          aria-label={done ? `${group.name} está feito neste mês. Desmarcar` : `Marcar ${group.name} como feito neste mês`}
+          className={cn(
+            "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation md:min-h-8",
+            done
+              ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 dark:text-emerald-400"
+              : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+          )}
+        >
+          {done ? <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /> : <Circle className="h-3.5 w-3.5" aria-hidden="true" />}
+          {done ? "Feito" : "Marcar como feito"}
+        </button>
+      </div>
 
       {!collapsed && (
         <div id={bodyId} className="border-t">
