@@ -26,6 +26,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
           WHERE id = ${id} AND user_id = ${userId} RETURNING done_months
         `;
     if (!rows.length) return NextResponse.json({ error: "Grupo não encontrado" }, { status: 404 });
+    await sql`UPDATE plan_items SET paid = ${done} WHERE group_id = ${id} AND user_id = ${userId} AND month = ${month}`;
     return NextResponse.json({ done_months: rows[0].done_months });
   } catch (err) {
     console.error("[PUT /api/plan-groups/[id]/done]", err);

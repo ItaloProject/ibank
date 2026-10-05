@@ -284,14 +284,13 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   const doneCount = groups.filter(isDone).length;
   const orderedGroups = [...groups.filter((g) => !isDone(g)), ...groups.filter(isDone)];
 
-  /** O valor de um grupo é o maior entre planejado e gasto: o que ele custa no mês. */
-  const groupCost = (g: ExpenseGroup) => {
-    const own = items.filter((i) => i.group_id === g.id);
-    return Math.max(own.reduce((s, i) => s + i.planned, 0), own.reduce((s, i) => s + i.actual, 0));
-  };
-  const pendingGroups = groups.filter((g) => !isDone(g) && groupCost(g) > 0);
-  const pendingTotal = pendingGroups.reduce((s, g) => s + groupCost(g), 0);
-  const monthTotal = groups.reduce((s, g) => s + groupCost(g), 0);
+  /** O custo de um item é o maior entre planejado e gasto; falta pagar o que não está pago nem em grupo feito. */
+  const itemCost = (i: ExpenseItem) => Math.max(i.planned, i.actual);
+  const doneIds = new Set(groups.filter(isDone).map((g) => g.id));
+  const pendingItems = items.filter((i) => !i.paid && !doneIds.has(i.group_id) && itemCost(i) > 0);
+  const pendingTotal = pendingItems.reduce((s, i) => s + itemCost(i), 0);
+  const pendingGroups = new Set(pendingItems.map((i) => i.group_id));
+  const monthTotal = items.filter((i) => groups.some((g) => g.id === i.group_id)).reduce((s, i) => s + itemCost(i), 0);
 
   async function toggleDone(g: ExpenseGroup) {
     const done = !isDone(g);
@@ -299,7 +298,9 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     const setMonths = (months: string[]) =>
       setGroups((prev) => prev.map((x) => (x.id === g.id ? { ...x, done_months: months } : x)));
     const before = g.done_months ?? [];
+    const itemsBefore = items;
     setMonths(done ? [...before.filter((m) => m !== month), month] : before.filter((m) => m !== month));
+    setItems((prev) => prev.map((i) => (i.group_id === g.id ? { ...i, paid: done } : i)));
     if (done && !collapsed.has(g.id)) toggleGroup(g.id);
     try {
       const res = await fetch(`/api/plan-groups/${g.id}/done`, {
@@ -311,6 +312,35 @@ function PlanejamentoContent({ userId }: { userId: string }) {
       toast.success(done ? `${g.name} marcado como feito em ${monthLabel}` : `${g.name} voltou a ficar pendente`);
     } catch {
       setMonths(before);
+      setItems(itemsBefore);
+      toast.error("Não foi possível salvar. Tente novamente.");
+    }
+  }
+
+  async function togglePaid(item: ExpenseItem) {
+    const paid = !item.paid;
+    const setPaid = (value: boolean) =>
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, paid: value } : i)));
+    setPaid(paid);
+    try {
+      const res = await fetch(`/api/plan-items/${item.id}/paid`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error();
+      const group = groups.find((g) => g.id === item.group_id);
+      if (!group) return;
+      const wasDone = isDone(group);
+      const nowDone = (data.done_months as string[]).includes(currentMonth);
+      setGroups((prev) => prev.map((g) => (g.id === group.id ? { ...g, done_months: data.done_months } : g)));
+      if (nowDone && !wasDone) {
+        if (!collapsed.has(group.id)) toggleGroup(group.id);
+        toast.success(`Tudo pago em ${group.name}: grupo marcado como feito`);
+      }
+    } catch {
+      setPaid(!paid);
       toast.error("Não foi possível salvar. Tente novamente.");
     }
   }
@@ -747,7 +777,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                         <span className="text-muted-foreground">Falta pagar </span>
                         <span className="font-display font-black tabular-nums">{fmt(pendingTotal)}</span>
                         <span className="text-muted-foreground">
-                          {" "}em {pendingGroups.length} {pendingGroups.length === 1 ? "grupo" : "grupos"}
+                          {" "}em {pendingGroups.size} {pendingGroups.size === 1 ? "grupo" : "grupos"}
                         </span>
                       </>
                     ) : (
@@ -786,6 +816,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     done={isDone(group)}
                     onToggle={() => toggleGroup(group.id)}
                     onToggleDone={() => toggleDone(group)}
+                    onTogglePaid={togglePaid}
                     onAddItem={() => openNewItem(group.id)}
                     onShare={() => setShareGroupId(group.id)}
                     onEditGroup={() => openEditGroup(group)}

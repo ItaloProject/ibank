@@ -9,6 +9,7 @@ export interface ExpenseGroup { id: string; user_id: string; name: string; color
   id: string; group_id: string; user_id: string; month: string;
   name: string; type: "fixo" | "variavel"; planned: number; actual: number;
   installment_id?: string | null;
+  paid?: boolean;
 }
 
 function fmt(v: number) {
@@ -18,7 +19,7 @@ function fmt(v: number) {
 const ICON_BTN = "flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation md:h-9 md:w-9";
 
 export function GroupSection({
-  group, items, collapsed, done, onToggle, onToggleDone, onAddItem, onShare, onEditGroup, onDeleteGroup, onEditItem, onDeleteItem, onActual,
+  group, items, collapsed, done, onToggle, onToggleDone, onTogglePaid, onAddItem, onShare, onEditGroup, onDeleteGroup, onEditItem, onDeleteItem, onActual,
 }: {
   group: ExpenseGroup;
   items: ExpenseItem[];
@@ -26,6 +27,7 @@ export function GroupSection({
   done: boolean;
   onToggle: () => void;
   onToggleDone: () => void;
+  onTogglePaid: (item: ExpenseItem) => void;
   onAddItem: () => void;
   onShare: () => void;
   onEditGroup: () => void;
@@ -39,6 +41,7 @@ export function GroupSection({
   const over = planned > 0 && actual > planned;
   const pct = planned > 0 ? Math.min(100, (actual / planned) * 100) : 0;
   const bodyId = `grupo-${group.id}`;
+  const paidCount = items.filter((i) => i.paid).length;
 
   return (
     <section
@@ -74,6 +77,11 @@ export function GroupSection({
               </span>
               <span className="text-[11px] tabular-nums text-muted-foreground">
                 gasto{planned > 0 ? ` de ${fmt(planned)} planejado` : ""} · {items.length} {items.length === 1 ? "item" : "itens"}
+                {!done && paidCount > 0 && (
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    {" · "}{paidCount} {paidCount === 1 ? "pago" : "pagos"}
+                  </span>
+                )}
               </span>
             </span>
           </span>
@@ -143,8 +151,8 @@ export function GroupSection({
             </button>
           ) : (
             <ul className="divide-y divide-border/40">
-              <li aria-hidden="true" className="flex items-center justify-between gap-2 pb-1 pl-4 pr-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
-                <span className="pl-3.5">Item · planejado</span>
+              <li aria-hidden="true" className="flex items-center justify-between gap-2 pb-1 pl-2 pr-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+                <span className="pl-[3.875rem] md:pl-[3.625rem]">Item · planejado</span>
                 <span className="flex shrink-0 items-center gap-0.5">
                   <span className="w-[5.5rem] pr-3 text-right sm:w-24">Gasto real</span>
                   <span className="w-10 md:w-9" />
@@ -152,14 +160,28 @@ export function GroupSection({
                 </span>
               </li>
               {items.map((item) => (
-                <li key={item.id} className="flex items-center justify-between gap-2 py-2 pl-4 pr-2 transition-colors hover:bg-muted/10">
+                <li key={item.id} className="flex items-center justify-between gap-2 py-2 pl-2 pr-2 transition-colors hover:bg-muted/10">
                   <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onTogglePaid(item)}
+                      aria-pressed={!!item.paid}
+                      aria-label={item.paid ? `${item.name} está pago. Desmarcar` : `Marcar ${item.name} como pago`}
+                      title={item.paid ? "Pago" : "Marcar como pago"}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation md:h-9 md:w-9"
+                    >
+                      {item.paid ? (
+                        <CircleCheck className="h-[18px] w-[18px] text-emerald-500" aria-hidden="true" />
+                      ) : (
+                        <Circle className="h-[18px] w-[18px] text-muted-foreground/50" aria-hidden="true" />
+                      )}
+                    </button>
                     <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${item.type === "fixo" ? "bg-blue-500" : "bg-orange-400"}`}
+                      className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.type === "fixo" ? "bg-blue-500" : "bg-orange-400", item.paid && "opacity-40")}
                       title={item.type === "fixo" ? "Fixo" : "Variável"}
                     />
                     <div className="min-w-0">
-                      <span className="block truncate text-sm font-medium leading-snug">{item.name}</span>
+                      <span className={cn("block truncate text-sm font-medium leading-snug", item.paid && "text-muted-foreground")}>{item.name}</span>
                       {item.installment_id ? (
                         <span className="text-[10px] text-muted-foreground/70">Parcelamento · lançado automaticamente</span>
                       ) : item.planned > 0 && (
