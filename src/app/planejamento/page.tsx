@@ -282,6 +282,16 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
   const isDone = (g: ExpenseGroup) => !!g.done_months?.includes(currentMonth);
   const doneCount = groups.filter(isDone).length;
+  const orderedGroups = [...groups.filter((g) => !isDone(g)), ...groups.filter(isDone)];
+
+  /** O valor de um grupo é o maior entre planejado e gasto: o que ele custa no mês. */
+  const groupCost = (g: ExpenseGroup) => {
+    const own = items.filter((i) => i.group_id === g.id);
+    return Math.max(own.reduce((s, i) => s + i.planned, 0), own.reduce((s, i) => s + i.actual, 0));
+  };
+  const pendingGroups = groups.filter((g) => !isDone(g) && groupCost(g) > 0);
+  const pendingTotal = pendingGroups.reduce((s, g) => s + groupCost(g), 0);
+  const monthTotal = groups.reduce((s, g) => s + groupCost(g), 0);
 
   async function toggleDone(g: ExpenseGroup) {
     const done = !isDone(g);
@@ -720,7 +730,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             </motion.div>
           ) : (
             <div className={cn(PAGE_CONTENT, "space-y-3 pt-4 pb-24 sm:pt-6")}>
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-end justify-between gap-2">
+                <div className="min-w-0 space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-foreground/55">
                   {groups.length} {groups.length === 1 ? "grupo" : "grupos"}
                   {doneCount > 0 && (
@@ -729,6 +740,22 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     </span>
                   )}
                 </p>
+                {monthTotal > 0 && (
+                  <p className="text-sm" aria-live="polite">
+                    {pendingTotal > 0 ? (
+                      <>
+                        <span className="text-muted-foreground">Falta pagar </span>
+                        <span className="font-display font-black tabular-nums">{fmt(pendingTotal)}</span>
+                        <span className="text-muted-foreground">
+                          {" "}em {pendingGroups.length} {pendingGroups.length === 1 ? "grupo" : "grupos"}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Tudo pago neste mês</span>
+                    )}
+                  </p>
+                )}
+                </div>
                 <button
                   type="button"
                   onClick={() => setAllCollapsed(!allCollapsed)}
@@ -737,10 +764,22 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   {allCollapsed ? "Expandir todos" : "Recolher todos"}
                 </button>
               </div>
+              {monthTotal > 0 && (
+                <div className="h-1 overflow-hidden rounded-full bg-border/60" aria-hidden="true">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-[width] duration-500"
+                    style={{ width: `${((monthTotal - pendingTotal) / monthTotal) * 100}%` }}
+                  />
+                </div>
+              )}
               <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
-                {groups.map((group) => (
-                  <GroupSection
+                {orderedGroups.map((group) => (
+                  <motion.div
                     key={group.id}
+                    layout={prefersReduced ? false : "position"}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                  <GroupSection
                     group={group}
                     items={items.filter((i) => i.group_id === group.id)}
                     collapsed={collapsed.has(group.id)}
@@ -755,6 +794,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                     onDeleteItem={openDeleteItem}
                     onActual={updateActual}
                   />
+                  </motion.div>
                 ))}
                 <button
                   type="button"

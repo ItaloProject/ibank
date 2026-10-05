@@ -5,10 +5,7 @@ import { ChevronDown, Circle, CircleCheck, Layers, Pencil, Plus, Share2, Trash2 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-export interface ExpenseGroup { id: string; user_id: string; name: string; color: string; done_months?: string[]; }
-
-const DONE_COLOR = "#10b981";
-export interface ExpenseItem {
+export interface ExpenseGroup { id: string; user_id: string; name: string; color: string; done_months?: string[]; }export interface ExpenseItem {
   id: string; group_id: string; user_id: string; month: string;
   name: string; type: "fixo" | "variavel"; planned: number; actual: number;
   installment_id?: string | null;
@@ -46,7 +43,7 @@ export function GroupSection({
   return (
     <section
       aria-labelledby={`${bodyId}-titulo`}
-      className={cn("overflow-hidden rounded-xl border bg-card transition-colors", done && "border-emerald-500/40")}
+      className="overflow-hidden rounded-xl border bg-card"
     >
       <div className="flex items-start gap-1 py-2 pl-3 pr-2">
         <button
@@ -62,11 +59,19 @@ export function GroupSection({
           />
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-2">
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: group.color }} aria-hidden="true" />
-              <h2 id={`${bodyId}-titulo`} className="truncate text-[11px] font-black uppercase tracking-[0.18em]">{group.name}</h2>
+              {done ? (
+                <CircleCheck className="h-3 w-3 shrink-0 text-emerald-500" aria-hidden="true" />
+              ) : (
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: group.color }} aria-hidden="true" />
+              )}
+              <h2 id={`${bodyId}-titulo`} className={cn("truncate text-[11px] font-black uppercase tracking-[0.18em]", done && "text-muted-foreground")}>
+                {group.name}
+              </h2>
             </span>
             <span className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5">
-              <span className={`font-display text-xl font-black leading-none tabular-nums ${over ? "text-destructive" : ""}`}>{fmt(actual)}</span>
+              <span className={cn("font-display text-xl font-black leading-none tabular-nums", done ? "text-muted-foreground" : over && "text-destructive")}>
+                {fmt(actual)}
+              </span>
               <span className="text-[11px] tabular-nums text-muted-foreground">
                 gasto{planned > 0 ? ` de ${fmt(planned)} planejado` : ""} · {items.length} {items.length === 1 ? "item" : "itens"}
               </span>
@@ -95,10 +100,14 @@ export function GroupSection({
 
       <div className="flex items-center gap-3 pb-3 pl-4 pr-3">
         {planned > 0 ? (
-          <div className="h-1 flex-1 overflow-hidden rounded-full" aria-hidden="true" style={{ backgroundColor: `${done ? DONE_COLOR : group.color}26` }}>
+          <div
+            className={cn("h-1 flex-1 overflow-hidden rounded-full transition-opacity duration-300", done && "opacity-35")}
+            aria-hidden="true"
+            style={{ backgroundColor: `${group.color}26` }}
+          >
             <div
-              className="h-full rounded-full transition-[width,background-color] duration-500"
-              style={{ width: `${pct}%`, backgroundColor: done ? DONE_COLOR : over ? "hsl(var(--destructive))" : group.color }}
+              className="h-full rounded-full transition-[width] duration-500"
+              style={{ width: `${pct}%`, backgroundColor: over && !done ? "hsl(var(--destructive))" : group.color }}
             />
           </div>
         ) : (
