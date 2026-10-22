@@ -37,7 +37,8 @@ next-env.d.ts
 public/sw*
 public/swe-worker*
 
-# Impeccable binaries
+# Impeccable binaries e relatórios gerados
 .claude/skills/impeccable/scripts/bin/
+.impeccable/
 
 .vercel
