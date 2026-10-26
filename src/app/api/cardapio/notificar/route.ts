@@ -4,6 +4,7 @@ import { json } from "@/lib/cardapio-acesso";
 import { configurarPush, webpush } from "@/lib/push";
 import { normalizePhone, sendTemplate, templateParam, whatsappConfig } from "@/lib/whatsapp";
 import { evoSendText, evolutionConfig } from "@/lib/evolution";
+import { enviarTelegram, telegramToken } from "@/lib/telegram";
 
 const PAINEL = process.env.PAINEL_URL?.trim() || "https://painel-cardapio.pages.dev";
 
@@ -54,6 +55,19 @@ export async function POST(request: Request) {
     }
   }
 
+  // Telegram: avisa cada chat vinculado pelo dono (API oficial, sem risco de banimento)
+  let telegram = 0;
+  if (telegramToken()) {
+    const destinos = await cardapioSql`SELECT id, chat_id FROM public.telegram_destinos WHERE pizzaria_slug = ${pedido.slug}`;
+    const texto = `Novo pedido #${pedido.numero} · ${moeda(total)} (${pedido.pagamento ?? "pagamento"}). Acesse o painel para atender: ${PAINEL}`;
+    for (const d of destinos) {
+      const r = await enviarTelegram(String(d.chat_id), texto);
+      if (r === "ok") telegram += 1;
+      // Dono bloqueou o bot ou apagou a conversa: remove o chat da lista
+      if (r === "bloqueado") await cardapioSql`DELETE FROM public.telegram_destinos WHERE id = ${d.id}`;
+    }
+  }
+
   // Alerta por WhatsApp. Primeiro a Evolution API (instância conectada); senão o modelo da Meta.
   let whatsapp: "evolution" | "meta" | "desligado" | "sem-numero" = "desligado";
   const evo = evolutionConfig();
@@ -79,5 +93,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return json({ ok: true, push: enviados, whatsapp });
+  return json({ ok: true, push: enviados, telegram, whatsapp });
 }
