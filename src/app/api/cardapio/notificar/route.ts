@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   if (telegramToken()) {
     const destinos = await cardapioSql`SELECT id, chat_id FROM public.telegram_destinos WHERE pizzaria_slug = ${pedido.slug}`;
     const [detalhes] = pedido.id
-      ? await cardapioSql`SELECT p.numero, p.modo, p.cliente, p.itens, p.total, p.pagamento, p.troco, p.centavos_pix, p.criado_em, z.pizzaria->>nome AS nome
+      ? await cardapioSql`SELECT p.numero, p.modo, p.cliente, p.itens, p.total, p.pagamento, p.troco, p.centavos_pix, p.criado_em, z.pizzaria->>'nome' AS nome
           FROM public.pedidos p JOIN public.pizzarias z ON z.slug = p.pizzaria_slug WHERE p.id = ${pedido.id}`
       : [];
     const texto = detalhes
