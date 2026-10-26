@@ -3,6 +3,7 @@ import cardapioSql from "@/lib/cardapio-db";
 import { json } from "@/lib/cardapio-acesso";
 import { configurarPush, webpush } from "@/lib/push";
 import { normalizePhone, sendTemplate, templateParam, whatsappConfig } from "@/lib/whatsapp";
+import { evoSendText, evolutionConfig } from "@/lib/evolution";
 
 const PAINEL = process.env.PAINEL_URL?.trim() || "https://painel-cardapio.pages.dev";
 
@@ -53,23 +54,28 @@ export async function POST(request: Request) {
     }
   }
 
-  // Alerta por WhatsApp: precisa da conta da Meta e de um modelo aprovado (WHATSAPP_TEMPLATE_PEDIDO)
-  let whatsapp: "enviado" | "desligado" | "sem-numero" = "desligado";
+  // Alerta por WhatsApp. Primeiro a Evolution API (instância conectada); senão o modelo da Meta.
+  let whatsapp: "evolution" | "meta" | "desligado" | "sem-numero" = "desligado";
+  const evo = evolutionConfig();
   const cfg = whatsappConfig();
   const modelo = process.env.WHATSAPP_TEMPLATE_PEDIDO?.trim();
-  if (cfg && modelo) {
+  if (evo || (cfg && modelo)) {
     const [linha] = await cardapioSql`SELECT pizzaria FROM public.pizzarias WHERE slug = ${pedido.slug}`;
     const numero = normalizePhone(String(linha?.pizzaria?.pedidos?.avisoWhatsapp ?? ""));
     if (!numero) {
       whatsapp = "sem-numero";
-    } else {
+    } else if (evo) {
+      const texto = `Novo pedido #${pedido.numero} · ${moeda(total)} (${pedido.pagamento ?? "pagamento"}). Acesse o painel para atender: ${PAINEL}`;
+      await evoSendText(evo, numero, texto);
+      whatsapp = "evolution";
+    } else if (cfg && modelo) {
       await sendTemplate(cfg, numero, modelo, [
         {
           type: "body",
           parameters: [templateParam(String(pedido.numero)), templateParam(moeda(total)), templateParam(pedido.pagamento ?? "")],
         },
       ]);
-      whatsapp = "enviado";
+      whatsapp = "meta";
     }
   }
 
