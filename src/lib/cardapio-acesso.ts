@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import sql from "@/lib/db";
+import cardapioSql from "@/lib/cardapio-db";
 import { getSession, verifyToken } from "@/lib/auth";
 
 export type UsuarioCardapio = { userId: string; name: string; isAdmin: boolean };
@@ -51,11 +52,18 @@ export function withCors(res: NextResponse, origem?: string | null) {
   const liberada = origem && ORIGENS_PERMITIDAS.includes(origem) ? origem : ORIGENS_PERMITIDAS[0];
   res.headers.set("Access-Control-Allow-Origin", liberada);
   res.headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
-  res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.headers.set("Vary", "Origin");
   return res;
 }
 
 export function opcoes(request: Request) {
   return withCors(new NextResponse(null, { status: 204 }), request.headers.get("origin"));
+}
+
+/** Admin edita qualquer pizzaria; dono só as que o admin do Muvo liberou em acessos_muvo. */
+export async function podeEditarPizzaria(usuario: UsuarioCardapio, slug: string): Promise<boolean> {
+  if (usuario.isAdmin) return true;
+  const rows = await cardapioSql`SELECT 1 FROM public.acessos_muvo WHERE user_id = ${usuario.userId} AND pizzaria_slug = ${slug}`;
+  return rows.length > 0;
 }
