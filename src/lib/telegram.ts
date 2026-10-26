@@ -18,13 +18,13 @@ export function telegramSegredo(): string | null {
 export type TelegramResultado = "ok" | "bloqueado" | "erro";
 
 /** Envia texto simples. Retorna "bloqueado" quando o dono apagou ou bloqueou o bot. */
-export async function enviarTelegram(chatId: number | string, texto: string): Promise<TelegramResultado> {
+export async function enviarTelegram(chatId: number | string, texto: string, html = false): Promise<TelegramResultado> {
   const token = telegramToken();
   if (!token) return "erro";
   const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text: texto, disable_web_page_preview: true }),
+    body: JSON.stringify({ chat_id: chatId, text: texto, disable_web_page_preview: true, ...(html ? { parse_mode: "HTML" } : {}) }),
     cache: "no-store",
   });
   if (r.ok) return "ok";

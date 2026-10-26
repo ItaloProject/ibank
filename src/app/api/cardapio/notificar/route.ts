@@ -5,6 +5,7 @@ import { configurarPush, webpush } from "@/lib/push";
 import { normalizePhone, sendTemplate, templateParam, whatsappConfig } from "@/lib/whatsapp";
 import { evoSendText, evolutionConfig } from "@/lib/evolution";
 import { enviarTelegram, telegramToken } from "@/lib/telegram";
+import { montarAlertaTelegram } from "@/lib/alerta-pedido";
 
 const PAINEL = process.env.PAINEL_URL?.trim() || "https://painel-cardapio.pages.dev";
 
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
 
   const pedido = (await request.json().catch(() => null)) as {
     slug?: string;
+    id?: string;
     numero?: number;
     total?: number | string;
     pagamento?: string;
@@ -55,13 +57,25 @@ export async function POST(request: Request) {
     }
   }
 
+  // O gatilho dispara ao gravar o pedido, antes do cardápio reservar os centavos do Pix.
+  // A reserva é idempotente, então reservamos aqui para o alerta já trazer o valor exato.
+  if (pedido.id && pedido.pagamento === "Pix") {
+    await cardapioSql`SELECT public.reservar_centavos_pix(${pedido.id}::uuid)`;
+  }
+
   // Telegram: avisa cada chat vinculado pelo dono (API oficial, sem risco de banimento)
   let telegram = 0;
   if (telegramToken()) {
     const destinos = await cardapioSql`SELECT id, chat_id FROM public.telegram_destinos WHERE pizzaria_slug = ${pedido.slug}`;
-    const texto = `Novo pedido #${pedido.numero} · ${moeda(total)} (${pedido.pagamento ?? "pagamento"}). Acesse o painel para atender: ${PAINEL}`;
+    const [detalhes] = pedido.id
+      ? await cardapioSql`SELECT p.numero, p.modo, p.cliente, p.itens, p.total, p.pagamento, p.troco, p.centavos_pix, p.criado_em, z.pizzaria->>nome AS nome
+          FROM public.pedidos p JOIN public.pizzarias z ON z.slug = p.pizzaria_slug WHERE p.id = ${pedido.id}`
+      : [];
+    const texto = detalhes
+      ? montarAlertaTelegram(detalhes as never, String(detalhes.nome ?? ""), PAINEL)
+      : `Novo pedido #${pedido.numero} · ${moeda(total)} (${pedido.pagamento ?? "pagamento"}). Acesse o painel para atender: ${PAINEL}`;
     for (const d of destinos) {
-      const r = await enviarTelegram(String(d.chat_id), texto);
+      const r = await enviarTelegram(String(d.chat_id), texto, Boolean(detalhes));
       if (r === "ok") telegram += 1;
       // Dono bloqueou o bot ou apagou a conversa: remove o chat da lista
       if (r === "bloqueado") await cardapioSql`DELETE FROM public.telegram_destinos WHERE id = ${d.id}`;
