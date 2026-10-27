@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LogOut, ChevronLeft, X, Sun, Moon, Users, MessageCircleQuestion,
-  Store,
 } from "lucide-react";
 import Image from "next/image";
 import { BrandLockup } from "@/components/brand-lockup";
@@ -31,7 +30,6 @@ import {
 
 const ADMIN_LINKS = [
   { href: "/admin/usuarios", label: "Usuários", icon: Users },
-  { href: "/admin/cardapios", label: "Cardápios", icon: Store },
   { href: "/admin/perguntas", label: "Perguntas sem resposta", icon: MessageCircleQuestion },
 ];
 
