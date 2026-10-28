@@ -15,7 +15,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Pedido inválido" }, 400);
 
-  const corpo = (await request.json().catch(() => null)) as { status?: string; pagamento?: "pago" | "pendente"; entregadorId?: string | null } | null;
+  const corpo = (await request.json().catch(() => null)) as { status?: string; pagamento?: "pago" | "pendente"; entregadorId?: string | null; motivo?: string } | null;
   const trocaStatus = corpo?.status !== undefined;
   const trocaPagamento = corpo?.pagamento !== undefined;
   const trocaEntregador = corpo?.entregadorId !== undefined;
@@ -23,6 +23,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return json({ error: "Informe status, pagamento ou entregador" }, 400);
   }
   if (trocaStatus && !STATUS.includes(corpo!.status!)) return json({ error: "Status inválido" }, 400);
+  // Cancelamento exige motivo, para a pizzaria saber por que perdeu o pedido
+  const motivo = (corpo?.motivo ?? "").trim().slice(0, 200);
+  if (trocaStatus && corpo!.status === "cancelado" && !motivo) return json({ error: "Informe o motivo do cancelamento" }, 400);
   if (trocaPagamento && corpo!.pagamento !== "pago" && corpo!.pagamento !== "pendente") return json({ error: "Pagamento inválido" }, 400);
 
   const [pedido] = await cardapioSql`SELECT pizzaria_slug FROM public.pedidos WHERE id = ${id}`;
@@ -30,7 +33,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!(await podeEditarPizzaria(usuario, pedido.pizzaria_slug))) return json({ error: "Sem permissão" }, 403);
 
   if (trocaStatus) {
-    await cardapioSql`UPDATE public.pedidos SET status = ${corpo!.status!} WHERE id = ${id}`;
+    const motivoGravado = corpo!.status === "cancelado" ? motivo : null;
+    await cardapioSql`UPDATE public.pedidos SET status = ${corpo!.status!}, motivo_cancelamento = ${motivoGravado} WHERE id = ${id}`;
   } else if (trocaEntregador) {
     const entregadorId = corpo!.entregadorId as string | null;
     if (entregadorId !== null) {
