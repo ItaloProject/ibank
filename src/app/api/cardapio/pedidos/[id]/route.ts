@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import cardapioSql from "@/lib/cardapio-db";
 import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
 
-const STATUS = ["recebido", "preparo", "entrega", "concluido", "cancelado"];
+const STATUS = ["recebido", "preparo", "pronto", "entrega", "concluido", "cancelado"];
 
 export async function OPTIONS(request: Request) {
   return opcoes(request);
