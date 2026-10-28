@@ -29,7 +29,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const usuario = await usuarioCardapio(request);
   if (usuario instanceof NextResponse) return usuario;
-  if (!usuario.isAdmin) return json({ error: "Somente administradores criam pizzarias" }, 403);
+  // Só o administrador global (lista Acessos do painel-admin) cria pizzaria
+  if ((await pizzariasLiberadas(usuario)) !== "todas") return json({ error: "Somente administradores criam pizzarias" }, 403);
 
   const { slug, copiarDe } = (await request.json().catch(() => ({}))) as { slug?: string; copiarDe?: string };
   if (!slug || !slugValido(slug)) return json({ error: "Código inválido (letras minúsculas, números e hífen)" }, 400);
