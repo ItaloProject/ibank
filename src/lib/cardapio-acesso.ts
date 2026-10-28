@@ -28,11 +28,12 @@ export async function usuarioCardapio(request: Request): Promise<UsuarioCardapio
     }
   }
 
-  if (!userId) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  // Respostas de erro também precisam do cabeçalho de CORS, senão o painel mostra "Failed to fetch" em vez de pedir login
+  if (!userId) return json({ error: "Não autenticado" }, 401);
 
   const rows = await sql`SELECT is_active, is_admin, name FROM app_users WHERE user_id = ${userId}`;
   if (rows.length === 0 || rows[0].is_active === false) {
-    return NextResponse.json({ error: "Sessão inválida. Faça login novamente." }, { status: 401 });
+    return json({ error: "Sessão inválida. Faça login novamente." }, 401);
   }
   return { userId, name: rows[0].name ?? name, isAdmin: Boolean(rows[0].is_admin) };
 }
