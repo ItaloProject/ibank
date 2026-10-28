@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
 import { ErroPedido, montarPedido, type EscolhaItem } from "@/lib/pedido-manual";
 import { estaAberto, type Excecao, type Horario } from "@/lib/horario-loja";
+import { extrairIp, hashIp, JANELA_MINUTOS, LIMITE_ENVIOS } from "@/lib/limite-envios";
 
 // Rota pública: o cardápio do cliente chama sem login. Não usa cookie nem Authorization, então aceita qualquer origem.
 const CORS = {
@@ -25,6 +26,20 @@ export async function OPTIONS() {
  * o que o navegador envia são só as escolhas (item, tamanho, borda, adicionais).
  */
 export async function POST(request: Request) {
+  // Cada tentativa conta, inclusive as recusadas, para que spam não fique de graça
+  const origem = hashIp(extrairIp(request.headers));
+  const [{ envios }] = await cardapioSql`
+    SELECT count(*)::int AS envios FROM public.envios_pedido
+    WHERE ip_hash = ${origem} AND criado_em > now() - make_interval(mins => ${JANELA_MINUTOS})`;
+  if (envios >= LIMITE_ENVIOS) {
+    return responde({ error: "Muitos pedidos em pouco tempo. Aguarde alguns minutos e tente de novo." }, 429);
+  }
+  await cardapioSql`INSERT INTO public.envios_pedido (ip_hash) VALUES (${origem})`;
+  // Limpeza das tentativas antigas, em uma fração das chamadas
+  if (Math.random() < 0.02) {
+    await cardapioSql`DELETE FROM public.envios_pedido WHERE criado_em < now() - interval '1 day'`;
+  }
+
   const corpo = (await request.json().catch(() => null)) as {
     id?: string;
     slug?: string;
