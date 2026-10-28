@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import cardapioSql, { SUPABASE_URL, slugValido } from "@/lib/cardapio-db";
-import { json, opcoes, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
 
 export async function OPTIONS(request: Request) {
   return opcoes(request);
@@ -18,10 +18,7 @@ export async function POST(request: Request) {
   const tipo = url.searchParams.get("tipo") === "logo" ? "logo" : "foto";
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
 
-  if (!usuario.isAdmin) {
-    const rows = await cardapioSql`SELECT 1 FROM public.acessos_muvo WHERE user_id = ${usuario.userId} AND pizzaria_slug = ${slug}`;
-    if (rows.length === 0) return json({ error: "Sem permissão" }, 403);
-  }
+  if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
 
   const bytes = await request.arrayBuffer();
   if (bytes.byteLength === 0 || bytes.byteLength > LIMITE) return json({ error: "Imagem vazia ou grande demais" }, 400);

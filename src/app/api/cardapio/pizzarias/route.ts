@@ -1,22 +1,21 @@
 import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
-import { json, opcoes, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { json, opcoes, pizzariasLiberadas, usuarioCardapio } from "@/lib/cardapio-acesso";
 
 export async function OPTIONS(request: Request) {
   return opcoes(request);
 }
 
-// Lista as pizzarias que o usuário pode editar (administrador vê todas)
+// Lista as pizzarias que o usuário pode editar, pela lista Acessos do painel-admin (administrador vê todas)
 export async function GET(request: Request) {
   const usuario = await usuarioCardapio(request);
   if (usuario instanceof NextResponse) return usuario;
 
-  const rows = usuario.isAdmin
-    ? await cardapioSql`SELECT slug, pizzaria FROM public.pizzarias ORDER BY slug`
-    : await cardapioSql`
-        SELECT p.slug, p.pizzaria FROM public.pizzarias p
-        JOIN public.acessos_muvo a ON a.pizzaria_slug = p.slug
-        WHERE a.user_id = ${usuario.userId} ORDER BY p.slug`;
+  const liberadas = await pizzariasLiberadas(usuario);
+  const rows =
+    liberadas === "todas"
+      ? await cardapioSql`SELECT slug, pizzaria FROM public.pizzarias ORDER BY slug`
+      : await cardapioSql`SELECT slug, pizzaria FROM public.pizzarias WHERE slug = ANY(${liberadas}) ORDER BY slug`;
 
   return json(
     rows.map((r) => {
