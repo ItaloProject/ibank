@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
 import { ErroPedido, montarPedido, type EscolhaItem } from "@/lib/pedido-manual";
+import { estaAberto, type Excecao, type Horario } from "@/lib/horario-loja";
 
 // Rota pública: o cardápio do cliente chama sem login. Não usa cookie nem Authorization, então aceita qualquer origem.
 const CORS = {
@@ -42,8 +43,12 @@ export async function POST(request: Request) {
   const [pizzaria] = await cardapioSql`SELECT pizzaria, cardapio, publicado FROM public.pizzarias WHERE slug = ${slug}`;
   if (!pizzaria || !pizzaria.publicado) return responde({ error: "Cardápio não disponível" }, 404);
 
-  const config = (pizzaria.pizzaria as { pedidos?: Record<string, unknown> }).pedidos ?? {};
+  const dadosPizzaria = pizzaria.pizzaria as { pedidos?: Record<string, unknown>; horarios?: Horario[]; excecoes?: Excecao[] };
+  const config = dadosPizzaria.pedidos ?? {};
   if (!config.ativo) return responde({ error: "A pizzaria não está recebendo pedidos agora" }, 400);
+  if (!estaAberto(dadosPizzaria.horarios, dadosPizzaria.excecoes, new Date())) {
+    return responde({ error: "A pizzaria está fechada agora. Tente no horário de funcionamento." }, 400);
+  }
 
   try {
     const pedido = montarPedido(pizzaria.cardapio as never, config as never, {
