@@ -15,7 +15,8 @@ export async function GET(request: Request) {
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
 
   const pedidos = await cardapioSql`
-    SELECT id, numero, modo, cliente, itens, subtotal, taxa, total, pagamento, troco, status, pagamento_status, pago_em, centavos_pix, criado_em
+    SELECT id, numero, modo, cliente, itens, subtotal, taxa, total, pagamento, troco, status, pagamento_status, pago_em, centavos_pix, criado_em,
+      entregador_id, (SELECT nome FROM public.entregadores WHERE id = pedidos.entregador_id) AS entregador_nome
     FROM public.pedidos WHERE pizzaria_slug = ${slug}
     ORDER BY criado_em DESC LIMIT 200`;
   return json({ pedidos });
