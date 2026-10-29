@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { requireAdmin } from "@/lib/auth";
 import sql from "@/lib/db";
 import { ensureSubscriptionColumns } from "@/lib/subscription";
+import { normalizarEmail } from "@/lib/email-usuario";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -13,6 +14,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const body = await request.json();
 
+  if (body.email !== undefined) {
+    const emailLimpo = normalizarEmail(body.email);
+    if (emailLimpo === false) return NextResponse.json({ error: "E-mail inválido" }, { status: 400 });
+    await sql`UPDATE app_users SET email = ${emailLimpo} WHERE id = ${id}`;
+  }
   if (typeof body.is_active === "boolean") {
     await sql`UPDATE app_users SET is_active = ${body.is_active} WHERE id = ${id}`;
   }

@@ -21,6 +21,7 @@ interface AppUser {
   bot_enabled?: boolean;
   paid_until?: string | null;
   plan?: string | null;
+  email?: string | null;
 }
 
 const COLORS = ["#3b82f6","#ec4899","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#f97316"];
@@ -33,6 +34,7 @@ const emptyForm = {
   is_admin: false,
   bot_enabled: false,
   paid_days: 30,
+  email: "",
 };
 
 function paidStatus(u: AppUser): { label: string; tone: "emerald" | "amber" | "red" | "muted" } | null {
@@ -126,6 +128,22 @@ export default function UsuariosPage() {
     if (!res.ok) { setError(data.error ?? "Erro ao criar"); }
     else { setShowForm(false); setForm(emptyForm); loadUsers(); }
     setSaving(false);
+  }
+
+  async function editEmail(user: AppUser) {
+    const novo = prompt(`E-mail de ${user.name} (o mesmo da conta que entra no painel do cardápio). Deixe vazio para remover.`, user.email ?? "");
+    if (novo === null) return;
+    const res = await fetch(`/api/admin/users/${user.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: novo }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error ?? "Não foi possível salvar o e-mail");
+      return;
+    }
+    loadUsers();
   }
 
   async function toggleBot(user: AppUser) {
@@ -243,6 +261,9 @@ export default function UsuariosPage() {
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-xs text-muted-foreground">@{u.username}</span>
+                          <button type="button" onClick={() => editEmail(u)} className="text-xs font-semibold text-muted-foreground underline underline-offset-2 hover:text-foreground">
+                            {u.email ? u.email : "definir e-mail"}
+                          </button>
                           <span className="text-muted-foreground/30 text-xs">·</span>
                           <span className="text-xs text-muted-foreground">
                             {u.plan === "completo" ? "Completo R$45" : "R$30"}
@@ -348,6 +369,12 @@ export default function UsuariosPage() {
                     placeholder="usuario" required autoCapitalize="none"
                     className="w-full rounded-xl border bg-muted/30 px-3 py-2.5 text-sm outline-none focus:border-foreground/30 focus:bg-background transition-all" />
                 </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">E-mail (painel do cardápio)</label>
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value.trim().toLowerCase() })}
+                  placeholder="nome@exemplo.com" autoCapitalize="none"
+                  className="w-full rounded-xl border bg-muted/30 px-3 py-2.5 text-sm outline-none focus:border-foreground/30 focus:bg-background transition-all" />
+              </div>
               </div>
 
               <div className="space-y-1.5">

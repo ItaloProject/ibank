@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { requireAdmin } from "@/lib/auth";
 import sql from "@/lib/db";
 import { addDaysISO, ensureSubscriptionColumns } from "@/lib/subscription";
+import { normalizarEmail } from "@/lib/email-usuario";
 
 export async function GET() {
   const admin = await requireAdmin();
@@ -12,7 +13,7 @@ export async function GET() {
 
   const rows = await sql`
     SELECT id, user_id, username, name, color, is_active, is_admin, created_at,
-           bot_enabled, paid_until, plan
+           bot_enabled, paid_until, plan, email
     FROM app_users ORDER BY created_at ASC
   `;
   return NextResponse.json(rows);
@@ -31,7 +32,10 @@ export async function POST(request: Request) {
     plan = "assinante",
     paid_days = 30,
     paid_until,
+    email,
   } = body;
+  const emailLimpo = normalizarEmail(email);
+  if (emailLimpo === false) return NextResponse.json({ error: "E-mail inválido" }, { status: 400 });
 
   if (!username || !name || !password) {
     return NextResponse.json({ error: "Preencha todos os campos" }, { status: 400 });
@@ -49,18 +53,19 @@ export async function POST(request: Request) {
     const [user] = await sql`
       INSERT INTO app_users (
         user_id, username, name, password_hash, color, is_admin,
-        bot_enabled, paid_until, plan, is_active
+        bot_enabled, paid_until, plan, is_active, email
       )
       VALUES (
         ${user_id}, ${username.toLowerCase().trim()}, ${name}, ${hash},
         ${color ?? "#3b82f6"}, ${is_admin ?? false},
-        ${withBot}, ${until}, ${planValue}, true
+        ${withBot}, ${until}, ${planValue}, true, ${emailLimpo}
       )
       RETURNING id, user_id, username, name, color, is_active, is_admin, created_at,
-                bot_enabled, paid_until, plan
+                bot_enabled, paid_until, plan, email
     `;
     return NextResponse.json(user, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Usuário já existe" }, { status: 409 });
   }
 }
+
