@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
 import { ErroPedido, montarPedido, type EscolhaItem } from "@/lib/pedido-manual";
 import { estaAberto, type Excecao, type Horario } from "@/lib/horario-loja";
+import { validarAgendamento } from "@/lib/agendamento";
 import { extrairIp, hashIp, JANELA_MINUTOS, LIMITE_ENVIOS } from "@/lib/limite-envios";
 
 // Rota pública: o cardápio do cliente chama sem login. Não usa cookie nem Authorization, então aceita qualquer origem.
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
     escolhas?: unknown;
     pagamento?: string;
     troco?: string | null;
+    agendadoPara?: string | null;
   } | null;
 
   const id = corpo?.id ?? "";
@@ -61,7 +63,13 @@ export async function POST(request: Request) {
   const dadosPizzaria = pizzaria.pizzaria as { pedidos?: Record<string, unknown>; horarios?: Horario[]; excecoes?: Excecao[] };
   const config = dadosPizzaria.pedidos ?? {};
   if (!config.ativo) return responde({ error: "A pizzaria não está recebendo pedidos agora" }, 400);
-  if (!estaAberto(dadosPizzaria.horarios, dadosPizzaria.excecoes, new Date())) {
+  // Pedido agendado: o horário escolhido é validado (antecedência, intervalo, loja aberta nele).
+  // Pedido imediato: a loja precisa estar aberta agora.
+  const agendadoPara = corpo?.agendadoPara ? new Date(corpo.agendadoPara) : null;
+  if (agendadoPara) {
+    const erroAgendamento = validarAgendamento(new Date(), agendadoPara, dadosPizzaria.horarios, dadosPizzaria.excecoes);
+    if (erroAgendamento) return responde({ error: erroAgendamento }, 400);
+  } else if (!estaAberto(dadosPizzaria.horarios, dadosPizzaria.excecoes, new Date())) {
     return responde({ error: "A pizzaria está fechada agora. Tente no horário de funcionamento." }, 400);
   }
 
@@ -81,9 +89,9 @@ export async function POST(request: Request) {
 
     const itens = pedido.itens.map((l) => ({ nome: l.nome, variante: l.variante, qtd: l.qtd, preco: l.preco, detalhes: l.detalhes, obs: l.obs }));
     const [novo] = await cardapioSql`
-      INSERT INTO public.pedidos (id, pizzaria_slug, modo, cliente, itens, subtotal, taxa, total, pagamento, troco, origem)
+      INSERT INTO public.pedidos (id, pizzaria_slug, modo, cliente, itens, subtotal, taxa, total, pagamento, troco, origem, agendado_para)
       VALUES (${id}::uuid, ${slug}, ${pedido.modo}, ${cardapioSql.json(pedido.cliente)}, ${cardapioSql.json(itens)},
-              ${pedido.subtotal}, ${pedido.taxa}, ${pedido.total}, ${pedido.pagamento}, ${pedido.troco}, 'cardapio')
+              ${pedido.subtotal}, ${pedido.taxa}, ${pedido.total}, ${pedido.pagamento}, ${pedido.troco}, 'cardapio', ${agendadoPara})
       RETURNING numero`;
 
     // Pix: reserva os centavos que identificam o pagamento, para o cliente ver o valor exato na página do pedido
