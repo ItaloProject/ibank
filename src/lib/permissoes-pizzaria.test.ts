@@ -1,20 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { pizzariasDoAcesso } from "@/lib/permissoes-pizzaria";
+import { papelNaPizzaria, pizzariasDoAcesso } from "@/lib/permissoes-pizzaria";
 
 describe("pizzariasDoAcesso", () => {
   it("admin global vê todas as pizzarias", () => {
     expect(pizzariasDoAcesso([{ papel: "admin", pizzaria_slug: null }])).toBe("todas");
   });
 
-  it("dono vê só a pizzaria liberada", () => {
+  it("dono e garçom veem só a pizzaria liberada", () => {
     expect(pizzariasDoAcesso([{ papel: "dono", pizzaria_slug: "bella-massa" }])).toEqual(["bella-massa"]);
+    expect(pizzariasDoAcesso([{ papel: "garcom", pizzaria_slug: "bella-massa" }])).toEqual(["bella-massa"]);
   });
 
-  it("sem nenhuma linha, não vê nenhuma pizzaria", () => {
+  it("sem linha, não vê nenhuma pizzaria", () => {
     expect(pizzariasDoAcesso([])).toEqual([]);
   });
+});
 
-  it("dono sem pizzaria não libera nada", () => {
-    expect(pizzariasDoAcesso([{ papel: "dono", pizzaria_slug: null }])).toEqual([]);
+describe("papelNaPizzaria", () => {
+  it("admin global vale em qualquer pizzaria", () => {
+    expect(papelNaPizzaria([{ papel: "admin", pizzaria_slug: null }], "bella-massa")).toBe("admin");
+  });
+
+  it("devolve o papel da pizzaria certa e ignora as outras", () => {
+    const linhas = [
+      { papel: "garcom", pizzaria_slug: "bella-massa" },
+      { papel: "dono", pizzaria_slug: "pizzaria-teste" },
+    ];
+    expect(papelNaPizzaria(linhas, "bella-massa")).toBe("garcom");
+    expect(papelNaPizzaria(linhas, "pizzaria-teste")).toBe("dono");
+    expect(papelNaPizzaria(linhas, "outra")).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import sql from "@/lib/db";
 import cardapioSql from "@/lib/cardapio-db";
 import { pizzariasDoAcesso, type LinhaAcesso } from "@/lib/permissoes-pizzaria";
+export type { LinhaAcesso } from "@/lib/permissoes-pizzaria";
 import { getSession, verifyToken } from "@/lib/auth";
 
 export type UsuarioCardapio = { userId: string; name: string; isAdmin: boolean };
@@ -67,15 +68,18 @@ export function opcoes(request: Request) {
  * Pizzarias que o usuário pode editar, pela lista Acessos do painel-admin (ligação pelo e-mail do Muvo).
  * "todas" para admin global; lista vazia para quem não tem nenhuma liberação ou está bloqueado.
  */
-export async function pizzariasLiberadas(usuario: UsuarioCardapio): Promise<string[] | "todas"> {
+export async function acessosDoUsuario(usuario: UsuarioCardapio): Promise<LinhaAcesso[]> {
   const [conta] = await sql`SELECT email FROM app_users WHERE user_id = ${usuario.userId}`;
   const email = typeof conta?.email === "string" ? conta.email.trim().toLowerCase() : "";
   if (!email) return [];
   // A lista Acessos fica no banco do cardápio (o mesmo que o painel-admin usa)
   const linhas = await cardapioSql`
     SELECT papel, pizzaria_slug FROM public.acessos WHERE lower(email) = ${email} AND NOT bloqueado`;
-  const acessos: LinhaAcesso[] = linhas.map((l) => ({ papel: String(l.papel), pizzaria_slug: l.pizzaria_slug == null ? null : String(l.pizzaria_slug) }));
-  return pizzariasDoAcesso(acessos);
+  return linhas.map((l) => ({ papel: String(l.papel), pizzaria_slug: l.pizzaria_slug == null ? null : String(l.pizzaria_slug) }));
+}
+
+export async function pizzariasLiberadas(usuario: UsuarioCardapio): Promise<string[] | "todas"> {
+  return pizzariasDoAcesso(await acessosDoUsuario(usuario));
 }
 
 /** Admin global edita todas; dono só as pizzarias liberadas na lista Acessos do painel-admin. */
