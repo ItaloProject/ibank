@@ -33,7 +33,9 @@ export async function POST(request: Request) {
 
   try {
     if (corpo?.previa) {
-      const totais = calcularTotais(pizzaria.cardapio as never, config as never, corpo.modo ?? "", corpo.escolhas as EscolhaItem[]);
+      // Consumo no local (comanda) vale mesmo sem pedidos online ligados
+      const configPrevia = corpo.modo === "mesa" ? { ...config, modos: [...((config as { modos?: string[] }).modos ?? []), "mesa"] } : config;
+      const totais = calcularTotais(pizzaria.cardapio as never, configPrevia as never, corpo.modo ?? "", corpo.escolhas as EscolhaItem[]);
       return json({ ok: true, subtotal: totais.subtotal, taxa: totais.taxa, total: totais.total, itens: totais.itens }, 200);
     }
 
