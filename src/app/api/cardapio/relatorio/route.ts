@@ -29,6 +29,7 @@ export async function GET(request: Request) {
     WHERE pizzaria_slug = ${slug}
       AND pagamento = 'Pix'
       AND pagamento_status = 'pago'
+      AND status <> 'cancelado'
       AND to_char(pago_em AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM') = ${mes}
     ORDER BY pago_em`;
 
