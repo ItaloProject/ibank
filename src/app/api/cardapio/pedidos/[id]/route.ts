@@ -46,9 +46,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     await cardapioSql`UPDATE public.pedidos SET entregador_id = ${entregadorId} WHERE id = ${id}`;
   } else if (corpo!.pagamento === "pago") {
-    await cardapioSql`UPDATE public.pedidos SET pagamento_status = pago, pago_em = now() WHERE id = ${id}`;
+    await cardapioSql`UPDATE public.pedidos SET pagamento_status = ${"pago"}, pago_em = now() WHERE id = ${id}`;
   } else {
-    await cardapioSql`UPDATE public.pedidos SET pagamento_status = pendente, pago_em = NULL WHERE id = ${id}`;
+    await cardapioSql`UPDATE public.pedidos SET pagamento_status = ${"pendente"}, pago_em = NULL WHERE id = ${id}`;
   }
   return json({ ok: true });
 }
