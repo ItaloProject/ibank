@@ -4,8 +4,10 @@ import cardapioSql from "@/lib/cardapio-db";
 import { pizzariasDoAcesso, type LinhaAcesso } from "@/lib/permissoes-pizzaria";
 export type { LinhaAcesso } from "@/lib/permissoes-pizzaria";
 import { getSession, verifyToken } from "@/lib/auth";
+import { lerSessaoGarcom } from "@/lib/garcom-sessao";
 
-export type UsuarioCardapio = { userId: string; name: string; isAdmin: boolean };
+/** garcomSlug: quando é um garçom, a única pizzaria dele. Garçom não tem conta no Muvo. */
+export type UsuarioCardapio = { userId: string; name: string; isAdmin: boolean; garcomSlug?: string };
 
 /**
  * Quem está chamando a API do cardápio. Aceita o token do login (Authorization: Bearer)
@@ -17,6 +19,12 @@ export async function usuarioCardapio(request: Request): Promise<UsuarioCardapio
   let name = "";
 
   if (cabecalho.startsWith("Bearer ")) {
+    const garcom = await lerSessaoGarcom(cabecalho.slice(7));
+    if (garcom) {
+      const [ativo] = await cardapioSql`SELECT nome FROM public.garcons WHERE id = ${garcom.garcomId}::uuid AND ativo AND pizzaria_slug = ${garcom.slug}`;
+      if (!ativo) return json({ error: "Sessão encerrada. Entre de novo." }, 401);
+      return { userId: `garcom:${garcom.garcomId}`, name: ativo.nome as string, isAdmin: false, garcomSlug: garcom.slug };
+    }
     const payload = await verifyToken(cabecalho.slice(7));
     if (payload?.userId) {
       userId = payload.userId;
@@ -69,6 +77,8 @@ export function opcoes(request: Request) {
  * "todas" para admin global; lista vazia para quem não tem nenhuma liberação ou está bloqueado.
  */
 export async function acessosDoUsuario(usuario: UsuarioCardapio): Promise<LinhaAcesso[]> {
+  // Garçom: só a pizzaria dele, com papel garcom (não pode gerenciar a equipe)
+  if (usuario.garcomSlug) return [{ papel: "garcom", pizzaria_slug: usuario.garcomSlug }];
   const [conta] = await sql`SELECT email FROM app_users WHERE user_id = ${usuario.userId}`;
   const email = typeof conta?.email === "string" ? conta.email.trim().toLowerCase() : "";
   if (!email) return [];
@@ -84,6 +94,7 @@ export async function pizzariasLiberadas(usuario: UsuarioCardapio): Promise<stri
 
 /** Admin global edita todas; dono só as pizzarias liberadas na lista Acessos do painel-admin. */
 export async function podeEditarPizzaria(usuario: UsuarioCardapio, slug: string): Promise<boolean> {
+  if (usuario.garcomSlug) return usuario.garcomSlug === slug;
   const liberadas = await pizzariasLiberadas(usuario);
   return liberadas === "todas" || liberadas.includes(slug);
 }

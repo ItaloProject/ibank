@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import sql from "@/lib/db";
 
-function getJwtSecret(): Uint8Array {
+export function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
   if (process.env.NODE_ENV === "production" && !secret) {
     throw new Error("JWT_SECRET is required in production");
