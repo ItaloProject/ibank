@@ -16,9 +16,10 @@ describe("respostas da API do cardápio", () => {
   // Por isso toda resposta das rotas passa por json() (src/lib/cardapio-acesso.ts), que já inclui o cabeçalho.
   // Exceção: a rota pública (pedido do cliente) define o próprio cabeçalho de CORS, e não usa cookie.
   it("nenhuma rota responde com NextResponse.json sem cabeçalho de CORS", () => {
+    // Exceção: o agendamento diário (reset-pausados) é chamado pela Vercel, não pelo navegador
     const diretas = arquivos("src/app/api/cardapio").filter((f) => {
       const codigo = readFileSync(f, "utf8");
-      return codigo.includes("NextResponse.json(") && !codigo.includes("Access-Control-Allow-Origin");
+      return codigo.includes("NextResponse.json(") && !codigo.includes("Access-Control-Allow-Origin") && !f.includes("reset-pausados");
     });
     expect(diretas).toEqual([]);
   });
