@@ -14,9 +14,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
 
-  const [linha] = await cardapioSql`SELECT pizzaria, cardapio FROM public.pizzarias WHERE slug = ${slug}`;
+  const [linha] = await cardapioSql`SELECT pizzaria, cardapio, plano FROM public.pizzarias WHERE slug = ${slug}`;
   if (!linha) return json({ error: "Pizzaria não encontrada" }, 404);
-  return json({ pizzaria: linha.pizzaria, cardapio: linha.cardapio });
+  return json({ pizzaria: linha.pizzaria, cardapio: linha.cardapio, plano: linha.plano });
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ slug: string }> }) {
