@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
-import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { json, opcoes, podeEditarPizzaria, usuarioCardapio, bloqueadoNoNormal } from "@/lib/cardapio-acesso";
 import { telegramBotUsername } from "@/lib/telegram";
 
 export async function OPTIONS(request: Request) {
@@ -17,6 +17,8 @@ export async function POST(request: Request) {
   const slug = corpo?.slug ?? "";
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   const bot = telegramBotUsername();
   if (!bot) return json({ error: "Telegram não configurado" }, 503);

@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import cardapioSql from "@/lib/cardapio-db";
-import { json } from "@/lib/cardapio-acesso";
+import { json, ehPlanoNormal } from "@/lib/cardapio-acesso";
 import { configurarPush, webpush } from "@/lib/push";
 import { normalizePhone, sendTemplate, templateParam, whatsappConfig } from "@/lib/whatsapp";
 import { enviarTelegram, telegramToken } from "@/lib/telegram";
@@ -33,6 +33,8 @@ export async function POST(request: Request) {
     pagamento?: string;
   } | null;
   if (!pedido?.slug || pedido.numero === undefined) return json({ error: "Pedido inválido" }, 400);
+  // Plano normal: o pedido aparece no painel, mas sem alerta no Telegram ou push
+  if (await ehPlanoNormal(pedido.slug)) return json({ ok: true, alertas: "plano normal" });
 
   const total = Number(pedido.total ?? 0);
   const titulo = `Novo pedido #${pedido.numero}`;

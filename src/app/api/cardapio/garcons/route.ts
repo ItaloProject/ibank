@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
-import { acessosDoUsuario, json, opcoes, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { acessosDoUsuario, json, opcoes, usuarioCardapio, bloqueadoNoNormal } from "@/lib/cardapio-acesso";
 import { papelNaPizzaria } from "@/lib/permissoes-pizzaria";
 import { loginGarcomValido, nomeGarcomValido, senhaGarcomValida } from "@/lib/garcom-regras";
 
@@ -22,6 +22,8 @@ export async function GET(request: Request) {
   const slug = new URL(request.url).searchParams.get("slug") ?? "";
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   if (!(await podeGerenciar(usuario, slug))) return json({ error: "Só o dono pode gerenciar os garçons" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   const garcons = await cardapioSql`SELECT id, nome, login, ativo FROM public.garcons WHERE pizzaria_slug = ${slug} ORDER BY nome`;
   return json({ garcons });
@@ -35,6 +37,8 @@ export async function POST(request: Request) {
   const slug = corpo?.slug ?? "";
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   if (!(await podeGerenciar(usuario, slug))) return json({ error: "Só o dono pode gerenciar os garçons" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   const nome = nomeGarcomValido(corpo?.nome);
   const login = loginGarcomValido(corpo?.login);
@@ -62,6 +66,8 @@ export async function PATCH(request: Request) {
   const slug = corpo?.slug ?? "";
   if (!slugValido(slug) || !/^[0-9a-f-]{36}$/i.test(corpo?.id ?? "")) return json({ error: "Pedido inválido" }, 400);
   if (!(await podeGerenciar(usuario, slug))) return json({ error: "Só o dono pode gerenciar os garçons" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   if (typeof corpo?.ativo === "boolean") {
     await cardapioSql`UPDATE public.garcons SET ativo = ${corpo.ativo} WHERE id = ${corpo.id!}::uuid AND pizzaria_slug = ${slug}`;

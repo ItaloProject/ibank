@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
-import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { json, opcoes, podeEditarPizzaria, usuarioCardapio, bloqueadoNoNormal } from "@/lib/cardapio-acesso";
 
 const VEICULOS = ["moto", "bike", "carro"];
 const ID = /^[0-9a-f-]{36}$/i;
@@ -16,6 +16,8 @@ export async function GET(request: Request) {
   const slug = new URL(request.url).searchParams.get("slug") ?? "";
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   const entregadores = await cardapioSql`
     SELECT id, nome, telefone, veiculo, ativo FROM public.entregadores
@@ -42,6 +44,8 @@ export async function POST(request: Request) {
   const slug = corpo?.slug ?? "";
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   const campos = lerCampos(corpo ?? {});
   if (typeof campos === "string") return json({ error: campos }, 400);
@@ -62,6 +66,8 @@ export async function PATCH(request: Request) {
   const id = corpo?.id ?? "";
   if (!slugValido(slug) || !ID.test(id)) return json({ error: "Pedido inválido" }, 400);
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   const [atual] = await cardapioSql`
     SELECT nome, telefone, veiculo, ativo FROM public.entregadores WHERE id = ${id} AND pizzaria_slug = ${slug}`;

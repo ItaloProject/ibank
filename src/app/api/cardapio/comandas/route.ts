@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
-import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { json, opcoes, podeEditarPizzaria, usuarioCardapio, bloqueadoNoNormal } from "@/lib/cardapio-acesso";
 import { mesaValida } from "@/lib/comanda";
 
 export async function OPTIONS(request: Request) {
@@ -14,6 +14,8 @@ export async function GET(request: Request) {
   const slug = new URL(request.url).searchParams.get("slug") ?? "";
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   const comandas = await cardapioSql`
     SELECT c.id, c.mesa, c.aberta_em,
@@ -35,6 +37,8 @@ export async function POST(request: Request) {
   const slug = corpo?.slug ?? "";
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
   const mesa = mesaValida(corpo?.mesa);
   if (!mesa) return json({ error: "Informe o número ou nome da mesa (até 20 caracteres)" }, 400);
 

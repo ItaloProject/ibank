@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
-import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { json, opcoes, podeEditarPizzaria, usuarioCardapio, bloqueadoNoNormal } from "@/lib/cardapio-acesso";
 
 export async function OPTIONS(request: Request) {
   return opcoes(request);
@@ -22,6 +22,8 @@ export async function GET(request: Request) {
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   if (!/^\d{4}-\d{2}$/.test(mes)) return json({ error: "Mês inválido" }, 400);
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   const linhas = await cardapioSql`
     SELECT numero, pago_em, total, centavos_pix

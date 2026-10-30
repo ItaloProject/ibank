@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
-import { acessosDoUsuario, json, opcoes, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { acessosDoUsuario, json, opcoes, usuarioCardapio, bloqueadoNoNormal } from "@/lib/cardapio-acesso";
 import { papelNaPizzaria } from "@/lib/permissoes-pizzaria";
 
 export async function OPTIONS(request: Request) {
@@ -17,6 +17,8 @@ export async function GET(request: Request) {
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   const voce = papelNaPizzaria(await acessosDoUsuario(usuario), slug);
   if (!voce) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   const membros = await cardapioSql`
     SELECT email, papel, bloqueado FROM public.acessos WHERE pizzaria_slug = ${slug} ORDER BY papel, email`;

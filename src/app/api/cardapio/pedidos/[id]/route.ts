@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import cardapioSql from "@/lib/cardapio-db";
-import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { bloqueadoNoNormal, json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
 
 const STATUS = ["recebido", "preparo", "pronto", "entrega", "concluido", "cancelado"];
 
@@ -31,6 +31,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const [pedido] = await cardapioSql`SELECT pizzaria_slug FROM public.pedidos WHERE id = ${id}`;
   if (!pedido) return json({ error: "Pedido não encontrado" }, 404);
   if (!(await podeEditarPizzaria(usuario, pedido.pizzaria_slug))) return json({ error: "Sem permissão" }, 403);
+  // Pagamento Pix e entregador são do plano premium; a troca de status segue no normal
+  if (!trocaStatus) {
+    const semPremium = await bloqueadoNoNormal(pedido.pizzaria_slug);
+    if (semPremium) return semPremium;
+  }
 
   if (trocaStatus) {
     const motivoGravado = corpo!.status === "cancelado" ? motivo : null;

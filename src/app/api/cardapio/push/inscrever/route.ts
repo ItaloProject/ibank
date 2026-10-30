@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
-import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { json, opcoes, podeEditarPizzaria, usuarioCardapio, bloqueadoNoNormal } from "@/lib/cardapio-acesso";
 
 export async function OPTIONS(request: Request) {
   return opcoes(request);
@@ -23,6 +23,8 @@ export async function POST(request: Request) {
     return json({ error: "Inscrição inválida" }, 400);
   }
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   await cardapioSql`
     INSERT INTO public.push_inscricoes (user_id, pizzaria_slug, endpoint, p256dh, auth)

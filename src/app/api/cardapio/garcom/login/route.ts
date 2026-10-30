@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
-import { json, opcoes } from "@/lib/cardapio-acesso";
+import { bloqueadoNoNormal, json, opcoes } from "@/lib/cardapio-acesso";
 import { assinarSessaoGarcom } from "@/lib/garcom-sessao";
 import { loginGarcomValido } from "@/lib/garcom-regras";
 
@@ -13,6 +13,8 @@ export async function POST(request: Request) {
   const corpo = (await request.json().catch(() => null)) as { slug?: string; login?: unknown; senha?: unknown } | null;
   const slug = (corpo?.slug ?? "").trim().toLowerCase();
   if (!slugValido(slug)) return json({ error: "Código da pizzaria inválido" }, 400);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
   const login = loginGarcomValido(corpo?.login);
   if (!login || typeof corpo?.senha !== "string") return json({ error: "Preencha código, login e senha" }, 400);
 

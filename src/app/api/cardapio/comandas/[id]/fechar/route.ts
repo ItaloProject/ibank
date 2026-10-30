@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import cardapioSql from "@/lib/cardapio-db";
-import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { json, opcoes, podeEditarPizzaria, usuarioCardapio, bloqueadoNoNormal } from "@/lib/cardapio-acesso";
 import { totalComanda } from "@/lib/comanda";
 
 export async function OPTIONS(request: Request) {
@@ -17,6 +17,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const [comanda] = await cardapioSql`SELECT pizzaria_slug, status FROM public.comandas WHERE id = ${id}`;
   if (!comanda) return json({ error: "Comanda não encontrada" }, 404);
   if (!(await podeEditarPizzaria(usuario, comanda.pizzaria_slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(comanda.pizzaria_slug);
+  if (semPremium) return semPremium;
   if (comanda.status !== "aberta") return json({ error: "Essa comanda já está fechada" }, 400);
 
   const corpo = (await request.json().catch(() => null)) as { pagamento?: string; troco?: string | null } | null;

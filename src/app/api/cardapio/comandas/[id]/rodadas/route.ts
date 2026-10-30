@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import cardapioSql from "@/lib/cardapio-db";
-import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { json, opcoes, podeEditarPizzaria, usuarioCardapio, bloqueadoNoNormal } from "@/lib/cardapio-acesso";
 import { calcularTotais, ErroPedido, type EscolhaItem } from "@/lib/pedido-manual";
 
 export async function OPTIONS(request: Request) {
@@ -18,6 +18,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!comanda) return json({ error: "Comanda não encontrada" }, 404);
   if (comanda.status !== "aberta") return json({ error: "Essa comanda já está fechada" }, 400);
   if (!(await podeEditarPizzaria(usuario, comanda.pizzaria_slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(comanda.pizzaria_slug);
+  if (semPremium) return semPremium;
 
   const corpo = (await request.json().catch(() => null)) as { escolhas?: unknown } | null;
   if (!Array.isArray(corpo?.escolhas)) return json({ error: "Adicione pelo menos um item" }, 400);

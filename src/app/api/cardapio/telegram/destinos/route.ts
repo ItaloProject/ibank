@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import cardapioSql, { slugValido } from "@/lib/cardapio-db";
-import { json, opcoes, podeEditarPizzaria, usuarioCardapio } from "@/lib/cardapio-acesso";
+import { json, opcoes, podeEditarPizzaria, usuarioCardapio, bloqueadoNoNormal } from "@/lib/cardapio-acesso";
 
 export async function OPTIONS(request: Request) {
   return opcoes(request);
@@ -13,6 +13,8 @@ export async function GET(request: Request) {
   const slug = new URL(request.url).searchParams.get("slug") ?? "";
   if (!slugValido(slug)) return json({ error: "Código inválido" }, 400);
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   const destinos = await cardapioSql`SELECT id, nome, criado_em FROM public.telegram_destinos WHERE pizzaria_slug = ${slug} ORDER BY criado_em`;
   return json({ destinos });
@@ -27,6 +29,8 @@ export async function DELETE(request: Request) {
   const id = corpo?.id ?? "";
   if (!slugValido(slug) || !/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "Pedido inválido" }, 400);
   if (!(await podeEditarPizzaria(usuario, slug))) return json({ error: "Sem permissão" }, 403);
+  const semPremium = await bloqueadoNoNormal(slug);
+  if (semPremium) return semPremium;
 
   await cardapioSql`DELETE FROM public.telegram_destinos WHERE id = ${id} AND pizzaria_slug = ${slug}`;
   return json({ ok: true });

@@ -98,3 +98,17 @@ export async function podeEditarPizzaria(usuario: UsuarioCardapio, slug: string)
   const liberadas = await pizzariasLiberadas(usuario);
   return liberadas === "todas" || liberadas.includes(slug);
 }
+
+/**
+ * Plano da pizzaria: "premium" (padrão) ou "normal". Só o premium tem pedidos no painel,
+ * cozinha, mesas, equipe de garçons, entregadores, relatório e alertas.
+ */
+export async function ehPlanoNormal(slug: string): Promise<boolean> {
+  const [linha] = await cardapioSql`SELECT plano FROM public.pizzarias WHERE slug = ${slug}`;
+  return linha?.plano === "normal";
+}
+
+/** Recurso premium: responde 403 quando a pizzaria está no plano normal; null quando pode seguir */
+export async function bloqueadoNoNormal(slug: string): Promise<NextResponse | null> {
+  return (await ehPlanoNormal(slug)) ? json({ error: "Disponível no plano premium" }, 403) : null;
+}
