@@ -23,6 +23,80 @@ type YahooChart = {
   };
 };
 
+/** Variação de um papel ou índice entre o fechamento do pregão anterior e o último preço. */
+export type DayMove = {
+  price: number;
+  previousClose: number;
+  changePct: number;
+  /** Horário (ms) do último negócio. */
+  time: number;
+  /** Variação em relação ao fechamento de 5 pregões atrás; null com histórico curto. */
+  weekChangePct: number | null;
+};
+
+/** Ibovespa no Yahoo. */
+export const INDEX_SYMBOL = "^BVSP";
+
+type YahooDaily = {
+  chart?: {
+    result?: {
+      meta?: { regularMarketPrice?: number; regularMarketTime?: number };
+      timestamp?: number[];
+      indicators?: { quote?: { close?: (number | null)[] }[] };
+    }[];
+  };
+};
+
+/** Dia no calendário de Brasília (AAAA-MM-DD); a B3 fecha no fuso de São Paulo. */
+export function brDay(ms: number): string {
+  return new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
+/**
+ * O fechamento de referência é o do último pregão anterior ao dia do último negócio. Assim a
+ * barra do dia em andamento, que o Yahoo às vezes devolve sem fechamento, não atrapalha a conta.
+ */
+export function parseDayMove(json: YahooDaily): DayMove | null {
+  const r = json.chart?.result?.[0];
+  const price = r?.meta?.regularMarketPrice;
+  const t = r?.meta?.regularMarketTime;
+  if (typeof price !== "number" || !(price > 0) || typeof t !== "number") return null;
+  const stamps = r?.timestamp ?? [];
+  const closes = r?.indicators?.quote?.[0]?.close ?? [];
+  const marketDay = brDay(t * 1000);
+  const before: number[] = [];
+  for (let i = 0; i < stamps.length; i++) {
+    const c = closes[i];
+    if (typeof c !== "number" || !(c > 0)) continue;
+    if (brDay(stamps[i] * 1000) < marketDay) before.push(c);
+  }
+  const previousClose = before[before.length - 1];
+  if (previousClose === undefined) return null;
+  const weekAgo = before.length >= 5 ? before[before.length - 5] : null;
+  return {
+    price,
+    previousClose,
+    changePct: (price / previousClose - 1) * 100,
+    time: t * 1000,
+    weekChangePct: weekAgo === null ? null : (price / weekAgo - 1) * 100,
+  };
+}
+
+/** `symbol` no formato do Yahoo: "ITUB4.SA" para um papel, INDEX_SYMBOL para o Ibovespa. */
+export async function fetchDayMove(symbol: string): Promise<DayMove | null> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1mo&interval=1d`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; MUVO/1.0)" },
+      next: { revalidate: QUOTE_REVALIDATE_S },
+    });
+    if (!res.ok) return null;
+    return parseDayMove((await res.json()) as YahooDaily);
+  } catch {
+    return null;
+  }
+}
+
 /** `fresh` ignora o cache e consulta o Yahoo na hora (botão de atualizar). */
 export async function fetchYahooQuote(ticker: string, opts: { fresh?: boolean } = {}): Promise<MarketQuote | null> {
   try {

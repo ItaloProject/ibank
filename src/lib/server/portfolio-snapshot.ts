@@ -9,7 +9,8 @@ import { ensureBotSchema } from "@/lib/bot-schema";
 import { ensureOnboardingColumns } from "@/lib/onboarding";
 import { toAccount, toInvestment, toStockTrade } from "@/lib/normalize";
 import { fetchMarketRates, type MarketRates } from "@/lib/market-research";
-import { fetchYahooQuote } from "@/lib/market-quotes";
+import { fetchDayMove, fetchYahooQuote, INDEX_SYMBOL } from "@/lib/market-quotes";
+import { buildPriceAlerts } from "@/lib/price-alerts";
 import { buildCurve, type Curve } from "@/lib/market-curve";
 import { buildPortfolio, type Portfolio } from "@/lib/portfolio-return";
 import { buildRebalancePlan, isRiskProfile, type Holding, type RebalancePlan, type RiskProfile, type TurboCap } from "@/lib/rebalance";
@@ -218,7 +219,12 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
   const trades: StockTrade[] = tradeRows.map(toStockTrade);
 
   const positions = computeStockPositions(trades).filter((p) => p.quantity > 0.0001);
-  const market = await Promise.all(positions.slice(0, 40).map((p) => fetchYahooQuote(p.ticker)));
+  const tracked = positions.slice(0, 40);
+  const [market, dayMoves, indexMove] = await Promise.all([
+    Promise.all(tracked.map((p) => fetchYahooQuote(p.ticker))),
+    Promise.all(tracked.map((p) => fetchDayMove(`${p.ticker}.SA`))),
+    tracked.length > 0 ? fetchDayMove(INDEX_SYMBOL) : Promise.resolve(null),
+  ]);
   const priceOf = new Map<string, number>(quoteRows.map((q) => [String(q.ticker), Number(q.current_price)]));
   const fiiDy: Record<string, number> = {};
   for (const m of market) {
@@ -255,6 +261,21 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
       resultadoPct: p.totalInvested > 0 ? r2((resultado / p.totalInvested) * 100) : 0,
     };
   });
+  const moveOf = new Map(tracked.map((p, i) => [p.ticker, dayMoves[i]]));
+  const priceAlerts = buildPriceAlerts({
+    positions: stocks.map((s) => ({
+      ticker: s.ticker,
+      tipo: s.tipo,
+      quantidade: s.quantidade,
+      precoMedio: s.precoMedio,
+      preco: s.precoAtual,
+      move: moveOf.get(s.ticker) ?? null,
+    })),
+    index: indexMove,
+  });
+  const alerts = [...buildAlerts({ accounts, investments, trades }), ...priceAlerts].sort(
+    (a, b) => (a.nivel === b.nivel ? 0 : a.nivel === "alta" ? -1 : 1),
+  );
   const snapAccounts = snapshotAccounts(accounts, investments);
   const saldoEmConta = snapAccounts.filter((a) => a.grupo === "saldo").reduce((s, a) => s + a.saldo, 0);
 
@@ -305,7 +326,7 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
     saldoEmConta: r2(saldoEmConta),
     stocks,
     movements: recentMovements(accounts, investments, trades),
-    alerts: buildAlerts({ accounts, investments, trades }),
+    alerts,
     proventos: proventoRows.map((p) => ({ ticker: String(p.ticker), valor: r2(Number(p.amount)), diaPagamento: Number(p.payment_day), tipo: String(p.type) })),
     history: historyRows.map((h) => ({ mes: String(h.mes), patrimonio: r2(Number(h.total)), investido: r2(Number(h.invested)) })),
     goal,
