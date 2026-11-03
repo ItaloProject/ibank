@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus, RefreshCw, Search, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getMarketQuotes } from "@/lib/api";
 import { TICKER_RE } from "@/lib/market-quotes";
@@ -15,43 +15,57 @@ import {
 } from "@/lib/market-catalog";
 import { FOCUS, INPUT_BOX, LABEL, MONEY, ROW } from "@/components/investimentos/live-ui";
 
-const QUOTE_TTL_MS = 5 * 60 * 1000;
+const QUOTE_TTL_MS = 2 * 60 * 1000;
 const QUOTE_BATCH = 40;
-const quoteCache = new Map<string, { price: number; at: number }>();
+const quoteCache = new Map<string, { price: number; at: number; time: number | null }>();
 
-/** Cotações de mercado dos tickers pedidos, com cache de 5 minutos entre aberturas da tela. */
+/** Cotações de mercado dos tickers pedidos, com cache de 2 minutos entre aberturas da tela e atualização sob demanda. */
 function useCatalogQuotes(tickers: string[]) {
   const [prices, setPrices] = useState<Map<string, number>>(() => freshPrices(tickers));
+  const [asOf, setAsOf] = useState<number | null>(() => latestQuoteTime(tickers));
   const [loading, setLoading] = useState(false);
   const key = tickers.join(",");
+  const run = useRef(0);
+
+  const load = useCallback(
+    async (force: boolean) => {
+      const id = ++run.current;
+      const missing = force
+        ? tickers
+        : tickers.filter((t) => {
+            const hit = quoteCache.get(t);
+            return !hit || Date.now() - hit.at > QUOTE_TTL_MS;
+          });
+      setPrices(freshPrices(tickers));
+      setAsOf(latestQuoteTime(tickers));
+      if (missing.length === 0) return;
+      setLoading(true);
+      const batches: string[][] = [];
+      for (let i = 0; i < missing.length; i += QUOTE_BATCH) batches.push(missing.slice(i, i + QUOTE_BATCH));
+      try {
+        const results = await Promise.all(batches.map((b) => getMarketQuotes(b, force)));
+        const now = Date.now();
+        for (const q of results.flat()) if (q.price > 0) quoteCache.set(q.ticker, { price: q.price, at: now, time: q.time ?? null });
+        if (id === run.current) {
+          setPrices(freshPrices(tickers));
+          setAsOf(latestQuoteTime(tickers));
+        }
+      } finally {
+        if (id === run.current) setLoading(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [key],
+  );
 
   useEffect(() => {
-    const missing = tickers.filter((t) => {
-      const hit = quoteCache.get(t);
-      return !hit || Date.now() - hit.at > QUOTE_TTL_MS;
-    });
-    setPrices(freshPrices(tickers));
-    if (missing.length === 0) return;
-    let cancelled = false;
-    setLoading(true);
-    const batches: string[][] = [];
-    for (let i = 0; i < missing.length; i += QUOTE_BATCH) batches.push(missing.slice(i, i + QUOTE_BATCH));
-    Promise.all(batches.map((b) => getMarketQuotes(b)))
-      .then((results) => {
-        const now = Date.now();
-        for (const q of results.flat()) if (q.price > 0) quoteCache.set(q.ticker, { price: q.price, at: now });
-        if (!cancelled) setPrices(freshPrices(tickers));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    void load(false);
     return () => {
-      cancelled = true;
+      run.current += 1;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [load]);
 
-  return { prices, loading };
+  return { prices, loading, asOf, refresh: () => load(true) };
 }
 
 function freshPrices(tickers: string[]) {
@@ -61,6 +75,24 @@ function freshPrices(tickers: string[]) {
     if (hit) map.set(t, hit.price);
   }
   return map;
+}
+
+/** Horário do negócio mais recente entre as cotações em cache. */
+function latestQuoteTime(tickers: string[]): number | null {
+  let latest: number | null = null;
+  for (const t of tickers) {
+    const time = quoteCache.get(t)?.time;
+    if (time && (latest === null || time > latest)) latest = time;
+  }
+  return latest;
+}
+
+function formatAsOf(ms: number): string {
+  const d = new Date(ms);
+  const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === new Date().toDateString()) return `Cotações das ${time}`;
+  const date = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  return `Cotações de ${date} às ${time}`;
 }
 
 export function normalizeSearch(text: string) {
@@ -98,7 +130,7 @@ export function CatalogPicker({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>(TOP);
   const tickers = useMemo(() => catalog.map((a) => a.ticker), [catalog]);
-  const { prices, loading } = useCatalogQuotes(tickers);
+  const { prices, loading, asOf, refresh } = useCatalogQuotes(tickers);
   const copy = COPY[kind];
 
   const priceOf = (ticker: string) => prices.get(ticker) ?? knownPrices?.get(ticker);
@@ -135,15 +167,26 @@ export function CatalogPicker({
 
       {!searching && <FilterChips label="Filtrar por setor" options={[TOP, ALL, ...groups]} value={filter} onChange={setFilter} />}
 
-      <p className="text-[11px] text-muted-foreground" aria-live="polite">
-        {searching
-          ? results.length === 0
-            ? "Nenhum resultado na lista."
-            : `${results.length} ${results.length === 1 ? "resultado" : "resultados"}`
-          : `${results.length} ${kind === "acao" ? (results.length === 1 ? "ação" : "ações") : results.length === 1 ? "fundo" : "fundos"}${
-              loading ? " · atualizando cotações" : ""
-            }`}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="min-w-0 text-[11px] text-muted-foreground" aria-live="polite">
+          {searching
+            ? results.length === 0
+              ? "Nenhum resultado na lista."
+              : `${results.length} ${results.length === 1 ? "resultado" : "resultados"}`
+            : `${results.length} ${kind === "acao" ? (results.length === 1 ? "ação" : "ações") : results.length === 1 ? "fundo" : "fundos"}`}
+          {loading ? " · atualizando cotações" : asOf ? ` · ${formatAsOf(asOf)}` : ""}
+        </p>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          disabled={loading}
+          aria-label="Atualizar cotações"
+          title="Atualizar cotações. A B3 chega com cerca de 15 minutos de atraso."
+          className={`-my-2 -mr-2 h-10 w-10 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60 ${FOCUS}`}
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin motion-reduce:animate-none" : ""}`} aria-hidden="true" />
+        </button>
+      </div>
 
       {sections.map((s) => (
         <div key={s.title ?? "lista"} className="space-y-2">

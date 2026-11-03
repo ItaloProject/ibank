@@ -144,10 +144,10 @@ export async function getStockQuotes(): Promise<StockQuote[]> {
   return Array.isArray(data) ? data.map((r) => ({ ...r, current_price: Number(r.current_price) })) : [];
 }
 
-export async function getMarketQuotes(tickers: string[]): Promise<MarketQuote[]> {
+export async function getMarketQuotes(tickers: string[], fresh = false): Promise<MarketQuote[]> {
   if (tickers.length === 0) return [];
   try {
-    const res = await fetch(`/api/market-quotes?tickers=${encodeURIComponent(tickers.join(","))}`);
+    const res = await fetch(`/api/market-quotes?tickers=${encodeURIComponent(tickers.join(","))}${fresh ? "&fresh=1" : ""}`);
     const data = await res.json();
     return Array.isArray(data) ? data : [];
   } catch {
