@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { useUser } from "@/context/user-context";
-import { readBotPageContext } from "@/lib/bot-page-context";
+import { answerInlineMuvo } from "@/lib/bot-inline";
 import { FOCUS } from "@/components/investimentos/live-ui";
 
 function Bold({ text }: { text: string }) {
@@ -20,7 +20,7 @@ function Bold({ text }: { text: string }) {
 
 /**
  * Pergunta pronta ao assistente dentro de janelas modais (que cobrem o botão do bot),
- * com a tela atual como contexto. A resposta some quando `resetKey` muda.
+ * com a tela atual como contexto. Responde no próprio aparelho, sem custo de API.
  */
 export function AskMuvoInline({ question, label, resetKey }: { question: string; label: string; resetKey: string }) {
   const { botEnabled } = useUser();
@@ -39,16 +39,16 @@ export function AskMuvoInline({ question, label, resetKey }: { question: string;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/bot/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [{ role: "user", content: question }], page: readBotPageContext() }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(res.status === 503 ? "O assistente não está disponível agora." : data?.error ?? "Não consegui responder agora.");
-      setAnswer(String(data?.reply ?? ""));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Não consegui responder agora.");
+      // Pequena pausa só para o botão mostrar que está pensando.
+      await new Promise((r) => setTimeout(r, 280));
+      const text = answerInlineMuvo(question);
+      if (!text) {
+        setError("Não consegui responder com os dados desta tela. Preencha banco e taxa, ou abra o assistente Muvo.");
+        return;
+      }
+      setAnswer(text);
+    } catch {
+      setError("Não consegui responder agora.");
     } finally {
       setBusy(false);
     }
