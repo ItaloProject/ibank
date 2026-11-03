@@ -145,6 +145,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteForm, setQuoteForm] = useState({ ticker: "", price: "" });
   const [loading, setLoading] = useState(true);
+  const [leaving, setLeaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== "undefined") {
@@ -839,9 +840,13 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         <InvestorLiveView
           {...liveProps}
           liveAction={liveAction && !liveAction.desktop ? liveAction : null}
-          onClose={() => router.push("/")}
+          onClose={() => {
+            setLeaving(true);
+            router.push("/");
+          }}
         />
       </div>
+      {leaving && <SplashScreen />}
       <div className="hidden md:flex flex-col h-full">
         <InvestorLiveViewDesktop {...liveProps} liveAction={liveAction?.desktop ? liveAction : null} />
       </div>

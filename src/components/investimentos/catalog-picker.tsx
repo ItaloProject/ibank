@@ -235,7 +235,7 @@ export function FilterChips({
   onChange: (v: string) => void;
 }) {
   return (
-    <div role="tablist" aria-label={label} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-none">
+    <div role="tablist" aria-label={label} className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 scrollbar-none">
       {options.map((g) => {
         const active = value === g;
         return (

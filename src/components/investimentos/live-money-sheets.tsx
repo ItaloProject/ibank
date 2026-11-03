@@ -60,7 +60,7 @@ function MoneyField({
   return (
     <div className="min-w-0">
       <label htmlFor={id} className={`${LABEL} block mb-1.5`}>{label}</label>
-      <div className="flex gap-2">
+      <div className="flex min-w-0 gap-2">
         <div className={cn(INPUT_BOX, "flex-1")}>
           <span className="text-sm font-bold text-muted-foreground">R$</span>
           <input
