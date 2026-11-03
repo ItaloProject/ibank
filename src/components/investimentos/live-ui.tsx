@@ -15,7 +15,7 @@ export const BTN_DANGER = `${BTN} bg-red-600 text-white hover:bg-red-700`;
 export const BTN_DANGER_OUTLINE = `${BTN} border border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10`;
 export const ROW = `w-full text-left rounded-xl border border-border bg-card hover:bg-muted/60 transition-colors ${FOCUS}`;
 export const INPUT_BOX =
-  "flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3.5 min-h-12 focus-within:border-foreground/40 focus-within:ring-2 focus-within:ring-ring/30";
+  "flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3.5 min-h-12 focus-within:border-foreground/60 focus-within:bg-muted/60";
 export const GAIN = "text-emerald-600 dark:text-emerald-400";
 export const LOSS = "text-red-600 dark:text-red-400";
 export const ATTENTION = "text-amber-600 dark:text-amber-400";

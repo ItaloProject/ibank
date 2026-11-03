@@ -1347,8 +1347,8 @@ export function InvestorLiveView({
         {marketOpen && (
           <div className="absolute inset-0 z-10 bg-background flex flex-col">
             <div
-              className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pb-4"
-              style={{ paddingTop: "calc(1rem + var(--safe-top))" }}
+              className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5"
+              style={{ paddingTop: "calc(1rem + var(--safe-top))", paddingBottom: "calc(1.5rem + var(--safe-bottom))" }}
             >
               <SimulatorInvestFlow
                 suggestedAmount={suggestedAmount}
