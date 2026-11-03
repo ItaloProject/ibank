@@ -58,7 +58,7 @@ function MoneyField({
   trailing?: ReactNode;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label htmlFor={id} className={`${LABEL} block mb-1.5`}>{label}</label>
       <div className="flex gap-2">
         <div className={cn(INPUT_BOX, "flex-1")}>
@@ -371,11 +371,18 @@ function StockOrderForm({
         </div>
       )}
 
+      {!selling && (
+        <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">Saldo em conta</span>
+          <span className={`${MONEY} text-sm`}>{formatCurrency(cash)}</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
-        <div>
+        <div className="min-w-0">
           <label htmlFor="order-qty" className={`${LABEL} block mb-1.5`}>Quantidade</label>
           <div className="flex gap-2">
-            <div className={cn(INPUT_BOX, "flex-1")}>
+            <div className={cn(INPUT_BOX, "flex-1 overflow-hidden")}>
               <input
                 id="order-qty"
                 type="text"
