@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getMarketQuotes } from "@/lib/api";
 import { TICKER_RE } from "@/lib/market-quotes";
@@ -234,25 +234,80 @@ export function FilterChips({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const update = () =>
+      setEdges({
+        left: el.scrollLeft > 4,
+        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+      });
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, [options.length]);
+
+  function scrollBy(direction: 1 | -1) {
+    const el = scroller.current;
+    if (!el) return;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollBy({ left: direction * el.clientWidth * 0.7, behavior: smooth ? "smooth" : "auto" });
+  }
+
+  const arrow =
+    "absolute top-0 z-10 flex h-9 w-16 items-center text-foreground transition-colors hover:text-foreground/70 " + FOCUS;
+
   return (
-    <div role="tablist" aria-label={label} className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 scrollbar-none">
-      {options.map((g) => {
-        const active = value === g;
-        return (
-          <button
-            key={g}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(g)}
-            className={`shrink-0 min-h-9 rounded-full border px-3 text-xs font-bold whitespace-nowrap transition-colors ${FOCUS} ${
-              active ? "border-foreground bg-foreground text-background" : "border-border text-foreground/80 hover:bg-muted"
-            }`}
-          >
-            {g}
-          </button>
-        );
-      })}
+    <div className="relative">
+      <div ref={scroller} role="tablist" aria-label={label} className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 scrollbar-none">
+        {options.map((g) => {
+          const active = value === g;
+          return (
+            <button
+              key={g}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onChange(g)}
+              className={`shrink-0 min-h-9 rounded-full border px-3 text-xs font-bold whitespace-nowrap transition-colors ${FOCUS} ${
+                active ? "border-foreground bg-foreground text-background" : "border-border text-foreground/80 hover:bg-muted"
+              }`}
+            >
+              {g}
+            </button>
+          );
+        })}
+      </div>
+      {edges.left && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Ver filtros anteriores"
+          onClick={() => scrollBy(-1)}
+          className={`${arrow} -left-5 justify-start pl-5 bg-gradient-to-r from-background via-background/90 to-transparent`}
+        >
+          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+        </button>
+      )}
+      {edges.right && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Ver mais filtros"
+          onClick={() => scrollBy(1)}
+          className={`${arrow} -right-5 justify-end pr-5 bg-gradient-to-l from-background via-background/90 to-transparent`}
+        >
+          <ChevronRight className="h-5 w-5" aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }
