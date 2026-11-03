@@ -524,21 +524,6 @@ function transitionReply(t: ProfileTransition, profileSalvo: RiskProfile | null)
   return bot(blocks, ["rebal", "perfil"]);
 }
 
-/** Resumo em texto de uma resposta pronta, para a IA saber o que já foi mostrado na conversa. */
-function blocksSummary(blocks: Block[]): string {
-  const lines: string[] = [];
-  for (const b of blocks) {
-    if (b.kind === "heading" || b.kind === "text" || b.kind === "md" || b.kind === "alert") lines.push(b.text.replace(/\*\*/g, ""));
-    else if (b.kind === "stats") lines.push(b.items.map((s) => `${s.label}: ${s.value}`).join("; "));
-    else if (b.kind === "bars") lines.push(`${b.title}: ${b.items.map((x) => `${x.label} ${x.atual}% (alvo ${x.ideal}%)`).join("; ")}`);
-    else if (b.kind === "list") lines.push(`${b.title ? `${b.title}: ` : ""}${b.items.map((x) => [x.title, x.value, x.detail].filter(Boolean).join(" ")).join("; ")}`);
-    else if (b.kind === "actions") lines.push(`Botões oferecidos: ${b.items.map(actionLabel).join("; ")}`);
-    else if (b.kind === "notice") lines.push(`Aviso: ${b.alert.titulo}. ${b.alert.detalhe}`);
-    else if (b.kind === "confirmProfile") lines.push(`Botão oferecido: mudar para o perfil ${RISK_PROFILES[b.to].label.toLowerCase()}`);
-  }
-  return lines.join("\n").slice(0, 800);
-}
-
 /* ── Renderização ───────────────────────────────────────────────── */
 
 const LABEL = "text-[10px] font-black uppercase tracking-[0.18em] text-white/45";
@@ -883,16 +868,14 @@ export function InvestorBot({
   context,
   onGeneratePdf,
   overlay = false,
-  dataVersion,
 }: {
   context: BotPortfolioContext;
   onGeneratePdf: () => void;
   /** Acima de telas cheias (MUVO LIVE no celular, z-200) e abaixo das folhas de diálogo (z-300). */
   overlay?: boolean;
-  /** Muda quando a carteira muda; a próxima pergunta à IA pede dados novos ao servidor. */
+  /** Mantido por compatibilidade com as telas que montam o bot. */
   dataVersion?: string;
 }) {
-  const askedVersion = useRef<string | null>(null);
   /** Último termo do glossário explicado, para "dá um exemplo". */
   const lastTermRef = useRef<Term | null>(null);
   const router = useRouter();
