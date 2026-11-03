@@ -82,6 +82,9 @@ export function parseDayMove(json: YahooDaily): DayMove | null {
   };
 }
 
+/** Evita que uma cotação travada do Yahoo segure o relatório e o WhatsApp para sempre. */
+const YAHOO_TIMEOUT_MS = 8_000;
+
 /** `symbol` no formato do Yahoo: "ITUB4.SA" para um papel, INDEX_SYMBOL para o Ibovespa. */
 export async function fetchDayMove(symbol: string): Promise<DayMove | null> {
   try {
@@ -89,6 +92,7 @@ export async function fetchDayMove(symbol: string): Promise<DayMove | null> {
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; MUVO/1.0)" },
       next: { revalidate: QUOTE_REVALIDATE_S },
+      signal: AbortSignal.timeout(YAHOO_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     return parseDayMove((await res.json()) as YahooDaily);
@@ -104,6 +108,7 @@ export async function fetchYahooQuote(ticker: string, opts: { fresh?: boolean } 
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; MUVO/1.0)" },
       ...(opts.fresh ? { cache: "no-store" as const } : { next: { revalidate: QUOTE_REVALIDATE_S } }),
+      signal: AbortSignal.timeout(YAHOO_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     const json = (await res.json()) as YahooChart;
