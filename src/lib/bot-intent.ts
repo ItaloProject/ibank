@@ -21,13 +21,14 @@ const DEFINITION = /^(o que|oque|qual a diferenca|diferenca|explica|me explica)\
 /** Assunto indicado por palavra-chave, sem olhar se é pergunta ou pedido. */
 export function keywordIntent(raw: string): Intent | null {
   const t = normalize(raw);
-  if (/quanto falta|minha meta|quando chego|que ano|prazo da meta|ritmo atual/.test(t)) return "meta";
-  if (/whats|zap|relator/.test(t)) return "whatsapp";
+  if (/quanto falta|qnto falta|minha meta|quando chego|que ano|prazo da meta|ritmo atual/.test(t)) return "meta";
   if (/pdf|baixar|download|imprim/.test(t)) return "pdf";
+  if (/whats|zap|wpp/.test(t)) return "whatsapp";
   if (profileTarget(t) && CHANGE.test(t) && !DEFINITION.test(t)) return "transicao";
   if (/perfil|conservador|moderado|arrojado|agressivo/.test(t)) return "perfil";
   if (/aviso|alerta/.test(t)) return "avisos";
-  if (/rebalanc|equilibr|onde aportar|aloca/.test(t)) return "rebal";
+  if (/\bfiis?\b|fundos? imobili/.test(t)) return "fiis";
+  if (/rebalanc|rebalanse|equilibr|onde aportar|aloca/.test(t)) return "rebal";
   if (/^(visao|resumo|diagnostico|score|minha carteira)/.test(t)) return "visao";
   return null;
 }
@@ -35,7 +36,8 @@ export function keywordIntent(raw: string): Intent | null {
 const QUESTION = /\?\s*$|^(o que|oque|como|por ?que|pq|qual|quais|quanto|quando|onde|devo|vale|posso|sera|e se|explica|me explica|me fala|diferenca)\b/;
 
 /** Perguntas que as respostas prontas respondem melhor que a IA (números já calculados). */
-const TEMPLATE_QUESTION = /quanto falta|quando chego|que ano chego|onde aportar|tenho (algum )?aviso/;
+const TEMPLATE_QUESTION =
+  /quanto falta|qnto falta|quando chego|que ano chego|onde aportar|tenho (algum )?aviso|tem (algum )?(aviso|alerta)|avisos?\b|alerta|como rebalanc|equilibrar|alocar|fundos? imobili|\bfiis?\b|manda no (zap|wpp|whats)|baixar|gera o pdf|meu pdf/;
 
 /**
  * Atalhos para pedidos curtos e diretos ("rebalancear", "meu PDF"); perguntas e mensagens longas vão para a IA ("help").

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { readBotPageContext } from "@/lib/bot-page-context";
 import type { BotAlert } from "@/lib/alerts";
@@ -20,7 +20,7 @@ import {
 import {
   X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
   Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal, ThumbsUp, ThumbsDown,
-  Clock, EyeOff,
+  Clock, EyeOff, ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -588,35 +588,56 @@ type NoticeHandlers = {
 };
 
 function NoticeCard({ alert, onAction, notice }: { alert: BotAlert; onAction: (a: BotAction) => void; notice: NoticeHandlers }) {
+  const [expanded, setExpanded] = useState(false);
   const status = notice.status(alert.id);
+  const detailId = useId();
   const secondary = cn("inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-medium text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white", FOCUS);
   return (
     <section className={cn("rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 transition-opacity", status && "opacity-60")}>
-      <p className="text-sm font-semibold text-white">{alert.titulo}</p>
-      <p className={cn("mt-0.5 text-[11px]", alert.nivel === "alta" ? "text-amber-400" : "text-white/45")}>
-        {alert.nivel === "alta" ? "Importante" : "Atenção"}
-      </p>
-      <p className="mt-1 text-xs leading-relaxed text-white/60">{alert.detalhe}</p>
-      {status ? (
-        <div className="mt-2.5 flex items-center justify-between gap-2" role="status">
-          <span className="text-xs text-white/55">
-            {status === "snoozed" ? `Vou te lembrar em ${SNOOZE_DAYS} dias.` : "Aviso desconsiderado. Ele não volta a aparecer."}
-          </span>
-          <button type="button" className={secondary} onClick={() => notice.choose(alert.id, "undo")}>Desfazer</button>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-controls={detailId}
+        className="flex w-full items-start gap-2 text-left"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-white">{alert.titulo}</p>
+          <p className={cn("mt-0.5 text-[11px]", alert.nivel === "alta" ? "text-amber-400" : "text-white/45")}>
+            {alert.nivel === "alta" ? "Importante" : "Atenção"}
+            <span className="text-white/45">{" · "}{expanded ? "Ver menos" : "Ver mais"}</span>
+          </p>
         </div>
-      ) : (
-        <div className="mt-2.5 space-y-1.5">
-          {alert.acao && <BlockView block={{ kind: "actions", items: [alert.acao] }} onPdf={() => {}} onProfile={() => {}} onAction={onAction} />}
-          <div className="flex flex-wrap gap-1">
-            <button type="button" className={secondary} onClick={() => notice.choose(alert.id, "snooze")}>
-              <Clock className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-              Lembrar em {SNOOZE_DAYS} dias
-            </button>
-            <button type="button" className={secondary} onClick={() => notice.choose(alert.id, "dismiss")}>
-              <EyeOff className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-              Desconsiderar
-            </button>
-          </div>
+        <ChevronDown
+          className={cn("mt-0.5 h-4 w-4 shrink-0 text-white/45 transition-transform", expanded && "rotate-180")}
+          aria-hidden="true"
+        />
+      </button>
+      {expanded && (
+        <div id={detailId} className="mt-2 border-t border-white/[0.08] pt-2">
+          <p className="text-xs leading-relaxed text-white/60">{alert.detalhe}</p>
+          {status ? (
+            <div className="mt-2.5 flex items-center justify-between gap-2" role="status">
+              <span className="text-xs text-white/55">
+                {status === "snoozed" ? `Vou te lembrar em ${SNOOZE_DAYS} dias.` : "Aviso desconsiderado. Ele não volta a aparecer."}
+              </span>
+              <button type="button" className={secondary} onClick={() => notice.choose(alert.id, "undo")}>Desfazer</button>
+            </div>
+          ) : (
+            <div className="mt-2.5 space-y-1.5">
+              {alert.acao && <BlockView block={{ kind: "actions", items: [alert.acao] }} onPdf={() => {}} onProfile={() => {}} onAction={onAction} />}
+              <div className="flex flex-wrap gap-1">
+                <button type="button" className={secondary} onClick={() => notice.choose(alert.id, "snooze")}>
+                  <Clock className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  Lembrar em {SNOOZE_DAYS} dias
+                </button>
+                <button type="button" className={secondary} onClick={() => notice.choose(alert.id, "dismiss")}>
+                  <EyeOff className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  Desconsiderar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -959,6 +980,37 @@ export function InvestorBot({
     return { id: uid(), role: "bot", blocks: [{ kind: "alert", tone: "warn", text }], followups };
   }
 
+  /** Números da carteira sem IA: patrimônio, renda, bolsa e saldo. */
+  function portfolioReply(question: string): Msg | null {
+    const t = question.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const bolsa = context.holdings.filter((h) => h.kind === "Ação" || h.kind === "FII" || h.kind === "ETF");
+    const totalBolsa = bolsa.reduce((s, h) => s + h.value, 0);
+    if (/patrimon|quanto (eu )?tenho|total (da|da minha)? carteira|meu total/.test(t)) {
+      const text = `Seu patrimônio está em **${formatCurrency(context.grandTotal)}**.` +
+        (totalBolsa > 0 ? ` Na bolsa: ${formatCurrency(totalBolsa)} em ${bolsa.length} ${bolsa.length === 1 ? "posição" : "posições"}.` : "") +
+        (context.totalRendaMensal > 0 ? ` Renda passiva estimada: **${formatCurrency(context.totalRendaMensal)}** por mês.` : "");
+      return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
+    }
+    if (/renda (passiva|mensal)|quanto (eu )?recebo|proventos?/.test(t) && !/falta|meta/.test(t)) {
+      const linhas = context.sources.map((s) => `- **${s.nome}** (${s.tipo}): +${formatCurrency(s.rendaMensal)}/mês`);
+      const text = context.sources.length
+        ? `Renda passiva estimada: **${formatCurrency(context.totalRendaMensal)}** por mês.\n\n${linhas.join("\n")}`
+        : "Ainda não identifiquei fontes de renda passiva na carteira.";
+      return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["meta", "visao"] };
+    }
+    if (/saldo em conta|dinheiro parado|quanto (tem|ha) (na )?conta/.test(t)) {
+      const saldo = context.sources.find((s) => /saldo/i.test(s.nome) || /saldo/i.test(s.tipo));
+      const text = saldo
+        ? `Você tem **${formatCurrency(saldo.capital)}** em saldo em conta. Esse valor não rende: o plano sugere aplicar pelo rebalanceamento.`
+        : `Patrimônio total **${formatCurrency(context.grandTotal)}**. Para ver o saldo em conta e onde aportar, abra a visão da carteira.`;
+      return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["rebal", "visao"] };
+    }
+    if (/quanto (eu )?(tenho|esta) em (renda fixa|turbo|bolsa|acoes|fiis)/.test(t) || /minha (renda fixa|turbo|bolsa)/.test(t)) {
+      return replyFor("visao", botContext, researchCache.current);
+    }
+    return null;
+  }
+
   /** Glossário ou conta pronta: a mesma resposta do Gênio, sem chamar a inteligência artificial. */
   function localReply(question: string): Msg | null {
     const prev = lastTermRef.current;
@@ -974,6 +1026,8 @@ export function InvestorBot({
       const text = investorChatText(topic);
       return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
     }
+    const portfolio = portfolioReply(question);
+    if (portfolio) return portfolio;
     const terms = findTerms(question);
     if (terms.length) {
       lastTermRef.current = terms[terms.length - 1];
