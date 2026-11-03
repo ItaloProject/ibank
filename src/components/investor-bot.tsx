@@ -10,7 +10,13 @@ import { askAbout, asksExample, findTerms, holdingsFor, termById, termExample, t
 import { financeReply } from "@/lib/genie/local-answer";
 import { answerMarkdown } from "@/lib/genie/answer";
 import { chatTopic, investorChatText, looksLikeWebQuestion } from "@/lib/genie/chat";
-import { SNOOZE_DAYS, alertStatus, parseAlertChoices, snoozeChoice, trimAlertChoices, type AlertChoices } from "@/lib/alert-choices";
+import { SNOOZE_DAYS, alertStatus, snoozeChoice, type AlertChoices } from "@/lib/alert-choices";
+import {
+  ALERTS_CHANGED_EVENT,
+  loadAlertPrefs,
+  saveAlertChoices,
+  saveSeenAlerts,
+} from "@/lib/alert-storage";
 import {
   X, ArrowUp, ArrowRight, Bell, PieChart, Building2, Scale, FileDown, Target, RotateCcw,
   Maximize2, Minimize2, AlertTriangle, AlertOctagon, CheckCircle2, MessageCircle, SlidersHorizontal, ThumbsUp, ThumbsDown,
@@ -88,8 +94,6 @@ const INTENTS: Partial<Record<Intent, { label: string; ask: string; icon: Lucide
 
 const STORAGE_CHAT = "muvo_bot_chat_v3";
 const STORAGE_EXPANDED = "muvo_bot_expanded";
-const STORAGE_SEEN_ALERTS = "muvo_bot_alerts_seen";
-const STORAGE_ALERT_CHOICES = "muvo_bot_alert_choices";
 const MAX_STORED = 60;
 const THINK_MS = 650;
 
@@ -895,11 +899,22 @@ export function InvestorBot({
         if (valid.length) setMessages(valid);
       }
       setExpanded(localStorage.getItem(STORAGE_EXPANDED) === "1");
-      const seen: unknown = JSON.parse(localStorage.getItem(STORAGE_SEEN_ALERTS) ?? "[]");
-      if (Array.isArray(seen)) setSeenAlerts(new Set(seen.filter((s): s is string => typeof s === "string")));
-      setAlertChoices(parseAlertChoices(JSON.parse(localStorage.getItem(STORAGE_ALERT_CHOICES) ?? "{}")));
+      const prefs = loadAlertPrefs();
+      setSeenAlerts(prefs.seen);
+      setAlertChoices(prefs.choices);
     } catch { /* conversa nova */ }
     setHydrated(true);
+    const sync = () => {
+      const prefs = loadAlertPrefs();
+      setSeenAlerts(prefs.seen);
+      setAlertChoices(prefs.choices);
+    };
+    window.addEventListener(ALERTS_CHANGED_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(ALERTS_CHANGED_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
 
   useEffect(() => {
@@ -1130,7 +1145,7 @@ export function InvestorBot({
     setMessages((prev) => [...prev, reply]);
     const next = new Set([...seenAlerts, ...unseenAlerts.map((a) => a.id)]);
     setSeenAlerts(next);
-    try { localStorage.setItem(STORAGE_SEEN_ALERTS, JSON.stringify([...next].slice(-100))); } catch { /* cheio */ }
+    saveSeenAlerts(next);
   }
 
   /** Adiar tira o aviso de "visto" para ele voltar com selo quando o prazo acabar. */
@@ -1144,13 +1159,10 @@ export function InvestorBot({
       nextChoices[id] = choice === "snooze" ? snoozeChoice() : { kind: "dismiss" };
       if (choice === "snooze") nextSeen.delete(id);
     }
-    const trimmed = trimAlertChoices(nextChoices);
-    setAlertChoices(trimmed);
+    setAlertChoices(nextChoices);
     setSeenAlerts(nextSeen);
-    try {
-      localStorage.setItem(STORAGE_ALERT_CHOICES, JSON.stringify(trimmed));
-      localStorage.setItem(STORAGE_SEEN_ALERTS, JSON.stringify([...nextSeen].slice(-100)));
-    } catch { /* cheio */ }
+    saveAlertChoices(nextChoices);
+    saveSeenAlerts(nextSeen);
   }
 
   const noticeHandlers: NoticeHandlers = { status: (id) => alertStatus(alertChoices[id]), choose: chooseAlert };

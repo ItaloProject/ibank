@@ -16,6 +16,8 @@ import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { useUser } from "@/context/user-context";
 import { cn } from "@/lib/utils";
 import { NavigationSplash } from "@/components/navigation-splash";
+import { AlertsProvider } from "@/components/notifications/alerts-provider";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 const PUBLIC_PATHS = new Set(["/vender", "/comecar", "/politica-privacidade", "/termos-de-uso", "/~offline"]);
 /** Abertas a todos; assinantes as veem dentro do app. Vídeos: o YouTube proíbe cobrar para assistir no player incorporado. */
@@ -109,6 +111,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <AlertsProvider>
     <div className="flex h-[100dvh] overflow-hidden">
       <NavigationSplash />
       {!isPwa && mobileOpen && (
@@ -147,10 +150,20 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex items-center min-w-0">
+          <div className="flex items-center min-w-0 flex-1">
             <BrandLockup className="h-8" priority />
           </div>
+          <NotificationBell className="md:hidden" />
         </header>
+        <div
+          className={cn(
+            "h-14 shrink-0 items-center justify-end border-b bg-background px-4",
+            isPwa ? "flex safe-pt" : "hidden md:flex",
+          )}
+          style={isPwa ? { height: "calc(3.5rem + var(--safe-top))" } : undefined}
+        >
+          <NotificationBell />
+        </div>
         <main
           className="flex-1 overflow-y-auto overflow-x-hidden bg-background pb-bottom-nav scrollbar-thin-dark"
           onClick={() => { if (mobileOpen) setMobileOpen(false); }}
@@ -167,5 +180,6 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       <PwaInstallPrompt />
       <SessionTimeout />
     </div>
+    </AlertsProvider>
   );
 }
