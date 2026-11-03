@@ -576,6 +576,11 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       const q = quoteMap.get(p.ticker);
       return { ticker: p.ticker, kind: detectAssetType(p.ticker), value: q !== undefined ? q * p.quantity : p.totalInvested };
     }),
+    bolsaResultado: stockPositions.reduce((s, p) => {
+      const q = quoteMap.get(p.ticker);
+      const atual = q !== undefined ? q * p.quantity : p.totalInvested;
+      return s + (atual - p.totalInvested);
+    }, 0),
   }), [score, portfolioAnalysis, analysis, investorData, incomeGoal, grandTotal, stockPositions, quoteMap]);
 
   const botDataVersion = portfolioVersion;

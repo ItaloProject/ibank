@@ -2,10 +2,10 @@
 
 import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { readBotPageContext } from "@/lib/bot-page-context";
 import type { BotAlert } from "@/lib/alerts";
 import type { GoalProjection } from "@/lib/goal-projection";
 import { detectIntent, keywordIntent, profileTarget, type Intent } from "@/lib/bot-intent";
+import { matchLocalPortfolio } from "@/lib/bot-local";
 import { askAbout, asksExample, findTerms, holdingsFor, termById, termExample, termMarkdown, type Term } from "@/lib/glossary";
 import { financeReply } from "@/lib/genie/local-answer";
 import { answerMarkdown } from "@/lib/genie/answer";
@@ -56,6 +56,8 @@ export type BotPortfolioContext = {
   /** Projeção do servidor para a meta atual; null se a meta mudou e a análise ainda não voltou. */
   goal: (GoalProjection & { aporte: number; aporteOrigem: AnalysisPayload["aporteOrigem"] }) | null;
   holdings: { ticker: string; kind: string; value: number }[];
+  /** Resultado em bolsa (positivo ou negativo), para responder sem IA. */
+  bolsaResultado?: number | null;
 };
 
 /* ── Modelo da conversa ─────────────────────────────────────────── */
@@ -366,17 +368,23 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
   }
 
   return bot([
-    { kind: "text", text: "Não entendi bem. Posso ajudar com estes assuntos:" },
+    { kind: "heading", text: "Posso ajudar sem inteligência artificial" },
+    {
+      kind: "text",
+      text: "Pergunte pelos números da carteira, por um termo (CDB, CDI, FII…), por uma conta de rendimento, ou toque em um atalho:",
+    },
     {
       kind: "list",
       items: [
-        { title: "Visão da carteira", detail: "Score, fontes de renda e alertas" },
-        { title: "Rebalancear carteira", detail: "Alocação pelo seu perfil e onde aportar" },
-        { title: "Relatório no WhatsApp", detail: "Imagem e texto com as sugestões" },
+        { title: "Visão da carteira", detail: "Patrimônio, renda e alertas" },
+        { title: "Rebalancear carteira", detail: "Onde aportar pelo seu perfil" },
+        { title: "Avisos", detail: "Quedas, teto da Turbo, vencimentos" },
         { title: "Meta de renda", detail: "Quanto falta e como fechar" },
+        { title: "Fundos imobiliários", detail: "Ideias por rendimento" },
+        { title: "Relatório no WhatsApp", detail: "Enviar o resumo" },
       ],
     },
-  ], ["visao", "rebal", "whatsapp", "meta"]);
+  ], ["visao", "rebal", "avisos", "meta"]);
 }
 
 /** Prazo da meta no ritmo atual e aporte para chegar no ano desejado. */
@@ -980,35 +988,31 @@ export function InvestorBot({
     return { id: uid(), role: "bot", blocks: [{ kind: "alert", tone: "warn", text }], followups };
   }
 
-  /** Números da carteira sem IA: patrimônio, renda, bolsa e saldo. */
+  /** Números da carteira sem IA: patrimônio, renda, bolsa, Turbo, ticker. */
   function portfolioReply(question: string): Msg | null {
-    const t = question.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const bolsa = context.holdings.filter((h) => h.kind === "Ação" || h.kind === "FII" || h.kind === "ETF");
-    const totalBolsa = bolsa.reduce((s, h) => s + h.value, 0);
-    if (/patrimon|quanto (eu )?tenho|total (da|da minha)? carteira|meu total/.test(t)) {
-      const text = `Seu patrimônio está em **${formatCurrency(context.grandTotal)}**.` +
-        (totalBolsa > 0 ? ` Na bolsa: ${formatCurrency(totalBolsa)} em ${bolsa.length} ${bolsa.length === 1 ? "posição" : "posições"}.` : "") +
-        (context.totalRendaMensal > 0 ? ` Renda passiva estimada: **${formatCurrency(context.totalRendaMensal)}** por mês.` : "");
-      return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
+    const hit = matchLocalPortfolio(question, {
+      grandTotal: context.grandTotal,
+      totalRendaMensal: context.totalRendaMensal,
+      incomeGoal: context.incomeGoal,
+      holdings: context.holdings,
+      sources: context.sources,
+      alerts: visibleAlerts,
+      bolsaResultado: context.bolsaResultado ?? null,
+    });
+    if (!hit) return null;
+    if (hit.kind === "intent") {
+      if (hit.intent === "avisos") return alertsReply(visibleAlerts, hiddenAlertIds.length);
+      if (hit.intent === "rebal") return null; // ask() chama rebalance() com await
+      return replyFor(hit.intent, botContext, researchCache.current);
     }
-    if (/renda (passiva|mensal)|quanto (eu )?recebo|proventos?/.test(t) && !/falta|meta/.test(t)) {
-      const linhas = context.sources.map((s) => `- **${s.nome}** (${s.tipo}): +${formatCurrency(s.rendaMensal)}/mês`);
-      const text = context.sources.length
-        ? `Renda passiva estimada: **${formatCurrency(context.totalRendaMensal)}** por mês.\n\n${linhas.join("\n")}`
-        : "Ainda não identifiquei fontes de renda passiva na carteira.";
-      return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["meta", "visao"] };
-    }
-    if (/saldo em conta|dinheiro parado|quanto (tem|ha) (na )?conta/.test(t)) {
-      const saldo = context.sources.find((s) => /saldo/i.test(s.nome) || /saldo/i.test(s.tipo));
-      const text = saldo
-        ? `Você tem **${formatCurrency(saldo.capital)}** em saldo em conta. Esse valor não rende: o plano sugere aplicar pelo rebalanceamento.`
-        : `Patrimônio total **${formatCurrency(context.grandTotal)}**. Para ver o saldo em conta e onde aportar, abra a visão da carteira.`;
-      return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["rebal", "visao"] };
-    }
-    if (/quanto (eu )?(tenho|esta) em (renda fixa|turbo|bolsa|acoes|fiis)/.test(t) || /minha (renda fixa|turbo|bolsa)/.test(t)) {
-      return replyFor("visao", botContext, researchCache.current);
-    }
-    return null;
+    return {
+      id: uid(),
+      role: "bot",
+      blocks: [{ kind: "md", text: hit.text }],
+      ai: hit.text,
+      q: question,
+      followups: hit.followups ?? ["visao", "rebal"],
+    };
   }
 
   /** Glossário ou conta pronta: a mesma resposta do Gênio, sem chamar a inteligência artificial. */
@@ -1088,42 +1092,19 @@ export function InvestorBot({
     return transitionReply(data.transition as ProfileTransition, data.profileSalvo ?? null);
   }
 
-  /** Pergunta aberta: IA com os dados da carteira; sem IA configurada, cai no menu de ajuda. */
-  async function askAi(history: Msg[], userText: string): Promise<Msg> {
-    const turns: { role: "user" | "assistant"; content: string }[] = [];
-    for (let i = 0; i < history.length - 1; i++) {
-      const u = history[i];
-      const b = history[i + 1];
-      if (u.role !== "user" || b.role !== "bot") continue;
-      const content = b.ai ?? blocksSummary(b.blocks);
-      if (content) turns.push({ role: "user", content: u.text }, { role: "assistant", content });
-    }
-    turns.push({ role: "user", content: userText });
-    const version = dataVersion ?? "";
-    const fresh = askedVersion.current !== version;
-    const res = await fetch("/api/bot/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: turns.slice(-12), fresh, page: readBotPageContext(), hiddenAlerts: hiddenAlertIds }),
-    });
-    if (res.ok) askedVersion.current = version;
-    const data = await res.json().catch(() => null);
-    if (res.status === 503 && data?.code === "no_llm") {
-      const kw = keywordIntent(userText);
-      if (kw === "rebal") return rebalance();
-      const alvo = profileTarget(userText);
-      if (kw === "transicao" && alvo) return transition(alvo);
-      if (kw === "avisos") return alertsReply(visibleAlerts, hiddenAlertIds.length);
-      if (kw) return replyFor(kw, botContext, await loadResearch());
-      sendFeedback("sem_resposta", userText, "");
-      return replyFor("help", botContext, researchCache.current);
-    }
-    if (!res.ok) return errorReply(data?.error ?? "Não consegui responder agora. Tente de novo em instantes.");
-    const reply = String(data?.reply ?? "");
-    const actions: BotAction[] = Array.isArray(data?.actions) ? data.actions : [];
-    const blocks: Block[] = [{ kind: "md", text: reply }];
-    if (actions.length) blocks.push({ kind: "actions", items: actions });
-    return { id: uid(), role: "bot", blocks, ai: reply, q: userText, followups: ["rebal", "whatsapp"] };
+  /**
+   * Pergunta aberta sem modelo de linguagem: atalho por palavra-chave, memória do Gênio
+   * ou menu de ajuda. Não chama /api/bot/chat (custo zero).
+   */
+  async function askLocalOnly(userText: string): Promise<Msg> {
+    const kw = keywordIntent(userText);
+    if (kw === "rebal") return rebalance();
+    const alvo = profileTarget(userText);
+    if (kw === "transicao" && alvo) return transition(alvo);
+    if (kw === "avisos") return alertsReply(visibleAlerts, hiddenAlertIds.length);
+    if (kw) return replyFor(kw, botContext, await loadResearch());
+    sendFeedback("sem_resposta", userText, "");
+    return replyFor("help", botContext, researchCache.current);
   }
 
   function sendFeedback(kind: "up" | "down" | "sem_resposta", question: string, answer: string) {
@@ -1154,9 +1135,22 @@ export function InvestorBot({
       } else if (intent === "rebal") {
         reply = await rebalance();
       } else if (intent === "help") {
-        const local = localReply(userText);
-        if (local) await new Promise((r) => setTimeout(r, THINK_MS));
-        reply = local ?? (await learnedReply(userText)) ?? (await askAi(history, userText));
+        const localHit = matchLocalPortfolio(userText, {
+          grandTotal: context.grandTotal,
+          totalRendaMensal: context.totalRendaMensal,
+          incomeGoal: context.incomeGoal,
+          holdings: context.holdings,
+          sources: context.sources,
+          alerts: visibleAlerts,
+          bolsaResultado: context.bolsaResultado ?? null,
+        });
+        if (localHit?.kind === "intent" && localHit.intent === "rebal") {
+          reply = await rebalance();
+        } else {
+          const local = localReply(userText);
+          if (local) await new Promise((r) => setTimeout(r, THINK_MS));
+          reply = local ?? (await learnedReply(userText)) ?? (await askLocalOnly(userText));
+        }
       } else {
         const needsMarket = intent === "fiis" || intent === "visao" || intent === "meta";
         const [research] = await Promise.all([
