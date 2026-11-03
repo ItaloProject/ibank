@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import sql from "@/lib/db";
-import { signToken } from "@/lib/auth";
+import { getSession, signToken } from "@/lib/auth";
+import { describeDevice, ensureSessionColumns, isSessionAlive } from "@/lib/session";
 import {
   ensureSubscriptionColumns,
   hasBotAccess,
@@ -11,7 +12,7 @@ import { ensureOnboardingColumns, hasSeenCarteira, needsRiskQuiz } from "@/lib/o
 
 export async function POST(request: Request) {
   try {
-    const { username, password } = await request.json();
+    const { username, password, force } = await request.json();
 
     if (!username || !password) {
       return NextResponse.json({ error: "Preencha todos os campos" }, { status: 400 });
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
 
     await ensureSubscriptionColumns();
     await ensureOnboardingColumns();
+    await ensureSessionColumns();
 
     const rows = await sql`
       SELECT * FROM app_users WHERE username = ${username.toLowerCase().trim()}
@@ -39,10 +41,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Conta desativada. Fale conosco no WhatsApp." }, { status: 403 });
     }
 
+    // Só vale um login por conta. Se já existe outro, pergunta antes de desconectá-lo;
+    // entrar de novo no mesmo aparelho (cookie com a sessão atual) não pergunta nada.
+    const currentCookieSid = (await getSession())?.sid;
+    const otherSession =
+      user.active_session_id &&
+      user.active_session_id !== currentCookieSid &&
+      isSessionAlive(user.session_started_at);
+    if (otherSession && force !== true) {
+      return NextResponse.json(
+        {
+          code: "SESSION_ACTIVE",
+          error: "Esta conta já está conectada em outro dispositivo.",
+          device: user.session_device ?? "outro dispositivo",
+          since: new Date(user.session_started_at).toISOString(),
+        },
+        { status: 409 },
+      );
+    }
+
+    const sid = crypto.randomUUID();
+    await sql`
+      UPDATE app_users
+      SET active_session_id = ${sid},
+          session_device = ${describeDevice(request.headers.get("user-agent"))},
+          session_started_at = NOW()
+      WHERE user_id = ${user.user_id}
+    `;
+
     const subscriptionActive = isSubscriptionActive(user);
     const botEnabled = hasBotAccess(user);
 
     const token = await signToken({
+      sid,
       userId: user.user_id,
       name: user.name,
       color: user.color,

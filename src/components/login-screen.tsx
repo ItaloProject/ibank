@@ -6,25 +6,28 @@ import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useUser } from "@/context/user-context";
 
 export function LoginScreen() {
-  const { login } = useUser();
+  const { login, sessionNotice } = useUser();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [conflict, setConflict] = useState<{ device: string; since: string } | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(force: boolean) {
     setError("");
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, force }),
       });
       const data = await res.json();
-      if (!res.ok) {
+      if (res.status === 409 && data.code === "SESSION_ACTIVE") {
+        setConflict({ device: data.device, since: data.since });
+      } else if (!res.ok) {
+        setConflict(null);
         setError(data.error ?? "Erro ao entrar");
       } else {
         login(data.user);
@@ -35,6 +38,15 @@ export function LoginScreen() {
       setLoading(false);
     }
   }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void submit(false);
+  }
+
+  const conflictSince = conflict
+    ? new Date(conflict.since).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : "";
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-6 safe-pt safe-pb">
@@ -67,7 +79,10 @@ export function LoginScreen() {
               autoComplete="username"
               autoCapitalize="none"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setConflict(null);
+              }}
               placeholder="seu usuário"
               required
               className="w-full rounded-xl border border-border bg-muted/60 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
@@ -85,7 +100,10 @@ export function LoginScreen() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setConflict(null);
+                }}
                 placeholder="••••••••"
                 required
                 className="w-full rounded-xl border border-border bg-muted/60 px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
@@ -109,9 +127,45 @@ export function LoginScreen() {
             </p>
           )}
 
+          {/* Desconectado por outro login */}
+          {sessionNotice && !conflict && !error && (
+            <p role="status" className="text-sm text-amber-600 dark:text-amber-400 text-center bg-amber-500/10 rounded-lg py-2 px-3">
+              {sessionNotice}
+            </p>
+          )}
+
+          {/* Conta já conectada em outro lugar */}
+          {conflict && (
+            <div role="alertdialog" aria-live="polite" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+              <p className="text-sm font-semibold text-foreground">Esta conta já está conectada em outro dispositivo</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {conflict.device}, desde {conflictSince}. Se continuar, esse dispositivo será desconectado e você entra aqui.
+              </p>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => void submit(true)}
+                  className="w-full min-h-12 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 touch-manipulation"
+                >
+                  {loading ? "Entrando..." : "Desconectar o outro e entrar aqui"}
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setConflict(null)}
+                  className="w-full min-h-12 rounded-xl border border-border px-4 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60 touch-manipulation"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Botão */}
           <button
             type="submit"
+            hidden={!!conflict}
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 min-h-12 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-1 touch-manipulation"
           >

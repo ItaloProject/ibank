@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import sql from "@/lib/db";
+import { ensureSessionColumns, sessionMatches } from "@/lib/session";
 
 export function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
@@ -18,6 +19,8 @@ export type SessionUser = {
   isAdmin?: boolean;
   investmentProfile?: string;
   botEnabled?: boolean;
+  /** Identifica o login que gerou o token; só o último login de cada usuário fica ativo. */
+  sid?: string;
 };
 
 export async function signToken(payload: SessionUser) {
@@ -61,14 +64,22 @@ const SESSION_STALE = NextResponse.json(
   { status: 401 },
 );
 
+/** Token ainda válido, mas a conta entrou em outro aparelho e este foi desconectado. */
+const SESSION_REPLACED = NextResponse.json(
+  { error: "Sua conta foi acessada em outro dispositivo. Entre novamente.", code: "SESSION_REPLACED" },
+  { status: 401 },
+);
+
 export async function requireUserId(): Promise<{ userId: string } | NextResponse> {
-  const userId = await getSessionUserId();
-  if (!userId) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  await ensureSessionColumns();
   // Reconsulta is_active no banco a cada requisição -- o JWT sozinho fica
   // valido por 7 dias e nao saberia que a conta foi desativada nesse meio-tempo.
-  const rows = await sql`SELECT is_active FROM app_users WHERE user_id = ${userId}`;
+  const rows = await sql`SELECT is_active, active_session_id FROM app_users WHERE user_id = ${session.userId}`;
   if (rows.length === 0 || rows[0].is_active === false) return SESSION_STALE;
-  return { userId };
+  if (!sessionMatches(rows[0].active_session_id, session.sid)) return SESSION_REPLACED;
+  return { userId: session.userId };
 }
 
 export async function requireAdmin(): Promise<SessionUser | NextResponse> {
@@ -76,8 +87,10 @@ export async function requireAdmin(): Promise<SessionUser | NextResponse> {
   if (!session) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   // Reconsulta is_active/is_admin no banco -- um admin rebaixado ou desativado
   // nao deve continuar com acesso so porque o token ainda nao expirou.
-  const rows = await sql`SELECT is_active, is_admin FROM app_users WHERE user_id = ${session.userId}`;
+  await ensureSessionColumns();
+  const rows = await sql`SELECT is_active, is_admin, active_session_id FROM app_users WHERE user_id = ${session.userId}`;
   if (rows.length === 0 || rows[0].is_active === false) return SESSION_STALE;
+  if (!sessionMatches(rows[0].active_session_id, session.sid)) return SESSION_REPLACED;
   if (!rows[0].is_admin) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   return session;
 }

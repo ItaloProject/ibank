@@ -16,6 +16,7 @@ export async function POST(request: Request) {
   `;
 
   const newToken = await signToken({
+    sid: payload.sid,
     userId: payload.userId,
     name: payload.name,
     color: payload.color,

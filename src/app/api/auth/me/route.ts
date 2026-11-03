@@ -7,6 +7,7 @@ import {
   isSubscriptionActive,
 } from "@/lib/subscription";
 import { ensureOnboardingColumns, hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";
+import { ensureSessionColumns, sessionMatches } from "@/lib/session";
 
 export async function GET() {
   const payload = await getSession();
@@ -15,14 +16,19 @@ export async function GET() {
   try {
     await ensureSubscriptionColumns();
     await ensureOnboardingColumns();
+    await ensureSessionColumns();
     const rows = await sql`
       SELECT user_id, name, color, is_admin, is_active, investment_profile,
-             carteira_vista_profile, risk_profile, risk_quiz_at, bot_enabled, paid_until, plan
+             carteira_vista_profile, risk_profile, risk_quiz_at, bot_enabled, paid_until, plan,
+             active_session_id
       FROM app_users WHERE user_id = ${payload.userId}
     `;
     const user = rows[0];
     if (!user || user.is_active === false) {
       return NextResponse.json({ user: null }, { status: 401 });
+    }
+    if (!sessionMatches(user.active_session_id, payload.sid)) {
+      return NextResponse.json({ user: null, code: "SESSION_REPLACED" }, { status: 401 });
     }
 
     return NextResponse.json({

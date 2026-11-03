@@ -35,6 +35,8 @@ interface UserContextType {
   logout: () => Promise<void>;
   selectUser: (id: string) => void;
   switchUser: () => void;
+  /** Aviso mostrado no login quando este aparelho foi desconectado por um login em outro lugar. */
+  sessionNotice: string | null;
 }
 
 const UserContext = createContext<UserContextType>({
@@ -53,13 +55,17 @@ const UserContext = createContext<UserContextType>({
   logout: async () => {},
   selectUser: () => {},
   switchUser: () => {},
+  sessionNotice: null,
 });
 
 const SPLASH_MIN_MS = 2500;
+const REPLACED_NOTICE = "Sua conta foi acessada em outro dispositivo, então você foi desconectado daqui.";
+const RECHECK_MIN_MS = 30_000;
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [ready, setReady] = useState(false);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const start = Date.now();
@@ -69,6 +75,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (data.user) {
           setUser(data.user);
           setCurrentUser(data.user.id);
+        } else if (data.code === "SESSION_REPLACED") {
+          setSessionNotice(REPLACED_NOTICE);
         }
       })
       .catch(() => {})
@@ -79,7 +87,33 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       });
   }, []);
 
+  // Quem foi desconectado por outro login descobre ao voltar para a aba ou para o app.
+  useEffect(() => {
+    if (!user) return;
+    let lastCheck = Date.now();
+    function recheck() {
+      if (document.visibilityState !== "visible" || Date.now() - lastCheck < RECHECK_MIN_MS) return;
+      lastCheck = Date.now();
+      fetch("/api/auth/me")
+        .then(async (r) => {
+          if (r.status !== 401) return;
+          const data = await r.json().catch(() => ({}));
+          if (data.code === "SESSION_REPLACED") setSessionNotice(REPLACED_NOTICE);
+          clearCurrentUser();
+          setUser(null);
+        })
+        .catch(() => {});
+    }
+    document.addEventListener("visibilitychange", recheck);
+    window.addEventListener("focus", recheck);
+    return () => {
+      document.removeEventListener("visibilitychange", recheck);
+      window.removeEventListener("focus", recheck);
+    };
+  }, [user]);
+
   function login(u: AuthUser) {
+    setSessionNotice(null);
     setUser(u);
     setCurrentUser(u.id);
   }
@@ -142,6 +176,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         switchUser: () => {
           void logout();
         },
+        sessionNotice,
       }}
     >
       {children}
