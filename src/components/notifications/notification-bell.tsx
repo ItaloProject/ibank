@@ -2,12 +2,111 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, Clock, EyeOff, X } from "lucide-react";
+import { Bell, ChevronDown, Clock, EyeOff, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { BotAlert } from "@/lib/alerts";
 import { SNOOZE_DAYS } from "@/lib/alert-choices";
 import { actionHref, actionLabel } from "@/lib/plan-view";
 import { useAlerts } from "@/components/notifications/alerts-provider";
 import { PushToggle } from "@/components/notifications/push-toggle";
+
+const secondaryBtn =
+  "inline-flex min-h-9 items-center rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
+
+function AlertRow({
+  alert,
+  st,
+  onClose,
+  onChoose,
+}: {
+  alert: BotAlert;
+  st: "snoozed" | "dismissed" | null;
+  onClose: () => void;
+  onChoose: (id: string, choice: "snooze" | "dismiss" | "undo") => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const detailId = useId();
+
+  return (
+    <li
+      className={cn(
+        "rounded-xl border border-border/60 bg-muted/20 p-3",
+        st && "opacity-60",
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-controls={detailId}
+        className="flex w-full items-start gap-2 text-left"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold leading-snug">{alert.titulo}</p>
+          <p
+            className={cn(
+              "mt-0.5 text-[11px] font-medium",
+              alert.nivel === "alta" ? "text-amber-500" : "text-muted-foreground",
+            )}
+          >
+            {alert.nivel === "alta" ? "Importante" : "Atenção"}
+            <span className="text-muted-foreground">
+              {" · "}
+              {expanded ? "Ver menos" : "Ver mais"}
+            </span>
+          </p>
+        </div>
+        <ChevronDown
+          className={cn(
+            "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            expanded && "rotate-180",
+          )}
+          aria-hidden="true"
+        />
+      </button>
+
+      {expanded && (
+        <div id={detailId} className="mt-2 border-t border-border/40 pt-2">
+          <p className="text-xs leading-relaxed text-muted-foreground">{alert.detalhe}</p>
+          {st ? (
+            <div className="mt-2.5 flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                {st === "snoozed"
+                  ? `Lembro em ${SNOOZE_DAYS} dias.`
+                  : "Aviso desconsiderado."}
+              </span>
+              <button type="button" className={secondaryBtn} onClick={() => onChoose(alert.id, "undo")}>
+                Desfazer
+              </button>
+            </div>
+          ) : (
+            <div className="mt-2.5 space-y-1.5">
+              {alert.acao && (
+                <Link
+                  href={actionHref(alert.acao)}
+                  onClick={onClose}
+                  className="inline-flex min-h-9 items-center rounded-lg bg-foreground px-3 text-xs font-semibold text-background transition-opacity hover:opacity-90"
+                >
+                  {actionLabel(alert.acao)}
+                </Link>
+              )}
+              <div className="flex flex-wrap gap-1">
+                <button type="button" className={secondaryBtn} onClick={() => onChoose(alert.id, "snooze")}>
+                  <Clock className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  Lembrar em {SNOOZE_DAYS} dias
+                </button>
+                <button type="button" className={secondaryBtn} onClick={() => onChoose(alert.id, "dismiss")}>
+                  <EyeOff className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  Desconsiderar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
 
 export function NotificationBell({ className }: { className?: string }) {
   const { alerts, unseen, loading, error, status, markSeen, choose } = useAlerts();
@@ -116,65 +215,15 @@ export function NotificationBell({ className }: { className?: string }) {
               </p>
             )}
             <ul className="space-y-1.5">
-              {alerts.map((alert) => {
-                const st = status(alert.id);
-                const secondary =
-                  "inline-flex min-h-9 items-center rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
-                return (
-                  <li
-                    key={alert.id}
-                    className={cn(
-                      "rounded-xl border border-border/60 bg-muted/20 p-3",
-                      st && "opacity-60",
-                    )}
-                  >
-                    <p className="text-sm font-semibold leading-snug">{alert.titulo}</p>
-                    <p
-                      className={cn(
-                        "mt-0.5 text-[11px] font-medium",
-                        alert.nivel === "alta" ? "text-amber-500" : "text-muted-foreground",
-                      )}
-                    >
-                      {alert.nivel === "alta" ? "Importante" : "Atenção"}
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{alert.detalhe}</p>
-                    {st ? (
-                      <div className="mt-2.5 flex items-center justify-between gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {st === "snoozed"
-                            ? `Lembro em ${SNOOZE_DAYS} dias.`
-                            : "Aviso desconsiderado."}
-                        </span>
-                        <button type="button" className={secondary} onClick={() => choose(alert.id, "undo")}>
-                          Desfazer
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-2.5 space-y-1.5">
-                        {alert.acao && (
-                          <Link
-                            href={actionHref(alert.acao)}
-                            onClick={() => setOpen(false)}
-                            className="inline-flex min-h-9 items-center rounded-lg bg-foreground px-3 text-xs font-semibold text-background transition-opacity hover:opacity-90"
-                          >
-                            {actionLabel(alert.acao)}
-                          </Link>
-                        )}
-                        <div className="flex flex-wrap gap-1">
-                          <button type="button" className={secondary} onClick={() => choose(alert.id, "snooze")}>
-                            <Clock className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                            Lembrar em {SNOOZE_DAYS} dias
-                          </button>
-                          <button type="button" className={secondary} onClick={() => choose(alert.id, "dismiss")}>
-                            <EyeOff className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                            Desconsiderar
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
+              {alerts.map((alert) => (
+                <AlertRow
+                  key={alert.id}
+                  alert={alert}
+                  st={status(alert.id)}
+                  onClose={() => setOpen(false)}
+                  onChoose={choose}
+                />
+              ))}
             </ul>
           </div>
 
