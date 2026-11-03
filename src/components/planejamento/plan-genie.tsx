@@ -853,7 +853,10 @@ export function PlanGenie(props: Props) {
     switch (p.kind) {
       case "groupName": return cmd.kind === "unknown" || cmd.kind === "chat" || cmd.kind === "term" ? `criar grupo ${text}` : null;
       case "item": return cmd.kind === "unknown" || cmd.kind === "addItems" || cmd.kind === "term" ? `adicionar ${text}${cmd.kind === "addItems" && cmd.group ? "" : inGroup(p.group)}` : null;
-      case "itemValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `adicionar ${p.name} ${value}${inGroup(p.group)}` : null;
+      case "itemValue":
+        if (cmd.kind === "calc") return `adicionar ${p.name} ${value}${inGroup(p.group)}`;
+        if (cmd.kind === "unknown") return `adicionar ${text}${inGroup(p.group)}`;
+        return null;
       case "spendValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `gastei ${value} em ${p.name}${inGroup(p.group)}` : null;
       case "incomeValue": return cmd.kind === "unknown" || cmd.kind === "calc" ? `recebi ${value}${p.description ? ` de ${p.description}` : ""}` : null;
     }
