@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { SNOOZE_DAYS } from "@/lib/alert-choices";
 import { actionHref, actionLabel } from "@/lib/plan-view";
 import { useAlerts } from "@/components/notifications/alerts-provider";
+import { PushToggle } from "@/components/notifications/push-toggle";
 
 export function NotificationBell({ className }: { className?: string }) {
   const { alerts, unseen, loading, error, status, markSeen, choose } = useAlerts();
@@ -175,6 +176,10 @@ export function NotificationBell({ className }: { className?: string }) {
                 );
               })}
             </ul>
+          </div>
+
+          <div className="shrink-0 border-t">
+            <PushToggle />
           </div>
         </div>
       )}

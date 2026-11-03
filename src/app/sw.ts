@@ -39,3 +39,46 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+type PushData = { title?: string; body?: string; url?: string; tag?: string };
+
+self.addEventListener("push", (event) => {
+  let data: PushData = {};
+  try {
+    data = event.data?.json() as PushData;
+  } catch {
+    data = { body: event.data?.text() };
+  }
+  const title = data.title?.trim() || "Muvo";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body?.trim() || "Você tem um aviso na carteira.",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: data.url || "/" },
+      tag: data.tag || "muvo-aviso",
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = String((event.notification.data as { url?: string } | undefined)?.url || "/");
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of windows) {
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) {
+            try {
+              await (client as WindowClient).navigate(target);
+            } catch { /* alguns navegadores não permitem */ }
+          }
+          return;
+        }
+      }
+      await self.clients.openWindow(target);
+    })(),
+  );
+});
