@@ -262,6 +262,48 @@ function ParcelamentosContent({ userId }: { userId: string }) {
     }
   }
 
+  /** Marca +1 em cada ativo cuja próxima parcela vence no mês corrente. */
+  async function handlePayMonth() {
+    const due = plans.filter((p) => p.paid_installments < p.installments && isDueThisMonth(p));
+    if (due.length === 0) {
+      toast.info("Nenhuma parcela em aberto vence neste mês.");
+      return;
+    }
+    const snapshot = new Map(due.map((p) => [p.id, p]));
+    setPlans((prev) =>
+      prev.map((p) => {
+        const hit = snapshot.get(p.id);
+        if (!hit) return p;
+        return { ...p, paid_installments: hit.paid_installments + 1 };
+      }),
+    );
+    const results = await Promise.allSettled(
+      due.map((p) => updatePaid(p.id, p.paid_installments + 1)),
+    );
+    const failed: Plan[] = [];
+    const succeeded: Plan[] = [];
+    results.forEach((r, i) => {
+      if (r.status === "fulfilled") succeeded.push(r.value);
+      else failed.push(due[i]);
+    });
+    if (succeeded.length > 0) {
+      const byId = new Map(succeeded.map((p) => [p.id, p]));
+      setPlans((prev) => prev.map((p) => byId.get(p.id) ?? p));
+    }
+    if (failed.length > 0) {
+      setPlans((prev) => prev.map((p) => failed.find((f) => f.id === p.id) ?? p));
+      toast.error(
+        failed.length === due.length
+          ? "Não foi possível marcar as parcelas deste mês."
+          : `Marquei ${succeeded.length}; ${failed.length} falharam. Tente de novo nessas.`,
+      );
+      return;
+    }
+    toast.success(
+      due.length === 1 ? "1 parcela do mês marcada como paga." : `${due.length} parcelas do mês marcadas como pagas.`,
+    );
+  }
+
   function requestDelete() {
     if (!editingPlan) return;
     const target = { id: editingPlan.id, label: editingPlan.description };
@@ -305,34 +347,27 @@ function ParcelamentosContent({ userId }: { userId: string }) {
     );
   }
 
+  const dueThisMonth = active.filter(isDueThisMonth);
+
   return (
     <PageShell>
-      {/* Desktop: full page header */}
-      <div className="hidden md:block">
-        <PageHeader
-          title="Parcelamentos"
-          description="Compras parceladas em andamento"
-          actions={
-            <Button size="sm" className="min-h-11" onClick={openNew}>
+      <PageHeader
+        title="Parcelamentos"
+        description="Compras parceladas em andamento"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {dueThisMonth.length > 0 && (
+              <Button type="button" size="sm" variant="outline" className="min-h-11" onClick={() => void handlePayMonth()}>
+                Marcar do mês ({dueThisMonth.length})
+              </Button>
+            )}
+            <Button type="button" size="sm" className="min-h-11" onClick={openNew}>
               <Plus className="h-4 w-4" aria-hidden="true" />
               Novo parcelamento
             </Button>
-          }
-        />
-      </div>
-
-      {/* Mobile: title + add button in one row */}
-      <div className="md:hidden flex items-center justify-between px-4 h-14 border-b shrink-0">
-        <h1 className="text-lg font-bold">Parcelamentos</h1>
-        <button
-          type="button"
-          aria-label="Novo parcelamento"
-          onClick={openNew}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <Plus className="h-5 w-5" aria-hidden="true" />
-        </button>
-      </div>
+          </div>
+        }
+      />
 
       <PageBody>
 
@@ -606,6 +641,17 @@ function formatStartDate(raw: string | null): string {
   const d = new Date(dateStr + "T12:00:00");
   if (isNaN(d.getTime())) return "";
   return ` · ${d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}`;
+}
+
+/** Próxima parcela (índice = já pagas) cai no mês civil atual. Sem data, conta como deste mês. */
+function isDueThisMonth(plan: Plan, now = new Date()): boolean {
+  if (plan.paid_installments >= plan.installments) return false;
+  if (!plan.start_date) return true;
+  const dateStr = String(plan.start_date).slice(0, 10);
+  const start = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(start.getTime())) return true;
+  const due = new Date(start.getFullYear(), start.getMonth() + plan.paid_installments, 1);
+  return due.getFullYear() === now.getFullYear() && due.getMonth() === now.getMonth();
 }
 
 function calcEndDate(plan: Plan): string {
