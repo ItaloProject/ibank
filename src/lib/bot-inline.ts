@@ -10,6 +10,7 @@ import {
   bankRatesAgeDays,
   findBankByName,
   productsForTipo,
+  type BankProductKind,
   type CaixinhaTipo,
 } from "@/lib/bank-rates";
 import { answerMarkdown } from "@/lib/genie/answer";
@@ -45,16 +46,16 @@ function tipoFromLabel(label: string | null | undefined): CaixinhaTipo {
 }
 
 function peersFor(tipo: CaixinhaTipo, index: string) {
-  const kinds =
-    tipo === "turbo"
-      ? (["turbo", "liquidez"] as const)
-      : tipo === "emergencia"
-        ? (["liquidez", "turbo", "poupanca"] as const)
-        : (["cdb", "lca", "lci", "liquidez"] as const);
+  const kindsByTipo: Record<CaixinhaTipo, readonly BankProductKind[]> = {
+    turbo: ["turbo", "liquidez"],
+    emergencia: ["liquidez", "turbo", "poupanca"],
+    investimentos: ["cdb", "lca", "lci", "liquidez"],
+  };
+  const kinds = kindsByTipo[tipo];
   const list: { banco: string; produto: string; taxa: string; value: number; index: string; isento: boolean }[] = [];
   for (const b of BANKS) {
     for (const p of b.products) {
-      if (!kinds.includes(p.kind as (typeof kinds)[number])) continue;
+      if (!kinds.includes(p.kind)) continue;
       if (index === "cdi" && p.rate_index !== "cdi") continue;
       if (index === "pre" && p.rate_index !== "pre") continue;
       if (index === "poupanca" && p.rate_index !== "poupanca") continue;
