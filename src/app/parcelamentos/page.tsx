@@ -347,7 +347,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
     );
   }
 
-  const dueThisMonth = active.filter(isDueThisMonth);
+  const dueThisMonth = active.filter((p) => isDueThisMonth(p));
 
   return (
     <PageShell>
