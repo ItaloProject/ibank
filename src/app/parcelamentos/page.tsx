@@ -330,7 +330,7 @@ function ParcelamentosContent({ userId }: { userId: string }) {
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 leading-tight">Por mês</p>
               <p className="text-sm font-display font-black tabular-nums leading-none truncate">{fmt(parcelasMesAtual)}</p>
             </div>
-            <div className="rounded-xl bg-card border px-3 py-3">
+            <div className="rounded-xl bg-card border px-3 py-3 text-center">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 leading-tight">Ativos</p>
               <p className="text-sm font-display font-black tabular-nums leading-none">{active.length}</p>
             </div>
