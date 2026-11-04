@@ -170,9 +170,26 @@ function ParcelamentosContent({ userId }: { userId: string }) {
 
   function openNew() {
     setEditingPlan(null);
-    setForm({ ...EMPTY_FORM, plan_group_id: suggestGroup(groups) });
+    // Planejamento fica desligado até o usuário optar — o create começa só com a compra.
+    setForm({ ...EMPTY_FORM });
     setErrors({});
     setOpen(true);
+  }
+
+  function setPlanningEnabled(on: boolean) {
+    if (!on) {
+      setForm((prev) => ({ ...prev, plan_group_id: NO_GROUP }));
+      if (errors.start_date || errors.plan_group_id) {
+        setErrors((prev) => ({ ...prev, start_date: undefined, plan_group_id: undefined }));
+      }
+      return;
+    }
+    const id = suggestGroup(groups);
+    if (id === NO_GROUP) {
+      toast.error("Crie um grupo no Planejamento antes de lançar parcelas lá.");
+      return;
+    }
+    setField("plan_group_id", id);
   }
 
   function openEdit(plan: Plan) {
@@ -324,10 +341,10 @@ function ParcelamentosContent({ userId }: { userId: string }) {
           <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
             <div className="min-w-0 rounded-xl bg-card border px-3 py-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 leading-tight">Em aberto</p>
-              <p className="text-sm font-display font-black text-destructive tabular-nums leading-none truncate">{fmt(totalEmAberto)}</p>
+              <p className="text-sm font-display font-black tabular-nums leading-none truncate">{fmt(totalEmAberto)}</p>
             </div>
             <div className="min-w-0 rounded-xl bg-card border px-3 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 leading-tight">Por mês</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 leading-tight">Parcela média</p>
               <p className="text-sm font-display font-black tabular-nums leading-none truncate">{fmt(parcelasMesAtual)}</p>
             </div>
             <div className="rounded-xl bg-card border px-3 py-3 text-center">
@@ -436,77 +453,96 @@ function ParcelamentosContent({ userId }: { userId: string }) {
                 <FieldError field="installments" errors={errors} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="plan-field-paid_installments" className="flex items-center gap-1.5">
-                  Já pagas
-                  <HelpTip label="parcelas já pagas">
-                    Quantas parcelas você já quitou. Serve para calcular quanto ainda falta pagar. Depois é só usar o + no card a cada parcela paga.
-                  </HelpTip>
-                </Label>
-                <Input
-                  id="plan-field-paid_installments"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  placeholder="0"
-                  value={form.paid_installments}
-                  onChange={(e) => setField("paid_installments", e.target.value)}
-                  {...fieldA11y("paid_installments", errors)}
-                />
-                <FieldError field="paid_installments" errors={errors} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="plan-field-start_date" className="flex items-center gap-1.5">
-                  1ª parcela em
-                  <HelpTip label="data da primeira parcela">
-                    Mês em que vence a primeira parcela (na fatura do cartão, geralmente o mês seguinte à compra). Define quando o parcelamento termina e em quais meses a parcela entra no planejamento.
-                  </HelpTip>
-                </Label>
-                <Input
-                  id="plan-field-start_date"
-                  type="date"
-                  value={form.start_date}
-                  onChange={(e) => setField("start_date", e.target.value)}
-                  {...fieldA11y("start_date", errors)}
-                />
-              </div>
-            </div>
-            <FieldError field="start_date" errors={errors} />
             <div className="space-y-1.5">
-              <Label htmlFor="plan-field-plan_group_id" className="flex items-center gap-1.5">
-                Lançar no planejamento
-                <HelpTip label="lançar no planejamento">
-                  Escolha o grupo do Planejamento onde a parcela deve aparecer. Em cada mês do parcelamento, ela entra sozinha como gasto fixo, com o número da parcela (ex.: 3/10). Assim você não precisa digitar todo mês.
+              <Label htmlFor="plan-field-paid_installments" className="flex items-center gap-1.5">
+                Já pagas
+                <HelpTip label="parcelas já pagas">
+                  Quantas parcelas você já quitou. Serve para calcular quanto ainda falta. Depois use o + no card a cada nova parcela paga.
                 </HelpTip>
               </Label>
-              <Select value={form.plan_group_id} onValueChange={(v) => setField("plan_group_id", v)}>
-                <SelectTrigger id="plan-field-plan_group_id">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {groups.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} aria-hidden="true" />
-                        {g.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={NO_GROUP}>Não lançar</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {form.plan_group_id === NO_GROUP
-                  ? "A parcela não aparece no planejamento."
-                  : "Cada parcela entra como gasto fixo no mês em que vence."}
-              </p>
+              <Input
+                id="plan-field-paid_installments"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                placeholder="0"
+                value={form.paid_installments}
+                onChange={(e) => setField("paid_installments", e.target.value)}
+                {...fieldA11y("paid_installments", errors)}
+              />
+              <FieldError field="paid_installments" errors={errors} />
             </div>
             {parseAmount(form.total_amount) > 0 && Number(form.installments) >= 1 && (
               <p className="text-sm text-center bg-muted/50 rounded-md py-2 text-muted-foreground tabular-nums">
-                {fmt(parseAmount(form.total_amount) / Number(form.installments))} / mês
+                {fmt(parseAmount(form.total_amount) / Number(form.installments))} por parcela
               </p>
             )}
+            <div className="space-y-3 rounded-lg border border-border p-3">
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-foreground"
+                  checked={form.plan_group_id !== NO_GROUP}
+                  onChange={(e) => setPlanningEnabled(e.target.checked)}
+                />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                    Aparecer no planejamento
+                    <HelpTip label="aparecer no planejamento">
+                      Em cada mês do parcelamento, a parcela entra sozinha como gasto fixo no grupo escolhido (ex.: 3/10). Assim você não digita de novo todo mês.
+                    </HelpTip>
+                  </span>
+                  <span className="block text-xs text-muted-foreground leading-snug">
+                    Opcional. Sem isso, o parcelamento só aparece nesta página.
+                  </span>
+                </span>
+              </label>
+              {form.plan_group_id !== NO_GROUP && (
+                <div className="space-y-3 border-t border-border pt-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="plan-field-start_date" className="flex items-center gap-1.5">
+                      1ª parcela em
+                      <HelpTip label="data da primeira parcela">
+                        Mês em que vence a primeira parcela (na fatura do cartão, em geral o mês seguinte à compra). Define quando termina e em quais meses entra no planejamento.
+                      </HelpTip>
+                    </Label>
+                    <Input
+                      id="plan-field-start_date"
+                      type="date"
+                      value={form.start_date}
+                      onChange={(e) => setField("start_date", e.target.value)}
+                      {...fieldA11y("start_date", errors)}
+                    />
+                    <FieldError field="start_date" errors={errors} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="plan-field-plan_group_id">Grupo no planejamento</Label>
+                    <Select
+                      value={form.plan_group_id}
+                      onValueChange={(v) => {
+                        if (v === NO_GROUP) setPlanningEnabled(false);
+                        else setField("plan_group_id", v);
+                      }}
+                    >
+                      <SelectTrigger id="plan-field-plan_group_id">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {groups.map((g) => (
+                          <SelectItem key={g.id} value={g.id}>
+                            <span className="inline-flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} aria-hidden="true" />
+                              {g.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Cada parcela entra no mês em que vence.</p>
+                  </div>
+                </div>
+              )}
+            </div>
             <Button type="submit" className="w-full" disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />}
               {editingPlan ? "Salvar alterações" : "Adicionar"}
@@ -689,7 +725,7 @@ function PlanCard({
           {!isDone && (
             <div>
               <p className="text-[10px] text-muted-foreground leading-none mb-1">Restante</p>
-              <p className="text-sm font-display font-black text-destructive tabular-nums leading-none">{fmt(valorRestante)}</p>
+              <p className="text-sm font-display font-black tabular-nums leading-none">{fmt(valorRestante)}</p>
             </div>
           )}
         </div>
