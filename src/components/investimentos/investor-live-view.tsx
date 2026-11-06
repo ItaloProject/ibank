@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ElementType, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
-  X, Landmark, Calculator, Zap, Shield,
+  X, Landmark, Wallet, Calculator, Zap, Shield,
   ArrowUpRight, ArrowDownRight, ArrowRight, Check, Pencil, Home, ChevronRight,
   CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Trash2,
 } from "lucide-react";
@@ -1321,7 +1321,7 @@ export function InvestorLiveView({
         >
           {[
             { id: "inicio" as const, label: "Início", icon: Home },
-            { id: "investimentos" as const, label: "Investir", icon: Landmark },
+            { id: "investimentos" as const, label: "Investir", icon: Wallet },
             { id: "rebalancear" as const, label: "Rebalancear", icon: Scale },
             { id: "simular" as const, label: "Simular", icon: Calculator },
           ].map((t) => {

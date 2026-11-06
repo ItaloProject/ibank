@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { X, Plus, Wallet, Trash2 } from "lucide-react";
+import { X, Plus, Wallet, Trash2, LayoutDashboard, Calculator } from "lucide-react";
 import { PlanLeftoverOffer } from "@/components/investimentos/plan-leftover-offer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
@@ -396,9 +396,9 @@ export function InvestorLiveViewDesktop({
 
   /* ── Tabs ─────────────────────────────────────────────────────── */
   const tabs = [
-    { id: "inicio" as const, label: "Início" },
-    { id: "investimentos" as const, label: "Investimentos" },
-    { id: "simular" as const, label: "Simular" },
+    { id: "inicio" as const, label: "Visão geral", icon: LayoutDashboard },
+    { id: "investimentos" as const, label: "Investimentos", icon: Wallet },
+    { id: "simular" as const, label: "Simulador", icon: Calculator },
   ];
 
   function openMarket(section: MarketSection) {
@@ -458,13 +458,14 @@ export function InvestorLiveViewDesktop({
                 tabIndex={tab === t.id ? 0 : -1}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  "min-h-9 px-4 rounded-full text-sm transition-colors",
+                  "inline-flex min-h-11 items-center gap-2 px-4 rounded-full text-sm transition-colors",
                   FOCUS,
                   tab === t.id
                     ? "bg-background text-foreground font-bold shadow-sm"
                     : "text-muted-foreground font-medium hover:text-foreground",
                 )}
               >
+                <t.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
                 {t.label}
               </button>
             ))}
@@ -533,7 +534,7 @@ export function InvestorLiveViewDesktop({
             role="tabpanel"
             id="live-panel-inicio"
             aria-labelledby="live-tab-inicio"
-            className="grid grid-cols-[300px_1fr_1fr] h-full divide-x divide-border"
+            className="grid grid-cols-[340px_1fr] h-full divide-x divide-border"
           >
             {/* Distribuição */}
             <section aria-labelledby="dist-heading" className="p-6 overflow-y-auto scrollbar-thin-dark">
@@ -580,64 +581,17 @@ export function InvestorLiveViewDesktop({
               </div>
             </section>
 
-            {/* Posições */}
-            <section aria-labelledby="pos-heading" className="p-6 overflow-y-auto scrollbar-thin-dark">
-              <div className="flex items-center justify-between mb-3">
-                <SectionHeading id="pos-heading">Posições em bolsa</SectionHeading>
-                <button type="button" onClick={() => openMarket("acoes")} className={SMALL_BTN}>
-                  <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Comprar ação
-                </button>
-              </div>
-              {holdingRows.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <p className="text-sm text-muted-foreground">Nenhuma posição em bolsa.</p>
-                  <button type="button" onClick={() => openMarket("acoes")} className={`${SMALL_BTN} mt-3`}>
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Comprar a primeira ação
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <ul className="space-y-1.5">
-                    {holdingRows.map((h) => (
-                      <li key={h.ticker} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-foreground">{h.ticker}</p>
-                          <p className="text-[11px] text-muted-foreground">{h.type} · {fmtQty(h.quantity)} un.</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <p className={`${MONEY} text-sm`}>{formatCurrency(h.value)}</p>
-                            <PctText pct={h.gainPct} />
-                          </div>
-                          <button type="button" onClick={() => openSell(h.ticker)} aria-label={`Vender ${h.ticker}`} className={SMALL_BTN}>
-                            Vender
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-3 pt-3 border-t border-border flex justify-between items-center px-1">
-                    <span className="text-xs text-muted-foreground">Total em bolsa</span>
-                    <div className="text-right">
-                      <p className={`${MONEY} text-sm`}>{formatCurrency(investedValue)}</p>
-                      <PctText pct={totalGainPct} />
-                    </div>
-                  </div>
-                </>
-              )}
-            </section>
-
             {/* Movimentações */}
             <section aria-labelledby="mov-heading" className="p-6 overflow-y-auto scrollbar-thin-dark">
               <SectionHeading id="mov-heading">Últimas movimentações</SectionHeading>
               <p className="text-[11px] text-muted-foreground mt-1">Lançou algo errado? Use o botão de desfazer ao lado.</p>
               <div className="mt-2">
                 <MovementsList
-                  movements={showAllMovements ? actions.movements : actions.movements.slice(0, 12)}
+                  movements={showAllMovements ? actions.movements : actions.movements.slice(0, 8)}
                   onUndo={setUndoMovement}
                 />
               </div>
-              {actions.movements.length > 12 && (
+              {actions.movements.length > 8 && (
                 <button
                   type="button"
                   onClick={() => setShowAllMovements((v) => !v)}
@@ -710,9 +664,17 @@ export function InvestorLiveViewDesktop({
                   <AccountCard key={acc.id} acc={acc} {...accountHandlers} />
                 ))}
               </ul>
+              <div className="flex items-center justify-between pt-5 pb-2">
+                <p className={LABEL}>Bolsa</p>
+                <button type="button" onClick={() => openMarket("acoes")} className={SMALL_BTN}>
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Comprar ação
+                </button>
+              </div>
+              {holdingRows.length === 0 && investimentosAccountsReal.length > 0 && (
+                <p className="text-sm text-muted-foreground">Nenhuma posição em bolsa.</p>
+              )}
               {holdingRows.length > 0 && (
                 <>
-                  <p className={`${LABEL} pt-5 pb-2`}>Bolsa</p>
                   <ul className="space-y-2">
                     {holdingRows.map((h) => (
                       <li key={h.ticker} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
