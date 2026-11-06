@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, RefreshCw, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, Plus, RefreshCw, Search, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getMarketQuotes } from "@/lib/api";
 import { TICKER_RE } from "@/lib/market-quotes";
@@ -13,7 +13,8 @@ import {
   type CatalogEntry,
   type CatalogKind,
 } from "@/lib/market-catalog";
-import { FOCUS, INPUT_BOX, LABEL, MONEY, ROW } from "@/components/investimentos/live-ui";
+import { FOCUS, INPUT_BOX, LABEL, LiveSheet, MONEY, ROW } from "@/components/investimentos/live-ui";
+import { FiiDetailsSheet } from "@/components/investimentos/fii-details-sheet";
 
 const QUOTE_TTL_MS = 2 * 60 * 1000;
 const QUOTE_BATCH = 40;
@@ -129,6 +130,7 @@ export function CatalogPicker({
   const groups: readonly string[] = kind === "acao" ? STOCK_GROUPS : FII_GROUPS;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>(TOP);
+  const [infoAsset, setInfoAsset] = useState<CatalogEntry | null>(null);
   const tickers = useMemo(() => catalog.map((a) => a.ticker), [catalog]);
   const { prices, loading, asOf, refresh } = useCatalogQuotes(tickers);
   const copy = COPY[kind];
@@ -194,27 +196,37 @@ export function CatalogPicker({
           {s.items.map((a) => {
             const price = priceOf(a.ticker);
             return (
-              <button
-                key={a.ticker}
-                type="button"
-                onClick={() => pick(a)}
-                className={`${ROW} min-h-14 p-3.5 flex items-center justify-between gap-3`}
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-bold text-foreground truncate">{a.ticker}</span>
-                  <span className="block text-[11px] text-muted-foreground truncate">
-                    {a.name}
-                    {!s.title && filter !== a.group ? ` · ${a.group}` : ""}
+              <div key={a.ticker} className={`${ROW} min-h-14 p-0 flex items-stretch overflow-hidden`}>
+                <button
+                  type="button"
+                  onClick={() => pick(a)}
+                  className={`min-w-0 flex-1 p-3.5 flex items-center justify-between gap-3 text-left ${FOCUS}`}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-foreground truncate">{a.ticker}</span>
+                    <span className="block text-[11px] text-muted-foreground truncate">
+                      {a.name}
+                      {!s.title && filter !== a.group ? ` · ${a.group}` : ""}
+                    </span>
                   </span>
-                </span>
-                {price !== undefined ? (
-                  <span className={`${MONEY} text-sm shrink-0`}>{formatCurrency(price)}</span>
-                ) : loading ? (
-                  <span className="h-4 w-16 rounded bg-muted animate-pulse shrink-0" aria-hidden="true" />
-                ) : (
-                  <span className="text-[11px] text-muted-foreground shrink-0">Sem cotação</span>
-                )}
-              </button>
+                  {price !== undefined ? (
+                    <span className={`${MONEY} text-sm shrink-0`}>{formatCurrency(price)}</span>
+                  ) : loading ? (
+                    <span className="h-4 w-16 rounded bg-muted animate-pulse shrink-0" aria-hidden="true" />
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground shrink-0">Sem cotação</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInfoAsset(a)}
+                  aria-label={`Ver detalhes de ${a.ticker}`}
+                  title="Ver detalhes"
+                  className={`shrink-0 w-11 border-l border-border flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${FOCUS}`}
+                >
+                  <Info className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
             );
           })}
         </div>
@@ -235,6 +247,36 @@ export function CatalogPicker({
           <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">{copy.manualHint}</span>
         </span>
       </button>
+
+      {kind === "fii" ? (
+        <FiiDetailsSheet ticker={infoAsset?.ticker ?? null} name={infoAsset?.name} onClose={() => setInfoAsset(null)} />
+      ) : (
+        <LiveSheet
+          open={!!infoAsset}
+          onOpenChange={(o) => !o && setInfoAsset(null)}
+          title={infoAsset?.ticker ?? ""}
+          description={infoAsset?.name}
+        >
+          {infoAsset && (
+            <div className="space-y-2.5">
+              <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 flex items-start justify-between gap-3">
+                <span className={`${LABEL} pt-0.5`}>Segmento</span>
+                <span className={`${MONEY} text-sm text-right leading-snug`}>{infoAsset.group}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Tipo de fundo, valor patrimonial e último rendimento aparecem na ficha dos fundos imobiliários.
+              </p>
+              <button
+                type="button"
+                onClick={() => setInfoAsset(null)}
+                className={`mt-2 w-full min-h-12 rounded-xl border border-border text-sm font-bold text-foreground hover:bg-muted transition-colors ${FOCUS}`}
+              >
+                Fechar
+              </button>
+            </div>
+          )}
+        </LiveSheet>
+      )}
     </div>
   );
 }

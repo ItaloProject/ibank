@@ -11,6 +11,7 @@ import { getCurrentUser } from "@/lib/user";
 import type { AccountRate } from "@/lib/account-rate";
 import { normalizeDate, toAccount, toInvestment, toStockTrade } from "@/lib/normalize";
 import type { MarketQuote } from "@/lib/market-quotes";
+import type { FiiDetails } from "@/lib/fii-details";
 
 function uid() { return getCurrentUser(); }
 
@@ -152,6 +153,16 @@ export async function getMarketQuotes(tickers: string[], fresh = false): Promise
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
+  }
+}
+
+export async function getFiiDetails(ticker: string): Promise<FiiDetails | null> {
+  try {
+    const res = await fetch(`/api/fii-details/${encodeURIComponent(ticker.trim().toUpperCase())}`);
+    if (!res.ok) return null;
+    return (await res.json()) as FiiDetails;
+  } catch {
+    return null;
   }
 }
 
