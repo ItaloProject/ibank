@@ -170,6 +170,8 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     try { return Number(localStorage.getItem("ibank_income_goal") ?? 0) || 0; } catch { return 0; }
   });
   const [incomeGoalInput, setIncomeGoalInput] = useState("");
+  const [goalDeadlineYear, setGoalDeadlineYear] = useState<number | null>(null);
+  const [goalMonthlyContribution, setGoalMonthlyContribution] = useState(0);
 
   const now = new Date();
 
@@ -278,6 +280,9 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
           setIncomeGoal(goal);
           try { localStorage.setItem("ibank_income_goal", String(goal)); } catch {}
         }
+        const year = Number(data.goal_deadline_year);
+        setGoalDeadlineYear(Number.isInteger(year) && year > 0 ? year : null);
+        setGoalMonthlyContribution(Number(data.goal_monthly_contribution) || 0);
       })
       .catch(() => {});
   }, [searchParams, isMetas, router]);
@@ -522,7 +527,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
     return { allSources, totalRendaMensal, chartMonths, fiiCapital, CDI_MENSAL };
   }, [accounts, investments, stockPositions, quoteMap, marketRates.cdiAnual]);
 
-  const portfolioVersion = `${accounts.length}|${investments.length}|${stockTrades.length}|${grandTotal.toFixed(2)}|${incomeGoal}`;
+  const portfolioVersion = `${accounts.length}|${investments.length}|${stockTrades.length}|${grandTotal.toFixed(2)}|${incomeGoal}|${goalDeadlineYear ?? ""}|${goalMonthlyContribution}`;
   const analysis = useRebalanceAnalysis(botEnabled && !loading, portfolioVersion);
 
   const portfolioAnalysis = useMemo<PortfolioAnalysis | null>(() => {
@@ -800,6 +805,10 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         incomeGoalInput={incomeGoalInput}
         setIncomeGoal={setIncomeGoal}
         setIncomeGoalInput={setIncomeGoalInput}
+        goalDeadlineYear={goalDeadlineYear}
+        setGoalDeadlineYear={setGoalDeadlineYear}
+        goalMonthlyContribution={goalMonthlyContribution}
+        setGoalMonthlyContribution={setGoalMonthlyContribution}
         scoreHistory={scoreHistory}
         grandTotal={grandTotal}
         accountBalances={accountBalances}

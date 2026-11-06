@@ -71,6 +71,10 @@ function parseGoal(raw: string): number {
   return Number.isFinite(v) && v < 1e10 ? Math.round(v * 100) / 100 : 0;
 }
 
+const FIELD =
+  "w-full rounded-xl border border-border bg-muted/40 px-3.5 min-h-11 text-sm text-foreground tabular-nums placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60";
+const LABEL_FIELD = "block text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-1.5 text-left";
+
 export type InvestorModeViewProps = {
   investorData: {
     allSources: IncomeSource[];
@@ -84,6 +88,10 @@ export type InvestorModeViewProps = {
   incomeGoalInput: string;
   setIncomeGoal: (v: number) => void;
   setIncomeGoalInput: (v: string) => void;
+  goalDeadlineYear: number | null;
+  setGoalDeadlineYear: (v: number | null) => void;
+  goalMonthlyContribution: number;
+  setGoalMonthlyContribution: (v: number) => void;
   scoreHistory: ScoreSnapshot[];
   grandTotal: number;
   accountBalances: { account: InvestmentAccount; balance: number }[];
@@ -102,13 +110,12 @@ export function InvestorModeView({
   incomeGoalInput,
   setIncomeGoal,
   setIncomeGoalInput,
+  goalDeadlineYear,
+  setGoalDeadlineYear,
+  goalMonthlyContribution,
+  setGoalMonthlyContribution,
   scoreHistory,
-  grandTotal,
-  accountBalances,
-  stockTrades,
-  investments,
   onGenerateReport,
-  onRefresh,
   botContext,
   botDataVersion,
 }: InvestorModeViewProps) {
@@ -116,32 +123,56 @@ export function InvestorModeView({
   const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
   const [editingGoal, setEditingGoal] = useState(false);
   const [savingGoal, setSavingGoal] = useState(false);
+  const [deadlineInput, setDeadlineInput] = useState("");
+  const [aporteInput, setAporteInput] = useState("");
+
+  const thisYear = new Date().getFullYear();
 
   function startGoalEdit() {
-    setIncomeGoalInput(toMoneyMask(incomeGoal));
+    setIncomeGoalInput(incomeGoal > 0 ? toMoneyMask(incomeGoal) : "");
+    setDeadlineInput(goalDeadlineYear ? String(goalDeadlineYear) : "");
+    setAporteInput(goalMonthlyContribution > 0 ? toMoneyMask(goalMonthlyContribution) : "");
     setEditingGoal(true);
   }
 
   function cancelGoalEdit() {
     setIncomeGoalInput("");
+    setDeadlineInput("");
+    setAporteInput("");
     setEditingGoal(false);
   }
 
   async function saveGoal() {
     const v = parseGoal(incomeGoalInput);
     if (!(v > 0) || savingGoal) return;
+    const yearRaw = deadlineInput.trim();
+    const year = yearRaw ? Number(yearRaw) : null;
+    if (yearRaw && (!Number.isInteger(year) || year! < thisYear || year! > thisYear + 50)) {
+      toast.error(`Informe um ano entre ${thisYear} e ${thisYear + 50}.`);
+      return;
+    }
+    const aporte = parseGoal(aporteInput);
     setSavingGoal(true);
     try {
+      const body: Record<string, number | null> = {
+        goal_target: v,
+        goal_deadline_year: year,
+        goal_monthly_contribution: aporte > 0 ? aporte : null,
+      };
       const r = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goal_target: v }),
+        body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error();
       setIncomeGoal(v);
+      setGoalDeadlineYear(year);
+      setGoalMonthlyContribution(aporte > 0 ? aporte : 0);
       try { localStorage.setItem("ibank_income_goal", String(v)); } catch {}
       window.dispatchEvent(new CustomEvent("ibank_goal_changed", { detail: v }));
       setIncomeGoalInput("");
+      setDeadlineInput("");
+      setAporteInput("");
       setEditingGoal(false);
       toast.success(`Meta de ${formatCurrency(v)} por mês salva`);
     } catch {
@@ -151,423 +182,460 @@ export function InvestorModeView({
     }
   }
 
-  return (
-        <div className="relative min-h-full bg-background text-foreground overflow-hidden">
-          {/* Ambient mesh — MUVO neutral */}
-          <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-muted/50 blur-[140px]" />
-            <div className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full bg-card blur-[130px]" />
-            <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] rounded-full bg-muted/20 blur-[130px]" />
+  const goalSummaryBits = [
+    incomeGoal > 0 ? formatCurrency(incomeGoal) + "/mês" : null,
+    goalDeadlineYear ? `até ${goalDeadlineYear}` : null,
+    goalMonthlyContribution > 0 ? `aporte ${formatCurrency(goalMonthlyContribution)}` : null,
+  ].filter(Boolean);
+
+  const diagnosis = (() => {
+    if (!portfolioAnalysis) {
+      return (
+        <div className="space-y-3" aria-busy="true">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">O que fazer agora</h3>
+          <p className="text-xs text-muted-foreground">Analisando sua carteira pelo seu perfil de risco…</p>
+          <div className="h-24 animate-pulse rounded-2xl bg-muted/40" />
+          <div className="h-16 animate-pulse rounded-xl bg-muted/30" />
+        </div>
+      );
+    }
+
+    const { insights, nextMoves, score } = portfolioAnalysis;
+    const levelColors: Record<string, string> = { critical: "#f87171", warning: "#fbbf24", ok: "#34d399", suggestion: "#a3a3a3" };
+    const levelBgs: Record<string, string> = { critical: "border-red-500/20 bg-red-500/[0.06]", warning: "border-amber-500/20 bg-amber-500/[0.06]", ok: "border-emerald-500/20 bg-emerald-500/[0.06]", suggestion: "border-border bg-muted/30" };
+    const levelLabels: Record<string, string> = { critical: "CRÍTICO", warning: "ATENÇÃO", ok: "OK", suggestion: "SUGESTÃO" };
+    const critico = insights.some((i) => i.level === "critical");
+    const saudavel = score >= 70 && !critico;
+    const scoreColor = saudavel ? "#34d399" : score >= 40 ? "#fbbf24" : "#f87171";
+    const scoreTitle = saudavel ? "Carteira saudável" : score >= 40 ? "Precisa de ajustes" : "Atenção necessária";
+
+    return (
+      <div>
+        <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">O que fazer agora</h3>
+
+        <Reveal className="flex items-center gap-5 mb-8 rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
+          <div className="flex-shrink-0">
+            <ProgressRing size={64} radius={28} stroke={6} progress={score} color={scoreColor}>
+              {(inView) => <ScoreValue value={score} active={inView} color={scoreColor} />}
+            </ProgressRing>
           </div>
-
-          {/* Sticky top bar — anchored to the layout scroll area */}
-          <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/85 px-5 py-3 backdrop-blur-xl sm:px-8">
-            <h1 className="text-sm font-black uppercase tracking-[0.2em] text-foreground shrink-0">Metas</h1>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onGenerateReport}
-                className="flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 sm:px-4 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                PDF
-              </button>
-            </div>
+          <div>
+            <p className="text-lg font-bold text-foreground">{scoreTitle}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Nota pelos pontos de melhoria abaixo e pela distância da alocação-alvo do seu perfil</p>
           </div>
+        </Reveal>
 
-          <div className="relative mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12">
-            {/* spacing placeholder — topbar takes its own row now */}
-
-            {/* Hero central */}
-            <div className="flex flex-col items-center text-center mb-14 sm:mb-20">
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-4">Sua renda passiva mensal</p>
-
-              <div className="mb-2">
-                <ProgressRing size={280} radius={118} stroke={6} progress={incomeGoal > 0 ? goalProgress : 0} color="hsl(var(--foreground))" duration={1.8}>
-                  {(inView) => <HeroValue value={totalRendaMensal} active={inView} />}
-                </ProgressRing>
-              </div>
-
-              {incomeGoal > 0 && (
-                <p className="text-sm text-muted-foreground mb-6">
-                  <span className="font-bold text-foreground">{goalProgress.toFixed(0)}%</span> da meta de{" "}
-                  <span className="font-bold text-foreground">{formatCurrency(incomeGoal)}</span>
-                  {goalProgress < 100 && <> · faltam <span className="font-bold text-emerald-400">{formatCurrency(incomeGoal - totalRendaMensal)}</span></>}
-                </p>
-              )}
-
-              {editingGoal ? (
-                <form
-                  className="flex items-center gap-2"
-                  onSubmit={(e) => { e.preventDefault(); saveGoal(); }}
-                  onKeyDown={(e) => { if (e.key === "Escape") cancelGoalEdit(); }}
-                >
-                  <Target className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                  <label htmlFor="income-goal-input" className="sr-only">Meta de renda passiva mensal (R$)</label>
-                  <input
-                    id="income-goal-input"
-                    type="text"
-                    inputMode="numeric"
-                    autoFocus
-                    autoComplete="off"
-                    placeholder="Definir meta"
-                    disabled={savingGoal}
-                    className="bg-muted/40 border border-border rounded-full px-4 min-h-10 text-sm text-foreground tabular-nums placeholder:text-muted-foreground w-44 text-center focus:outline-none focus:ring-2 focus:ring-foreground/20 transition-shadow disabled:opacity-60"
-                    value={incomeGoalInput}
-                    onChange={(e) => setIncomeGoalInput(maskMoney(e.target.value))}
-                  />
-                  <button
-                    type="submit"
-                    disabled={savingGoal || !(parseGoal(incomeGoalInput) > 0)}
-                    aria-label="Confirmar meta"
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition-opacity hover:bg-foreground/90 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  >
-                    <Check className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelGoalEdit}
-                    disabled={savingGoal}
-                    aria-label="Cancelar edição da meta"
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <X className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </form>
-              ) : (
-                <button
-                  type="button"
-                  onClick={startGoalEdit}
-                  className="flex min-h-10 items-center gap-2 rounded-full border border-border bg-muted/40 px-4 text-sm font-medium text-foreground/80 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Target className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                  {incomeGoal > 0 ? (
-                    <>
-                      Meta: <span className="font-bold tabular-nums text-foreground">{formatCurrency(incomeGoal)}</span>
-                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                      <span className="sr-only">Editar meta</span>
-                    </>
-                  ) : (
-                    "Definir meta"
-                  )}
-                </button>
-              )}
-            </div>
-
-            {/* Fontes de renda */}
-            <Reveal className="mb-14 sm:mb-20">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Fontes de renda</h3>
-              {allSources.length === 0 ? (
-                <p className="text-muted-foreground text-center py-12 text-sm">Nenhuma fonte de renda identificada ainda.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {allSources.map((src, i) => (
-                    <Reveal key={i} delay={Math.min(i, 7) * 0.06} y={20}
-                      className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 transition-colors hover:bg-muted/60 hover:border-border"
-                    >
-                      <div className="flex items-center gap-1.5 mb-3">
-                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{src.tipo}</p>
-                      </div>
-                      <p className="text-sm font-semibold text-foreground/90 mb-0.5 truncate">{src.nome}</p>
-                      <p className="text-xs text-muted-foreground mb-4 truncate">{src.badge}</p>
-                      <p className="text-2xl font-extrabold tabular-nums text-foreground">
-                        +{formatCurrency(src.rendaMensal)}
-                      </p>
-                      <p className="text-xs text-muted-foreground/60 mt-1">/mês · capital {formatCurrency(src.capital)}</p>
-                    </Reveal>
-                  ))}
-                </div>
-              )}
-            </Reveal>
-
-            {/* Evolução */}
-            {chartMonths.length > 0 && (
-              <Reveal className="mb-14 sm:mb-20">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Evolução registrada</h3>
-                <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <AreaChart data={chartMonths}>
-                      <defs>
-                        <linearGradient id="gradInvestorRenda" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.12} />
-                          <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                      <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={52} />
-                      <Tooltip
-                        content={({ active, payload, label }) => {
-                          if (!active || !payload?.length) return null;
-                          return (
-                            <div className="bg-card border border-border rounded-xl shadow-2xl p-3 min-w-[160px]">
-                              <p className="text-xs font-bold border-b border-border pb-1.5 mb-2 text-muted-foreground">{label}</p>
-                              <div className="flex justify-between text-sm gap-4">
-                                <span className="text-muted-foreground">Rendimento</span>
-                                <span className="font-bold text-foreground tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
-                              </div>
-                            </div>
-                          );
-                        }}
-                      />
-                      <Area type="monotone" dataKey="Renda recebida" stroke="hsl(var(--foreground) / 0.6)" strokeWidth={2} fill="url(#gradInvestorRenda)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </Reveal>
-            )}
-
-            {/* Alocação */}
-            <Reveal className="mb-14 sm:mb-20">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                Alocação atual e alvo{portfolioAnalysis ? ` do perfil ${RISK_PROFILES[portfolioAnalysis.profile].label.toLowerCase()}` : ""}
-              </h3>
-              <p className="text-xs text-muted-foreground mb-4">
-                {portfolioAnalysis
-                  ? `Percentuais sobre ${formatCurrency(portfolioAnalysis.investido)} fora da reserva de emergência.${portfolioAnalysis.profileDefinido ? "" : " Perfil moderado usado como padrão; escolha o seu no assistente."}`
-                  : "Calculando pelo seu perfil de risco…"}
-              </p>
-              <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 sm:p-6 space-y-6">
-                {!portfolioAnalysis && <div className="h-40 animate-pulse rounded-xl bg-muted/40" aria-hidden="true" />}
-                {portfolioAnalysis && !portfolioAnalysis.alocacaoRelevante && (
-                  <p className="text-sm text-muted-foreground">
-                    Com {formatCurrency(portfolioAnalysis.investido)} fora da reserva, ainda não faz sentido comparar percentuais. Complete a reserva primeiro; depois os aportes seguem o alvo do perfil.
-                  </p>
-                )}
-                {portfolioAnalysis?.alocacaoRelevante && portfolioAnalysis.allocation.map((r) => (
-                  <div key={r.label} className="space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: r.cor }} />
-                        <span className="font-semibold text-foreground/90">{r.label}</span>
-                        <span className="text-xs text-muted-foreground hidden sm:inline">{r.desc}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs">
-                        <span className="tabular-nums font-bold" style={{ color: r.cor }}>{r.atual.toFixed(1)}%</span>
-                        <span className="text-muted-foreground">alvo {Math.round(r.ideal)}%</span>
-                        <span className={`inline-flex items-center font-bold ${r.atual >= r.ideal ? "text-emerald-400" : "text-amber-400"}`}>
-                          {r.atual >= r.ideal
-                            ? <><Check className="h-3.5 w-3.5" aria-hidden="true" /><span className="sr-only">No alvo</span></>
-                            : `faltam ${(r.ideal - r.atual).toFixed(0)} pontos`}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="relative h-2 rounded-full bg-muted/50 overflow-hidden">
-                      <div className="absolute inset-y-0 left-0 rounded-full opacity-25" style={{ width: `${r.ideal}%`, background: r.cor }} />
-                      <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{ width: `${Math.min(r.atual, 100)}%`, background: r.cor }} />
-                      <div className="absolute inset-y-0 w-0.5 bg-muted/50" style={{ left: `${r.ideal}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Reveal>
-
-            {/* Simulador */}
-            {(() => {
-              const goalValue = incomeGoal || 1000;
-              const remainingGap = Math.max(0, goalValue - totalRendaMensal);
-              const goalReached = remainingGap === 0;
-              return (
-                <Reveal>
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">
-                    Simulador · capital adicional para chegar em {formatCurrency(goalValue)}/mês
-                  </h3>
-                  {goalReached ? (
-                    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-6 text-center">
-                      <p className="flex items-center justify-center gap-2 text-lg font-bold text-emerald-400">
-                        <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                        Meta já atingida!
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">Sua renda passiva atual já cobre essa meta. Defina uma meta maior para continuar simulando.</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {[
-                          { label: "Fundos imobiliários (cerca de 0,85% ao mês)", value: formatCurrency(remainingGap / 0.0085), sub: "a mais em fundos imobiliários" },
-                          { label: "Caixinha Turbo a 115% do CDI", value: formatCurrency(remainingGap / (1.15 * CDI_MENSAL)), sub: "a mais na caixinha Turbo" },
-                          { label: "Dividendos (cerca de 0,4% ao mês)", value: formatCurrency(remainingGap / 0.004), sub: "a mais em ações pagadoras" },
-                        ].map((item, i) => (
-                          <Reveal key={item.label} delay={i * 0.08} y={20} className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">{item.label}</p>
-                            <p className="text-2xl font-extrabold tabular-nums text-foreground">{item.value}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{item.sub}</p>
-                          </Reveal>
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-4 text-center">
-                        Você já tem {formatCurrency(totalRendaMensal)}/mês · faltam {formatCurrency(remainingGap)}/mês para a meta
-                      </p>
-                    </>
-                  )}
-                </Reveal>
-              );
-            })()}
-
-            {/* Diagnóstico da carteira */}
-            {!portfolioAnalysis && (
-              <div className="mt-14 sm:mt-20 space-y-3" aria-busy="true">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Diagnóstico da carteira</h3>
-                <p className="text-xs text-muted-foreground">Analisando sua carteira pelo seu perfil de risco…</p>
-                <div className="h-24 animate-pulse rounded-2xl bg-muted/40" />
-                <div className="h-16 animate-pulse rounded-xl bg-muted/30" />
-              </div>
-            )}
-            {portfolioAnalysis && (() => {
-              const { insights, nextMoves, score } = portfolioAnalysis;
-              const levelColors: Record<string, string> = { critical: "#f87171", warning: "#fbbf24", ok: "#34d399", suggestion: "#a3a3a3" };
-              const levelBgs: Record<string, string> = { critical: "border-red-500/20 bg-red-500/[0.06]", warning: "border-amber-500/20 bg-amber-500/[0.06]", ok: "border-emerald-500/20 bg-emerald-500/[0.06]", suggestion: "border-border bg-muted/30" };
-              const levelLabels: Record<string, string> = { critical: "CRÍTICO", warning: "ATENÇÃO", ok: "OK", suggestion: "SUGESTÃO" };
-              const critico = insights.some((i) => i.level === "critical");
-              const saudavel = score >= 70 && !critico;
-              const scoreColor = saudavel ? "#34d399" : score >= 40 ? "#fbbf24" : "#f87171";
-              const scoreTitle = saudavel ? "Carteira saudável" : score >= 40 ? "Precisa de ajustes" : "Atenção necessária";
-              return (
-                <div className="mt-14 sm:mt-20">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground min-w-0">
-                      Diagnóstico da carteira
-                    </h3>
-                    <button
-                      onClick={onGenerateReport}
-                      className="flex items-center justify-center gap-2 rounded-full bg-foreground hover:bg-foreground/90 px-4 py-2 text-sm font-semibold text-background transition-colors shrink-0 w-fit whitespace-nowrap"
-                    >
-                      <FileText className="h-4 w-4" />
-                      Gerar PDF
-                    </button>
-                  </div>
-
-                  {/* Score */}
-                  <Reveal className="flex items-center gap-5 mb-8 rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
-                    <div className="flex-shrink-0">
-                      <ProgressRing size={64} radius={28} stroke={6} progress={score} color={scoreColor}>
-                        {(inView) => <ScoreValue value={score} active={inView} color={scoreColor} />}
-                      </ProgressRing>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-foreground">{scoreTitle}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Nota pelos pontos de melhoria abaixo e pela distância da alocação-alvo do seu perfil</p>
-                    </div>
-                  </Reveal>
-
-                  {/* Evolução do score */}
-                  {scoreHistory.length > 1 && (
-                    <Reveal className="mb-10">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Evolução do score</h3>
-                      <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
-                        <ResponsiveContainer width="100%" height={160}>
-                          <AreaChart data={scoreHistory.map((s) => ({
-                            label: new Date(s.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
-                            Score: s.score,
-                          }))}>
-                            <defs>
-                              <linearGradient id="gradScoreHistory" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={scoreColor} stopOpacity={0.5} />
-                                <stop offset="95%" stopColor={scoreColor} stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                            <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={30} />
-                            <Tooltip
-                              content={({ active, payload, label }) => {
-                                if (!active || !payload?.length) return null;
-                                return (
-                                  <div className="bg-card border border-border rounded-xl shadow-2xl p-3 min-w-[120px]">
-                                    <p className="text-xs font-bold border-b border-border pb-1.5 mb-2 text-foreground/70">{label}</p>
-                                    <div className="flex justify-between text-sm gap-4">
-                                      <span className="text-muted-foreground">Score</span>
-                                      <span className="font-bold tabular-nums" style={{ color: scoreColor }}>{payload[0].value}</span>
-                                    </div>
-                                  </div>
-                                );
-                              }}
-                            />
-                            <Area type="monotone" dataKey="Score" stroke={scoreColor} strokeWidth={2.5} fill="url(#gradScoreHistory)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </Reveal>
-                  )}
-
-                  {/* Insights */}
-                  <div className="space-y-3 mb-10">
-                    {insights.map((ins, i) => (
-                      <Reveal key={i} delay={Math.min(i, 5) * 0.05} y={20} className={`rounded-xl border ${levelBgs[ins.level]} p-4 backdrop-blur-xl`}>
-                        <div className="flex items-start gap-2.5">
-                          <span
-                            className="flex-shrink-0 rounded text-[10px] font-black px-1.5 py-0.5 mt-0.5"
-                            style={{ background: levelColors[ins.level], color: "#0D0D0D" }}
-                          >
-                            {levelLabels[ins.level]}
-                          </span>
-                          <div className="min-w-0 flex-1 space-y-2">
-                            <div>
-                              <p className="text-sm font-semibold text-foreground/90 leading-snug">{ins.title}</p>
-                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{ins.detail}</p>
-                            </div>
-                            {ins.onAction && (
-                              <button
-                                type="button"
-                                onClick={ins.onAction}
-                                className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-full px-3.5 py-2 min-h-11 sm:min-h-9 text-xs font-bold transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                                style={{ background: levelColors[ins.level], color: "#0D0D0D" }}
-                              >
-                                {ins.actionLabel}
-                                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                              </button>
-                            )}
+        {scoreHistory.length > 1 && (
+          <Reveal className="mb-10">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Evolução do score</h3>
+            <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
+              <ResponsiveContainer width="100%" height={160}>
+                <AreaChart data={scoreHistory.map((s) => ({
+                  label: new Date(s.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
+                  Score: s.score,
+                }))}>
+                  <defs>
+                    <linearGradient id="gradScoreHistory" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={scoreColor} stopOpacity={0.5} />
+                      <stop offset="95%" stopColor={scoreColor} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={30} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      return (
+                        <div className="bg-card border border-border rounded-xl shadow-2xl p-3 min-w-[120px]">
+                          <p className="text-xs font-bold border-b border-border pb-1.5 mb-2 text-foreground/70">{label}</p>
+                          <div className="flex justify-between text-sm gap-4">
+                            <span className="text-muted-foreground">Score</span>
+                            <span className="font-bold tabular-nums" style={{ color: scoreColor }}>{payload[0].value}</span>
                           </div>
                         </div>
+                      );
+                    }}
+                  />
+                  <Area type="monotone" dataKey="Score" stroke={scoreColor} strokeWidth={2.5} fill="url(#gradScoreHistory)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </Reveal>
+        )}
+
+        <div className="space-y-3 mb-10">
+          {insights.map((ins, i) => (
+            <Reveal key={i} delay={Math.min(i, 5) * 0.05} y={20} className={`rounded-xl border ${levelBgs[ins.level]} p-4 backdrop-blur-xl`}>
+              <div className="flex items-start gap-2.5">
+                <span
+                  className="flex-shrink-0 rounded text-[10px] font-black px-1.5 py-0.5 mt-0.5"
+                  style={{ background: levelColors[ins.level], color: "#0D0D0D" }}
+                >
+                  {levelLabels[ins.level]}
+                </span>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground/90 leading-snug">{ins.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{ins.detail}</p>
+                  </div>
+                  {ins.onAction && (
+                    <button
+                      type="button"
+                      onClick={ins.onAction}
+                      className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-full px-3.5 py-2 min-h-11 sm:min-h-9 text-xs font-bold transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      style={{ background: levelColors[ins.level], color: "#0D0D0D" }}
+                    >
+                      {ins.actionLabel}
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+
+        <Reveal>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Onde aportar este mês</h3>
+          <div className="rounded-2xl border border-border bg-card backdrop-blur-xl overflow-hidden">
+            {nextMoves.length === 0 && (
+              <p className="p-4 text-sm text-muted-foreground">
+                {goalMonthlyContribution > 0
+                  ? "Nenhum ajuste urgente este mês — a carteira já está alinhada ao perfil."
+                  : "Defina seu aporte mensal na meta acima para eu distribuir o valor pelas classes do seu perfil."}
+              </p>
+            )}
+            {nextMoves.map((m, i) => (
+              <div key={i} className="flex items-start gap-3 p-4 border-b border-border last:border-b-0">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-muted/60 border border-border flex items-center justify-center text-xs font-black text-muted-foreground mt-0.5">
+                  {m.prioridade}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold text-foreground/90 leading-snug">{m.label}</p>
+                    <span className="text-sm font-extrabold text-emerald-400 tabular-nums flex-shrink-0">
+                      {m.valorTexto}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed break-words">{m.razao}</p>
+                  <Link
+                    href={actionHref({ kind: "investir", section: m.section, amount: m.valor })}
+                    className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-bold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Aplicar {m.valorTexto}
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+      </div>
+    );
+  })();
+
+  return (
+    <div className="relative min-h-full bg-background text-foreground overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-muted/50 blur-[140px]" />
+        <div className="absolute top-1/3 -right-20 h-[400px] w-[400px] rounded-full bg-card blur-[130px]" />
+        <div className="absolute bottom-0 left-1/2 h-[350px] w-[350px] rounded-full bg-muted/20 blur-[130px]" />
+      </div>
+
+      <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/85 px-5 py-3 backdrop-blur-xl sm:px-8">
+        <h1 className="text-sm font-black uppercase tracking-[0.2em] text-foreground shrink-0">Metas</h1>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onGenerateReport}
+            className="flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 sm:px-4 text-xs sm:text-sm font-medium text-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+            PDF
+          </button>
+        </div>
+      </div>
+
+      <div className="relative mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12">
+        {/* 1. Onde estou */}
+        <div className="flex flex-col items-center text-center mb-14 sm:mb-20">
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-4">Sua renda passiva mensal</p>
+
+          <div className="mb-2">
+            <ProgressRing size={280} radius={118} stroke={6} progress={incomeGoal > 0 ? goalProgress : 0} color="hsl(var(--foreground))" duration={1.8}>
+              {(inView) => <HeroValue value={totalRendaMensal} active={inView} />}
+            </ProgressRing>
+          </div>
+
+          {incomeGoal > 0 ? (
+            <p className="text-sm text-muted-foreground mb-6">
+              <span className="font-bold text-foreground">{goalProgress.toFixed(0)}%</span> da meta de{" "}
+              <span className="font-bold text-foreground">{formatCurrency(incomeGoal)}</span>
+              {goalProgress < 100 && <> · faltam <span className="font-bold text-emerald-400">{formatCurrency(incomeGoal - totalRendaMensal)}</span></>}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+              Defina quanto quer receber por mês — e, se quiser, o ano e o aporte para eu calcular o caminho.
+            </p>
+          )}
+
+          {editingGoal ? (
+            <form
+              className="w-full max-w-md rounded-2xl border border-border bg-card p-4 text-left space-y-3"
+              onSubmit={(e) => { e.preventDefault(); void saveGoal(); }}
+              onKeyDown={(e) => { if (e.key === "Escape") cancelGoalEdit(); }}
+            >
+              <div>
+                <label htmlFor="income-goal-input" className={LABEL_FIELD}>Meta mensal</label>
+                <input
+                  id="income-goal-input"
+                  type="text"
+                  inputMode="numeric"
+                  autoFocus
+                  autoComplete="off"
+                  placeholder="Ex.: 5.000"
+                  disabled={savingGoal}
+                  className={FIELD}
+                  value={incomeGoalInput}
+                  onChange={(e) => setIncomeGoalInput(maskMoney(e.target.value))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="goal-deadline-input" className={LABEL_FIELD}>Ano da meta</label>
+                  <input
+                    id="goal-deadline-input"
+                    type="number"
+                    inputMode="numeric"
+                    min={thisYear}
+                    max={thisYear + 50}
+                    placeholder={String(thisYear + 10)}
+                    disabled={savingGoal}
+                    className={FIELD}
+                    value={deadlineInput}
+                    onChange={(e) => setDeadlineInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="goal-aporte-input" className={LABEL_FIELD}>Aporte / mês</label>
+                  <input
+                    id="goal-aporte-input"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="Ex.: 1.000"
+                    disabled={savingGoal}
+                    className={FIELD}
+                    value={aporteInput}
+                    onChange={(e) => setAporteInput(maskMoney(e.target.value))}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={savingGoal || !(parseGoal(incomeGoalInput) > 0)}
+                  className="inline-flex flex-1 min-h-11 items-center justify-center gap-2 rounded-xl bg-foreground px-4 text-sm font-bold text-background hover:bg-foreground/90 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Check className="h-4 w-4" aria-hidden="true" />
+                  Salvar meta
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelGoalEdit}
+                  disabled={savingGoal}
+                  aria-label="Cancelar edição da meta"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={startGoalEdit}
+              className="flex min-h-10 items-center gap-2 rounded-full border border-border bg-muted/40 px-4 text-sm font-medium text-foreground/80 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Target className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+              {incomeGoal > 0 ? (
+                <>
+                  <span className="text-left">
+                    Meta: <span className="font-bold tabular-nums text-foreground">{goalSummaryBits.join(" · ")}</span>
+                  </span>
+                  <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+                  <span className="sr-only">Editar meta</span>
+                </>
+              ) : (
+                "Definir meta"
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* 2. O que fazer */}
+        <Reveal className="mb-14 sm:mb-20">
+          {diagnosis}
+        </Reveal>
+
+        {/* 3. De onde vem */}
+        <Reveal className="mb-14 sm:mb-20">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Fontes de renda</h3>
+          {allSources.length === 0 ? (
+            <p className="text-muted-foreground text-center py-12 text-sm">Nenhuma fonte de renda identificada ainda.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {allSources.map((src, i) => (
+                <Reveal key={i} delay={Math.min(i, 7) * 0.06} y={20}
+                  className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 transition-colors hover:bg-muted/60 hover:border-border"
+                >
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{src.tipo}</p>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground/90 mb-0.5 truncate">{src.nome}</p>
+                  <p className="text-xs text-muted-foreground mb-4 truncate">{src.badge}</p>
+                  <p className="text-2xl font-extrabold tabular-nums text-foreground">
+                    +{formatCurrency(src.rendaMensal)}
+                  </p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">/mês · capital {formatCurrency(src.capital)}</p>
+                </Reveal>
+              ))}
+            </div>
+          )}
+        </Reveal>
+
+        {chartMonths.length > 0 && (
+          <Reveal className="mb-14 sm:mb-20">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Evolução registrada</h3>
+            <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={chartMonths}>
+                  <defs>
+                    <linearGradient id="gradInvestorRenda" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.12} />
+                      <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={52} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      return (
+                        <div className="bg-card border border-border rounded-xl shadow-2xl p-3 min-w-[160px]">
+                          <p className="text-xs font-bold border-b border-border pb-1.5 mb-2 text-muted-foreground">{label}</p>
+                          <div className="flex justify-between text-sm gap-4">
+                            <span className="text-muted-foreground">Rendimento</span>
+                            <span className="font-bold text-foreground tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Area type="monotone" dataKey="Renda recebida" stroke="hsl(var(--foreground) / 0.6)" strokeWidth={2} fill="url(#gradInvestorRenda)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </Reveal>
+        )}
+
+        {/* 4. Como está a carteira */}
+        <Reveal className="mb-14 sm:mb-20">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-1">
+            Alocação atual e alvo{portfolioAnalysis ? ` do perfil ${RISK_PROFILES[portfolioAnalysis.profile].label.toLowerCase()}` : ""}
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            {portfolioAnalysis
+              ? `Percentuais sobre ${formatCurrency(portfolioAnalysis.investido)} fora da reserva de emergência.${portfolioAnalysis.profileDefinido ? "" : " Perfil moderado usado como padrão; escolha o seu no assistente."}`
+              : "Calculando pelo seu perfil de risco…"}
+          </p>
+          <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 sm:p-6 space-y-6">
+            {!portfolioAnalysis && <div className="h-40 animate-pulse rounded-xl bg-muted/40" aria-hidden="true" />}
+            {portfolioAnalysis && !portfolioAnalysis.alocacaoRelevante && (
+              <p className="text-sm text-muted-foreground">
+                Com {formatCurrency(portfolioAnalysis.investido)} fora da reserva, ainda não faz sentido comparar percentuais. Complete a reserva primeiro; depois os aportes seguem o alvo do perfil.
+              </p>
+            )}
+            {portfolioAnalysis?.alocacaoRelevante && portfolioAnalysis.allocation.map((r) => (
+              <div key={r.label} className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: r.cor }} />
+                    <span className="font-semibold text-foreground/90">{r.label}</span>
+                    <span className="text-xs text-muted-foreground hidden sm:inline">{r.desc}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="tabular-nums font-bold" style={{ color: r.cor }}>{r.atual.toFixed(1)}%</span>
+                    <span className="text-muted-foreground">alvo {Math.round(r.ideal)}%</span>
+                    <span className={`inline-flex items-center font-bold ${r.atual >= r.ideal ? "text-emerald-400" : "text-amber-400"}`}>
+                      {r.atual >= r.ideal
+                        ? <><Check className="h-3.5 w-3.5" aria-hidden="true" /><span className="sr-only">No alvo</span></>
+                        : `faltam ${(r.ideal - r.atual).toFixed(0)} pontos`}
+                    </span>
+                  </div>
+                </div>
+                <div className="relative h-2 rounded-full bg-muted/50 overflow-hidden">
+                  <div className="absolute inset-y-0 left-0 rounded-full opacity-25" style={{ width: `${r.ideal}%`, background: r.cor }} />
+                  <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{ width: `${Math.min(r.atual, 100)}%`, background: r.cor }} />
+                  <div className="absolute inset-y-0 w-0.5 bg-muted/50" style={{ left: `${r.ideal}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+
+        {/* 5. Se eu aportar mais — só com meta definida */}
+        {incomeGoal > 0 && (() => {
+          const remainingGap = Math.max(0, incomeGoal - totalRendaMensal);
+          const goalReached = remainingGap === 0;
+          return (
+            <Reveal className="mb-14 sm:mb-20">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">
+                Simulador · capital adicional para chegar em {formatCurrency(incomeGoal)}/mês
+              </h3>
+              {goalReached ? (
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-6 text-center">
+                  <p className="flex items-center justify-center gap-2 text-lg font-bold text-emerald-400">
+                    <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                    Meta já atingida!
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Sua renda passiva atual já cobre essa meta. Defina uma meta maior para continuar simulando.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      { label: "Fundos imobiliários (cerca de 0,85% ao mês)", value: formatCurrency(remainingGap / 0.0085), sub: "a mais em fundos imobiliários" },
+                      { label: "Caixinha Turbo a 115% do CDI", value: formatCurrency(remainingGap / (1.15 * CDI_MENSAL)), sub: "a mais na caixinha Turbo" },
+                      { label: "Dividendos (cerca de 0,4% ao mês)", value: formatCurrency(remainingGap / 0.004), sub: "a mais em ações pagadoras" },
+                    ].map((item, i) => (
+                      <Reveal key={item.label} delay={i * 0.08} y={20} className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">{item.label}</p>
+                        <p className="text-2xl font-extrabold tabular-nums text-foreground">{item.value}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{item.sub}</p>
                       </Reveal>
                     ))}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-4 text-center">
+                    Você já tem {formatCurrency(totalRendaMensal)}/mês · faltam {formatCurrency(remainingGap)}/mês para a meta
+                  </p>
+                </>
+              )}
+            </Reveal>
+          );
+        })()}
 
-                  {/* Próximos aportes */}
-                  <Reveal>
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Onde aportar este mês</h3>
-                  <div className="rounded-2xl border border-border bg-card backdrop-blur-xl overflow-hidden">
-                    {nextMoves.length === 0 && (
-                      <p className="p-4 text-sm text-muted-foreground">Defina seu aporte mensal para eu distribuir o valor pelas classes do seu perfil.</p>
-                    )}
-                    {nextMoves.map((m, i) => (
-                      <div key={i} className="flex items-start gap-3 p-4 border-b border-border last:border-b-0">
-                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-muted/60 border border-border flex items-center justify-center text-xs font-black text-muted-foreground mt-0.5">
-                          {m.prioridade}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-3">
-                            <p className="text-sm font-semibold text-foreground/90 leading-snug">{m.label}</p>
-                            <span className="text-sm font-extrabold text-emerald-400 tabular-nums flex-shrink-0">
-                              {m.valorTexto}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed break-words">{m.razao}</p>
-                          <Link
-                            href={actionHref({ kind: "investir", section: m.section, amount: m.valor })}
-                            className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-bold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            Aplicar {m.valorTexto}
-                            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  </Reveal>
-                </div>
-              );
-            })()}
+        <div className="h-10" />
+      </div>
 
-            <div className="h-10" />
-          </div>
-
-          <InvestorBot
-            context={botContext}
-            dataVersion={botDataVersion}
-            onGeneratePdf={onGenerateReport}
-          />
-        </div>
+      <InvestorBot
+        context={botContext}
+        dataVersion={botDataVersion}
+        onGeneratePdf={onGenerateReport}
+      />
+    </div>
   );
 }

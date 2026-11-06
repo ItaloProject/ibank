@@ -138,7 +138,7 @@ function welcome(): Msg {
 const APORTE_ORIGEM: Record<AnalysisPayload["aporteOrigem"], string> = {
   meta: "definido na sua meta",
   media: "sua média dos últimos 6 meses",
-  padrao: "valor de referência; defina o seu em Metas",
+  padrao: "valor de referência; defina o aporte no topo de Metas",
 };
 const PRIORIDADE: Record<"alta" | "media" | "baixa", string> = { alta: "Prioridade alta", media: "Prioridade média", baixa: "Quando puder" };
 
@@ -419,9 +419,9 @@ function goalBlocks(g: NonNullable<BotPortfolioContext["goal"]>): Block[] {
     },
   ];
   if (!g.prazoAno) {
-    blocks.push({ kind: "text", text: "Defina o **ano da meta** em Metas e eu calculo quanto aportar por mês para chegar lá." });
+    blocks.push({ kind: "text", text: "Defina o **ano da meta** e o **aporte** no topo de Metas e eu calculo quanto aportar por mês para chegar lá." });
   } else if (g.aporteParaPrazo === null) {
-    blocks.push({ kind: "alert", tone: "warn", text: `O prazo de ${g.prazoAno} já passou. Atualize o ano da meta em Metas.` });
+    blocks.push({ kind: "alert", tone: "warn", text: `O prazo de ${g.prazoAno} já passou. Atualize o ano da meta no topo de Metas.` });
   } else if (!g.noPrazo && g.aporteParaPrazo > g.aporte) {
     blocks.push(
       { kind: "alert", tone: "warn", text: `Para chegar em ${g.prazoAno}, aumente o aporte em **${formatCurrency(g.aporteParaPrazo - g.aporte)}** por mês ou adie o prazo.` },
@@ -479,7 +479,7 @@ function transitionReply(t: ProfileTransition, profileSalvo: RiskProfile | null)
     ? { value: "Já alinhada", hint: "a carteira já está perto do alvo", tone: "pos" as Tone }
     : t.mesesSoAportes !== null
       ? { value: duration(t.mesesSoAportes), hint: `aportando ${formatCurrency(t.aporte)} por mês, sem vender nada` }
-      : { value: t.aporte > 0 ? "Mais de 20 anos" : "Sem aporte", hint: t.aporte > 0 ? "considere realocar parte da carteira" : "defina um aporte mensal em Metas", tone: "warn" as Tone };
+      : { value: t.aporte > 0 ? "Mais de 20 anos" : "Sem aporte", hint: t.aporte > 0 ? "considere realocar parte da carteira" : "defina um aporte mensal no topo de Metas", tone: "warn" as Tone };
   const reservaHint = t.reserva.falta > 0
     ? `faltam ${formatCurrency(t.reserva.falta)}`
     : t.reserva.liberada > 0
