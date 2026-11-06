@@ -895,7 +895,7 @@ export function InvestorLiveView({
         <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pt-4 pb-6">
           {tab === null && (
             <nav aria-label="Escolha uma seção do MUVO Live" className="flex min-h-[calc(100dvh-8rem)] items-center justify-center">
-              <ul className="grid grid-cols-2 place-items-center gap-x-1 gap-y-2">
+              <ul className="flex flex-col items-center gap-2">
                 {LIVE_TABS.map((t, i) => (
                   <li key={t.id}>
                     <Icon3D icon={t.menuIcon} label={t.label} index={i} onSelect={() => goToTab(t.id)} />
