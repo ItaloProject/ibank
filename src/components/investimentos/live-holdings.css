@@ -1,0 +1,34 @@
+/* Lista de investimentos do MUVO Live: entrada escalonada, barras que crescem e linhas que abrem. */
+
+.lh-row {
+  animation: lh-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.lh-bar {
+  transform-origin: left center;
+  animation: lh-grow 0.9s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms + 120ms);
+}
+
+/* Abre e fecha sem salto de altura. */
+.lh-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lh-panel[data-open="true"] { grid-template-rows: 1fr; }
+.lh-panel > div { overflow: hidden; }
+
+@keyframes lh-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+@keyframes lh-grow {
+  from { transform: scaleX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lh-row,
+  .lh-bar { animation: none; }
+  .lh-panel { transition: none; }
+}

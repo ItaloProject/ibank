@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { X, Plus, Wallet, Trash2, LayoutDashboard, Calculator } from "lucide-react";
+import { X, Plus, Wallet, LayoutDashboard, Calculator } from "lucide-react";
 import { Icon3D } from "@/components/investimentos/live-icons-3d";
+import { HoldingsPanel } from "@/components/investimentos/live-holdings-panel";
 import { PlanLeftoverOffer } from "@/components/investimentos/plan-leftover-offer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
@@ -56,10 +57,6 @@ function parseBRLMask(masked: string): number {
   return cents / 100;
 }
 
-function fmtQty(n: number) {
-  return n % 1 === 0 ? n.toString() : n.toFixed(2).replace(".", ",");
-}
-
 function formatPct(value: number, digits = 2) {
   const sign = value > 0 ? "+" : value < 0 ? "−" : "";
   return `${sign}${Math.abs(value).toLocaleString("pt-BR", {
@@ -102,68 +99,6 @@ const SMALL_BTN = `inline-flex min-h-9 items-center gap-1 rounded-lg border bord
 
 /** Tons de cinza para a distribuição: cor aqui não é diagnóstico, só separação de faixas. */
 const ALLOCATION_SHADES = ["bg-foreground", "bg-foreground/70", "bg-foreground/45", "bg-foreground/25", "bg-foreground/12"];
-
-function AccountCard({
-  acc,
-  onAporte,
-  onWithdraw,
-  onUpdate,
-  onDelete,
-}: {
-  acc: LiveAccount;
-  onAporte: (a: LiveAccount) => void;
-  onWithdraw: (a: LiveAccount) => void;
-  onUpdate: (a: LiveAccount) => void;
-  onDelete: (a: LiveAccount) => void;
-}) {
-  return (
-    <li className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate">{acc.nome}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-            {acc.instituicao}
-            {acc.cdiPercent ? ` · ${acc.cdiPercent}% do CDI` : ""}
-            {acc.maxRendimento ? ` · teto ${formatCurrency(acc.maxRendimento)}` : ""}
-          </p>
-        </div>
-        <p className={`${MONEY} text-sm shrink-0`}>{formatCurrency(acc.valor)}</p>
-      </div>
-      <div className="mt-3 grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5">
-        <button type="button" onClick={() => onAporte(acc)} aria-label={`Aplicar em ${acc.nome}`} className={`${SMALL_BTN} justify-center`}>
-          Aplicar
-        </button>
-        <button
-          type="button"
-          onClick={() => onWithdraw(acc)}
-          disabled={acc.valor <= 0}
-          aria-label={`Retirar de ${acc.nome}`}
-          className={`${SMALL_BTN} justify-center disabled:opacity-40 disabled:pointer-events-none`}
-        >
-          Retirar
-        </button>
-        <button
-          type="button"
-          onClick={() => onUpdate(acc)}
-          aria-label={`Atualizar o valor de ${acc.nome}`}
-          title="Atualizar com o valor que o banco mostra (rendimento)"
-          className={`${SMALL_BTN} justify-center`}
-        >
-          Atualizar
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(acc)}
-          aria-label={`Excluir ${acc.nome}`}
-          title="Excluir caixinha"
-          className={`${SMALL_BTN} justify-center hover:bg-red-500/10 hover:text-red-500`}
-        >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-      </div>
-    </li>
-  );
-}
 
 export function InvestorLiveViewDesktop({
   grandTotal,
@@ -421,10 +356,6 @@ export function InvestorLiveViewDesktop({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveAction]);
 
-  const allAccounts = [
-    { title: "TURBO", total: turboTotal, accounts: turboAccountsReal, empty: "Nenhuma conta TURBO.", section: "turbo" as MarketSection, tipo: "turbo" as const, action: "Aplicar" },
-    { title: "Emergência", total: emergenciaTotal, accounts: emergenciaAccountsReal, empty: "Nenhuma reserva de emergência.", section: "eme" as MarketSection, tipo: "emergencia" as const, action: "Aplicar" },
-  ];
 
   const accountHandlers = {
     onAporte: setAporteAccount,
@@ -652,93 +583,17 @@ export function InvestorLiveViewDesktop({
             role="tabpanel"
             id="live-panel-investimentos"
             aria-labelledby="live-tab-investimentos"
-            className="grid grid-cols-3 h-full divide-x divide-border"
           >
-            {allAccounts.map((group) => (
-              <section key={group.title} aria-label={group.title} className="p-6 overflow-y-auto scrollbar-thin-dark">
-                <div className="flex items-start justify-between gap-2 mb-4">
-                  <div>
-                    <SectionHeading>{group.title}</SectionHeading>
-                    <p className={`${MONEY} mt-1 text-lg`}>{formatCurrency(group.total)}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={() => openMarket(group.section)} className={SMALL_BTN}>
-                      <Plus className="h-3.5 w-3.5" aria-hidden="true" /> {group.action}
-                    </button>
-                    <button type="button" onClick={() => openNewCaixinha(group.tipo)} className={SMALL_BTN}>
-                      Nova
-                    </button>
-                  </div>
-                </div>
-                {group.accounts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{group.empty}</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {group.accounts.map((acc) => (
-                      <AccountCard key={acc.id} acc={acc} {...accountHandlers} />
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
-
-            {/* Renda Fixa + Bolsa */}
-            <section aria-label="Renda fixa e bolsa" className="p-6 overflow-y-auto scrollbar-thin-dark">
-              <div className="flex items-start justify-between gap-2 mb-4">
-                <div>
-                  <SectionHeading>Renda fixa e bolsa</SectionHeading>
-                  <p className={`${MONEY} mt-1 text-lg`}>{formatCurrency(investimentosTotal + investedValue)}</p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => openMarket("tesouro")} className={SMALL_BTN}>
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Aplicar
-                  </button>
-                  <button type="button" onClick={() => openNewCaixinha("investimentos")} className={SMALL_BTN}>
-                    Nova
-                  </button>
-                </div>
-              </div>
-              {investimentosAccountsReal.length === 0 && holdingRows.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhum investimento em renda fixa ou bolsa.</p>
-              )}
-              <ul className="space-y-2">
-                {investimentosAccountsReal.map((acc) => (
-                  <AccountCard key={acc.id} acc={acc} {...accountHandlers} />
-                ))}
-              </ul>
-              <div className="flex items-center justify-between pt-5 pb-2">
-                <p className={LABEL}>Bolsa</p>
-                <button type="button" onClick={() => openMarket("acoes")} className={SMALL_BTN}>
-                  <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Comprar ação
-                </button>
-              </div>
-              {holdingRows.length === 0 && investimentosAccountsReal.length > 0 && (
-                <p className="text-sm text-muted-foreground">Nenhuma posição em bolsa.</p>
-              )}
-              {holdingRows.length > 0 && (
-                <>
-                  <ul className="space-y-2">
-                    {holdingRows.map((h) => (
-                      <li key={h.ticker} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-foreground">{h.ticker}</p>
-                          <p className="text-[11px] text-muted-foreground">{h.type} · {fmtQty(h.quantity)} un.</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <p className={`${MONEY} text-sm`}>{formatCurrency(h.value)}</p>
-                            <PctText pct={h.gainPct} />
-                          </div>
-                          <button type="button" onClick={() => openSell(h.ticker)} aria-label={`Vender ${h.ticker}`} className={SMALL_BTN}>
-                            Vender
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </section>
+            <HoldingsPanel
+              turbo={turboAccountsReal}
+              emergencia={emergenciaAccountsReal}
+              rendaFixa={investimentosAccountsReal}
+              holdings={holdingRows}
+              handlers={accountHandlers}
+              onBuyStock={() => openMarket("acoes")}
+              onSell={openSell}
+              onNewCaixinha={openNewCaixinha}
+            />
           </div>
         )}
 
