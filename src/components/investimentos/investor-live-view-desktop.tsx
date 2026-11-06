@@ -456,17 +456,23 @@ export function InvestorLiveViewDesktop({
                 aria-selected={tab === t.id}
                 aria-controls={`live-panel-${t.id}`}
                 tabIndex={tab === t.id ? 0 : -1}
+                aria-label={t.label}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  "inline-flex min-h-11 items-center gap-2 px-4 rounded-full text-sm transition-colors",
+                  "group relative inline-flex h-11 w-14 items-center justify-center rounded-full transition-colors",
                   FOCUS,
                   tab === t.id
-                    ? "bg-background text-foreground font-bold shadow-sm"
-                    : "text-muted-foreground font-medium hover:text-foreground",
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <t.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                {t.label}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1 text-xs font-semibold text-background opacity-0 shadow-lg transition-opacity motion-reduce:transition-none group-hover:opacity-100 group-focus-visible:opacity-100"
+                >
+                  {t.label}
+                </span>
               </button>
             ))}
           </div>
