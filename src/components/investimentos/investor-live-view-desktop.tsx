@@ -468,19 +468,26 @@ export function InvestorLiveViewDesktop({
           <dd className={`${MONEY} mt-1 text-2xl leading-none`}>{formatCurrency(patrimonioTotal)}</dd>
         </div>
         <div className="px-6 py-4">
+          <dt className={LABEL}>Investido</dt>
+          <dd className={`${MONEY} mt-1 text-xl leading-none`}>{formatCurrency(patrimonioTotal - cashBalance)}</dd>
+          <dd className="mt-1 text-[11px] text-muted-foreground">Caixinhas e bolsa</dd>
+        </div>
+        <div className="px-6 py-4">
           <dt className={`${LABEL} flex items-center gap-1.5`}>Saldo em conta <SaldoEmContaHelp /></dt>
           <dd className={`${MONEY} mt-1 text-xl leading-none`}>{formatCurrency(cashBalance)}</dd>
+          <dd className="mt-1 text-[11px] text-muted-foreground">Disponível para aportar</dd>
         </div>
         <div className="px-6 py-4">
           <dt className={LABEL}>Resultado em bolsa</dt>
           <dd className={cn("font-display font-black tabular-nums mt-1 text-xl leading-none", holdingRows.length ? toneFor(totalGain) : "text-muted-foreground")}>
             {holdingRows.length ? formatSignedCurrency(totalGain) : "—"}
           </dd>
-          {holdingRows.length > 0 && <dd className="mt-1"><PctText pct={totalGainPct} /></dd>}
-        </div>
-        <div className="px-6 py-4">
-          <dt className={LABEL}>Posições em bolsa</dt>
-          <dd className={`${MONEY} mt-1 text-xl leading-none`}>{holdingRows.length}</dd>
+          {holdingRows.length > 0 && (
+            <dd className="mt-1 flex items-center gap-1.5">
+              <PctText pct={totalGainPct} />
+              <span className="text-[11px] text-muted-foreground">· {holdingRows.length} {holdingRows.length === 1 ? "posição" : "posições"}</span>
+            </dd>
+          )}
         </div>
       </dl>
       )}
