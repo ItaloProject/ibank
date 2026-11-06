@@ -78,7 +78,7 @@ function pickLastDividend(quote: BrapiQuote): { amount: number; tipo: string | n
 /** Plano grátis: cotação + summaryProfile. Startup/Pro: dividends e defaultKeyStatistics. */
 async function fetchBrapiQuote(ticker: string): Promise<BrapiQuote | null> {
   const token = process.env.BRAPI_TOKEN?.trim();
-  const attempts = [
+  const attempts: Record<string, string>[] = [
     { dividends: "true", modules: "summaryProfile,defaultKeyStatistics" },
     { modules: "summaryProfile" },
     {},
