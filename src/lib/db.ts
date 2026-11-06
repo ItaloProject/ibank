@@ -16,7 +16,7 @@ const create = () =>
   });
 
 // Versão sobe quando as opções do pool mudam — evita reusar cliente antigo no hot reload do Next.
-const SQL_POOL_VERSION = 2;
+const SQL_POOL_VERSION = 3;
 const cache = globalThis as unknown as {
   __sql?: ReturnType<typeof create>;
   __sqlPoolVersion?: number;

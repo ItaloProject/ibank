@@ -22,6 +22,7 @@ export function LoginScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password, force }),
+        signal: AbortSignal.timeout(20_000),
       });
       const data = await res.json();
       if (res.status === 409 && data.code === "SESSION_ACTIVE") {
@@ -32,8 +33,11 @@ export function LoginScreen() {
       } else {
         login(data.user);
       }
-    } catch {
-      setError("Erro de conexão. Tente novamente.");
+    } catch (err) {
+      const timedOut = err instanceof DOMException && err.name === "TimeoutError";
+      setError(timedOut
+        ? "O servidor demorou demais. Tente de novo em alguns segundos."
+        : "Erro de conexão. Tente novamente.");
     } finally {
       setLoading(false);
     }

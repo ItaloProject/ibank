@@ -1,21 +1,29 @@
 import sql from "@/lib/db";
+import { missingColumns, runDdl } from "@/lib/schema-check";
 
 let ensured = false;
 
-/** Adds commercial subscription columns once per process. */
+const SUB_COLUMNS = ["bot_enabled", "paid_until", "plan"] as const;
+
+/** Colunas comerciais. Só faz ALTER se faltar algo — evita fila de locks no login. */
 export async function ensureSubscriptionColumns() {
   if (ensured) return;
-  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS bot_enabled BOOLEAN DEFAULT false`;
-  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS paid_until DATE DEFAULT NULL`;
-  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS plan VARCHAR(30) DEFAULT 'assinante'`;
-  // Contas já existentes (fundadores) não ficam bloqueadas após o deploy
-  await sql`
-    UPDATE app_users
-    SET
-      paid_until = COALESCE(paid_until, (CURRENT_DATE + INTERVAL '365 days')::date),
-      bot_enabled = CASE WHEN is_admin THEN true ELSE COALESCE(bot_enabled, false) END
-    WHERE paid_until IS NULL AND (is_admin = true OR user_id IN ('italo', 'natalia'))
-  `;
+  const missing = await missingColumns("app_users", [...SUB_COLUMNS]);
+  if (missing.length > 0) {
+    await runDdl(async (tx) => {
+      if (missing.includes("bot_enabled")) await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS bot_enabled BOOLEAN DEFAULT false`;
+      if (missing.includes("paid_until")) await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS paid_until DATE DEFAULT NULL`;
+      if (missing.includes("plan")) await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS plan VARCHAR(30) DEFAULT 'assinante'`;
+    });
+    // Contas já existentes (fundadores) não ficam bloqueadas após o deploy das colunas
+    await sql`
+      UPDATE app_users
+      SET
+        paid_until = COALESCE(paid_until, (CURRENT_DATE + INTERVAL '365 days')::date),
+        bot_enabled = CASE WHEN is_admin THEN true ELSE COALESCE(bot_enabled, false) END
+      WHERE paid_until IS NULL AND (is_admin = true OR user_id IN ('italo', 'natalia'))
+    `;
+  }
   ensured = true;
 }
 

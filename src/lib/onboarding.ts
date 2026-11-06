@@ -1,25 +1,42 @@
 import sql from "@/lib/db";
+import { missingColumns, runDdl } from "@/lib/schema-check";
 
 let ensured = false;
 
-/** Adds the onboarding columns once per process. */
+const ONBOARDING_COLUMNS = [
+  "carteira_vista_profile",
+  "risk_profile",
+  "risk_quiz_at",
+  "declared_spending",
+] as const;
+
+/** Colunas de onboarding. Só altera o que falta — login não fica preso em ALTER. */
 export async function ensureOnboardingColumns() {
   if (ensured) return;
-  const existing = await sql`
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'app_users' AND column_name = 'carteira_vista_profile'
-  `;
-  if (existing.length === 0) {
-    await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS carteira_vista_profile VARCHAR(50) DEFAULT NULL`;
-    // Quem já tinha perfil antes desta coluna existir já passou pela carteira sugerida
-    await sql`
-      UPDATE app_users SET carteira_vista_profile = investment_profile
-      WHERE investment_profile IS NOT NULL
-    `;
+  const missing = await missingColumns("app_users", [...ONBOARDING_COLUMNS]);
+  if (missing.length > 0) {
+    await runDdl(async (tx) => {
+      if (missing.includes("carteira_vista_profile")) {
+        await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS carteira_vista_profile VARCHAR(50) DEFAULT NULL`;
+      }
+      if (missing.includes("risk_profile")) {
+        await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS risk_profile VARCHAR(20) DEFAULT NULL`;
+      }
+      if (missing.includes("risk_quiz_at")) {
+        await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS risk_quiz_at TIMESTAMPTZ DEFAULT NULL`;
+      }
+      if (missing.includes("declared_spending")) {
+        await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS declared_spending NUMERIC(12,2) DEFAULT NULL`;
+      }
+    });
+    if (missing.includes("carteira_vista_profile")) {
+      // Quem já tinha perfil antes desta coluna existir já passou pela carteira sugerida
+      await sql`
+        UPDATE app_users SET carteira_vista_profile = investment_profile
+        WHERE investment_profile IS NOT NULL AND carteira_vista_profile IS NULL
+      `;
+    }
   }
-  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS risk_profile VARCHAR(20) DEFAULT NULL`;
-  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS risk_quiz_at TIMESTAMPTZ DEFAULT NULL`;
-  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS declared_spending NUMERIC(12,2) DEFAULT NULL`;
   ensured = true;
 }
 
