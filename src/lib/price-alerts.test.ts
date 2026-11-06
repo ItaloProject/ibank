@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPriceAlerts, type PositionMove } from "@/lib/price-alerts";
+import { buildPriceAlerts, isSevereIndex, isSevereMove, urgentPriceAlerts, type PositionMove } from "@/lib/price-alerts";
 import { parseDayMove, type DayMove } from "@/lib/market-quotes";
 
 const HOJE = new Date("2026-11-03T18:00:00Z");
@@ -191,6 +191,39 @@ describe("buildPriceAlerts: queda acumulada em 5 pregões", () => {
     const amanha = { ...posSemana("VALE3", -10), move: move(-0.2, T_HOJE + DIA, -10) };
     const b = buildPriceAlerts({ positions: [amanha], index: move(-1, T_HOJE + DIA, -1), today: new Date(HOJE.getTime() + DIA) })[0].id;
     expect(b).toBe(a);
+  });
+});
+
+describe("queda grave (aviso imediato)", () => {
+  it("papel só é grave a partir do limite alta do dia ou da semana", () => {
+    expect(isSevereMove("Ação", move(-7.9))).toBe(false);
+    expect(isSevereMove("Ação", move(-8))).toBe(true);
+    expect(isSevereMove("FII", move(-3.9))).toBe(false);
+    expect(isSevereMove("FII", move(-4))).toBe(true);
+    expect(isSevereMove("Ação", move(-1, T_HOJE, -14))).toBe(true);
+    expect(isSevereMove("Ação", move(-1, T_HOJE, -13.9))).toBe(false);
+    expect(isSevereMove("Ação", null)).toBe(false);
+  });
+
+  it("Ibovespa é grave a partir de 3,5% no dia ou 8% na semana", () => {
+    expect(isSevereIndex(move(-3.4))).toBe(false);
+    expect(isSevereIndex(move(-3.5))).toBe(true);
+    expect(isSevereIndex(move(-1, T_HOJE, -8))).toBe(true);
+    expect(isSevereIndex(move(-1, T_HOJE, -7.9))).toBe(false);
+    expect(isSevereIndex(null)).toBe(false);
+  });
+
+  it("só avisos de preço de nível alta saem na hora", () => {
+    const base = { detalhe: "d" };
+    const lista = [
+      { ...base, id: "queda-ITUB4-2026-11-05", nivel: "alta" as const, titulo: "a" },
+      { ...base, id: "semana-VALE3-2940", nivel: "alta" as const, titulo: "b" },
+      { ...base, id: "mercado-2026-11-05", nivel: "alta" as const, titulo: "c" },
+      { ...base, id: "queda-PETR4-2026-11-05", nivel: "media" as const, titulo: "d" },
+      { ...base, id: "parado-2026-10-01", nivel: "alta" as const, titulo: "e" },
+      { ...base, id: "abaixo-custo-X-2026-11", nivel: "alta" as const, titulo: "f" },
+    ];
+    expect(urgentPriceAlerts(lista).map((a) => a.titulo)).toEqual(["a", "b", "c"]);
   });
 });
 

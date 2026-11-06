@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { dispatchNext, planOutbox } from "@/lib/server/whatsapp-outbox";
+import { dispatchNext, planAlerts, planOutbox } from "@/lib/server/whatsapp-outbox";
 import { secretMatches } from "@/lib/server/secret-auth";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +16,10 @@ async function run(request: Request) {
   if (!secretMatches(bearer, secret)) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   try {
+    const alerts = await planAlerts();
     const plan = await planOutbox();
     const send = await dispatchNext();
-    return NextResponse.json({ plan, send });
+    return NextResponse.json({ alerts, plan, send });
   } catch (err) {
     console.error("[whatsapp dispatch]", err);
     return NextResponse.json({ error: "Falha ao processar a fila" }, { status: 500 });

@@ -7,13 +7,16 @@
  */
 import sql from "@/lib/db";
 import { ensureBotSchema } from "@/lib/bot-schema";
-import { brDay } from "@/lib/market-quotes";
+import { brDay, fetchDayMove, INDEX_SYMBOL } from "@/lib/market-quotes";
+import { isSevereIndex, isSevereMove, urgentPriceAlerts } from "@/lib/price-alerts";
+import { detectAssetType } from "@/lib/stock-utils";
 import { evoSendText, evolutionConfig, type EvolutionConfig } from "@/lib/evolution";
 import { loadUserSnapshot } from "@/lib/server/portfolio-snapshot";
 import { firstName } from "@/lib/report/report-text";
 import { phoneVariants } from "@/lib/whatsapp";
 import {
   BREAKER,
+  composeAlert,
   composeConfirmation,
   composeDigest,
   composeOptin,
@@ -106,7 +109,8 @@ export async function planOutbox(limit = 3, now = new Date()): Promise<PlanResul
       AND u.whatsapp_optout_at IS NULL AND u.is_active IS NOT FALSE
       AND NOT EXISTS (
         SELECT 1 FROM whatsapp_outbox o
-        WHERE o.user_id = u.user_id AND o.kind = 'digest' AND o.day = ${today}::date
+        WHERE o.user_id = u.user_id AND o.day = ${today}::date
+          AND (o.kind = 'digest' OR (o.kind = 'alert' AND o.status IN ('queued', 'sending', 'sent')))
       )
     ORDER BY u.user_id
   `;
@@ -120,7 +124,7 @@ export async function planOutbox(limit = 3, now = new Date()): Promise<PlanResul
     try {
       const recent = await sql`
         SELECT alert_ids FROM whatsapp_outbox
-        WHERE user_id = ${userId} AND kind = 'digest' AND status = 'sent'
+        WHERE user_id = ${userId} AND kind IN ('digest', 'alert') AND status = 'sent'
           AND day >= (${today}::date - ${ALERT_MEMORY_DAYS}::int)
       `;
       const already = new Set(recent.flatMap((r) => (Array.isArray(r.alert_ids) ? (r.alert_ids as string[]) : [])));
@@ -159,6 +163,79 @@ export async function planOutbox(limit = 3, now = new Date()): Promise<PlanResul
   return result;
 }
 
+type AlertPlanResult = { reason?: string; scanned: number; queued: number; skipped: number };
+
+/**
+ * Queda grave: verifica só os papéis que quem tem o resumo ativo possui (e o Ibovespa). Se nenhum
+ * estiver em queda grave, não analisa carteira nenhuma. Quando há, enfileira uma mensagem na hora
+ * para quem tem esses papéis, no máximo uma por dia por usuário, sem repetir aviso já enviado.
+ */
+export async function planAlerts(limit = 2, now = new Date()): Promise<AlertPlanResult> {
+  const result: AlertPlanResult = { scanned: 0, queued: 0, skipped: 0 };
+  if (!isSendWindow(now)) return { ...result, reason: "outside-window" };
+  await ensureOutboxSchema();
+  const today = brDay(now.getTime());
+
+  const held = await sql`
+    SELECT t.user_id, t.ticker
+    FROM stock_trades t JOIN app_users u ON u.user_id = t.user_id
+    WHERE u.whatsapp_phone IS NOT NULL AND u.whatsapp_optin_at IS NOT NULL
+      AND u.whatsapp_optout_at IS NULL AND u.is_active IS NOT FALSE
+    GROUP BY t.user_id, t.ticker
+    HAVING SUM(CASE WHEN t.type = 'compra' THEN t.quantity ELSE -t.quantity END) > 0.0001
+  `;
+  if (held.length === 0) return { ...result, reason: "no-holders" };
+
+  const tickers = [...new Set(held.map((r) => String(r.ticker)))].slice(0, 80);
+  const [index, moves] = await Promise.all([
+    fetchDayMove(INDEX_SYMBOL),
+    Promise.all(tickers.map((t) => fetchDayMove(`${t}.SA`))),
+  ]);
+  const severe = new Set(tickers.filter((t, i) => isSevereMove(detectAssetType(t), moves[i])));
+  const marketSevere = isSevereIndex(index);
+  if (!marketSevere && severe.size === 0) return { ...result, reason: "calm" };
+
+  const candidates = new Set(held.filter((r) => marketSevere || severe.has(String(r.ticker))).map((r) => String(r.user_id)));
+  const done = await sql`
+    SELECT DISTINCT user_id FROM whatsapp_outbox WHERE day = ${today}::date AND kind IN ('alert', 'digest')
+  `;
+  for (const r of done) candidates.delete(String(r.user_id));
+  if (candidates.size === 0) return { ...result, reason: "already-handled" };
+
+  const users = await sql`SELECT user_id, name FROM app_users WHERE user_id = ANY(${[...candidates]}) ORDER BY user_id`;
+  for (const u of users.slice(0, limit)) {
+    const userId = String(u.user_id);
+    result.scanned++;
+    try {
+      const recent = await sql`
+        SELECT alert_ids FROM whatsapp_outbox
+        WHERE user_id = ${userId} AND kind IN ('digest', 'alert') AND status = 'sent'
+          AND day >= (${today}::date - ${ALERT_MEMORY_DAYS}::int)
+      `;
+      const already = new Set(recent.flatMap((x) => (Array.isArray(x.alert_ids) ? (x.alert_ids as string[]) : [])));
+      const snap = await loadUserSnapshot(userId);
+      const urgent = urgentPriceAlerts(snap.alerts).filter((a) => !already.has(a.id));
+      const body = composeAlert({ nome: firstName(String(u.name ?? "")), alerts: urgent, seed: `${userId}-${today}` });
+      const ids = body ? urgent.slice(0, 3).map((a) => a.id) : [];
+      await sql`
+        INSERT INTO whatsapp_outbox (user_id, kind, day, body, alert_ids, status)
+        VALUES (${userId}, 'alert', ${today}::date, ${body ?? ""}, ${JSON.stringify(ids)}::jsonb, ${body ? "queued" : "skipped"})
+        ON CONFLICT (user_id, kind, day) DO NOTHING
+      `;
+      if (body) result.queued++;
+      else result.skipped++;
+    } catch (err) {
+      console.error("[whatsapp alerts]", userId, err);
+      await sql`
+        INSERT INTO whatsapp_outbox (user_id, kind, day, status, error)
+        VALUES (${userId}, 'alert', ${today}::date, 'failed', ${String(err).slice(0, 300)})
+        ON CONFLICT (user_id, kind, day) DO NOTHING
+      `;
+    }
+  }
+  return result;
+}
+
 export type DispatchStatus =
   | "evolution-not-configured"
   | "outside-window"
@@ -178,6 +255,8 @@ export async function dispatchNext(now = new Date(), random = Math.random()): Pr
 
   await sql`UPDATE whatsapp_outbox SET status = 'queued' WHERE status = 'sending' AND claimed_at < NOW() - INTERVAL '10 minutes'`;
   await sql`UPDATE whatsapp_outbox SET status = 'expired' WHERE status = 'queued' AND created_at < NOW() - INTERVAL '3 days'`;
+  // Aviso de queda perde o sentido horas depois: se não saiu logo, não sai mais.
+  await sql`UPDATE whatsapp_outbox SET status = 'expired' WHERE kind = 'alert' AND status = 'queued' AND created_at < NOW() - INTERVAL '6 hours'`;
 
   const [state] = await sql`SELECT last_sent_at, next_gap_seconds, paused_until FROM whatsapp_sender_state WHERE id = 1`;
   const nowMs = now.getTime();
@@ -200,8 +279,8 @@ export async function dispatchNext(now = new Date(), random = Math.random()): Pr
     WHERE id = (
       SELECT o.id FROM whatsapp_outbox o JOIN app_users u ON u.user_id = o.user_id
       WHERE o.status = 'queued' AND u.whatsapp_phone IS NOT NULL AND u.whatsapp_optout_at IS NULL
-        AND ((o.kind = 'optin' AND u.whatsapp_optin_at IS NULL) OR (o.kind = 'digest' AND u.whatsapp_optin_at IS NOT NULL))
-      ORDER BY (o.kind = 'digest') DESC, o.created_at
+        AND ((o.kind = 'optin' AND u.whatsapp_optin_at IS NULL) OR (o.kind IN ('digest', 'alert') AND u.whatsapp_optin_at IS NOT NULL))
+      ORDER BY CASE o.kind WHEN 'alert' THEN 0 WHEN 'digest' THEN 1 ELSE 2 END, o.created_at
       LIMIT 1
       FOR UPDATE OF o SKIP LOCKED
     )

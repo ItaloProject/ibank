@@ -45,7 +45,7 @@ const DIGEST_OPTIONS: { id: DigestChoice; label: string }[] = [
 ];
 
 const DIGEST_HINT: Record<"off" | "pending" | "weekly" | "daily", string> = {
-  weekly: "Uma mensagem por semana, em dia útil, com o panorama da bolsa e os avisos mais importantes.",
+  weekly: "Uma mensagem por semana, em dia útil, com o panorama da bolsa. Se houver uma queda forte, avisamos na hora.",
   daily: "Só mandamos mensagem quando algo importante acontecer, como uma queda forte. No máximo uma por dia.",
   off: "Você não recebe resumos nem avisos. O envio do relatório em PDF continua funcionando.",
   pending: "Escolha como quer receber. Se preferir, vamos te convidar pelo WhatsApp: é só responder SIM.",

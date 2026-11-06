@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BotAlert } from "@/lib/alerts";
 import {
   STEADY_DAILY_CAP,
+  composeAlert,
   composeConfirmation,
   composeDigest,
   composeOptin,
@@ -161,6 +162,22 @@ describe("digestMode", () => {
   it("SAIR desliga, mesmo com aceite anterior", () => {
     expect(digestMode({ optinAt: agora, optoutAt: agora, frequency: "daily" })).toBe("off");
     expect(digestMode({ optinAt: null, optoutAt: agora, frequency: "weekly" })).toBe("off");
+  });
+});
+
+describe("composeAlert", () => {
+  it("lista só os títulos, sem links, e oferece SAIR", () => {
+    const texto = composeAlert({ nome: "Ana", alerts: [alerta("ITUB4 caiu 8,5% hoje", "alta")], seed: "s" })!;
+    expect(texto).toContain("• ITUB4 caiu 8,5% hoje");
+    expect(texto).toContain("*SAIR*");
+    expect(texto).not.toContain("detalhe longo");
+    expect(texto).not.toMatch(/https?:\/\//);
+  });
+
+  it("não envia nada sem avisos e limita a 3", () => {
+    expect(composeAlert({ nome: "Ana", alerts: [], seed: "s" })).toBeNull();
+    const muitos = ["a", "b", "c", "d", "e"].map((t) => alerta(t, "alta"));
+    expect(composeAlert({ nome: "", alerts: muitos, seed: "s" })!.split("\n").filter((l) => l.startsWith("• "))).toHaveLength(3);
   });
 });
 

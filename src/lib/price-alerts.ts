@@ -51,6 +51,29 @@ function limiteSemana(tipo: string): Limite {
 /** Janela de 7 dias: o mesmo aviso semanal não volta todo dia enquanto a queda continua. */
 const janela = (dia: string) => Math.floor(Date.parse(dia) / (7 * 24 * 3600 * 1000));
 
+/** Queda grave de um papel: passa do limite "alta" do dia ou dos 5 pregões. */
+export function isSevereMove(tipo: string, move: DayMove | null): boolean {
+  if (!move) return false;
+  return (
+    move.changePct <= -limiteDia(tipo).alta ||
+    (move.weekChangePct !== null && move.weekChangePct <= -limiteSemana(tipo).alta)
+  );
+}
+
+/** Queda grave do Ibovespa, no dia ou nos 5 pregões. */
+export function isSevereIndex(index: DayMove | null): boolean {
+  if (!index) return false;
+  return (
+    index.changePct <= -LIMITE_MERCADO.alta ||
+    (index.weekChangePct !== null && index.weekChangePct <= -LIMITE_MERCADO_SEMANA.alta)
+  );
+}
+
+/** Avisos de preço de nível alta: os únicos que valem uma mensagem na hora, sem esperar o resumo. */
+export function urgentPriceAlerts(alerts: BotAlert[]): BotAlert[] {
+  return alerts.filter((a) => a.nivel === "alta" && /^(queda|semana|mercado)-/.test(a.id));
+}
+
 export function buildPriceAlerts(input: { positions: PositionMove[]; index: DayMove | null; today?: Date }): BotAlert[] {
   const now = input.today ?? new Date();
   const hojeBr = brDay(now.getTime());

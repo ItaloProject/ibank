@@ -143,6 +143,19 @@ export function composeConfirmation(reply: Reply, nome: string): string {
   }
 }
 
+/** Mensagem curta de queda grave, enviada na hora. Só os títulos; os detalhes ficam no assistente do app. */
+export function composeAlert(input: { nome: string; alerts: BotAlert[]; seed: string }): string | null {
+  if (input.alerts.length === 0) return null;
+  const nome = input.nome;
+  const abertura = pick([`Oi${saudacao(nome)}! Aviso rápido sobre a sua carteira:`, `${nome || "Oi"}, passando para avisar:`], input.seed);
+  return [
+    abertura,
+    ...input.alerts.slice(0, MAX_ALERTS_IN_DIGEST).map((a) => `• ${a.titulo}`),
+    "Os detalhes estão no assistente do Muvo, no app.",
+    "Para parar de receber, responda *SAIR*.",
+  ].join("\n");
+}
+
 export type DigestInput = {
   nome: string;
   frequency: Frequency;
