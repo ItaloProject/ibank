@@ -26,14 +26,20 @@ export function LiveSheet({
   onOpenChange,
   title,
   description,
+  headerAction,
   dismissible = true,
+  layer = "base",
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: ReactNode;
   description?: ReactNode;
+  /** Botão à esquerda do X (ex.: ficha do ativo). */
+  headerAction?: ReactNode;
   dismissible?: boolean;
+  /** `over` fica acima de outra folha aberta (ex.: detalhes sobre a compra). */
+  layer?: "base" | "over";
   children: ReactNode;
 }) {
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -43,6 +49,7 @@ export function LiveSheet({
     returnFocusRef.current = document.activeElement as HTMLElement | null;
   }
   wasOpenRef.current = open;
+  const z = layer === "over" ? "z-[320]" : "z-[300]";
 
   return (
     <DialogPrimitive.Root
@@ -53,9 +60,9 @@ export function LiveSheet({
       }}
     >
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[300] bg-black/60 data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none" />
+        <DialogPrimitive.Overlay className={`fixed inset-0 ${z} bg-black/60 data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none`} />
         <DialogPrimitive.Content
-          className="fixed inset-x-0 bottom-0 z-[300] max-h-[90dvh] overflow-y-auto overflow-x-hidden rounded-t-2xl border-t border-border bg-card px-5 pt-4 focus:outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom motion-reduce:animate-none md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:border md:animate-none"
+          className={`fixed inset-x-0 bottom-0 ${z} max-h-[90dvh] overflow-y-auto overflow-x-hidden rounded-t-2xl border-t border-border bg-card px-5 pt-4 focus:outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom motion-reduce:animate-none md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:border md:animate-none`}
           style={{ paddingBottom: "calc(1.5rem + var(--safe-bottom))" }}
           onCloseAutoFocus={(e) => {
             const target = returnFocusRef.current;
@@ -76,13 +83,16 @@ export function LiveSheet({
                 {description ?? title}
               </DialogPrimitive.Description>
             </div>
-            <DialogPrimitive.Close
-              disabled={!dismissible}
-              aria-label="Fechar"
-              className={`-mr-2 h-11 w-11 shrink-0 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 ${FOCUS}`}
-            >
-              <X className="h-5 w-5" />
-            </DialogPrimitive.Close>
+            <div className="flex items-center shrink-0 -mr-2">
+              {headerAction}
+              <DialogPrimitive.Close
+                disabled={!dismissible}
+                aria-label="Fechar"
+                className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 ${FOCUS}`}
+              >
+                <X className="h-5 w-5" />
+              </DialogPrimitive.Close>
+            </div>
           </div>
           {children}
         </DialogPrimitive.Content>

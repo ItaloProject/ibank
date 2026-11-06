@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
-import { ArrowDownLeft, ArrowUpRight, Undo2 } from "lucide-react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { ArrowDownLeft, ArrowUpRight, Info, Undo2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { FOCUS, LABEL, MONEY, BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, INPUT_BOX, LOSS, LiveSheet } from "./live-ui";
 import { formatQty, type FixedIncomeProduct, type LiveAccount, type LiveMovement, type MoneySource } from "./live-actions";
 import type { RateIndex } from "@/lib/account-rate";
 import { fixedRateLabel, type FixedIncomeEntry } from "@/lib/fixed-income-catalog";
+import { STOCK_CATALOG } from "@/lib/market-catalog";
+import { detectAssetType } from "@/lib/stock-utils";
+import { FiiDetailsSheet } from "@/components/investimentos/fii-details-sheet";
 
 /* ── Máscaras ─────────────────────────────────────────────────────── */
 
@@ -281,6 +284,10 @@ export function StockOrderSheet({
   onSell: (ticker: string, price: number, qty: number) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  useEffect(() => {
+    setInfoOpen(false);
+  }, [order?.ticker, order?.mode]);
   const title = !order
     ? ""
     : order.mode === "venda"
@@ -295,10 +302,65 @@ export function StockOrderSheet({
       : order.name && order.name !== order.ticker
         ? order.name
         : "Registre a compra com o preço que você pagou.";
+  const infoTicker = order?.ticker?.trim().toUpperCase() || "";
+  const infoIsFii = infoTicker.length >= 4 && detectAssetType(infoTicker) === "FII";
+  const stockSegment = infoTicker ? STOCK_CATALOG.find((a) => a.ticker === infoTicker)?.group ?? null : null;
+
   return (
-    <LiveSheet open={!!order} onOpenChange={(o) => !o && onClose()} dismissible={!busy} title={title} description={description}>
-      {order && <StockOrderForm order={order} cash={cash} onBusy={setBusy} onClose={onClose} onBuy={onBuy} onSell={onSell} />}
-    </LiveSheet>
+    <>
+      <LiveSheet
+        open={!!order}
+        onOpenChange={(o) => {
+          if (!o) {
+            setInfoOpen(false);
+            onClose();
+          }
+        }}
+        dismissible={!busy}
+        title={title}
+        description={description}
+        headerAction={
+          infoTicker ? (
+            <button
+              type="button"
+              onClick={() => setInfoOpen(true)}
+              aria-label={`Ver detalhes de ${infoTicker}`}
+              title="Ver detalhes"
+              className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground ${FOCUS}`}
+            >
+              <Info className="h-4 w-4" aria-hidden="true" />
+            </button>
+          ) : undefined
+        }
+      >
+        {order && <StockOrderForm order={order} cash={cash} onBusy={setBusy} onClose={onClose} onBuy={onBuy} onSell={onSell} />}
+      </LiveSheet>
+
+      {infoIsFii ? (
+        <FiiDetailsSheet ticker={infoOpen ? infoTicker : null} name={order && "name" in order ? order.name : undefined} onClose={() => setInfoOpen(false)} />
+      ) : (
+        <LiveSheet
+          open={infoOpen && !!infoTicker}
+          onOpenChange={(o) => !o && setInfoOpen(false)}
+          title={infoTicker}
+          description={order && "name" in order ? order.name : undefined}
+          layer="over"
+        >
+          <div className="space-y-2.5">
+            <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 flex items-start justify-between gap-3">
+              <span className={`${LABEL} pt-0.5`}>Segmento</span>
+              <span className={`${MONEY} text-sm text-right leading-snug`}>{stockSegment ?? "—"}</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Tipo de fundo, valor patrimonial e último rendimento aparecem na ficha dos fundos imobiliários.
+            </p>
+            <button type="button" onClick={() => setInfoOpen(false)} className={BTN_SECONDARY}>
+              Fechar
+            </button>
+          </div>
+        </LiveSheet>
+      )}
+    </>
   );
 }
 

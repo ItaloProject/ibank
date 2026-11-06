@@ -70,7 +70,7 @@ export function FiiDetailsSheet({
       : null;
 
   return (
-    <LiveSheet open={!!ticker} onOpenChange={(o) => !o && onClose()} title={title} description={description}>
+    <LiveSheet open={!!ticker} onOpenChange={(o) => !o && onClose()} title={title} description={description} layer="over">
       <div className="space-y-2.5">
         {loading && (
           <div className="space-y-2.5" aria-busy="true" aria-live="polite">
