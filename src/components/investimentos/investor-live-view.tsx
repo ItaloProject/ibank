@@ -917,35 +917,37 @@ export function InvestorLiveView({
                 <div>
                   <p className={LABEL}>Patrimônio</p>
                   <p className={`${MONEY} mt-1.5 text-[28px] leading-none tracking-tight`}>{formatCurrency(animatedPatrimonio)}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Investido {formatCurrency(Math.max(0, animatedPatrimonio - animatedCash))}
-                  </p>
                 </div>
-                <div className="rounded-xl border border-border bg-card p-3.5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className={LABEL}>Saldo em conta</p>
-                        <SaldoEmContaHelp />
-                      </div>
-                      <p className={`${MONEY} mt-1 text-lg leading-none`}>{formatCurrency(animatedCash)}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">Disponível para aportes · fora do investido</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={openCashSheet}
-                      disabled={savingCash}
-                      className={`min-h-11 shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-foreground/80 hover:bg-muted disabled:opacity-40 ${FOCUS}`}
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                      Ajustar
-                    </button>
+
+                <dl className="rounded-xl border border-border bg-card divide-y divide-border">
+                  <div className="flex items-center justify-between gap-3 px-3.5 py-3">
+                    <dt className="text-sm text-muted-foreground">Investido</dt>
+                    <dd className={`${MONEY} text-sm`}>{formatCurrency(Math.max(0, animatedPatrimonio - animatedCash))}</dd>
                   </div>
-                </div>
+                  <div className="flex items-center justify-between gap-3 px-3.5 py-3">
+                    <dt className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      Em conta
+                      <SaldoEmContaHelp />
+                    </dt>
+                    <dd className="flex items-center gap-2 min-w-0">
+                      <span className={`${MONEY} text-sm`}>{formatCurrency(animatedCash)}</span>
+                      <button
+                        type="button"
+                        onClick={openCashSheet}
+                        disabled={savingCash}
+                        aria-label={cash > 0 ? "Ajustar saldo em conta" : "Informar saldo em conta"}
+                        className={`min-h-11 shrink-0 inline-flex items-center gap-1 rounded-lg px-2.5 text-xs font-bold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 ${FOCUS}`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                        {cash > 0 ? "Ajustar" : "Informar"}
+                      </button>
+                    </dd>
+                  </div>
+                </dl>
               </section>
 
               <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} flex items-center justify-between`}>
-                <span>Investir saldo · {formatCurrency(cash)}</span>
+                <span>{cash > 0 ? `Investir · ${formatCurrency(cash)}` : "Investir"}</span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
 

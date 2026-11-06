@@ -165,17 +165,33 @@ export function HoldingsPanel({
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
-      <section aria-label="Resumo da carteira" className="grid gap-3 sm:grid-cols-2">
+      <section aria-label="Resumo da carteira" className="space-y-3">
         <div className="rounded-xl border border-border bg-card p-4">
           <p className={LABEL}>Patrimônio</p>
           <p className={`${MONEY} mt-2 text-2xl leading-none tracking-tight`}>{formatCurrency(patrimonioTotal)}</p>
-          <dl className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
-            <div className="flex items-center justify-between gap-3">
+          <dl className="mt-3 divide-y divide-border border-t border-border text-sm">
+            <div className="flex items-center justify-between gap-3 py-2.5">
               <dt className="text-muted-foreground">Investido</dt>
               <dd className="font-semibold tabular-nums text-foreground">{formatCurrency(investedTotal)}</dd>
             </div>
+            <div className="flex items-center justify-between gap-3 py-2.5">
+              <dt className="flex items-center gap-1.5 text-muted-foreground">
+                Em conta
+                <SaldoEmContaHelp />
+              </dt>
+              <dd className="flex items-center gap-2">
+                <span className="font-semibold tabular-nums text-foreground">{formatCurrency(cashBalance)}</span>
+                <button
+                  type="button"
+                  onClick={onAdjustCash}
+                  className={`min-h-9 rounded-lg px-2 text-xs font-bold text-muted-foreground hover:bg-muted hover:text-foreground ${FOCUS}`}
+                >
+                  {cashBalance > 0 ? "Ajustar" : "Informar"}
+                </button>
+              </dd>
+            </div>
             {bolsaGain !== null && (
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 py-2.5">
                 <dt className="text-muted-foreground">Resultado em bolsa</dt>
                 <dd className={cn("font-semibold tabular-nums", bolsaGain.pct > 0.005 ? GAIN : bolsaGain.pct < -0.005 ? LOSS : "text-muted-foreground")}>
                   {bolsaGain.amount > 0 ? "+" : bolsaGain.amount < 0 ? "−" : ""}
@@ -187,23 +203,10 @@ export function HoldingsPanel({
           </dl>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-4 flex flex-col">
-          <div className="flex items-center gap-1.5">
-            <p className={LABEL}>Saldo em conta</p>
-            <SaldoEmContaHelp />
-          </div>
-          <p className={`${MONEY} mt-2 text-2xl leading-none`}>{formatCurrency(cashBalance)}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Disponível para novos aportes · fora do total investido</p>
-          <div className="mt-auto flex flex-wrap gap-2 pt-4">
-            <button type="button" onClick={onInvestCash} className={ACTION_BTN}>
-              <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
-              Investir
-            </button>
-            <button type="button" onClick={onAdjustCash} className={ACTION_BTN}>
-              {cashBalance > 0 ? "Ajustar saldo" : "Informar saldo"}
-            </button>
-          </div>
-        </div>
+        <button type="button" onClick={onInvestCash} className={ACTION_BTN}>
+          <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+          {cashBalance > 0 ? `Investir · ${formatCurrency(cashBalance)}` : "Investir"}
+        </button>
       </section>
 
       <div role="group" aria-label="Filtrar por tipo" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
