@@ -484,12 +484,12 @@ export function InvestorLiveViewDesktop({
             aria-labelledby="live-tab-inicio"
             className="grid grid-cols-[340px_1fr] h-full divide-x divide-border"
           >
-            {/* Distribuição */}
-            <section aria-labelledby="dist-heading" className="p-6 overflow-y-auto scrollbar-thin-dark">
-              <div className="mb-6 border-b border-border pb-6">
+            {/* Resumo + distribuição — cards no mesmo idioma dos filtros de Investimentos */}
+            <section aria-labelledby="dist-heading" className="space-y-5 p-6 overflow-y-auto scrollbar-thin-dark">
+              <div className="rounded-xl border border-border bg-card p-4">
                 <SectionHeading>Patrimônio</SectionHeading>
-                <p className={`${MONEY} mt-1.5 text-3xl leading-none tracking-tight`}>{formatCurrency(patrimonioTotal)}</p>
-                <dl className="mt-4 space-y-2 text-sm">
+                <p className={`${MONEY} mt-2 text-3xl leading-none tracking-tight`}>{formatCurrency(patrimonioTotal)}</p>
+                <dl className="mt-4 space-y-2.5 border-t border-border pt-3 text-sm">
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-muted-foreground">Investido</dt>
                     <dd className="font-semibold tabular-nums text-foreground">{formatCurrency(patrimonioTotal - cashBalance)}</dd>
@@ -506,47 +506,49 @@ export function InvestorLiveViewDesktop({
                 </dl>
               </div>
 
-              <SectionHeading id="dist-heading">Distribuição</SectionHeading>
-              {allocation.length === 0 ? (
-                <p className="mt-3 text-sm text-muted-foreground">Nada investido ainda.</p>
-              ) : (
-                <>
-                  <div className="mt-3 flex h-2.5 rounded-full overflow-hidden gap-px bg-muted" aria-hidden="true">
-                    {allocation.map((a) => (
-                      <div key={a.label} className={cn("h-full", a.shade)} style={{ width: `${a.pct}%` }} />
-                    ))}
-                  </div>
-                  <ul className="mt-4 space-y-3">
-                    {allocation.map((a) => (
-                      <li key={a.label} className="flex items-center justify-between gap-3">
-                        <span className="flex items-center gap-2 min-w-0">
-                          <span className={cn("h-2.5 w-2.5 rounded-sm shrink-0 ring-1 ring-border", a.shade)} aria-hidden="true" />
-                          <span className="text-sm text-foreground truncate">{a.label}</span>
-                        </span>
-                        <span className="text-right shrink-0">
-                          <span className="block text-sm font-semibold tabular-nums">{formatCurrency(a.value)}</span>
-                          <span className="block text-[11px] text-muted-foreground tabular-nums">
-                            {a.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+              <div>
+                <SectionHeading id="dist-heading">Distribuição</SectionHeading>
+                {allocation.length === 0 ? (
+                  <p className="mt-3 text-sm text-muted-foreground">Nada investido ainda.</p>
+                ) : (
+                  <>
+                    <div className="mt-3 flex h-2.5 rounded-full overflow-hidden gap-px bg-muted" aria-hidden="true">
+                      {allocation.map((a) => (
+                        <div key={a.label} className={cn("h-full", a.shade)} style={{ width: `${a.pct}%` }} />
+                      ))}
+                    </div>
+                    <ul className="mt-4 space-y-3">
+                      {allocation.map((a) => (
+                        <li key={a.label} className="flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span className={cn("h-2.5 w-2.5 rounded-sm shrink-0 ring-1 ring-border", a.shade)} aria-hidden="true" />
+                            <span className="text-sm text-foreground truncate">{a.label}</span>
                           </span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
+                          <span className="text-right shrink-0">
+                            <span className="block text-sm font-semibold tabular-nums">{formatCurrency(a.value)}</span>
+                            <span className="block text-[11px] text-muted-foreground tabular-nums">
+                              {a.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+                            </span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
 
-              <div className="mt-6 pt-5 border-t border-border">
+              <div className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center gap-1.5">
                   <SectionHeading>Saldo em conta</SectionHeading>
                   <SaldoEmContaHelp />
                 </div>
-                <p className={`${MONEY} mt-1 text-2xl`}>{formatCurrency(cashBalance)}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Disponível para novos aportes</p>
-                <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} mt-3 inline-flex items-center justify-center gap-2`}>
+                <p className={`${MONEY} mt-2 text-2xl leading-none`}>{formatCurrency(cashBalance)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Disponível para novos aportes</p>
+                <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} mt-4 inline-flex w-full items-center justify-center gap-2`}>
                   <Wallet className="h-4 w-4" aria-hidden="true" />
                   Investir agora
                 </button>
-                <button type="button" onClick={openCashSheet} className={`${BTN_SECONDARY} mt-2`}>
+                <button type="button" onClick={openCashSheet} className={`${BTN_SECONDARY} mt-2 w-full`}>
                   {cashBalance > 0 ? "Ajustar saldo" : "Informar saldo"}
                 </button>
               </div>
