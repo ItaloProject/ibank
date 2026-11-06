@@ -186,16 +186,6 @@ function CaixinhaRow({
   );
 }
 
-function CaixinhaHeader({ label, total }: { label: string; total: number }) {
-  const animated = useCountUp(total, 1200);
-  return (
-    <div className="text-center pt-2 pb-1">
-      <p className={`${LABEL} mb-2`}>{label}</p>
-      <p className={`${MONEY} text-[30px] leading-none tracking-tight`}>{formatCurrency(animated)}</p>
-    </div>
-  );
-}
-
 function SubPageHeader({
   backLabel,
   onBack,
@@ -835,7 +825,7 @@ export function InvestorLiveView({
         onClick={() => onSelect("emergencia")}
       />
       <CaixinhaRow
-        title="Investimentos"
+        title="Bolsa e renda fixa"
         subtitle={`${investimentosAccountsLive.length + holdings.length} ativo${
           investimentosAccountsLive.length + holdings.length !== 1 ? "s" : ""
         }`}
@@ -947,13 +937,14 @@ export function InvestorLiveView({
               </section>
 
               <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} flex items-center justify-between`}>
-                <span>{cash > 0 ? `Investir · ${formatCurrency(cash)}` : "Investir"}</span>
+                <span>Investir</span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
 
-              <CaixinhaHeader label="Total das caixinhas" total={totalCaixinhas} />
-
-              <div className="space-y-2">
+              <section className="space-y-2" aria-labelledby="live-caixinhas">
+                <h2 id="live-caixinhas" className={`${LABEL} px-0.5`}>
+                  Caixinhas
+                </h2>
                 {caixinhaRows((group) => {
                   setInvestSubPage(null);
                   setFocusGroup(group);
@@ -966,7 +957,7 @@ export function InvestorLiveView({
                   <Plus className="h-4 w-4" aria-hidden="true" />
                   Nova caixinha
                 </button>
-              </div>
+              </section>
 
               <div className="grid grid-cols-2 gap-2 pt-1">
                 {(

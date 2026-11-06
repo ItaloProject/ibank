@@ -205,7 +205,7 @@ export function HoldingsPanel({
 
         <button type="button" onClick={onInvestCash} className={ACTION_BTN}>
           <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
-          {cashBalance > 0 ? `Investir · ${formatCurrency(cashBalance)}` : "Investir"}
+          Investir
         </button>
       </section>
 
