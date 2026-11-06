@@ -7,6 +7,7 @@
  */
 import sql from "@/lib/db";
 import { ensureBotSchema } from "@/lib/bot-schema";
+import { missingColumns, missingTables, runDdl } from "@/lib/schema-check";
 import { brDay, fetchDayMove, INDEX_SYMBOL } from "@/lib/market-quotes";
 import { isSevereIndex, isSevereMove, urgentPriceAlerts } from "@/lib/price-alerts";
 import { detectAssetType } from "@/lib/stock-utils";
@@ -34,9 +35,19 @@ const ALERT_MEMORY_DAYS = 14;
 
 let ensured = false;
 
+const OUTBOX_COLUMNS = ["whatsapp_optin_at", "whatsapp_optout_at", "whatsapp_frequency"];
+const OUTBOX_TABLES = ["whatsapp_outbox", "whatsapp_sender_state"];
+
+/** Com colunas e tabelas já criadas, só lê o catálogo: nenhum ALTER, nenhum bloqueio em `app_users`. */
 export async function ensureOutboxSchema() {
   if (ensured) return;
+  const [columns, tables] = await Promise.all([missingColumns("app_users", OUTBOX_COLUMNS), missingTables(OUTBOX_TABLES)]);
+  if (columns.length === 0 && tables.length === 0) {
+    ensured = true;
+    return;
+  }
   await ensureBotSchema();
+  await runDdl(async (sql) => {
   await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS whatsapp_optin_at TIMESTAMPTZ DEFAULT NULL`;
   await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS whatsapp_optout_at TIMESTAMPTZ DEFAULT NULL`;
   await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS whatsapp_frequency VARCHAR(10) NOT NULL DEFAULT 'weekly'`;
@@ -68,6 +79,7 @@ export async function ensureOutboxSchema() {
     )
   `;
   await sql`INSERT INTO whatsapp_sender_state (id) VALUES (1) ON CONFLICT (id) DO NOTHING`;
+  });
   ensured = true;
 }
 

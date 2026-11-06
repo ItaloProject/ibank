@@ -1,13 +1,20 @@
 import sql from "@/lib/db";
+import { missingColumns, runDdl } from "@/lib/schema-check";
 
 let ensured = false;
 
-/** Cria as colunas que guardam a sessão ativa de cada usuário, uma vez por processo. */
+const SESSION_COLUMNS = ["active_session_id", "session_device", "session_started_at"];
+
+/** Garante as colunas da sessão ativa de cada usuário. Com tudo já criado, só lê o catálogo. */
 export async function ensureSessionColumns() {
   if (ensured) return;
-  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS active_session_id VARCHAR(64) DEFAULT NULL`;
-  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS session_device VARCHAR(120) DEFAULT NULL`;
-  await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ DEFAULT NULL`;
+  if ((await missingColumns("app_users", SESSION_COLUMNS)).length > 0) {
+    await runDdl(async (tx) => {
+      await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS active_session_id VARCHAR(64) DEFAULT NULL`;
+      await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS session_device VARCHAR(120) DEFAULT NULL`;
+      await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ DEFAULT NULL`;
+    });
+  }
   ensured = true;
 }
 

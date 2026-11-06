@@ -1,11 +1,28 @@
 import sql from "@/lib/db";
 import type { FeedbackKind } from "@/lib/bot-feedback";
+import { missingColumns, missingTables } from "@/lib/schema-check";
 
 let ensured: Promise<void> | null = null;
+
+const BOT_COLUMNS = [
+  "risk_profile",
+  "whatsapp_phone",
+  "whatsapp_verified_at",
+  "whatsapp_last_inbound_at",
+  "whatsapp_link_code",
+  "whatsapp_link_expires",
+  "whatsapp_pending_report_at",
+  "whatsapp_consent_at",
+];
+const BOT_TABLES = ["bot_usage", "bot_feedback"];
 
 /** Colunas e tabelas do bot (perfil de risco, WhatsApp, limites de uso), criadas uma vez por processo. */
 export function ensureBotSchema(): Promise<void> {
   ensured ??= (async () => {
+    // Só altera se algo faltar: o ALTER TABLE pede bloqueio exclusivo mesmo quando a coluna já existe,
+    // e rodar isso a cada instância nova deixa as outras consultas de app_users na fila.
+    const [columns, tables] = await Promise.all([missingColumns("app_users", BOT_COLUMNS), missingTables(BOT_TABLES)]);
+    if (columns.length === 0 && tables.length === 0) return;
     await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS risk_profile VARCHAR(20) DEFAULT NULL`;
     await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(20) DEFAULT NULL`;
     await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS whatsapp_verified_at TIMESTAMPTZ DEFAULT NULL`;
