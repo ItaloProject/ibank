@@ -460,38 +460,6 @@ export function InvestorLiveViewDesktop({
         </div>
       </header>
 
-      {/* ── KPI strip ─────────────────────────────────────────────── */}
-      {tab !== null && (
-      <dl className="grid grid-cols-4 divide-x divide-border border-b border-border shrink-0">
-        <div className="px-7 py-4">
-          <dt className={LABEL}>Patrimônio</dt>
-          <dd className={`${MONEY} mt-1 text-2xl leading-none`}>{formatCurrency(patrimonioTotal)}</dd>
-        </div>
-        <div className="px-6 py-4">
-          <dt className={LABEL}>Investido</dt>
-          <dd className={`${MONEY} mt-1 text-xl leading-none`}>{formatCurrency(patrimonioTotal - cashBalance)}</dd>
-          <dd className="mt-1 text-[11px] text-muted-foreground">Caixinhas e bolsa</dd>
-        </div>
-        <div className="px-6 py-4">
-          <dt className={`${LABEL} flex items-center gap-1.5`}>Saldo em conta <SaldoEmContaHelp /></dt>
-          <dd className={`${MONEY} mt-1 text-xl leading-none`}>{formatCurrency(cashBalance)}</dd>
-          <dd className="mt-1 text-[11px] text-muted-foreground">Disponível para aportar</dd>
-        </div>
-        <div className="px-6 py-4">
-          <dt className={LABEL}>Resultado em bolsa</dt>
-          <dd className={cn("font-display font-black tabular-nums mt-1 text-xl leading-none", holdingRows.length ? toneFor(totalGain) : "text-muted-foreground")}>
-            {holdingRows.length ? formatSignedCurrency(totalGain) : "—"}
-          </dd>
-          {holdingRows.length > 0 && (
-            <dd className="mt-1 flex items-center gap-1.5">
-              <PctText pct={totalGainPct} />
-              <span className="text-[11px] text-muted-foreground">· {holdingRows.length} {holdingRows.length === 1 ? "posição" : "posições"}</span>
-            </dd>
-          )}
-        </div>
-      </dl>
-      )}
-
       {/* ── Content area ──────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto">
 
@@ -518,6 +486,26 @@ export function InvestorLiveViewDesktop({
           >
             {/* Distribuição */}
             <section aria-labelledby="dist-heading" className="p-6 overflow-y-auto scrollbar-thin-dark">
+              <div className="mb-6 border-b border-border pb-6">
+                <SectionHeading>Patrimônio</SectionHeading>
+                <p className={`${MONEY} mt-1.5 text-3xl leading-none tracking-tight`}>{formatCurrency(patrimonioTotal)}</p>
+                <dl className="mt-4 space-y-2 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">Investido</dt>
+                    <dd className="font-semibold tabular-nums text-foreground">{formatCurrency(patrimonioTotal - cashBalance)}</dd>
+                  </div>
+                  {holdingRows.length > 0 && (
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Resultado em bolsa</dt>
+                      <dd className="flex items-baseline gap-1.5">
+                        <span className={cn("font-semibold tabular-nums", toneFor(totalGain))}>{formatSignedCurrency(totalGain)}</span>
+                        <PctText pct={totalGainPct} />
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+
               <SectionHeading id="dist-heading">Distribuição</SectionHeading>
               {allocation.length === 0 ? (
                 <p className="mt-3 text-sm text-muted-foreground">Nada investido ainda.</p>
@@ -548,7 +536,10 @@ export function InvestorLiveViewDesktop({
               )}
 
               <div className="mt-6 pt-5 border-t border-border">
-                <SectionHeading>Saldo em conta</SectionHeading>
+                <div className="flex items-center gap-1.5">
+                  <SectionHeading>Saldo em conta</SectionHeading>
+                  <SaldoEmContaHelp />
+                </div>
                 <p className={`${MONEY} mt-1 text-2xl`}>{formatCurrency(cashBalance)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">Disponível para novos aportes</p>
                 <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} mt-3 inline-flex items-center justify-center gap-2`}>

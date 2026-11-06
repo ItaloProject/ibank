@@ -113,6 +113,18 @@ export function HoldingsPanel({
     return { byKind, all: items.reduce((s, i) => s + i.value, 0) };
   }, [items]);
 
+  // Rentabilidade da bolsa sobre o que foi pago, refeita a partir do valor e da variação de cada posição.
+  const bolsaGainPct = useMemo(() => {
+    let value = 0;
+    let cost = 0;
+    for (const h of holdings) {
+      if (h.gainPct <= -99.99) continue;
+      value += h.value;
+      cost += h.value / (1 + h.gainPct / 100);
+    }
+    return cost > 0 ? ((value - cost) / cost) * 100 : null;
+  }, [holdings]);
+
   const visible = filter === "all" ? items : items.filter((i) => i.kind === filter);
   const visibleTotal = visible.reduce((s, i) => s + i.value, 0);
 
@@ -151,7 +163,14 @@ export function HoldingsPanel({
                 </span>
                 <span className="text-[11px] tabular-nums text-muted-foreground">{t.count}</span>
               </span>
-              <span className={`${MONEY} text-lg leading-none`}>{formatCurrency(t.value)}</span>
+              <span className="flex items-baseline justify-between gap-2">
+                <span className={`${MONEY} text-lg leading-none`}>{formatCurrency(t.value)}</span>
+                {t.id === "bolsa" && bolsaGainPct !== null && (
+                  <span className={cn("text-[11px] font-semibold tabular-nums", bolsaGainPct > 0.005 ? GAIN : bolsaGainPct < -0.005 ? LOSS : "text-muted-foreground")}>
+                    {signed(bolsaGainPct)}
+                  </span>
+                )}
+              </span>
               <span className="h-1 overflow-hidden rounded-full bg-muted" aria-hidden="true">
                 <span
                   className="block h-full rounded-full bg-foreground transition-[width] duration-700"
