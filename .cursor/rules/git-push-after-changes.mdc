@@ -1,0 +1,10 @@
+---
+description: Após alterações, commit local e push automático para origin
+alwaysApply: true
+---
+
+# Git: sempre subir após alterações
+
+- Depois de concluir alterações pedidas pelo usuário, faça **commit local** e em seguida **`git push origin HEAD`** (não espere o usuário digitar "Suba").
+- Não peça confirmação para push em branches de trabalho normais (`main` incluída), salvo se o push exigir force ou for destrutivo.
+- Continua valendo: não usar `--force` em main/master; não alterar git config; não commitar segredos (`.env`, credentials).
