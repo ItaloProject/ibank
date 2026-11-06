@@ -506,6 +506,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       rendaMensal: a.current_balance * ((a.cdi_percent ?? 115) / 100) * CDI_MENSAL,
       cor: "#f5c425",
       badge: "TURBO · " + (a.cdi_percent ?? 115) + "% CDI",
+      origem: "estimado" as const,
     }));
 
     const fiiPositions = stockPositions.filter((p) => detectAssetType(p.ticker) === "FII");
@@ -521,6 +522,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       rendaMensal: fiiCapital * 0.0085,
       cor: "#14b8a6",
       badge: "~0,85%/mês (estimativa)",
+      origem: "estimado" as const,
     }] : [];
 
     const dividendPositions = stockPositions.filter((p) => {
@@ -539,6 +541,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       rendaMensal: dividendCapital * 0.004,
       cor: "#10b981",
       badge: "~0,4%/mês (estimativa)",
+      origem: "estimado" as const,
     }] : [];
 
     const rfAccounts = accounts.filter((a) => !a.is_turbo);
@@ -561,11 +564,14 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         rendaMensal: avg,
         cor: "#38bdf8",
         badge: `${months.length} mês${months.length !== 1 ? "es" : ""} registrado${months.length !== 1 ? "s" : ""}`,
+        origem: "registrado" as const,
       }];
     });
 
     const allSources = [...turboSources, ...fiiSources, ...rfSources, ...dividendSources];
     const totalRendaMensal = allSources.reduce((s, src) => s + src.rendaMensal, 0);
+    const rendaRegistrada = allSources.filter((s) => s.origem === "registrado").reduce((s, src) => s + src.rendaMensal, 0);
+    const rendaEstimada = allSources.filter((s) => s.origem === "estimado").reduce((s, src) => s + src.rendaMensal, 0);
 
     const allRendimentos = investments.filter((i) => i.type === "rendimento");
     const rendByMonth = allRendimentos.reduce((acc, i) => {
@@ -580,7 +586,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         "Renda recebida": v,
       }));
 
-    return { allSources, totalRendaMensal, chartMonths, fiiCapital, CDI_MENSAL };
+    return { allSources, totalRendaMensal, rendaRegistrada, rendaEstimada, chartMonths, fiiCapital, CDI_MENSAL };
   }, [accounts, investments, stockPositions, quoteMap, marketRates.cdiAnual]);
 
   const portfolioVersion = `${accounts.length}|${investments.length}|${stockTrades.length}|${grandTotal.toFixed(2)}|${incomeGoal}|${goalDeadlineYear ?? ""}|${goalMonthlyContribution}`;
@@ -596,6 +602,8 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       score: planScore(plan),
       emerTotal: plan.reserva.atual,
       investido: plan.investido,
+      total: plan.total,
+      retorno12m: plan.retorno12m,
       alocacaoRelevante: alocacaoRelevante(plan),
       allocation: planAllocation(plan),
       insights: planInsights(plan).map((i) => ({
@@ -605,6 +613,10 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
           : i.section ? () => go(`investir=${i.section}`) : undefined,
       })),
       nextMoves: planMoves(plan).map((m) => ({ ...m, valorTexto: formatCurrency(m.valor) })),
+      goal: analysis.goal ?? null,
+      metaRenda: analysis.metaRenda ?? null,
+      aporteAnalise: analysis.aporte,
+      ipca12m: analysis.rates.ipca12m,
     };
   }, [analysis, router]);
 

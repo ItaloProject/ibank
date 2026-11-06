@@ -1,8 +1,8 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { FileText, Target, Check, CheckCircle2, ArrowRight, Pencil, X } from "lucide-react";
+import { FileText, Target, Check, CheckCircle2, ArrowRight, Pencil, X, ChevronDown } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/utils";
 import { maskMoney, toMoneyMask } from "@/lib/money-mask";
 import { RISK_PROFILES, type RiskProfile } from "@/lib/rebalance";
 import { actionHref, type PlanAllocation, type PlanInsight, type PlanMove } from "@/lib/plan-view";
+import { projectGoal, type GoalProjection } from "@/lib/goal-projection";
 import Link from "next/link";
 import type { ScoreSnapshot, InvestmentAccount, StockTrade, Investment } from "@/types/database";
 
@@ -23,6 +24,7 @@ type IncomeSource = {
   rendaMensal: number;
   cor: string;
   badge: string;
+  origem: "registrado" | "estimado";
 };
 
 export type PortfolioAnalysis = {
@@ -31,21 +33,25 @@ export type PortfolioAnalysis = {
   score: number;
   emerTotal: number;
   investido: number;
+  total: number;
+  retorno12m: number;
   alocacaoRelevante: boolean;
   allocation: PlanAllocation[];
   insights: (PlanInsight & { onAction?: () => void })[];
   nextMoves: (PlanMove & { valorTexto: string })[];
+  goal: GoalProjection | null;
+  metaRenda: number | null;
+  aporteAnalise: number;
+  ipca12m: number | null;
 };
 
-function HeroValue({ value, active }: { value: number; active: boolean }) {
-  const shown = useCountUp(value, active, 1.8);
+function HeroValue({ value, active, suffix }: { value: string; active: boolean; suffix?: string }) {
   return (
-    <div className="flex flex-col items-center px-6">
+    <div className={`flex flex-col items-center px-6 transition-opacity duration-700 ${active ? "opacity-100" : "opacity-0"}`}>
       <p className="text-3xl sm:text-4xl font-black tabular-nums text-foreground leading-none text-center font-display">
-        <span className="sr-only">{formatCurrency(value)}</span>
-        <span aria-hidden="true">{formatCurrency(shown)}</span>
+        {value}
       </p>
-      <p className="text-xs text-muted-foreground mt-2">por mês</p>
+      {suffix && <p className="text-xs text-muted-foreground mt-2">{suffix}</p>}
     </div>
   );
 }
@@ -71,6 +77,15 @@ function parseGoal(raw: string): number {
   return Number.isFinite(v) && v < 1e10 ? Math.round(v * 100) / 100 : 0;
 }
 
+function monthsLabel(meses: number): string {
+  if (meses <= 0) return "já";
+  if (meses < 12) return `${meses} ${meses === 1 ? "mês" : "meses"}`;
+  const y = Math.floor(meses / 12);
+  const m = meses % 12;
+  if (!m) return y === 1 ? "1 ano" : `${y} anos`;
+  return `${y} ${y === 1 ? "ano" : "anos"} e ${m} ${m === 1 ? "mês" : "meses"}`;
+}
+
 const FIELD =
   "w-full rounded-xl border border-border bg-muted/40 px-3.5 min-h-11 text-sm text-foreground tabular-nums placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-foreground/20 disabled:opacity-60";
 const LABEL_FIELD = "block text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-1.5 text-left";
@@ -79,6 +94,8 @@ export type InvestorModeViewProps = {
   investorData: {
     allSources: IncomeSource[];
     totalRendaMensal: number;
+    rendaRegistrada: number;
+    rendaEstimada: number;
     chartMonths: { label: string; "Renda recebida": number }[];
     CDI_MENSAL: number;
   };
@@ -115,18 +132,40 @@ export function InvestorModeView({
   goalMonthlyContribution,
   setGoalMonthlyContribution,
   scoreHistory,
+  grandTotal,
   onGenerateReport,
   botContext,
   botDataVersion,
 }: InvestorModeViewProps) {
-  const { allSources, totalRendaMensal, chartMonths, CDI_MENSAL } = investorData;
-  const goalProgress = incomeGoal > 0 ? Math.min((totalRendaMensal / incomeGoal) * 100, 100) : 0;
+  const { allSources, totalRendaMensal, rendaRegistrada, rendaEstimada, chartMonths } = investorData;
   const [editingGoal, setEditingGoal] = useState(false);
   const [savingGoal, setSavingGoal] = useState(false);
   const [deadlineInput, setDeadlineInput] = useState("");
   const [aporteInput, setAporteInput] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const thisYear = new Date().getFullYear();
+
+  const path = useMemo(() => {
+    if (!(incomeGoal > 0) || !portfolioAnalysis) return null;
+    if (portfolioAnalysis.goal && portfolioAnalysis.metaRenda === incomeGoal) {
+      return portfolioAnalysis.goal;
+    }
+    const aporte = goalMonthlyContribution > 0 ? goalMonthlyContribution : portfolioAnalysis.aporteAnalise;
+    return projectGoal({
+      metaRendaMensal: incomeGoal,
+      patrimonio: portfolioAnalysis.total,
+      aporteMensal: aporte,
+      retornoAnualPct: portfolioAnalysis.retorno12m,
+      ipcaAnualPct: portfolioAnalysis.ipca12m ?? 4.5,
+      prazoAno: goalDeadlineYear,
+    });
+  }, [incomeGoal, portfolioAnalysis, goalMonthlyContribution, goalDeadlineYear]);
+
+  const capitalProgress = path && path.capitalNecessario > 0
+    ? Math.min(100, (grandTotal / path.capitalNecessario) * 100)
+    : 0;
+  const capitalReached = path != null && path.meses === 0;
 
   function startGoalEdit() {
     setIncomeGoalInput(incomeGoal > 0 ? toMoneyMask(incomeGoal) : "");
@@ -192,7 +231,7 @@ export function InvestorModeView({
     if (!portfolioAnalysis) {
       return (
         <div className="space-y-3" aria-busy="true">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">O que fazer agora</h3>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">O que fazer agora</h2>
           <p className="text-xs text-muted-foreground">Analisando sua carteira pelo seu perfil de risco…</p>
           <div className="h-24 animate-pulse rounded-2xl bg-muted/40" />
           <div className="h-16 animate-pulse rounded-xl bg-muted/30" />
@@ -211,7 +250,7 @@ export function InvestorModeView({
 
     return (
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">O que fazer agora</h3>
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">O que fazer agora</h2>
 
         <Reveal className="flex items-center gap-5 mb-8 rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
           <div className="flex-shrink-0">
@@ -335,6 +374,14 @@ export function InvestorModeView({
     );
   })();
 
+  const heroRingValue = (() => {
+    if (!(incomeGoal > 0)) return { value: "—", suffix: "defina a meta" };
+    if (!path) return { value: "…", suffix: "calculando caminho" };
+    if (capitalReached) return { value: "Pronto", suffix: "capital da meta" };
+    if (path.anoPrevisto) return { value: String(path.anoPrevisto), suffix: path.meses != null ? `em ${monthsLabel(path.meses)}` : "no ritmo atual" };
+    return { value: "100+", suffix: "anos no ritmo atual" };
+  })();
+
   return (
     <div className="relative min-h-full bg-background text-foreground overflow-hidden">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -358,25 +405,69 @@ export function InvestorModeView({
       </div>
 
       <div className="relative mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12">
-        {/* 1. Onde estou */}
-        <div className="flex flex-col items-center text-center mb-14 sm:mb-20">
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground mb-4">Sua renda passiva mensal</p>
-
-          <div className="mb-2">
-            <ProgressRing size={280} radius={118} stroke={6} progress={incomeGoal > 0 ? goalProgress : 0} color="hsl(var(--foreground))" duration={1.8}>
-              {(inView) => <HeroValue value={totalRendaMensal} active={inView} />}
-            </ProgressRing>
-          </div>
-
+        {/* 1. Caminho até a meta */}
+        <div className="flex flex-col items-center text-center mb-14 sm:mb-16">
           {incomeGoal > 0 ? (
-            <p className="text-sm text-muted-foreground mb-6">
-              <span className="font-bold text-foreground">{goalProgress.toFixed(0)}%</span> da meta de{" "}
-              <span className="font-bold text-foreground">{formatCurrency(incomeGoal)}</span>
-              {goalProgress < 100 && <> · faltam <span className="font-bold text-emerald-400">{formatCurrency(incomeGoal - totalRendaMensal)}</span></>}
-            </p>
+            <>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight font-display text-foreground mb-1">
+                {formatCurrency(incomeGoal)}
+                <span className="text-base sm:text-lg font-bold text-muted-foreground">/mês</span>
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                {goalDeadlineYear ? <>até <span className="font-bold text-foreground">{goalDeadlineYear}</span></> : "sem prazo definido"}
+                {goalMonthlyContribution > 0 && (
+                  <> · aporte <span className="font-bold tabular-nums text-foreground">{formatCurrency(goalMonthlyContribution)}</span>/mês</>
+                )}
+              </p>
+            </>
           ) : (
             <p className="text-sm text-muted-foreground mb-6 max-w-sm">
               Defina quanto quer receber por mês — e, se quiser, o ano e o aporte para eu calcular o caminho.
+            </p>
+          )}
+
+          <div className="mb-4">
+            <ProgressRing
+              size={280}
+              radius={118}
+              stroke={6}
+              progress={incomeGoal > 0 ? capitalProgress : 0}
+              color={capitalReached ? "#34d399" : "hsl(var(--foreground))"}
+              duration={1.8}
+            >
+              {(inView) => <HeroValue value={heroRingValue.value} suffix={heroRingValue.suffix} active={inView} />}
+            </ProgressRing>
+          </div>
+
+          {incomeGoal > 0 && path && (
+            <p className="text-sm text-muted-foreground mb-4 max-w-md">
+              {capitalReached ? (
+                <>Patrimônio cobre a meta · falta estruturar a carteira para gerar a renda.</>
+              ) : (
+                <>
+                  <span className="font-bold tabular-nums text-foreground">{capitalProgress.toFixed(0)}%</span>
+                  {" "}do capital necessário (
+                  <span className="font-bold tabular-nums text-foreground">{formatCurrency(path.capitalNecessario)}</span>
+                  ) · rendimento real ~{path.rendimentoRealAnualPct.toLocaleString("pt-BR")}% a.a.
+                </>
+              )}
+            </p>
+          )}
+
+          {(rendaRegistrada > 0 || rendaEstimada > 0) && (
+            <p className="text-xs text-muted-foreground mb-6 max-w-md leading-relaxed">
+              Renda hoje:{" "}
+              {rendaRegistrada > 0 && (
+                <><span className="font-semibold text-foreground">{formatCurrency(rendaRegistrada)}</span> registrados</>
+              )}
+              {rendaRegistrada > 0 && rendaEstimada > 0 && " · "}
+              {rendaEstimada > 0 && (
+                <><span className="font-semibold text-foreground">{formatCurrency(rendaEstimada)}</span> estimados</>
+              )}
+              {" "}/mês
+              {totalRendaMensal > 0 && incomeGoal > 0 && !capitalReached && (
+                <> · faltam {formatCurrency(Math.max(0, incomeGoal - totalRendaMensal))} na renda corrente</>
+              )}
             </p>
           )}
 
@@ -474,159 +565,213 @@ export function InvestorModeView({
           )}
         </div>
 
-        {/* 2. O que fazer */}
-        <Reveal className="mb-14 sm:mb-20">
-          {diagnosis}
-        </Reveal>
-
-        {/* 3. De onde vem */}
-        <Reveal className="mb-14 sm:mb-20">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Fontes de renda</h3>
-          {allSources.length === 0 ? (
-            <p className="text-muted-foreground text-center py-12 text-sm">Nenhuma fonte de renda identificada ainda.</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {allSources.map((src, i) => (
-                <Reveal key={i} delay={Math.min(i, 7) * 0.06} y={20}
-                  className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 transition-colors hover:bg-muted/60 hover:border-border"
-                >
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{src.tipo}</p>
-                  </div>
-                  <p className="text-sm font-semibold text-foreground/90 mb-0.5 truncate">{src.nome}</p>
-                  <p className="text-xs text-muted-foreground mb-4 truncate">{src.badge}</p>
-                  <p className="text-2xl font-extrabold tabular-nums text-foreground">
-                    +{formatCurrency(src.rendaMensal)}
+        {/* 2. Caminho no perfil — substitui o simulador FII/Turbo/dividendos */}
+        {incomeGoal > 0 && path && (
+          <Reveal className="mb-14 sm:mb-16">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">
+              Caminho no perfil{portfolioAnalysis ? ` ${RISK_PROFILES[portfolioAnalysis.profile].label.toLowerCase()}` : ""}
+            </h2>
+            {capitalReached ? (
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-6 text-center">
+                <p className="flex items-center justify-center gap-2 text-lg font-bold text-emerald-400">
+                  <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                  Capital da meta atingido
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  O patrimônio já sustenta {formatCurrency(incomeGoal)}/mês no rendimento real da carteira. Use o diagnóstico abaixo para alinhar a alocação.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 text-left">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-2">Chega em</p>
+                  <p className="text-2xl font-extrabold tabular-nums text-foreground font-display">
+                    {path.anoPrevisto ?? "—"}
                   </p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">/mês · capital {formatCurrency(src.capital)}</p>
-                </Reveal>
-              ))}
-            </div>
-          )}
-        </Reveal>
-
-        {chartMonths.length > 0 && (
-          <Reveal className="mb-14 sm:mb-20">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Evolução registrada</h3>
-            <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
-              <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={chartMonths}>
-                  <defs>
-                    <linearGradient id="gradInvestorRenda" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.12} />
-                      <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={52} />
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload?.length) return null;
-                      return (
-                        <div className="bg-card border border-border rounded-xl shadow-2xl p-3 min-w-[160px]">
-                          <p className="text-xs font-bold border-b border-border pb-1.5 mb-2 text-muted-foreground">{label}</p>
-                          <div className="flex justify-between text-sm gap-4">
-                            <span className="text-muted-foreground">Rendimento</span>
-                            <span className="font-bold text-foreground tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
-                          </div>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Area type="monotone" dataKey="Renda recebida" stroke="hsl(var(--foreground) / 0.6)" strokeWidth={2} fill="url(#gradInvestorRenda)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {path.meses != null
+                      ? `no aporte atual · ${monthsLabel(path.meses)}`
+                      : goalMonthlyContribution > 0
+                        ? "mais de 100 anos neste ritmo"
+                        : "defina um aporte mensal"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 text-left">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-2">
+                    {goalDeadlineYear ? `Aporte para ${goalDeadlineYear}` : "Aporte sugerido"}
+                  </p>
+                  <p className="text-2xl font-extrabold tabular-nums text-foreground font-display">
+                    {path.aporteParaPrazo != null
+                      ? formatCurrency(path.aporteParaPrazo)
+                      : goalMonthlyContribution > 0
+                        ? formatCurrency(goalMonthlyContribution)
+                        : "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {path.noPrazo === false && path.aporteParaPrazo != null && goalMonthlyContribution > 0
+                      ? `faltam ${formatCurrency(Math.max(0, path.aporteParaPrazo - goalMonthlyContribution))}/mês vs seu aporte`
+                      : path.noPrazo
+                        ? "você chega no prazo com o aporte atual"
+                        : "com o retorno real esperado da carteira"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 text-left">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-2">Capital necessário</p>
+                  <p className="text-2xl font-extrabold tabular-nums text-foreground font-display">
+                    {formatCurrency(path.capitalNecessario)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    valores de hoje · ~{path.rendimentoRealAnualPct.toLocaleString("pt-BR")}% a.a. acima da inflação
+                  </p>
+                </div>
+              </div>
+            )}
+            {path.noPrazo === false && goalDeadlineYear && path.aporteParaPrazo != null && (
+              <p className="mt-4 text-center text-xs text-amber-600 dark:text-amber-400">
+                No ritmo atual você passa de {goalDeadlineYear}. Aumente o aporte ou ajuste o prazo.
+              </p>
+            )}
           </Reveal>
         )}
 
-        {/* 4. Como está a carteira */}
-        <Reveal className="mb-14 sm:mb-20">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-1">
-            Alocação atual e alvo{portfolioAnalysis ? ` do perfil ${RISK_PROFILES[portfolioAnalysis.profile].label.toLowerCase()}` : ""}
-          </h3>
-          <p className="text-xs text-muted-foreground mb-4">
-            {portfolioAnalysis
-              ? `Percentuais sobre ${formatCurrency(portfolioAnalysis.investido)} fora da reserva de emergência.${portfolioAnalysis.profileDefinido ? "" : " Perfil moderado usado como padrão; escolha o seu no assistente."}`
-              : "Calculando pelo seu perfil de risco…"}
-          </p>
-          <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 sm:p-6 space-y-6">
-            {!portfolioAnalysis && <div className="h-40 animate-pulse rounded-xl bg-muted/40" aria-hidden="true" />}
-            {portfolioAnalysis && !portfolioAnalysis.alocacaoRelevante && (
-              <p className="text-sm text-muted-foreground">
-                Com {formatCurrency(portfolioAnalysis.investido)} fora da reserva, ainda não faz sentido comparar percentuais. Complete a reserva primeiro; depois os aportes seguem o alvo do perfil.
-              </p>
-            )}
-            {portfolioAnalysis?.alocacaoRelevante && portfolioAnalysis.allocation.map((r) => (
-              <div key={r.label} className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: r.cor }} />
-                    <span className="font-semibold text-foreground/90">{r.label}</span>
-                    <span className="text-xs text-muted-foreground hidden sm:inline">{r.desc}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="tabular-nums font-bold" style={{ color: r.cor }}>{r.atual.toFixed(1)}%</span>
-                    <span className="text-muted-foreground">alvo {Math.round(r.ideal)}%</span>
-                    <span className={`inline-flex items-center font-bold ${r.atual >= r.ideal ? "text-emerald-400" : "text-amber-400"}`}>
-                      {r.atual >= r.ideal
-                        ? <><Check className="h-3.5 w-3.5" aria-hidden="true" /><span className="sr-only">No alvo</span></>
-                        : `faltam ${(r.ideal - r.atual).toFixed(0)} pontos`}
-                    </span>
-                  </div>
-                </div>
-                <div className="relative h-2 rounded-full bg-muted/50 overflow-hidden">
-                  <div className="absolute inset-y-0 left-0 rounded-full opacity-25" style={{ width: `${r.ideal}%`, background: r.cor }} />
-                  <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{ width: `${Math.min(r.atual, 100)}%`, background: r.cor }} />
-                  <div className="absolute inset-y-0 w-0.5 bg-muted/50" style={{ left: `${r.ideal}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* 3. Diagnóstico / aportes */}
+        <Reveal className="mb-14 sm:mb-16">
+          {diagnosis}
         </Reveal>
 
-        {/* 5. Se eu aportar mais — só com meta definida */}
-        {incomeGoal > 0 && (() => {
-          const remainingGap = Math.max(0, incomeGoal - totalRendaMensal);
-          const goalReached = remainingGap === 0;
-          return (
-            <Reveal className="mb-14 sm:mb-20">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">
-                Simulador · capital adicional para chegar em {formatCurrency(incomeGoal)}/mês
-              </h3>
-              {goalReached ? (
-                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] backdrop-blur-xl p-6 text-center">
-                  <p className="flex items-center justify-center gap-2 text-lg font-bold text-emerald-400">
-                    <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                    Meta já atingida!
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">Sua renda passiva atual já cobre essa meta. Defina uma meta maior para continuar simulando.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {[
-                      { label: "Fundos imobiliários (cerca de 0,85% ao mês)", value: formatCurrency(remainingGap / 0.0085), sub: "a mais em fundos imobiliários" },
-                      { label: "Caixinha Turbo a 115% do CDI", value: formatCurrency(remainingGap / (1.15 * CDI_MENSAL)), sub: "a mais na caixinha Turbo" },
-                      { label: "Dividendos (cerca de 0,4% ao mês)", value: formatCurrency(remainingGap / 0.004), sub: "a mais em ações pagadoras" },
-                    ].map((item, i) => (
-                      <Reveal key={item.label} delay={i * 0.08} y={20} className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">{item.label}</p>
-                        <p className="text-2xl font-extrabold tabular-nums text-foreground">{item.value}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{item.sub}</p>
-                      </Reveal>
+        {/* 4. Detalhes — fontes, evolução, alocação */}
+        <Reveal className="mb-14 sm:mb-16">
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((o) => !o)}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-expanded={detailsOpen}
+          >
+            <div>
+              <p className="text-sm font-bold text-foreground">Fontes, evolução e alocação</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Detalhes da carteira — abra quando quiser aprofundar</p>
+            </div>
+            <ChevronDown className={`h-5 w-5 text-muted-foreground shrink-0 transition-transform ${detailsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+          </button>
+
+          {detailsOpen && (
+            <div className="mt-6 space-y-14">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Fontes de renda</h3>
+                {allSources.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8 text-sm">Nenhuma fonte de renda identificada ainda.</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {allSources.map((src, i) => (
+                      <div
+                        key={i}
+                        className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 transition-colors hover:bg-muted/60 hover:border-border"
+                      >
+                        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{src.tipo}</p>
+                          <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md ${
+                            src.origem === "registrado"
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                              : "bg-muted text-muted-foreground"
+                          }`}>
+                            {src.origem === "registrado" ? "Registrado" : "Estimado"}
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-foreground/90 mb-0.5 truncate">{src.nome}</p>
+                        <p className="text-xs text-muted-foreground mb-4 truncate">{src.badge}</p>
+                        <p className="text-2xl font-extrabold tabular-nums text-foreground">
+                          +{formatCurrency(src.rendaMensal)}
+                        </p>
+                        <p className="text-xs text-muted-foreground/60 mt-1">/mês · capital {formatCurrency(src.capital)}</p>
+                      </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-4 text-center">
-                    Você já tem {formatCurrency(totalRendaMensal)}/mês · faltam {formatCurrency(remainingGap)}/mês para a meta
-                  </p>
-                </>
+                )}
+              </div>
+
+              {chartMonths.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Evolução registrada</h3>
+                  <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <AreaChart data={chartMonths}>
+                        <defs>
+                          <linearGradient id="gradInvestorRenda" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.12} />
+                            <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                        <YAxis tickFormatter={(v) => `R$${v}`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={52} />
+                        <Tooltip
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+                            return (
+                              <div className="bg-card border border-border rounded-xl shadow-2xl p-3 min-w-[160px]">
+                                <p className="text-xs font-bold border-b border-border pb-1.5 mb-2 text-muted-foreground">{label}</p>
+                                <div className="flex justify-between text-sm gap-4">
+                                  <span className="text-muted-foreground">Rendimento</span>
+                                  <span className="font-bold text-foreground tabular-nums">+{formatCurrency(Number(payload[0].value))}</span>
+                                </div>
+                              </div>
+                            );
+                          }}
+                        />
+                        <Area type="monotone" dataKey="Renda recebida" stroke="hsl(var(--foreground) / 0.6)" strokeWidth={2} fill="url(#gradInvestorRenda)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               )}
-            </Reveal>
-          );
-        })()}
+
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                  Alocação atual e alvo{portfolioAnalysis ? ` do perfil ${RISK_PROFILES[portfolioAnalysis.profile].label.toLowerCase()}` : ""}
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {portfolioAnalysis
+                    ? `Percentuais sobre ${formatCurrency(portfolioAnalysis.investido)} fora da reserva de emergência.${portfolioAnalysis.profileDefinido ? "" : " Perfil moderado usado como padrão; escolha o seu no assistente."}`
+                    : "Calculando pelo seu perfil de risco…"}
+                </p>
+                <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 sm:p-6 space-y-6">
+                  {!portfolioAnalysis && <div className="h-40 animate-pulse rounded-xl bg-muted/40" aria-hidden="true" />}
+                  {portfolioAnalysis && !portfolioAnalysis.alocacaoRelevante && (
+                    <p className="text-sm text-muted-foreground">
+                      Com {formatCurrency(portfolioAnalysis.investido)} fora da reserva, ainda não faz sentido comparar percentuais. Complete a reserva primeiro; depois os aportes seguem o alvo do perfil.
+                    </p>
+                  )}
+                  {portfolioAnalysis?.alocacaoRelevante && portfolioAnalysis.allocation.map((r) => (
+                    <div key={r.label} className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: r.cor }} />
+                          <span className="font-semibold text-foreground/90">{r.label}</span>
+                          <span className="text-xs text-muted-foreground hidden sm:inline">{r.desc}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="tabular-nums font-bold" style={{ color: r.cor }}>{r.atual.toFixed(1)}%</span>
+                          <span className="text-muted-foreground">alvo {Math.round(r.ideal)}%</span>
+                          <span className={`inline-flex items-center font-bold ${r.atual >= r.ideal ? "text-emerald-400" : "text-amber-400"}`}>
+                            {r.atual >= r.ideal
+                              ? <><Check className="h-3.5 w-3.5" aria-hidden="true" /><span className="sr-only">No alvo</span></>
+                              : `faltam ${(r.ideal - r.atual).toFixed(0)} pontos`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="relative h-2 rounded-full bg-muted/50 overflow-hidden">
+                        <div className="absolute inset-y-0 left-0 rounded-full opacity-25" style={{ width: `${r.ideal}%`, background: r.cor }} />
+                        <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{ width: `${Math.min(r.atual, 100)}%`, background: r.cor }} />
+                        <div className="absolute inset-y-0 w-0.5 bg-muted/50" style={{ left: `${r.ideal}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </Reveal>
 
         <div className="h-10" />
       </div>
