@@ -224,21 +224,44 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   const load = useCallback(async () => {
     try {
       setLoadError(null);
-      const withTimeout = <T,>(p: Promise<T>, ms = 12_000) =>
-        Promise.race([
-          p,
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+      setLoading(true);
+      // Timeout por promessa (não no Promise.all): uma rota lenta não mata as outras.
+      const withTimeout = <T,>(p: Promise<T>, ms = 20_000): Promise<T> => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        return Promise.race([
+          p.finally(() => { if (timer) clearTimeout(timer); }),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("timeout")), ms);
+          }),
         ]);
-      const [loadedAccounts, loadedInvestments, loadedStocks, loadedQuotes, loadedSnapshots, loadedScores] = await withTimeout(
-        Promise.all([
-          getInvestmentAccounts(),
-          getInvestments(),
-          getStockTrades(),
-          getStockQuotes(),
-          getPortfolioSnapshots(),
-          getScoreHistory(),
-        ]),
-      );
+      };
+      const settled = await Promise.allSettled([
+        withTimeout(getInvestmentAccounts()),
+        withTimeout(getInvestments()),
+        withTimeout(getStockTrades()),
+        withTimeout(getStockQuotes()),
+        withTimeout(getPortfolioSnapshots()),
+        withTimeout(getScoreHistory()),
+      ]);
+      const value = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
+        r.status === "fulfilled" ? r.value : fallback;
+
+      const loadedAccounts = value(settled[0], [] as Awaited<ReturnType<typeof getInvestmentAccounts>>);
+      const loadedInvestments = value(settled[1], [] as Awaited<ReturnType<typeof getInvestments>>);
+      const loadedStocks = value(settled[2], [] as Awaited<ReturnType<typeof getStockTrades>>);
+      const loadedQuotes = value(settled[3], [] as Awaited<ReturnType<typeof getStockQuotes>>);
+      const loadedSnapshots = value(settled[4], [] as Awaited<ReturnType<typeof getPortfolioSnapshots>>);
+      const loadedScores = value(settled[5], [] as Awaited<ReturnType<typeof getScoreHistory>>);
+
+      const failed = settled.filter((r) => r.status === "rejected").length;
+      // Contas são o mínimo para a Carteira; se falharem todas as críticas, mostra retry.
+      if (settled[0].status === "rejected" && settled[1].status === "rejected" && settled[2].status === "rejected") {
+        throw settled[0].reason instanceof Error ? settled[0].reason : new Error("timeout");
+      }
+      if (failed > 0) {
+        console.warn(`Investimentos: ${failed} de 6 cargaszes falharam ou estouraram o tempo.`);
+      }
+
       setPortfolioSnapshots(Array.isArray(loadedSnapshots) ? loadedSnapshots : []);
       setScoreHistory(Array.isArray(loadedScores) ? loadedScores : []);
       setStockQuotes(Array.isArray(loadedQuotes) ? loadedQuotes : []);
@@ -264,7 +287,9 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         }
       }
     } catch (err) {
-      console.error("Erro ao carregar investimentos:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      // String no warn: Next 16 trata console.error(Error) como overlay vermelho.
+      console.warn("Erro ao carregar investimentos:", msg);
       setLoadError("Não foi possível carregar seus investimentos. Verifique sua conexão.");
     } finally {
       setLoading(false);

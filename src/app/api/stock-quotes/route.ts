@@ -1,17 +1,29 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
+import { missingTables, runDdl } from "@/lib/schema-check";
 
-async function ensureTable() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS stock_quotes (
-      user_id      TEXT NOT NULL,
-      ticker       TEXT NOT NULL,
-      current_price NUMERIC(12,4) NOT NULL,
-      updated_at   TIMESTAMPTZ DEFAULT NOW(),
-      PRIMARY KEY (user_id, ticker)
-    )
-  `;
+let ensured: Promise<void> | null = null;
+
+function ensureTable(): Promise<void> {
+  ensured ??= (async () => {
+    if ((await missingTables(["stock_quotes"])).length === 0) return;
+    await runDdl(async (tx) => {
+      await tx`
+        CREATE TABLE IF NOT EXISTS stock_quotes (
+          user_id      TEXT NOT NULL,
+          ticker       TEXT NOT NULL,
+          current_price NUMERIC(12,4) NOT NULL,
+          updated_at   TIMESTAMPTZ DEFAULT NOW(),
+          PRIMARY KEY (user_id, ticker)
+        )
+      `;
+    });
+  })().catch((err) => {
+    ensured = null;
+    throw err;
+  });
+  return ensured;
 }
 
 export async function GET() {

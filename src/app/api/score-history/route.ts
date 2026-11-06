@@ -1,18 +1,30 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
+import { missingTables, runDdl } from "@/lib/schema-check";
 
-async function ensureTable() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS score_history (
-      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id    TEXT NOT NULL,
-      date       DATE NOT NULL,
-      score      INTEGER NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      UNIQUE (user_id, date)
-    )
-  `;
+let ensured: Promise<void> | null = null;
+
+function ensureTable(): Promise<void> {
+  ensured ??= (async () => {
+    if ((await missingTables(["score_history"])).length === 0) return;
+    await runDdl(async (tx) => {
+      await tx`
+        CREATE TABLE IF NOT EXISTS score_history (
+          id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id    TEXT NOT NULL,
+          date       DATE NOT NULL,
+          score      INTEGER NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE (user_id, date)
+        )
+      `;
+    });
+  })().catch((err) => {
+    ensured = null;
+    throw err;
+  });
+  return ensured;
 }
 
 export async function GET() {
