@@ -35,10 +35,15 @@ async function sendJson<T>(url: string, method: "POST" | "PATCH", body: unknown,
 
 // ─── Investment Accounts ──────────────────────────────────────────────────────
 
+async function readList<T>(res: Response, map: (row: unknown) => T): Promise<T[]> {
+  if (res.status === 401) throw new Error("auth");
+  const data = await res.json().catch(() => null);
+  return Array.isArray(data) ? data.map(map) : [];
+}
+
 export async function getInvestmentAccounts(): Promise<InvestmentAccount[]> {
   const res = await fetch(`/api/investment-accounts?user=${uid()}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data.map(toAccount) : [];
+  return readList(res, toAccount);
 }
 
 export async function createInvestmentAccount(data: {
@@ -98,8 +103,7 @@ export async function getInvestments(params?: {
   if (params?.start) qs.set("start", params.start);
   if (params?.end) qs.set("end", params.end);
   const res = await fetch(`/api/investments?${qs}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data.map(toInvestment) : [];
+  return readList(res, toInvestment);
 }
 
 export async function createInvestment(data: {
@@ -116,8 +120,7 @@ export async function deleteInvestment(id: string): Promise<void> {
 
 export async function getStockTrades(): Promise<StockTrade[]> {
   const res = await fetch(`/api/stock-trades?user=${uid()}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data.map(toStockTrade) : [];
+  return readList(res, toStockTrade);
 }
 
 export async function createStockTrade(data: {
@@ -142,8 +145,10 @@ export interface StockQuote { ticker: string; current_price: number; updated_at:
 
 export async function getStockQuotes(): Promise<StockQuote[]> {
   const res = await fetch(`/api/stock-quotes?user=${uid()}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data.map((r) => ({ ...r, current_price: Number(r.current_price) })) : [];
+  return readList(res, (r) => {
+    const row = r as { ticker: string; current_price: number | string; updated_at: string };
+    return { ticker: row.ticker, current_price: Number(row.current_price), updated_at: row.updated_at };
+  });
 }
 
 export async function getMarketQuotes(tickers: string[], fresh = false): Promise<MarketQuote[]> {
@@ -254,8 +259,7 @@ function toSnapshot(r: any): PortfolioSnapshot {
 
 export async function getPortfolioSnapshots(): Promise<PortfolioSnapshot[]> {
   const res = await fetch(`/api/portfolio-snapshots?user=${uid()}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data.map(toSnapshot) : [];
+  return readList(res, toSnapshot);
 }
 
 export async function savePortfolioSnapshot(data: {
@@ -278,8 +282,7 @@ function toScoreSnapshot(r: any): ScoreSnapshot {
 
 export async function getScoreHistory(): Promise<ScoreSnapshot[]> {
   const res = await fetch(`/api/score-history?user=${uid()}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data.map(toScoreSnapshot) : [];
+  return readList(res, toScoreSnapshot);
 }
 
 export async function saveScoreSnapshot(date: string, score: number): Promise<ScoreSnapshot> {

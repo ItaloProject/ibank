@@ -222,19 +222,20 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   } | null>(null);
 
   const load = useCallback(async () => {
-    try {
-      setLoadError(null);
-      setLoading(true);
-      // Timeout por promessa (não no Promise.all): uma rota lenta não mata as outras.
-      const withTimeout = <T,>(p: Promise<T>, ms = 20_000): Promise<T> => {
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        return Promise.race([
-          p.finally(() => { if (timer) clearTimeout(timer); }),
-          new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error("timeout")), ms);
-          }),
-        ]);
-      };
+    setLoadError(null);
+    setLoading(true);
+
+    const withTimeout = <T,>(p: Promise<T>, ms = 18_000): Promise<T> => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      return Promise.race([
+        p.finally(() => { if (timer) clearTimeout(timer); }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("timeout")), ms);
+        }),
+      ]);
+    };
+
+    const fetchBundle = async () => {
       const settled = await Promise.allSettled([
         withTimeout(getInvestmentAccounts()),
         withTimeout(getInvestments()),
@@ -245,32 +246,53 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       ]);
       const value = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
         r.status === "fulfilled" ? r.value : fallback;
+      return {
+        settled,
+        accounts: value(settled[0], [] as Awaited<ReturnType<typeof getInvestmentAccounts>>),
+        investments: value(settled[1], [] as Awaited<ReturnType<typeof getInvestments>>),
+        stocks: value(settled[2], [] as Awaited<ReturnType<typeof getStockTrades>>),
+        quotes: value(settled[3], [] as Awaited<ReturnType<typeof getStockQuotes>>),
+        snapshots: value(settled[4], [] as Awaited<ReturnType<typeof getPortfolioSnapshots>>),
+        scores: value(settled[5], [] as Awaited<ReturnType<typeof getScoreHistory>>),
+      };
+    };
 
-      const loadedAccounts = value(settled[0], [] as Awaited<ReturnType<typeof getInvestmentAccounts>>);
-      const loadedInvestments = value(settled[1], [] as Awaited<ReturnType<typeof getInvestments>>);
-      const loadedStocks = value(settled[2], [] as Awaited<ReturnType<typeof getStockTrades>>);
-      const loadedQuotes = value(settled[3], [] as Awaited<ReturnType<typeof getStockQuotes>>);
-      const loadedSnapshots = value(settled[4], [] as Awaited<ReturnType<typeof getPortfolioSnapshots>>);
-      const loadedScores = value(settled[5], [] as Awaited<ReturnType<typeof getScoreHistory>>);
+    try {
+      let bundle = await fetchBundle();
+      const criticalFailed =
+        bundle.settled[0].status === "rejected" &&
+        bundle.settled[1].status === "rejected" &&
+        bundle.settled[2].status === "rejected";
 
-      const failed = settled.filter((r) => r.status === "rejected").length;
-      // Contas são o mínimo para a Carteira; se falharem todas as críticas, mostra retry.
-      if (settled[0].status === "rejected" && settled[1].status === "rejected" && settled[2].status === "rejected") {
-        throw settled[0].reason instanceof Error ? settled[0].reason : new Error("timeout");
+      // Cold start / pool preso: tenta de novo uma vez antes de mostrar erro.
+      if (criticalFailed) {
+        await new Promise((r) => setTimeout(r, 1200));
+        bundle = await fetchBundle();
       }
+
+      const stillCritical =
+        bundle.settled[0].status === "rejected" &&
+        bundle.settled[1].status === "rejected" &&
+        bundle.settled[2].status === "rejected";
+      if (stillCritical) {
+        const reason = bundle.settled[0].status === "rejected" ? bundle.settled[0].reason : null;
+        throw reason instanceof Error ? reason : new Error("timeout");
+      }
+
+      const failed = bundle.settled.filter((r) => r.status === "rejected").length;
       if (failed > 0) {
-        console.warn(`Investimentos: ${failed} de 6 cargaszes falharam ou estouraram o tempo.`);
+        console.warn(`Investimentos: ${failed} de 6 buscas falharam ou estouraram o tempo.`);
       }
 
-      setPortfolioSnapshots(Array.isArray(loadedSnapshots) ? loadedSnapshots : []);
-      setScoreHistory(Array.isArray(loadedScores) ? loadedScores : []);
-      setStockQuotes(Array.isArray(loadedQuotes) ? loadedQuotes : []);
-      const accs = Array.isArray(loadedAccounts) ? loadedAccounts : [];
+      setPortfolioSnapshots(Array.isArray(bundle.snapshots) ? bundle.snapshots : []);
+      setScoreHistory(Array.isArray(bundle.scores) ? bundle.scores : []);
+      setStockQuotes(Array.isArray(bundle.quotes) ? bundle.quotes : []);
+      const accs = Array.isArray(bundle.accounts) ? bundle.accounts : [];
       setAccounts(accs);
-      setInvestments(Array.isArray(loadedInvestments) ? loadedInvestments : []);
-      setStockTrades(Array.isArray(loadedStocks) ? loadedStocks : []);
-      if (Array.isArray(loadedStocks) && loadedStocks.length > 0) {
-        refreshStockQuotes(loadedStocks, Array.isArray(loadedQuotes) ? loadedQuotes : [])
+      setInvestments(Array.isArray(bundle.investments) ? bundle.investments : []);
+      setStockTrades(Array.isArray(bundle.stocks) ? bundle.stocks : []);
+      if (Array.isArray(bundle.stocks) && bundle.stocks.length > 0) {
+        refreshStockQuotes(bundle.stocks, Array.isArray(bundle.quotes) ? bundle.quotes : [])
           .then(({ quotes }) => setStockQuotes(quotes))
           .catch(() => {});
       }
@@ -278,7 +300,6 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         ...prev,
         account_id: prev.account_id || (accs[0]?.id ?? ""),
       }));
-      // Restore saved tab (validate it still exists)
       const saved = localStorage.getItem("ibank_inv_tab");
       if (saved && saved !== "total" && saved !== "acoes") {
         if (!accs.find((a) => a.id === saved)) {
@@ -288,9 +309,12 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // String no warn: Next 16 trata console.error(Error) como overlay vermelho.
       console.warn("Erro ao carregar investimentos:", msg);
-      setLoadError("Não foi possível carregar seus investimentos. Verifique sua conexão.");
+      setLoadError(
+        msg === "auth"
+          ? "Sua sessão expirou ou entrou em outro aparelho. Faça login de novo."
+          : "Não foi possível carregar seus investimentos. Verifique sua conexão.",
+      );
     } finally {
       setLoading(false);
     }
