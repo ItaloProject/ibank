@@ -464,7 +464,7 @@ export function InvestorLiveViewDesktop({
             <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
               {tabs.map((t, i) => (
                 <li key={t.id}>
-                  <Icon3D kind={t.kind} label={t.label} index={i} onSelect={() => setTab(t.id)} />
+                  <Icon3D icon={t.icon} label={t.label} index={i} onSelect={() => setTab(t.id)} />
                 </li>
               ))}
             </ul>

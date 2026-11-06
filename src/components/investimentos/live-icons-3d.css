@@ -1,5 +1,4 @@
-/* Ícones 2D do menu do MUVO Live: traço leve, label sempre visível, hover/clique.
-   Só tokens do tema — vale no claro e no escuro. */
+/* Tiles do menu MUVO Live: Lucide + label, hover/clique. Só tokens do tema. */
 
 .l3d {
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -63,37 +62,31 @@
 }
 
 .l3d-glyph {
-  position: relative;
-  display: block;
-  width: 46%;
-  height: 46%;
-  color: hsl(var(--foreground) / 0.88);
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: hsl(var(--foreground) / 0.9);
   transition: transform 200ms var(--ease), color 180ms var(--ease);
+}
+
+.l3d-glyph svg {
+  width: 100%;
+  height: 100%;
 }
 
 .l3d:is(:hover, :focus-visible) .l3d-glyph {
   color: hsl(var(--foreground));
   transform: translateY(-2px);
+  animation: l3d-nudge 1.4s var(--ease) infinite;
 }
 
 .l3d:active .l3d-glyph {
   transform: translateY(1px) scale(0.96);
+  animation: none;
   transition-duration: 90ms;
 }
 
-.l3d-glyph svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.l3d-part {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-/* Label sempre legível sob o tile. */
 .l3d-label {
   display: block;
   max-width: 100%;
@@ -120,66 +113,13 @@
   transition-duration: 90ms;
 }
 
-/* Micro-animações do traço no hover */
-.l3d:is(:hover, :focus-visible) .l3d-p1 { animation: l3d-p1 1.6s ease-in-out infinite; }
-.l3d:is(:hover, :focus-visible) .l3d-p2 { animation: l3d-p2 1.6s ease-in-out infinite 0.12s; }
-.l3d:is(:hover, :focus-visible) .l3d-p3 { animation: l3d-p3 1.6s ease-in-out infinite 0.24s; }
-.l3d:is(:hover, :focus-visible) .l3d-p4 { animation: l3d-p4 1.6s ease-in-out infinite 0.36s; }
-
-.l3d:is(:hover, :focus-visible) .l3d-money { animation: l3d-money 1.5s var(--ease) infinite; }
-.l3d:is(:hover, :focus-visible) .l3d-dot { animation: l3d-dot 1.5s ease-in-out infinite; }
-
-.l3d-beam {
-  transform-box: view-box;
-  transform-origin: 32px 20px;
-}
-.l3d:is(:hover, :focus-visible) .l3d-beam { animation: l3d-beam 2s ease-in-out infinite; }
-
-.l3d:is(:hover, :focus-visible) .l3d-key { animation: l3d-key 1.2s ease-in-out infinite var(--d, 0s); }
-.l3d:is(:hover, :focus-visible) .l3d-digits {
-  animation: l3d-digits 1.2s ease-in-out infinite;
-  transform-origin: left center;
-}
-
 @keyframes l3d-in {
   from { opacity: 0; transform: translateY(12px) scale(0.97); }
 }
-@keyframes l3d-p1 {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
-}
-@keyframes l3d-p2 {
-  0%, 100% { transform: scaleY(1); transform-origin: center top; }
-  50% { transform: scaleY(1.28); transform-origin: center top; }
-}
-@keyframes l3d-p3 {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(2px); }
-}
-@keyframes l3d-p4 {
-  0%, 100% { transform: scaleY(1); transform-origin: center bottom; }
-  50% { transform: scaleY(0.82); transform-origin: center bottom; }
-}
-@keyframes l3d-money {
-  0%, 100% { transform: translateY(0); }
-  40%, 60% { transform: translateY(-4px); }
-}
-@keyframes l3d-dot {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.35); opacity: 0.7; }
-}
-@keyframes l3d-key {
-  0%, 55%, 100% { transform: scale(1); opacity: 1; }
-  20% { transform: scale(0.7); opacity: 0.55; }
-}
-@keyframes l3d-beam {
-  0%, 100% { transform: rotate(-5deg); }
-  50% { transform: rotate(5deg); }
-}
-@keyframes l3d-digits {
-  0%, 100% { transform: scaleX(1); }
-  45% { transform: scaleX(0.4); }
-  70% { transform: scaleX(1.1); }
+
+@keyframes l3d-nudge {
+  0%, 100% { transform: translateY(-2px); }
+  50% { transform: translateY(-5px); }
 }
 
 @media (max-width: 640px) {
@@ -188,6 +128,10 @@
     width: 8.25rem;
     gap: 0.65rem;
     padding: 0.5rem 0 0.25rem;
+  }
+  .l3d-glyph {
+    width: 2.25rem;
+    height: 2.25rem;
   }
   .l3d-label {
     font-size: 0.8125rem;

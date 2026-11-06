@@ -907,7 +907,7 @@ export function InvestorLiveView({
               <ul className="grid grid-cols-2 place-items-center gap-x-1 gap-y-2">
                 {LIVE_TABS.map((t, i) => (
                   <li key={t.id}>
-                    <Icon3D kind={t.kind} label={t.label} index={i} onSelect={() => goToTab(t.id)} />
+                    <Icon3D icon={t.icon} label={t.label} index={i} onSelect={() => goToTab(t.id)} />
                   </li>
                 ))}
               </ul>
