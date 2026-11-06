@@ -75,7 +75,14 @@ export function FixedIncomePicker({ kind, onPick }: { kind: FixedIncomeKind; onP
               className={`${ROW} min-h-14 p-3.5 flex items-start justify-between gap-3`}
             >
               <span className="min-w-0">
-                <span className="block text-sm font-bold text-foreground">{e.nome}</span>
+                <span className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-bold text-foreground">{e.nome}</span>
+                  {e.forEmergencia && (
+                    <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                      Emergência
+                    </span>
+                  )}
+                </span>
                 <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">{e.descricao}</span>
               </span>
               <span className="text-xs font-bold tabular-nums text-foreground shrink-0 text-right">

@@ -28,6 +28,8 @@ export type FixedIncomeEntry = {
   /** Sem data de vencimento (resgate a qualquer hora). */
   noMaturity?: boolean;
   top?: boolean;
+  /** Pode cobrir a reserva de emergência (liquidez diária / Selic). */
+  forEmergencia?: boolean;
 };
 
 export const TESOURO_GROUPS = [
@@ -50,7 +52,18 @@ function tesouro(
   descricao: string,
   top = false,
 ): FixedIncomeEntry {
-  return { id, nome, group, rate_index, rate_value, maturity, descricao, tax_exempt: false, top };
+  return {
+    id,
+    nome,
+    group,
+    rate_index,
+    rate_value,
+    maturity,
+    descricao,
+    tax_exempt: false,
+    top,
+    forEmergencia: rate_index === "selic",
+  };
 }
 
 const RENDA_PLUS: [number, number][] = [
@@ -207,4 +220,9 @@ export function fixedRateLabel(index: RateIndex, value: number): string {
 
 export function isTesouroName(name: string): boolean {
   return /tesouro/i.test(name);
+}
+
+/** Título/aplicação que serve para a reserva de emergência (Selic / Reserva). */
+export function isEmergenciaProductName(name: string): boolean {
+  return /selic|tesouro\s*reserva/i.test(name);
 }

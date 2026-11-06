@@ -3,7 +3,7 @@
 import { useEffect, useState, type ElementType } from "react";
 import { Building2, ChevronRight, Landmark, PiggyBank, TrendingUp, Zap, Shield, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { isTesouroName, type FixedIncomeEntry } from "@/lib/fixed-income-catalog";
+import { isEmergenciaProductName, isTesouroName, type FixedIncomeEntry } from "@/lib/fixed-income-catalog";
 import { FOCUS, LABEL, MONEY, ROW, BackLink } from "@/components/investimentos/live-ui";
 import { AmountSheet, FixedIncomeSheet, StockOrderSheet, type StockOrder } from "@/components/investimentos/live-money-sheets";
 import type { FixedIncomeProduct, MoneySource } from "@/components/investimentos/live-actions";
@@ -88,16 +88,25 @@ function AccountButton({
   subtitle,
   value,
   onClick,
+  badge,
 }: {
   title: string;
   subtitle: string;
   value: number;
   onClick: () => void;
+  badge?: string;
 }) {
   return (
     <button type="button" onClick={onClick} className={`${ROW} min-h-14 p-3.5 flex items-center justify-between gap-3`}>
       <span className="min-w-0">
-        <span className="block text-sm font-bold text-foreground truncate">{title}</span>
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-bold text-foreground truncate">{title}</span>
+          {badge && (
+            <span className="inline-flex shrink-0 items-center rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+              {badge}
+            </span>
+          )}
+        </span>
         <span className="block text-[11px] text-muted-foreground">{subtitle}</span>
       </span>
       <span className={`${MONEY} text-sm shrink-0`}>{formatCurrency(value)}</span>
@@ -244,6 +253,7 @@ export function SimulatorInvestFlow({
                       title={account.nome}
                       subtitle={account.instituicao || SECTION_TITLE[section]}
                       value={account.valor}
+                      badge={section === "tesouro" && isEmergenciaProductName(account.nome) ? "Emergência" : undefined}
                       onClick={() => setAmountTarget({ account, group: SECTION_TITLE[section] })}
                     />
                   ))}
