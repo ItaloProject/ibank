@@ -375,11 +375,18 @@ export function InvestorModeView({
   })();
 
   const heroRingValue = (() => {
-    if (!(incomeGoal > 0)) return { value: "—", suffix: "defina a meta" };
+    if (!(incomeGoal > 0)) return { value: "—", suffix: "defina a meta de renda" };
     if (!path) return { value: "…", suffix: "calculando caminho" };
-    if (capitalReached) return { value: "Pronto", suffix: "capital da meta" };
-    if (path.anoPrevisto) return { value: String(path.anoPrevisto), suffix: path.meses != null ? `em ${monthsLabel(path.meses)}` : "no ritmo atual" };
-    return { value: "100+", suffix: "anos no ritmo atual" };
+    if (capitalReached) return { value: "Pronto", suffix: "patrimônio já cobre a renda" };
+    if (path.meses != null) {
+      return {
+        value: monthsLabel(path.meses),
+        suffix: path.anoPrevisto
+          ? `para gerar ${formatCurrency(incomeGoal)}/mês · ~${path.anoPrevisto}`
+          : `para gerar ${formatCurrency(incomeGoal)}/mês`,
+      };
+    }
+    return { value: "100+ anos", suffix: `para gerar ${formatCurrency(incomeGoal)}/mês neste ritmo` };
   })();
 
   return (
@@ -410,13 +417,23 @@ export function InvestorModeView({
           {incomeGoal > 0 ? (
             <>
               <h2 className="text-2xl sm:text-3xl font-black tracking-tight font-display text-foreground mb-1">
-                {formatCurrency(incomeGoal)}
+                Renda de {formatCurrency(incomeGoal)}
                 <span className="text-base sm:text-lg font-bold text-muted-foreground">/mês</span>
               </h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                {goalDeadlineYear ? <>até <span className="font-bold text-foreground">{goalDeadlineYear}</span></> : "sem prazo definido"}
-                {goalMonthlyContribution > 0 && (
-                  <> · aporte <span className="font-bold tabular-nums text-foreground">{formatCurrency(goalMonthlyContribution)}</span>/mês</>
+              <p className="text-sm text-muted-foreground mb-6 max-w-md">
+                {goalMonthlyContribution > 0 ? (
+                  <>
+                    Com aporte de{" "}
+                    <span className="font-bold tabular-nums text-foreground">{formatCurrency(goalMonthlyContribution)}</span>
+                    /mês, é o tempo para o patrimônio gerar essa renda
+                    {goalDeadlineYear ? <> · prazo {goalDeadlineYear}</> : null}
+                  </>
+                ) : (
+                  <>
+                    Tempo para o patrimônio gerar essa renda
+                    {goalDeadlineYear ? <> · prazo {goalDeadlineYear}</> : null}
+                    {" · "}defina o aporte para estimar
+                  </>
                 )}
               </p>
             </>
@@ -440,15 +457,16 @@ export function InvestorModeView({
           </div>
 
           {incomeGoal > 0 && path && (
-            <p className="text-sm text-muted-foreground mb-4 max-w-md">
+            <p className="text-sm text-muted-foreground mb-4 max-w-md leading-relaxed">
               {capitalReached ? (
-                <>Patrimônio cobre a meta · falta estruturar a carteira para gerar a renda.</>
+                <>Patrimônio já cobre a renda-meta · alinhe a carteira no diagnóstico abaixo.</>
               ) : (
                 <>
-                  <span className="font-bold tabular-nums text-foreground">{capitalProgress.toFixed(0)}%</span>
-                  {" "}do capital necessário (
+                  Falta acumular até{" "}
                   <span className="font-bold tabular-nums text-foreground">{formatCurrency(path.capitalNecessario)}</span>
-                  ) · rendimento real ~{path.rendimentoRealAnualPct.toLocaleString("pt-BR")}% a.a.
+                  {" "}(
+                  <span className="font-bold tabular-nums text-foreground">{capitalProgress.toFixed(0)}%</span>
+                  {" "}já) · rendimento real ~{path.rendimentoRealAnualPct.toLocaleString("pt-BR")}% a.a. na carteira
                 </>
               )}
             </p>
@@ -584,13 +602,13 @@ export function InvestorModeView({
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 text-left">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-2">Chega em</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-2">Renda da meta em</p>
                   <p className="text-2xl font-extrabold tabular-nums text-foreground font-display">
-                    {path.anoPrevisto ?? "—"}
+                    {path.meses != null ? monthsLabel(path.meses) : "—"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {path.meses != null
-                      ? `no aporte atual · ${monthsLabel(path.meses)}`
+                    {path.meses != null && path.anoPrevisto
+                      ? `~${path.anoPrevisto} · com o aporte atual`
                       : goalMonthlyContribution > 0
                         ? "mais de 100 anos neste ritmo"
                         : "defina um aporte mensal"}
