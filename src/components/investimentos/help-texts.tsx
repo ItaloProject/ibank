@@ -3,10 +3,21 @@ import { HelpTip } from "@/components/ui/help-tip";
 export function TipoCaixinhaHelp() {
   return (
     <HelpTip label="tipo de caixinha">
-      <strong>Turbo</strong>: conta remunerada com rendimento acima do CDI, geralmente até um limite de saldo.{" "}
-      <strong>Emergência</strong>: dinheiro guardado para imprevistos, com resgate imediato.{" "}
+      <strong>Turbo</strong>: conta remunerada acima do CDI, em geral até um teto de saldo.{" "}
+      <strong>Emergência</strong>: registro da reserva para imprevistos — o produto certo é{" "}
+      <strong>Tesouro Selic</strong> ou <strong>CDB 100% do CDI com liquidez diária</strong> (evite poupança).{" "}
       <strong>Renda fixa / Investimentos</strong>: CDB, LCI, Tesouro e outras aplicações com taxa contratada.
       O tipo define onde a caixinha aparece e como o app calcula o rendimento.
+    </HelpTip>
+  );
+}
+
+export function ReservaEmergenciaHelp() {
+  return (
+    <HelpTip label="reserva de emergência">
+      Use <strong>Tesouro Selic</strong> ou <strong>CDB 100% do CDI com liquidez diária</strong>.
+      Com a Selic alta, esses produtos costumam render mais que a poupança mesmo depois do Imposto de Renda.
+      A caixinha Emergência no MUVO só organiza o saldo — não deixe a reserva na poupança.
     </HelpTip>
   );
 }

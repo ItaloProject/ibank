@@ -11,7 +11,8 @@ import type { GoalProjection } from "@/lib/goal-projection";
 export type InvestSection = "hub" | "acoes" | "fiis" | "tesouro" | "rendafixa" | "turbo" | "eme";
 
 export const BUCKET_SECTION: Record<Bucket, InvestSection> = {
-  reserva: "eme",
+  // Reserva: produto certo é Tesouro Selic (ou CDB diário). A caixinha Emergência só registra o saldo.
+  reserva: "tesouro",
   pos: "rendafixa",
   inflacao: "tesouro",
   prefixado: "tesouro",
@@ -26,10 +27,10 @@ export const SECTION_LABEL: Record<InvestSection, string> = {
   hub: "Investir",
   acoes: "ações",
   fiis: "fundos imobiliários",
-  tesouro: "Tesouro Direto",
+  tesouro: "Tesouro Selic",
   rendafixa: "renda fixa",
   turbo: "Caixinha Turbo",
-  eme: "Reserva de emergência",
+  eme: "caixinha Emergência",
 };
 
 /** Ação que o assistente pode oferecer como botão. */
@@ -51,7 +52,7 @@ const SECTION_SHORT: Record<InvestSection, string> = {
   hub: "Investir",
   acoes: "ações",
   fiis: "FIIs",
-  tesouro: "Tesouro",
+  tesouro: "Tesouro Selic",
   rendafixa: "renda fixa",
   turbo: "Turbo",
   eme: "Emergência",

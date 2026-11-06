@@ -213,7 +213,7 @@ export function SimulatorInvestFlow({
           />
           <DestCard
             title="Reserva de emergência"
-            subtitle="Dinheiro guardado para imprevistos"
+            subtitle="Tesouro Selic / CDB diário — não poupança"
             icon={Shield}
             onClick={() => onSectionChange("eme")}
           />
@@ -282,7 +282,7 @@ export function SimulatorInvestFlow({
 
           {section === "eme" && emergenciaAccounts.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-6 px-2 leading-relaxed">
-              A reserva fica numa caixinha Emergência (liquidez). Tesouro Selic entra depois, em pós-fixado.
+              Crie a caixinha para registrar a reserva. O dinheiro em si deve estar em Tesouro Selic ou CDB 100% CDI com liquidez diária — não em poupança.
             </p>
           )}
           {section === "eme" &&
@@ -290,7 +290,7 @@ export function SimulatorInvestFlow({
               <AccountButton
                 key={account.id}
                 title={account.nome}
-                subtitle={account.instituicao || "Reserva de emergência"}
+                subtitle={account.instituicao || "Tesouro Selic / CDB diário"}
                 value={account.valor}
                 onClick={() => setAmountTarget({ account, group: "Reserva de emergência" })}
               />

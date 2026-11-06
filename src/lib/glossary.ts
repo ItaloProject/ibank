@@ -168,8 +168,8 @@ export const TERMS: Term[] = [
     name: "Poupança",
     category: "Renda fixa",
     aliases: ["poupanca", "caderneta de poupanca"],
-    text: "A aplicação mais conhecida do país: isenta de Imposto de Renda e coberta pelo FGC, mas costuma render menos que o Tesouro Selic e CDBs de 100% do CDI.",
-    related: ["tesouro-selic", "cdb"],
+    text: "A aplicação mais conhecida do país: isenta de Imposto de Renda e coberta pelo FGC. Com a Selic alta, costuma render menos que o Tesouro Selic e CDBs de 100% do CDI com liquidez diária — por isso não é a escolha do MUVO para a reserva de emergência.",
+    related: ["tesouro-selic", "cdb", "reserva-emergencia"],
   },
   {
     id: "liquidez",
@@ -230,9 +230,13 @@ export const TERMS: Term[] = [
     name: "Reserva de emergência",
     category: "Estratégia e risco",
     aliases: ["reserva de emergencia", "reserva emergencial", "fundo de emergencia"],
-    text: "Dinheiro equivalente a 6 a 12 meses do seu custo de vida, guardado em investimentos de altíssima liquidez e baixo risco, como Tesouro Selic ou CDB de liquidez diária. É só para imprevistos, como perda de emprego ou problemas de saúde.",
-    points: [{ label: "Primeiro passo", value: "Monte a reserva antes de partir para investimentos de mais risco." }],
-    related: ["tesouro-selic", "liquidez"],
+    text: "Dinheiro equivalente a 6 a 12 meses do seu custo de vida, guardado em investimentos de altíssima liquidez e baixo risco. No MUVO, o produto indicado é Tesouro Selic ou CDB 100% do CDI com liquidez diária — não poupança. É só para imprevistos, como perda de emprego ou problemas de saúde.",
+    points: [
+      { label: "Onde aplicar", value: "Tesouro Selic ou CDB 100% CDI liquidez diária." },
+      { label: "Evite", value: "Poupança, títulos sem liquidez e qualquer renda variável." },
+      { label: "Primeiro passo", value: "Monte a reserva antes de partir para investimentos de mais risco." },
+    ],
+    related: ["tesouro-selic", "liquidez", "poupanca", "cdb"],
   },
   {
     id: "diversificacao",

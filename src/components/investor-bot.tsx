@@ -181,7 +181,7 @@ function rebalReply(a: AnalysisPayload): Msg {
     if (primeiroReserva) {
       blocks.push({
         kind: "text",
-        text: "A reserva no MUVO fica na **caixinha Emergência** (dinheiro líquido). Tesouro Selic/CDI entram depois, em pós-fixado — não substituem a reserva.",
+        text: "Na reserva, use **Tesouro Selic** ou **CDB 100% do CDI com liquidez diária** — **não use poupança**. Depois registre o saldo na caixinha Emergência do LIVE.",
       });
     }
     blocks.push({
@@ -191,21 +191,21 @@ function rebalReply(a: AnalysisPayload): Msg {
     blocks.push({
       kind: "text",
       muted: true,
-      text: `Aporte ${APORTE_ORIGEM[a.aporteOrigem]}. Toque no botão para abrir a caixinha certa no LIVE.`,
+      text: `Aporte ${APORTE_ORIGEM[a.aporteOrigem]}. Toque no botão para abrir o produto certo no LIVE.`,
     });
   } else if (!reservaOk) {
     blocks.push({
       kind: "alert",
       tone: "warn",
-      text: `Prioridade: reforçar a caixinha Emergência em ${formatCurrency(faltaReserva)}.`,
+      text: `Prioridade: completar a reserva em ${formatCurrency(faltaReserva)}.`,
     });
     blocks.push({
       kind: "text",
-      text: "Crie ou use a **caixinha Emergência**. Tesouro Selic é pós-fixado — entra no plano depois que a reserva estiver completa.",
+      text: "Aplique em **Tesouro Selic** (ou CDB 100% CDI liquidez diária). Poupança rende menos. No MUVO, anote o valor na caixinha Emergência.",
     });
     blocks.push({
       kind: "actions",
-      items: [{ kind: "investir", section: "eme", amount: Math.min(plan.aporte || faltaReserva, faltaReserva) }],
+      items: [{ kind: "investir", section: "tesouro", amount: Math.min(plan.aporte || faltaReserva, faltaReserva) }],
     });
   } else if (prioridades.length > 0) {
     blocks.push({

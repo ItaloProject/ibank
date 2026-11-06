@@ -36,13 +36,13 @@ describe("plan-view", () => {
 
   it("extrai ações da resposta da IA e descarta as inválidas", () => {
     const { text, actions } = extractActions(
-      "Aplique na reserva.\n<<investir:eme:500>>\n<<vender:PTR4>>\n<<vender:XPTO3>>\n<<investir:cripto:10>>",
+      "Aplique na reserva.\n<<investir:tesouro:500>>\n<<vender:PTR4>>\n<<vender:XPTO3>>\n<<investir:cripto:10>>",
       ["PTR4"],
     );
     expect(text).toBe("Aplique na reserva.");
-    expect(actions).toEqual([{ kind: "investir", section: "eme", amount: 500 }, { kind: "vender", ticker: "PTR4" }]);
-    expect(actionHref(actions[0])).toBe("/investimentos?investir=eme&valor=500");
-    expect(actionLabel(actions[0])).toMatch(/^Aplicar R\$\s?500 · Emergência$/);
+    expect(actions).toEqual([{ kind: "investir", section: "tesouro", amount: 500 }, { kind: "vender", ticker: "PTR4" }]);
+    expect(actionHref(actions[0])).toBe("/investimentos?investir=tesouro&valor=500");
+    expect(actionLabel(actions[0])).toMatch(/^Aplicar R\$\s?500 · Tesouro Selic$/);
     const perfil = extractActions("Dá para migrar aos poucos.\n<<perfil:agressivo>>\n<<perfil:ousado>>", []);
     expect(perfil.text).toBe("Dá para migrar aos poucos.");
     expect(perfil.actions).toEqual([{ kind: "perfil", to: "arrojado" }]);
