@@ -1,18 +1,12 @@
 "use client";
 
-import { useId, type CSSProperties, type PointerEvent } from "react";
+import type { CSSProperties } from "react";
 import "./live-icons-3d.css";
 
 export type Icon3DKind = "overview" | "wallet" | "calculator" | "rebalance";
 
-/** Uma cópia frontal e as demais empilhadas em profundidade, o que dá volume ao símbolo. */
-const LAYERS = 11;
-const STEP_PX = 2;
-
-const REST = { rx: 10, ry: -12 };
-const TILT_RANGE = 15;
-
-function Shapes({ kind, fill }: { kind: Icon3DKind; fill: string }) {
+function Shapes({ kind }: { kind: Icon3DKind }) {
+  const fill = "currentColor";
   switch (kind) {
     case "overview":
       return (
@@ -31,7 +25,7 @@ function Shapes({ kind, fill }: { kind: Icon3DKind; fill: string }) {
             <rect className="l3d-cut" x="21" y="11" width="14" height="3.2" rx="1.6" transform="rotate(-7 31 16)" />
           </g>
           <rect x="5" y="17" width="52" height="41" rx="11" fill={fill} />
-          <rect className="l3d-edge" x="41" y="30" width="20" height="16" rx="8" fill={fill} />
+          <rect x="41" y="30" width="20" height="16" rx="8" fill={fill} />
           <circle className="l3d-part l3d-dot l3d-cut" cx="50" cy="38" r="2.6" />
         </>
       );
@@ -41,13 +35,13 @@ function Shapes({ kind, fill }: { kind: Icon3DKind; fill: string }) {
           <rect x="29" y="12" width="6" height="42" rx="3" fill={fill} />
           <rect x="15" y="51" width="34" height="9" rx="4.5" fill={fill} />
           <g className="l3d-beam">
-            <rect className="l3d-edge" x="6" y="16.5" width="52" height="5" rx="2.5" fill={fill} />
+            <rect x="6" y="16.5" width="52" height="5" rx="2.5" fill={fill} />
             <rect x="15" y="22" width="2" height="12" fill={fill} />
             <rect x="47" y="22" width="2" height="12" fill={fill} />
             <path d="M4.5 34 H27.5 A11.5 11.5 0 0 1 4.5 34 Z" fill={fill} />
             <path d="M36.5 34 H59.5 A11.5 11.5 0 0 1 36.5 34 Z" fill={fill} />
           </g>
-          <circle className="l3d-edge" cx="32" cy="10" r="5" fill={fill} />
+          <circle cx="32" cy="10" r="5" fill={fill} />
         </>
       );
     case "calculator":
@@ -65,7 +59,7 @@ function Shapes({ kind, fill }: { kind: Icon3DKind; fill: string }) {
               width="8.2"
               height="7.6"
               rx="2.6"
-              style={{ "--d": `${(n * 0.11).toFixed(2)}s` } as CSSProperties}
+              style={{ "--d": `${(n * 0.09).toFixed(2)}s` } as CSSProperties}
             />
           ))}
         </>
@@ -73,73 +67,25 @@ function Shapes({ kind, fill }: { kind: Icon3DKind; fill: string }) {
   }
 }
 
-function resetTilt(el: HTMLElement) {
-  el.removeAttribute("data-tracking");
-  for (const p of ["--rx", "--ry", "--mx", "--my"]) el.style.removeProperty(p);
-}
-
 /**
- * Ícone 3D do menu do Live: a placa e o símbolo inclinam seguindo o cursor, o brilho acompanha a
- * luz e, ao passar o mouse, o símbolo sobe da placa e faz a sua própria animação.
+ * Ícone 2D do menu do Live: placa plana, símbolo flat e feedback de hover/clique.
+ * Mantém o nome Icon3D por compatibilidade com as telas mobile/desktop.
  */
 export function Icon3D({ kind, label, index, onSelect }: { kind: Icon3DKind; label: string; index: number; onSelect: () => void }) {
-  const gradientId = `l3d-${useId().replace(/:/g, "")}`;
-
-  function onMove(e: PointerEvent<HTMLButtonElement>) {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const el = e.currentTarget;
-    const box = el.getBoundingClientRect();
-    const nx = Math.max(-1, Math.min(1, ((e.clientX - box.left) / box.width) * 2 - 1));
-    const ny = Math.max(-1, Math.min(1, ((e.clientY - box.top) / box.height) * 2 - 1));
-    el.setAttribute("data-tracking", "");
-    el.style.setProperty("--ry", `${(REST.ry + nx * TILT_RANGE).toFixed(1)}deg`);
-    el.style.setProperty("--rx", `${(REST.rx - ny * TILT_RANGE).toFixed(1)}deg`);
-    el.style.setProperty("--mx", `${((nx + 1) * 50).toFixed(0)}%`);
-    el.style.setProperty("--my", `${((ny + 1) * 50).toFixed(0)}%`);
-  }
-
   return (
     <button
       type="button"
       className="l3d"
       aria-label={label}
       onClick={onSelect}
-      onPointerMove={onMove}
-      onPointerLeave={(e) => resetTilt(e.currentTarget)}
-      onBlur={(e) => resetTilt(e.currentTarget)}
       style={{ "--i": index } as CSSProperties}
     >
       <span className="l3d-float" aria-hidden="true">
         <span className="l3d-scene">
-          <span className="l3d-shadow" />
-          <span className="l3d-slab l3d-slab--back" />
-          <span className="l3d-slab l3d-slab--mid" />
-          <span className="l3d-slab l3d-slab--top">
-            <span className="l3d-glare" />
-          </span>
-          <span className="l3d-cast" />
           <span className="l3d-glyph">
-            {Array.from({ length: LAYERS }, (_, n) => (
-              <svg
-                key={n}
-                className="l3d-layer"
-                viewBox="0 0 64 64"
-                style={{
-                  transform: `translateZ(${(-n * STEP_PX).toFixed(1)}px)`,
-                  color: `color-mix(in srgb, hsl(var(--foreground)) ${Math.max(16, 58 - n * 5)}%, hsl(var(--card)))`,
-                }}
-              >
-                {n === 0 && (
-                  <defs>
-                    <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1="8" y1="4" x2="56" y2="62">
-                      <stop offset="0" style={{ stopColor: "hsl(var(--foreground))" }} />
-                      <stop offset="1" style={{ stopColor: "color-mix(in srgb, hsl(var(--foreground)) 60%, hsl(var(--card)))" }} />
-                    </linearGradient>
-                  </defs>
-                )}
-                <Shapes kind={kind} fill={n === 0 ? `url(#${gradientId})` : "currentColor"} />
-              </svg>
-            ))}
+            <svg viewBox="0 0 64 64">
+              <Shapes kind={kind} />
+            </svg>
           </span>
         </span>
       </span>
