@@ -171,5 +171,69 @@ export function matchLocalPortfolio(question: string, ctx: LocalPortfolio): Loca
     };
   }
 
+  // Reserva: Tesouro Selic vs CDB diário (e “não use poupança”) — resposta pronta, sem IA.
+  const reservaChoice = matchReservaProductChoice(t);
+  if (reservaChoice) return reservaChoice;
+
+  return null;
+}
+
+/** Escolha objetiva para a reserva de emergência: Selic, CDB diário ou poupança. */
+export function matchReservaProductChoice(normalizedQuestion: string): LocalHit | null {
+  const t = normalizedQuestion;
+  const mentionsSelic = /tesouro selic|\bselic\b/.test(t);
+  const mentionsCdb = /\bcdb\b/.test(t);
+  const mentionsPoupanca = /poupanca|caderneta/.test(t);
+  const asksChoice =
+    /qual|o que (eu )?(uso|utilizo|escolho|pego)|melhor|ou |vs|versus|em vez|no lugar|reserv/.test(t) ||
+    /liquidez diari/.test(t);
+
+  if (!asksChoice) return null;
+  if (!(mentionsSelic || mentionsCdb || mentionsPoupanca)) return null;
+  // Evita engolir perguntas só de definição (“o que é CDB?”).
+  if (/^o que e\b|^o que sao\b|^o que significa\b|^explica\b|^me explica\b/.test(t) && !/ou |melhor|qual /.test(t)) {
+    return null;
+  }
+
+  if (mentionsPoupanca && !(mentionsSelic || mentionsCdb)) {
+    return {
+      kind: "text",
+      text:
+        "**Não use poupança na reserva.** Com a Selic alta ela rende menos que **Tesouro Selic** ou **CDB 100% do CDI com liquidez diária**, mesmo depois do Imposto de Renda.\n\n" +
+        "No MUVO: aplique no Selic/CDB e registre o saldo na caixinha **Emergência**.",
+      followups: ["rebal", "visao"],
+    };
+  }
+
+  if (mentionsSelic && mentionsCdb) {
+    return {
+      kind: "text",
+      text:
+        "Para a **reserva de emergência**, os dois servem — desde que o CDB tenha **liquidez diária** (ou D+1) e pague cerca de **100% do CDI**.\n\n" +
+        "- **Tesouro Selic:** mais seguro (Tesouro Nacional), resgate em dia útil. Escolha padrão do MUVO se o banco não tiver CDB diário bom.\n" +
+        "- **CDB 100% CDI liquidez diária:** rendimento parecido; use se for o mais fácil de sacar no seu banco (até R$ 250 mil pelo Fundo Garantidor de Créditos).\n\n" +
+        "**Não use poupança.** Depois de aplicar, anote o valor na caixinha **Emergência** do LIVE.",
+      followups: ["rebal", "visao"],
+    };
+  }
+
+  if (mentionsSelic) {
+    return {
+      kind: "text",
+      text:
+        "**Tesouro Selic** é a escolha padrão do MUVO para a reserva: acompanha a Selic, resgata rápido e é garantia do Tesouro. Alternativa equivalente: **CDB 100% do CDI com liquidez diária**. Evite poupança.",
+      followups: ["rebal", "visao"],
+    };
+  }
+
+  if (mentionsCdb) {
+    return {
+      kind: "text",
+      text:
+        "Para a reserva, o CDB precisa ter **liquidez diária** (ou D+1) e preferencialmente **100% do CDI**. Se o seu banco não tiver isso, use **Tesouro Selic**. Poupança não é indicada.",
+      followups: ["rebal", "visao"],
+    };
+  }
+
   return null;
 }

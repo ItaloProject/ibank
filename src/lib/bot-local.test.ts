@@ -58,4 +58,18 @@ describe("matchLocalPortfolio", () => {
       intent: "rebal",
     });
   });
+
+  it("responde Tesouro Selic vs CDB na reserva sem cair no menu genérico", () => {
+    const hit = matchLocalPortfolio("Qual eu utilizo Tesouro Selic ou CDB com liquidez diaria?", ctx);
+    expect(hit?.kind).toBe("text");
+    if (hit?.kind === "text") {
+      expect(hit.text).toMatch(/Tesouro Selic/i);
+      expect(hit.text).toMatch(/CDB/i);
+      expect(hit.text).toMatch(/[Nn]ão use poupança|Evite poupança|não é indicada/);
+    }
+
+    const poup = matchLocalPortfolio("vale a pena deixar a reserva na poupança?", ctx);
+    expect(poup?.kind).toBe("text");
+    if (poup?.kind === "text") expect(poup.text).toMatch(/Não use poupança/i);
+  });
 });
