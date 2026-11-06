@@ -178,7 +178,13 @@ export function planScore(plan: RebalancePlan): number {
 function suggestionInsight(s: Suggestion, plan: RebalancePlan): PlanInsight {
   if (s.id === "reserva") {
     const critico = plan.reserva.atual < plan.reserva.alvo * 0.5;
-    return { level: critico ? "critical" : "warning", title: s.titulo, detail: s.detalhe, section: "eme", actionLabel: "Aplicar na reserva" };
+    return {
+      level: critico ? "critical" : "warning",
+      title: s.titulo,
+      detail: s.detalhe,
+      section: BUCKET_SECTION.reserva,
+      actionLabel: "Aplicar no Tesouro Selic",
+    };
   }
   if (s.id === "caixa") return { level: "warning", title: s.titulo, detail: s.detalhe, section: "hub", actionLabel: "Investir o saldo" };
   if (s.id.startsWith("turbo-")) return { level: "warning", title: s.titulo, detail: s.detalhe, section: "rendafixa", actionLabel: "Ver renda fixa" };
