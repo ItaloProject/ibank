@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { X, Plus, Wallet, LayoutDashboard, Calculator } from "lucide-react";
 import { Icon3D } from "@/components/investimentos/live-icons-3d";
+import { LayoutGridIcon } from "@/components/icons/layout-grid";
+import { WalletIcon } from "@/components/icons/wallet";
+import { GaugeIcon } from "@/components/icons/gauge";
 import { HoldingsPanel } from "@/components/investimentos/live-holdings-panel";
 import { PlanLeftoverOffer } from "@/components/investimentos/plan-leftover-offer";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -333,9 +336,9 @@ export function InvestorLiveViewDesktop({
 
   /* ── Tabs ─────────────────────────────────────────────────────── */
   const tabs = [
-    { id: "inicio" as const, label: "Visão geral", short: "Visão", kind: "overview" as const, icon: LayoutDashboard },
-    { id: "investimentos" as const, label: "Investimentos", short: "Carteira", kind: "wallet" as const, icon: Wallet },
-    { id: "simular" as const, label: "Simulador", short: "Simular", kind: "calculator" as const, icon: Calculator },
+    { id: "inicio" as const, label: "Visão geral", short: "Visão", icon: LayoutDashboard, menuIcon: LayoutGridIcon },
+    { id: "investimentos" as const, label: "Investimentos", short: "Carteira", icon: Wallet, menuIcon: WalletIcon },
+    { id: "simular" as const, label: "Simulador", short: "Simular", icon: Calculator, menuIcon: GaugeIcon },
   ];
 
   function openMarket(section: MarketSection) {
@@ -464,7 +467,7 @@ export function InvestorLiveViewDesktop({
             <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
               {tabs.map((t, i) => (
                 <li key={t.id}>
-                  <Icon3D icon={t.icon} label={t.label} index={i} onSelect={() => setTab(t.id)} />
+                  <Icon3D icon={t.menuIcon} label={t.label} index={i} onSelect={() => setTab(t.id)} />
                 </li>
               ))}
             </ul>

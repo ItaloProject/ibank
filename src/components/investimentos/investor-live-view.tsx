@@ -30,6 +30,10 @@ import {
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 import { BankPicker } from "@/components/investimentos/bank-picker";
 import { Icon3D } from "@/components/investimentos/live-icons-3d";
+import { LayoutGridIcon } from "@/components/icons/layout-grid";
+import { WalletIcon } from "@/components/icons/wallet";
+import { GaugeIcon } from "@/components/icons/gauge";
+import { SlidersHorizontalIcon } from "@/components/icons/sliders-horizontal";
 import { InicialShortcuts, SimChart, SimLegend, SimParam, SimRateParam, simRateText, useSimulation } from "@/components/investimentos/sim-controls";
 import { liveBotContext } from "@/components/investimentos/live-bot-context";
 import { useBotPageContext } from "@/lib/bot-page-context";
@@ -853,10 +857,10 @@ export function InvestorLiveView({
   );
 
   const LIVE_TABS = [
-    { id: "inicio" as const, label: "Visão geral", short: "Início", icon: Home, kind: "overview" as const },
-    { id: "investimentos" as const, label: "Investimentos", short: "Investir", icon: Wallet, kind: "wallet" as const },
-    { id: "rebalancear" as const, label: "Rebalancear", short: "Rebalancear", icon: Scale, kind: "rebalance" as const },
-    { id: "simular" as const, label: "Simulador", short: "Simular", icon: Calculator, kind: "calculator" as const },
+    { id: "inicio" as const, label: "Visão geral", short: "Início", icon: Home, menuIcon: LayoutGridIcon },
+    { id: "investimentos" as const, label: "Investimentos", short: "Investir", icon: Wallet, menuIcon: WalletIcon },
+    { id: "rebalancear" as const, label: "Rebalancear", short: "Rebalancear", icon: Scale, menuIcon: SlidersHorizontalIcon },
+    { id: "simular" as const, label: "Simulador", short: "Simular", icon: Calculator, menuIcon: GaugeIcon },
   ];
 
   return (
@@ -907,7 +911,7 @@ export function InvestorLiveView({
               <ul className="grid grid-cols-2 place-items-center gap-x-1 gap-y-2">
                 {LIVE_TABS.map((t, i) => (
                   <li key={t.id}>
-                    <Icon3D icon={t.icon} label={t.label} index={i} onSelect={() => goToTab(t.id)} />
+                    <Icon3D icon={t.menuIcon} label={t.label} index={i} onSelect={() => goToTab(t.id)} />
                   </li>
                 ))}
               </ul>

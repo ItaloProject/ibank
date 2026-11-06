@@ -1,4 +1,4 @@
-/* Tiles do menu MUVO Live: Lucide + label, hover/clique. Só tokens do tema. */
+/* Tiles do menu MUVO Live + lucide-animated. Só tokens do tema. */
 
 .l3d {
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -64,27 +64,18 @@
 .l3d-glyph {
   display: grid;
   place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
   color: hsl(var(--foreground) / 0.9);
-  transition: transform 200ms var(--ease), color 180ms var(--ease);
-}
-
-.l3d-glyph svg {
-  width: 100%;
-  height: 100%;
+  transition: color 180ms var(--ease);
 }
 
 .l3d:is(:hover, :focus-visible) .l3d-glyph {
   color: hsl(var(--foreground));
-  transform: translateY(-2px);
-  animation: l3d-nudge 1.4s var(--ease) infinite;
 }
 
-.l3d:active .l3d-glyph {
-  transform: translateY(1px) scale(0.96);
-  animation: none;
-  transition-duration: 90ms;
+.l3d-glyph-icon {
+  display: grid;
+  place-items: center;
+  line-height: 0;
 }
 
 .l3d-label {
@@ -117,21 +108,12 @@
   from { opacity: 0; transform: translateY(12px) scale(0.97); }
 }
 
-@keyframes l3d-nudge {
-  0%, 100% { transform: translateY(-2px); }
-  50% { transform: translateY(-5px); }
-}
-
 @media (max-width: 640px) {
   .l3d {
     --size: 6.75rem;
     width: 8.25rem;
     gap: 0.65rem;
     padding: 0.5rem 0 0.25rem;
-  }
-  .l3d-glyph {
-    width: 2.25rem;
-    height: 2.25rem;
   }
   .l3d-label {
     font-size: 0.8125rem;
@@ -140,7 +122,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .l3d,
-  .l3d *,
   .l3d-float {
     animation: none !important;
     transition-duration: 0.01ms !important;

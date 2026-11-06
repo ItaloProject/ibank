@@ -1,15 +1,22 @@
 "use client";
 
-import type { CSSProperties } from "react";
-import type { LucideIcon } from "lucide-react";
+import { useRef, type CSSProperties, type ForwardRefExoticComponent, type RefAttributes } from "react";
 import "./live-icons-3d.css";
 
-/** Mantido só para tipos antigos; o menu passa o ícone Lucide direto. */
 export type Icon3DKind = "overview" | "wallet" | "calculator" | "rebalance";
 
+type AnimatedIconHandle = {
+  startAnimation: () => void;
+  stopAnimation: () => void;
+};
+
+type AnimatedIcon = ForwardRefExoticComponent<
+  { size?: number; className?: string } & RefAttributes<AnimatedIconHandle>
+>;
+
 /**
- * Tile do menu do Live: ícone Lucide (mesmo traço do restante do app),
- * label sempre visível e feedback de hover/clique.
+ * Tile do menu Live com ícone animado (lucide-animated / Motion).
+ * Spell.sh não tem pack de ícones — usamos a lib animada baseada em Lucide + Motion.
  */
 export function Icon3D({
   icon: Icon,
@@ -17,23 +24,27 @@ export function Icon3D({
   index,
   onSelect,
 }: {
-  icon: LucideIcon;
+  icon: AnimatedIcon;
   label: string;
   index: number;
   onSelect: () => void;
 }) {
+  const iconRef = useRef<AnimatedIconHandle>(null);
+
   return (
     <button
       type="button"
       className="l3d"
       aria-label={label}
       onClick={onSelect}
+      onPointerEnter={() => iconRef.current?.startAnimation()}
+      onPointerLeave={() => iconRef.current?.stopAnimation()}
       style={{ "--i": index } as CSSProperties}
     >
       <span className="l3d-float" aria-hidden="true">
         <span className="l3d-scene">
           <span className="l3d-glyph">
-            <Icon strokeWidth={1.75} absoluteStrokeWidth={false} aria-hidden="true" />
+            <Icon ref={iconRef} size={44} className="l3d-glyph-icon" />
           </span>
         </span>
       </span>
