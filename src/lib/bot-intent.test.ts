@@ -22,6 +22,10 @@ describe("detectIntent", () => {
     expect(detectIntent("quando chego na meta?")).toBe("meta");
     expect(detectIntent("quanto falta pra minha meta?")).toBe("meta");
     expect(detectIntent("onde aportar este mês?")).toBe("rebal");
+    expect(detectIntent("Onde devo investir esse mês?")).toBe("rebal");
+    expect(detectIntent("onde investir hoje?")).toBe("rebal");
+    expect(detectIntent("o que posso aplicar agora?")).toBe("rebal");
+    expect(detectIntent("como investir em ações?")).toBe("help");
   });
 
   it("mudar para um perfil citado abre o caminho de transição", () => {

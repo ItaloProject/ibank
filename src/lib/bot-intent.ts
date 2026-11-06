@@ -28,7 +28,16 @@ export function keywordIntent(raw: string): Intent | null {
   if (/perfil|conservador|moderado|arrojado|agressivo/.test(t)) return "perfil";
   if (/aviso|alerta/.test(t)) return "avisos";
   if (/\bfiis?\b|fundos? imobili/.test(t)) return "fiis";
-  if (/rebalanc|rebalanse|equilibr|onde aportar|aloca/.test(t)) return "rebal";
+  // Plano de aporte/rebalanceamento — inclui “onde investir este mês/hoje”, sem virar tip de mercado.
+  if (
+    /rebalanc|rebalanse|equilibr|aloca/.test(t) ||
+    /onde (devo |posso )?(aportar|investir|aplicar|colocar)/.test(t) ||
+    /(o que|oque) (devo |posso )?(aportar|investir|aplicar)/.test(t) ||
+    /(aportar|investir|aplicar).{0,24}(este|esse|nesta|nessa|hoje|agora|neste|nesse).{0,12}(mes|mês|semana)?/.test(t) ||
+    /(este|esse|neste|nesse) mes.{0,20}(aportar|investir|aplicar)/.test(t)
+  ) {
+    return "rebal";
+  }
   if (/^(visao|resumo|diagnostico|score|minha carteira)/.test(t)) return "visao";
   return null;
 }
@@ -37,7 +46,7 @@ const QUESTION = /\?\s*$|^(o que|oque|como|por ?que|pq|qual|quais|quanto|quando|
 
 /** Perguntas que as respostas prontas respondem melhor que a IA (números já calculados). */
 const TEMPLATE_QUESTION =
-  /quanto falta|qnto falta|quando chego|que ano chego|onde aportar|tenho (algum )?aviso|tem (algum )?(aviso|alerta)|avisos?\b|alerta|como rebalanc|equilibrar|alocar|fundos? imobili|\bfiis?\b|manda no (zap|wpp|whats)|baixar|gera o pdf|meu pdf/;
+  /quanto falta|qnto falta|quando chego|que ano chego|onde (devo |posso )?(aportar|investir|aplicar|colocar)|(o que|oque) (devo |posso )?(aportar|investir|aplicar)|(aportar|investir|aplicar).{0,24}(este|esse|hoje|agora)|tenho (algum )?aviso|tem (algum )?(aviso|alerta)|avisos?\b|alerta|como rebalanc|equilibrar|alocar|fundos? imobili|\bfiis?\b|manda no (zap|wpp|whats)|baixar|gera o pdf|meu pdf/;
 
 /**
  * Atalhos para pedidos curtos e diretos ("rebalancear", "meu PDF"); perguntas e mensagens longas vão para a IA ("help").
