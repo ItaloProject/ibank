@@ -140,8 +140,6 @@ const APORTE_ORIGEM: Record<AnalysisPayload["aporteOrigem"], string> = {
   media: "sua média dos últimos 6 meses",
   padrao: "valor de referência; defina o aporte no topo de Metas",
 };
-const PRIORIDADE: Record<"alta" | "media" | "baixa", string> = { alta: "Prioridade alta", media: "Prioridade média", baixa: "Quando puder" };
-
 function rebalReply(a: AnalysisPayload): Msg {
   const plan = a.plan;
   const id = uid();
@@ -149,60 +147,87 @@ function rebalReply(a: AnalysisPayload): Msg {
     return {
       id, role: "bot", followups: ["perfil", "visao"],
       blocks: [
-        { kind: "heading", text: "Rebalanceamento" },
-        { kind: "text", text: "Ainda não encontrei investimentos cadastrados. Registre suas contas e ativos no MUVO LIVE e eu monto o plano." },
+        { kind: "heading", text: "Como rebalancear" },
+        { kind: "text", text: "Ainda não encontrei investimentos cadastrados. Registre contas e ativos no MUVO LIVE e eu monto o passo a passo." },
       ],
     };
   }
   const perfil = RISK_PROFILES[a.profile].label;
   const reservaOk = plan.reserva.atual >= plan.reserva.alvo - 1;
+  const faltaReserva = Math.max(0, plan.reserva.alvo - plan.reserva.atual);
   const comAlocacao = alocacaoRelevante(plan);
+  const foraDoAlvo = plan.buckets.filter((b) => Math.abs(b.pct - b.alvoPct) >= 2);
+  const prioridades = plan.sugestoes.filter((s) => s.prioridade === "alta").slice(0, 3);
+
+  const diagnostico = !reservaOk
+    ? `Reserva em ${formatCurrency(plan.reserva.atual)} de ${formatCurrency(plan.reserva.alvo)} — faltam ${formatCurrency(faltaReserva)}. Complete isso antes de espalhar aporte.`
+    : comAlocacao
+      ? `Perfil ${perfil.toLowerCase()}: ${pct(plan.desvio)} da parte investida está fora do alvo. Sem vender — o aporte novo corrige.`
+      : `Reserva ok. Com ${formatCurrency(plan.investido)} fora dela, ainda é cedo para mirar percentuais; foque em aportar com constância.`;
+
   const blocks: Block[] = [
-    { kind: "heading", text: `Rebalanceamento · perfil ${perfil.toLowerCase()}` },
-    {
-      kind: "stats",
-      items: [
-        { label: "Patrimônio", value: formatCurrency(plan.total) },
-        { label: "Rende em 12 meses", value: pct(plan.retorno12m, 2), hint: "esperado, já sem Imposto de Renda" },
-        {
-          label: "Reserva",
-          value: formatCurrency(plan.reserva.atual),
-          hint: `de ${formatCurrency(plan.reserva.alvo)}${plan.reserva.baseadaEmGastos ? ` · ${plan.reserva.meses} meses de gastos` : ""}`,
-          tone: reservaOk ? "pos" : "warn",
-        },
-        { label: "Fora da reserva", value: formatCurrency(plan.investido), hint: comAlocacao ? `${pct(plan.desvio)} fora do alvo` : "base da alocação por perfil" },
-      ],
-    },
-    comAlocacao
-      ? { kind: "bars", title: `Fora da reserva (${formatCurrency(plan.investido)}) · atual e alvo`, items: plan.buckets.map((b) => ({ label: b.label, atual: b.pct, ideal: b.alvoPct })) }
-      : { kind: "text", muted: true, text: `Com ${formatCurrency(plan.investido)} fora da reserva, ainda não faz sentido comparar percentuais com o perfil. Primeiro complete a reserva; depois os aportes seguem a alocação-alvo.` },
+    { kind: "heading", text: `Faça assim · ${perfil.toLowerCase()}` },
+    { kind: "text", text: diagnostico },
   ];
+
   if (plan.plano.length > 0) {
     blocks.push({
       kind: "list",
-      title: `Onde aportar ${formatCurrency(plan.aporte)} este mês`,
+      title: `Aporte de ${formatCurrency(plan.aporte)} nesta ordem`,
       ordered: true,
       items: plan.plano.map((p) => ({ title: p.label, value: formatCurrency(p.valor) })),
     });
-    blocks.push({ kind: "text", muted: true, text: `Aporte ${APORTE_ORIGEM[a.aporteOrigem]}. Sem vender nada: o dinheiro novo corrige a carteira aos poucos.` });
     blocks.push({
       kind: "actions",
       items: plan.plano.slice(0, 3).map((p): BotAction => ({ kind: "investir", section: BUCKET_SECTION[p.bucket], amount: p.valor })),
     });
+    blocks.push({
+      kind: "text",
+      muted: true,
+      text: `Aporte ${APORTE_ORIGEM[a.aporteOrigem]}. Toque num botão para registrar no LIVE.`,
+    });
+  } else if (!reservaOk) {
+    blocks.push({
+      kind: "alert",
+      tone: "warn",
+      text: `Prioridade: reforçar a reserva em ${formatCurrency(faltaReserva)}.`,
+    });
+    blocks.push({
+      kind: "actions",
+      items: [{ kind: "investir", section: "eme", amount: Math.min(plan.aporte || faltaReserva, faltaReserva) }],
+    });
+  } else if (prioridades.length > 0) {
+    blocks.push({
+      kind: "list",
+      title: "Próximos passos",
+      ordered: true,
+      items: prioridades.map((s) => ({ title: s.titulo, detail: s.detalhe })),
+    });
+  } else {
+    blocks.push({ kind: "alert", tone: "pos", text: "Carteira alinhada ao perfil. Continue aportando no ritmo da meta." });
   }
-  blocks.push(
-    plan.sugestoes.length > 0
-      ? { kind: "list", title: "Sugestões", items: plan.sugestoes.slice(0, 6).map((s) => ({ title: s.titulo, meta: PRIORIDADE[s.prioridade], detail: s.detalhe })) }
-      : { kind: "alert", tone: "pos", text: "Carteira alinhada ao seu perfil. Continue aportando conforme o plano." },
-  );
+
+  if (comAlocacao && foraDoAlvo.length > 0) {
+    blocks.push({
+      kind: "bars",
+      title: "Onde está desalinhado",
+      items: foraDoAlvo.map((b) => ({ label: b.label, atual: b.pct, ideal: b.alvoPct })),
+    });
+  }
+
   if (!a.profileDefinido) {
-    blocks.push({ kind: "text", text: "Usei o perfil **moderado** como padrão. Escolha o seu e eu refaço o plano:" }, { kind: "profile" });
+    blocks.push(
+      { kind: "text", text: "Usei o perfil **moderado** como padrão. Escolha o seu e eu refaço o plano:" },
+      { kind: "profile" },
+    );
   }
+
   blocks.push({
     kind: "text",
     muted: true,
-    text: `Selic ${pct(a.rates.selic, 2)} · CDI ${pct(a.rates.cdi, 2)}${a.rates.focusData ? ` · Focus de ${a.rates.focusData.split("-").reverse().join("/")}` : ""}. Análise educativa, não é recomendação de investimento.`,
+    text: `Patrimônio ${formatCurrency(plan.total)} · análise educativa, não é recomendação.`,
   });
+
   return { id, role: "bot", blocks, followups: a.profileDefinido ? ["whatsapp", "perfil", "visao"] : ["whatsapp", "visao"] };
 }
 
