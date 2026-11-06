@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ElementType, type FormEvent,
 import { toast } from "sonner";
 import {
   X, Landmark, Wallet, Calculator, Zap, Shield,
-  ArrowUpRight, ArrowDownRight, ArrowRight, Check, Pencil, Home, ChevronRight,
+  ArrowUpRight, ArrowDownRight, ArrowRight, Check, Pencil, ChevronRight,
   CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Trash2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -30,10 +30,10 @@ import {
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 import { BankPicker } from "@/components/investimentos/bank-picker";
 import { Icon3D } from "@/components/investimentos/live-icons-3d";
-import { LayoutGridIcon } from "@/components/icons/layout-grid";
 import { WalletIcon } from "@/components/icons/wallet";
 import { GaugeIcon } from "@/components/icons/gauge";
 import { SlidersHorizontalIcon } from "@/components/icons/sliders-horizontal";
+import { SaldoEmContaHelp } from "@/components/investimentos/help-texts";
 import { InicialShortcuts, SimChart, SimLegend, SimParam, SimRateParam, simRateText, useSimulation } from "@/components/investimentos/sim-controls";
 import { liveBotContext } from "@/components/investimentos/live-bot-context";
 import { useBotPageContext } from "@/lib/bot-page-context";
@@ -367,7 +367,7 @@ export function InvestorLiveView({
   liveAction,
 }: InvestorLiveViewProps) {
   // Começa sem seção: só aparece algo depois que o usuário escolhe um grupo no menu.
-  const [tab, setTab] = useState<"inicio" | "investimentos" | "rebalancear" | "simular" | null>(null);
+  const [tab, setTab] = useState<"investimentos" | "rebalancear" | "simular" | null>(null);
   const [focusGroup, setFocusGroup] = useState<"all" | "turbo" | "emergencia" | "investimentos">("all");
   const [investSubPage, setInvestSubPage] = useState<"tesouro" | "acoes" | null>(null);
   const [marketOpen, setMarketOpen] = useState(false);
@@ -433,17 +433,6 @@ export function InvestorLiveView({
     setSelectedTicker(null);
     setMarketSection(section);
     setMarketOpen(true);
-    setTab("investimentos");
-  }
-
-  function goToInvestGroup(group: "turbo" | "emergencia" | "investimentos") {
-    setFinancePanel(null);
-    setMarketOpen(false);
-    setMarketSection("hub");
-    setInvestSubPage(null);
-    setSelectedFixedIncome(null);
-    setSelectedTicker(null);
-    setFocusGroup(group);
     setTab("investimentos");
   }
 
@@ -692,7 +681,6 @@ export function InvestorLiveView({
     return rows.sort((a, b) => b.value - a.value);
   }, [holdings, liveAssets]);
 
-  const homeTopHoldings = useMemo(() => portfolioHoldings.slice(0, 3), [portfolioHoldings]);
 
   const acoesHoldings = useMemo(
     () =>
@@ -857,8 +845,7 @@ export function InvestorLiveView({
   );
 
   const LIVE_TABS = [
-    { id: "inicio" as const, label: "Visão geral", short: "Início", icon: Home, menuIcon: LayoutGridIcon },
-    { id: "investimentos" as const, label: "Investimentos", short: "Investir", icon: Wallet, menuIcon: WalletIcon },
+    { id: "investimentos" as const, label: "Carteira", short: "Carteira", icon: Wallet, menuIcon: WalletIcon },
     { id: "rebalancear" as const, label: "Rebalancear", short: "Rebalancear", icon: Scale, menuIcon: SlidersHorizontalIcon },
     { id: "simular" as const, label: "Simulador", short: "Simular", icon: Calculator, menuIcon: GaugeIcon },
   ];
@@ -918,14 +905,49 @@ export function InvestorLiveView({
             </nav>
           )}
 
-          {!marketOpen && tab === "investimentos" && focusGroup === "all" && (
+          {tab === "investimentos" && financePanel && (
+            <SimulatorFinancePanel panel={financePanel} onBack={() => setFinancePanel(null)} />
+          )}
+
+          {!marketOpen && tab === "investimentos" && focusGroup === "all" && !financePanel && (
             <div className="space-y-4">
-              <CaixinhaHeader label="Total das caixinhas" total={totalCaixinhas} />
+              <section aria-label="Resumo da carteira" className="space-y-3">
+                <div>
+                  <p className={LABEL}>Patrimônio</p>
+                  <p className={`${MONEY} mt-1.5 text-[28px] leading-none tracking-tight`}>{formatCurrency(animatedPatrimonio)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Investido {formatCurrency(Math.max(0, animatedPatrimonio - animatedCash))}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className={LABEL}>Saldo em conta</p>
+                        <SaldoEmContaHelp />
+                      </div>
+                      <p className={`${MONEY} mt-1 text-lg leading-none`}>{formatCurrency(animatedCash)}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">Disponível para aportes · fora do investido</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={openCashSheet}
+                      disabled={savingCash}
+                      className={`min-h-11 shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-foreground/80 hover:bg-muted disabled:opacity-40 ${FOCUS}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                      Ajustar
+                    </button>
+                  </div>
+                </div>
+              </section>
 
               <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} flex items-center justify-between`}>
                 <span>Investir saldo · {formatCurrency(cash)}</span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
+
+              <CaixinhaHeader label="Total das caixinhas" total={totalCaixinhas} />
 
               <div className="space-y-2">
                 {caixinhaRows((group) => {
@@ -941,6 +963,45 @@ export function InvestorLiveView({
                   Nova caixinha
                 </button>
               </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {(
+                  [
+                    { label: "Planejamento", icon: CalendarRange, id: "planejamento" as const },
+                    { label: "Parcelamentos", icon: Layers, id: "parcelamentos" as const },
+                  ] as const
+                ).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setFinancePanel(item.id)}
+                    className={`${ROW} min-h-12 px-3 flex items-center gap-2.5`}
+                  >
+                    <item.icon className="h-4 w-4 text-foreground/70 shrink-0" aria-hidden="true" />
+                    <span className="text-xs font-semibold text-foreground truncate">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <section className="space-y-2.5" aria-labelledby="live-movimentacoes">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                  <h2 id="live-movimentacoes" className={LABEL}>Últimas movimentações</h2>
+                </div>
+
+                {actions.movements.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center">
+                    <p className="text-sm font-semibold text-foreground/70">Nenhuma movimentação ainda</p>
+                    <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                      Compras, vendas, aplicações e retiradas aparecem aqui. Dá para desfazer qualquer uma.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-border bg-card px-3.5">
+                    <MovementsList movements={actions.movements.slice(0, 8)} onUndo={setUndoMovement} />
+                  </div>
+                )}
+              </section>
             </div>
           )}
 
@@ -1088,131 +1149,6 @@ export function InvestorLiveView({
             </div>
           )}
 
-          {tab === "inicio" && financePanel && (
-            <SimulatorFinancePanel panel={financePanel} onBack={() => setFinancePanel(null)} />
-          )}
-
-          {tab === "inicio" && !financePanel && (
-            <div className="space-y-5 pb-2">
-              {/* Patrimônio + saldo em conta */}
-              <section aria-labelledby="live-patrimonio">
-                <h2 id="live-patrimonio" className={LABEL}>Patrimônio</h2>
-                <p className={`${MONEY} text-[34px] leading-none tracking-tight mt-2`}>
-                  {formatCurrency(animatedPatrimonio)}
-                </p>
-                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-card pl-3.5 pr-1.5 py-1.5">
-                  <div className="min-w-0 py-1">
-                    <p className={LABEL}>Saldo em conta</p>
-                    <p className={`${MONEY} text-base mt-0.5`}>{formatCurrency(animatedCash)}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={openCashSheet}
-                    disabled={savingCash}
-                    className={`min-h-11 shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-foreground/80 hover:bg-muted disabled:opacity-40 ${FOCUS}`}
-                  >
-                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                    Ajustar
-                  </button>
-                </div>
-              </section>
-
-              {/* CTA primário */}
-              <button
-                type="button"
-                onClick={() => openMarket("hub")}
-                className={`w-full min-h-14 rounded-xl bg-foreground text-background px-4 py-3 flex items-center justify-between gap-3 text-left hover:bg-foreground/90 transition-colors ${FOCUS}`}
-              >
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-bold">Investir agora</span>
-                  <span className="block text-[11px] text-background/70 mt-0.5 truncate">
-                    Ações, Tesouro Direto ou caixinhas
-                  </span>
-                </span>
-                <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" />
-              </button>
-
-              {/* Atalhos */}
-              <div className="grid grid-cols-2 gap-2">
-                {(
-                  [
-                    { label: "Planejamento", icon: CalendarRange, id: "planejamento" as const },
-                    { label: "Parcelamentos", icon: Layers, id: "parcelamentos" as const },
-                  ] as const
-                ).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setFinancePanel(item.id)}
-                    className={`${ROW} min-h-12 px-3 flex items-center gap-2.5`}
-                  >
-                    <item.icon className="h-4 w-4 text-foreground/70 shrink-0" aria-hidden="true" />
-                    <span className="text-xs font-semibold text-foreground truncate">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Meus investimentos */}
-              <section className="space-y-2.5" aria-labelledby="live-investimentos">
-                <div className="flex items-center justify-between">
-                  <h2 id="live-investimentos" className={LABEL}>Meus investimentos</h2>
-                  <button
-                    type="button"
-                    onClick={() => goToTab("investimentos")}
-                    className={`-mr-2 min-h-11 rounded-lg px-2 text-xs font-semibold text-foreground/70 hover:text-foreground ${FOCUS}`}
-                  >
-                    Ver tudo
-                  </button>
-                </div>
-
-                <div className="space-y-2">{caixinhaRows(goToInvestGroup)}</div>
-
-                {homeTopHoldings.length > 0 && (
-                  <div className="space-y-2 pt-2">
-                    <h3 className={LABEL}>Principais posições</h3>
-                    <HoldingList
-                      items={homeTopHoldings}
-                      onSelect={(ticker) => {
-                        goToInvestGroup("investimentos");
-                        setInvestSubPage("acoes");
-                        setSelectedTicker(ticker);
-                      }}
-                    />
-                  </div>
-                )}
-              </section>
-
-              {/* Últimas movimentações */}
-              <section className="space-y-2.5" aria-labelledby="live-movimentacoes">
-                <div className="flex items-center gap-2">
-                  <Receipt className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                  <h2 id="live-movimentacoes" className={LABEL}>Últimas movimentações</h2>
-                </div>
-
-                {actions.movements.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center">
-                    <p className="text-sm font-semibold text-foreground/70">Nenhuma movimentação ainda</p>
-                    <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                      Compras, vendas, aplicações e retiradas aparecem aqui. Dá para desfazer qualquer uma.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => openMarket("hub")}
-                      className={`mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border px-4 text-xs font-bold text-foreground hover:bg-muted ${FOCUS}`}
-                    >
-                      Começar a investir
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-border bg-card px-3.5">
-                    <MovementsList movements={actions.movements.slice(0, 8)} onUndo={setUndoMovement} />
-                  </div>
-                )}
-              </section>
-            </div>
-          )}
-
           {tab === "rebalancear" && !marketOpen && (
             <div className="space-y-4">
               <div className="text-center">
@@ -1354,7 +1290,7 @@ export function InvestorLiveView({
         {tab !== null && (
         <nav
           aria-label="Seções do MUVO Live"
-          className="grid grid-cols-4 border-t border-border bg-background px-2 pt-1 shrink-0"
+          className="grid grid-cols-3 border-t border-border bg-background px-2 pt-1 shrink-0"
           style={{ paddingBottom: "calc(0.25rem + var(--safe-bottom))" }}
         >
           {LIVE_TABS.map((t) => {

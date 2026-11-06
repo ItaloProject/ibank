@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { X, Plus, Wallet, LayoutDashboard, Calculator } from "lucide-react";
+import { X, Plus, Wallet, Calculator } from "lucide-react";
 import { Icon3D } from "@/components/investimentos/live-icons-3d";
-import { LayoutGridIcon } from "@/components/icons/layout-grid";
 import { WalletIcon } from "@/components/icons/wallet";
 import { GaugeIcon } from "@/components/icons/gauge";
 import { HoldingsPanel } from "@/components/investimentos/live-holdings-panel";
@@ -43,11 +42,10 @@ import {
   BTN_SECONDARY,
   BTN_DANGER,
   INPUT_BOX,
-  GAIN,
   LOSS,
   LiveSheet,
 } from "./live-ui";
-import { CdiHelp, SaldoEmContaHelp, TetoHelp, TipoCaixinhaHelp } from "./help-texts";
+import { CdiHelp, TetoHelp, TipoCaixinhaHelp } from "./help-texts";
 
 function formatBRLMask(digits: string): string {
   const cleaned = digits.replace(/\D/g, "").slice(0, 12);
@@ -86,22 +84,11 @@ function parsePercentMask(masked: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function toneFor(value: number) {
-  return value > 0.005 ? GAIN : value < -0.005 ? LOSS : "text-muted-foreground";
-}
-
-function PctText({ pct }: { pct: number }) {
-  return <span className={cn("text-[11px] font-semibold tabular-nums", toneFor(pct))}>{formatPct(pct)}</span>;
-}
-
 function SectionHeading({ children, id }: { children: React.ReactNode; id?: string }) {
   return <h2 id={id} className={LABEL}>{children}</h2>;
 }
 
 const SMALL_BTN = `inline-flex min-h-9 items-center gap-1 rounded-lg border border-border px-2.5 text-[11px] font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${FOCUS}`;
-
-/** Tons de cinza para a distribuição: cor aqui não é diagnóstico, só separação de faixas. */
-const ALLOCATION_SHADES = ["bg-foreground", "bg-foreground/70", "bg-foreground/45", "bg-foreground/25", "bg-foreground/12"];
 
 export function InvestorLiveViewDesktop({
   grandTotal,
@@ -119,7 +106,7 @@ export function InvestorLiveViewDesktop({
   liveAction,
 }: InvestorLiveViewProps) {
   // Começa sem seção: só aparece algo depois que o usuário escolhe um grupo.
-  const [tab, setTab] = useState<"inicio" | "investimentos" | "simular" | null>(null);
+  const [tab, setTab] = useState<"investimentos" | "simular" | null>(null);
 
   /* ── Market / buy flow ────────────────────────────────────────── */
   const [marketOpen, setMarketOpen] = useState(false);
@@ -184,13 +171,6 @@ export function InvestorLiveViewDesktop({
   }, [stockPositions, quoteMap]);
 
   const investedValue = holdingRows.reduce((s, h) => s + h.value, 0);
-  const investedCost = useMemo(
-    () => stockPositions.filter((p) => p.quantity > 0).reduce((s, p) => s + p.quantity * p.avgPrice, 0),
-    [stockPositions]
-  );
-  const totalGain = investedValue - investedCost;
-  const totalGainPct = investedCost > 0 ? (totalGain / investedCost) * 100 : 0;
-
   const turboTotal = turboAccountsReal.reduce((s, a) => s + a.valor, 0);
   const emergenciaTotal = emergenciaAccountsReal.reduce((s, a) => s + a.valor, 0);
   const investimentosTotal = investimentosAccountsReal.reduce((s, a) => s + a.valor, 0);
@@ -308,20 +288,6 @@ export function InvestorLiveViewDesktop({
     }
   }
 
-  /* ── Derived: allocation ──────────────────────────────────────── */
-  const allocation = useMemo(() => {
-    const base = patrimonioTotal || 1;
-    return [
-      { label: "TURBO", value: turboTotal },
-      { label: "Emergência", value: emergenciaTotal },
-      { label: "Renda Fixa", value: investimentosTotal },
-      { label: "Bolsa", value: investedValue },
-      { label: "Saldo em conta", value: cashBalance },
-    ]
-      .filter((x) => x.value > 0)
-      .map((x, i) => ({ ...x, pct: (x.value / base) * 100, shade: ALLOCATION_SHADES[i % ALLOCATION_SHADES.length] }));
-  }, [patrimonioTotal, turboTotal, emergenciaTotal, investimentosTotal, investedValue, cashBalance]);
-
   /* ── Simulator ────────────────────────────────────────────────── */
   const sim = useSimulation(patrimonioTotal, cashBalance);
   const simInicialMax = Math.max(200000, Math.ceil((patrimonioTotal * 2) / 10000) * 10000);
@@ -336,8 +302,7 @@ export function InvestorLiveViewDesktop({
 
   /* ── Tabs ─────────────────────────────────────────────────────── */
   const tabs = [
-    { id: "inicio" as const, label: "Visão geral", short: "Visão", icon: LayoutDashboard, menuIcon: LayoutGridIcon },
-    { id: "investimentos" as const, label: "Investimentos", short: "Carteira", icon: Wallet, menuIcon: WalletIcon },
+    { id: "investimentos" as const, label: "Carteira", short: "Carteira", icon: Wallet, menuIcon: WalletIcon },
     { id: "simular" as const, label: "Simulador", short: "Simular", icon: Calculator, menuIcon: GaugeIcon },
   ];
 
@@ -474,113 +439,13 @@ export function InvestorLiveViewDesktop({
           </nav>
         )}
 
-        {/* ═══ INÍCIO ═══════════════════════════════════════════════ */}
-        {tab === "inicio" && (
-          <div
-            role="tabpanel"
-            id="live-panel-inicio"
-            aria-labelledby="live-tab-inicio"
-            className="grid grid-cols-[340px_1fr] h-full divide-x divide-border"
-          >
-            {/* Resumo + distribuição — cards no mesmo idioma dos filtros de Investimentos */}
-            <section aria-labelledby="dist-heading" className="space-y-5 p-6 overflow-y-auto scrollbar-thin-dark">
-              <div className="rounded-xl border border-border bg-card p-4">
-                <SectionHeading>Patrimônio</SectionHeading>
-                <p className={`${MONEY} mt-2 text-3xl leading-none tracking-tight`}>{formatCurrency(patrimonioTotal)}</p>
-                <dl className="mt-4 space-y-2.5 border-t border-border pt-3 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-muted-foreground">Investido</dt>
-                    <dd className="font-semibold tabular-nums text-foreground">{formatCurrency(patrimonioTotal - cashBalance)}</dd>
-                  </div>
-                  {holdingRows.length > 0 && (
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Resultado em bolsa</dt>
-                      <dd className="flex items-baseline gap-1.5">
-                        <span className={cn("font-semibold tabular-nums", toneFor(totalGain))}>{formatSignedCurrency(totalGain)}</span>
-                        <PctText pct={totalGainPct} />
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-              </div>
-
-              <div className="rounded-xl border border-border bg-card p-4">
-                <div className="flex items-center gap-1.5">
-                  <SectionHeading>Saldo em conta</SectionHeading>
-                  <SaldoEmContaHelp />
-                </div>
-                <p className={`${MONEY} mt-2 text-2xl leading-none`}>{formatCurrency(cashBalance)}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Disponível para novos aportes</p>
-                <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} mt-4 inline-flex w-full items-center justify-center gap-2`}>
-                  <Wallet className="h-4 w-4" aria-hidden="true" />
-                  Investir agora
-                </button>
-                <button type="button" onClick={openCashSheet} className={`${BTN_SECONDARY} mt-2 w-full`}>
-                  {cashBalance > 0 ? "Ajustar saldo" : "Informar saldo"}
-                </button>
-              </div>
-
-              <div>
-                <SectionHeading id="dist-heading">Distribuição</SectionHeading>
-                {allocation.length === 0 ? (
-                  <p className="mt-3 text-sm text-muted-foreground">Nada investido ainda.</p>
-                ) : (
-                  <>
-                    <div className="mt-3 flex h-2.5 rounded-full overflow-hidden gap-px bg-muted" aria-hidden="true">
-                      {allocation.map((a) => (
-                        <div key={a.label} className={cn("h-full", a.shade)} style={{ width: `${a.pct}%` }} />
-                      ))}
-                    </div>
-                    <ul className="mt-4 space-y-3">
-                      {allocation.map((a) => (
-                        <li key={a.label} className="flex items-center justify-between gap-3">
-                          <span className="flex items-center gap-2 min-w-0">
-                            <span className={cn("h-2.5 w-2.5 rounded-sm shrink-0 ring-1 ring-border", a.shade)} aria-hidden="true" />
-                            <span className="text-sm text-foreground truncate">{a.label}</span>
-                          </span>
-                          <span className="text-right shrink-0">
-                            <span className="block text-sm font-semibold tabular-nums">{formatCurrency(a.value)}</span>
-                            <span className="block text-[11px] text-muted-foreground tabular-nums">
-                              {a.pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
-                            </span>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
-            </section>
-
-            {/* Movimentações */}
-            <section aria-labelledby="mov-heading" className="p-6 overflow-y-auto scrollbar-thin-dark">
-              <SectionHeading id="mov-heading">Últimas movimentações</SectionHeading>
-              <p className="text-[11px] text-muted-foreground mt-1">Lançou algo errado? Use o botão de desfazer ao lado.</p>
-              <div className="mt-2">
-                <MovementsList
-                  movements={showAllMovements ? actions.movements : actions.movements.slice(0, 8)}
-                  onUndo={setUndoMovement}
-                />
-              </div>
-              {actions.movements.length > 8 && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllMovements((v) => !v)}
-                  className={`${SMALL_BTN} mt-3 w-full justify-center`}
-                >
-                  {showAllMovements ? "Mostrar menos" : `Ver todas (${actions.movements.length})`}
-                </button>
-              )}
-            </section>
-          </div>
-        )}
-
-        {/* ═══ INVESTIMENTOS ════════════════════════════════════════ */}
+        {/* ═══ CARTEIRA ═════════════════════════════════════════════ */}
         {tab === "investimentos" && (
           <div
             role="tabpanel"
             id="live-panel-investimentos"
             aria-labelledby="live-tab-investimentos"
+            className="pb-8"
           >
             <HoldingsPanel
               turbo={turboAccountsReal}
@@ -591,7 +456,30 @@ export function InvestorLiveViewDesktop({
               onBuyStock={() => openMarket("acoes")}
               onSell={openSell}
               onNewCaixinha={openNewCaixinha}
+              cashBalance={cashBalance}
+              onInvestCash={() => openMarket("hub")}
+              onAdjustCash={openCashSheet}
             />
+
+            <section aria-labelledby="mov-heading" className="mx-auto w-full max-w-5xl space-y-3 px-6 pb-6">
+              <div>
+                <SectionHeading id="mov-heading">Últimas movimentações</SectionHeading>
+                <p className="text-[11px] text-muted-foreground mt-1">Lançou algo errado? Use o botão de desfazer ao lado.</p>
+              </div>
+              <MovementsList
+                movements={showAllMovements ? actions.movements : actions.movements.slice(0, 8)}
+                onUndo={setUndoMovement}
+              />
+              {actions.movements.length > 8 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllMovements((v) => !v)}
+                  className={`${SMALL_BTN} w-full justify-center`}
+                >
+                  {showAllMovements ? "Mostrar menos" : `Ver todas (${actions.movements.length})`}
+                </button>
+              )}
+            </section>
           </div>
         )}
 

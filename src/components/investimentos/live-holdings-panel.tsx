@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState, type ElementType } from "react";
-import { Boxes, ChevronDown, Landmark, Layers, Plus, Shield, Trash2, TrendingUp, Zap } from "lucide-react";
+import { Boxes, ChevronDown, Landmark, Layers, Plus, Shield, Trash2, TrendingUp, Wallet, Zap } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { LiveAccount } from "./live-actions";
 import { FOCUS, GAIN, LABEL, LOSS, MONEY } from "./live-ui";
+import { SaldoEmContaHelp } from "./help-texts";
 import "./live-holdings.css";
 
 export type HoldingRow = {
@@ -78,6 +79,9 @@ export function HoldingsPanel({
   onBuyStock,
   onSell,
   onNewCaixinha,
+  cashBalance,
+  onInvestCash,
+  onAdjustCash,
 }: {
   turbo: LiveAccount[];
   emergencia: LiveAccount[];
@@ -87,6 +91,10 @@ export function HoldingsPanel({
   onBuyStock: () => void;
   onSell: (ticker: string) => void;
   onNewCaixinha: (tipo: "turbo" | "emergencia" | "investimentos") => void;
+  /** Saldo parado em conta — entra no patrimônio, não nos filtros de investimento. */
+  cashBalance: number;
+  onInvestCash: () => void;
+  onAdjustCash: () => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -119,7 +127,7 @@ export function HoldingsPanel({
     return byFilter;
   }, [items]);
 
-  // Resultado da bolsa em R$ e % sobre o que foi pago (mesma base da Visão geral).
+  // Resultado da bolsa em R$ e % sobre o que foi pago.
   const bolsaGain = useMemo(() => {
     let value = 0;
     let cost = 0;
@@ -152,9 +160,52 @@ export function HoldingsPanel({
         };
 
   const showKindInDetail = filter === "all" || filter === "caixinhas";
+  const investedTotal = allTotal;
+  const patrimonioTotal = investedTotal + cashBalance;
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
+      <section aria-label="Resumo da carteira" className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className={LABEL}>Patrimônio</p>
+          <p className={`${MONEY} mt-2 text-2xl leading-none tracking-tight`}>{formatCurrency(patrimonioTotal)}</p>
+          <dl className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Investido</dt>
+              <dd className="font-semibold tabular-nums text-foreground">{formatCurrency(investedTotal)}</dd>
+            </div>
+            {bolsaGain !== null && (
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Resultado em bolsa</dt>
+                <dd className={cn("font-semibold tabular-nums", bolsaGain.pct > 0.005 ? GAIN : bolsaGain.pct < -0.005 ? LOSS : "text-muted-foreground")}>
+                  {bolsaGain.amount > 0 ? "+" : bolsaGain.amount < 0 ? "−" : ""}
+                  {formatCurrency(Math.abs(bolsaGain.amount))}
+                  <span className="ml-1.5 text-[11px]">{signed(bolsaGain.pct)}</span>
+                </dd>
+              </div>
+            )}
+          </dl>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 flex flex-col">
+          <div className="flex items-center gap-1.5">
+            <p className={LABEL}>Saldo em conta</p>
+            <SaldoEmContaHelp />
+          </div>
+          <p className={`${MONEY} mt-2 text-2xl leading-none`}>{formatCurrency(cashBalance)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Disponível para novos aportes · fora do total investido</p>
+          <div className="mt-auto flex flex-wrap gap-2 pt-4">
+            <button type="button" onClick={onInvestCash} className={ACTION_BTN}>
+              <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+              Investir
+            </button>
+            <button type="button" onClick={onAdjustCash} className={ACTION_BTN}>
+              {cashBalance > 0 ? "Ajustar saldo" : "Informar saldo"}
+            </button>
+          </div>
+        </div>
+      </section>
+
       <div role="group" aria-label="Filtrar por tipo" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {FILTERS.map((t) => {
           const active = filter === t.id;
