@@ -113,8 +113,8 @@ export function HoldingsPanel({
     return { byKind, all: items.reduce((s, i) => s + i.value, 0) };
   }, [items]);
 
-  // Rentabilidade da bolsa sobre o que foi pago, refeita a partir do valor e da variação de cada posição.
-  const bolsaGainPct = useMemo(() => {
+  // Resultado da bolsa em R$ e % sobre o que foi pago (mesma base da Visão geral).
+  const bolsaGain = useMemo(() => {
     let value = 0;
     let cost = 0;
     for (const h of holdings) {
@@ -122,7 +122,9 @@ export function HoldingsPanel({
       value += h.value;
       cost += h.value / (1 + h.gainPct / 100);
     }
-    return cost > 0 ? ((value - cost) / cost) * 100 : null;
+    if (cost <= 0) return null;
+    const amount = value - cost;
+    return { amount, pct: (amount / cost) * 100 };
   }, [holdings]);
 
   const visible = filter === "all" ? items : items.filter((i) => i.kind === filter);
@@ -163,11 +165,16 @@ export function HoldingsPanel({
                 </span>
                 <span className="text-[11px] tabular-nums text-muted-foreground">{t.count}</span>
               </span>
-              <span className="flex items-baseline justify-between gap-2">
+              <span className="flex flex-col gap-1">
                 <span className={`${MONEY} text-lg leading-none`}>{formatCurrency(t.value)}</span>
-                {t.id === "bolsa" && bolsaGainPct !== null && (
-                  <span className={cn("text-[11px] font-semibold tabular-nums", bolsaGainPct > 0.005 ? GAIN : bolsaGainPct < -0.005 ? LOSS : "text-muted-foreground")}>
-                    {signed(bolsaGainPct)}
+                {t.id === "bolsa" && bolsaGain !== null && (
+                  <span className={cn("flex items-baseline gap-1.5 text-[11px] font-semibold tabular-nums", bolsaGain.pct > 0.005 ? GAIN : bolsaGain.pct < -0.005 ? LOSS : "text-muted-foreground")}>
+                    <span>
+                      {bolsaGain.amount > 0 ? "+" : bolsaGain.amount < 0 ? "−" : ""}
+                      {formatCurrency(Math.abs(bolsaGain.amount))}
+                    </span>
+                    <span aria-hidden="true">·</span>
+                    <span>{signed(bolsaGain.pct)}</span>
                   </span>
                 )}
               </span>

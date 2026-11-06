@@ -506,6 +506,22 @@ export function InvestorLiveViewDesktop({
                 </dl>
               </div>
 
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-1.5">
+                  <SectionHeading>Saldo em conta</SectionHeading>
+                  <SaldoEmContaHelp />
+                </div>
+                <p className={`${MONEY} mt-2 text-2xl leading-none`}>{formatCurrency(cashBalance)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Disponível para novos aportes</p>
+                <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} mt-4 inline-flex w-full items-center justify-center gap-2`}>
+                  <Wallet className="h-4 w-4" aria-hidden="true" />
+                  Investir agora
+                </button>
+                <button type="button" onClick={openCashSheet} className={`${BTN_SECONDARY} mt-2 w-full`}>
+                  {cashBalance > 0 ? "Ajustar saldo" : "Informar saldo"}
+                </button>
+              </div>
+
               <div>
                 <SectionHeading id="dist-heading">Distribuição</SectionHeading>
                 {allocation.length === 0 ? (
@@ -535,22 +551,6 @@ export function InvestorLiveViewDesktop({
                     </ul>
                   </>
                 )}
-              </div>
-
-              <div className="rounded-xl border border-border bg-card p-4">
-                <div className="flex items-center gap-1.5">
-                  <SectionHeading>Saldo em conta</SectionHeading>
-                  <SaldoEmContaHelp />
-                </div>
-                <p className={`${MONEY} mt-2 text-2xl leading-none`}>{formatCurrency(cashBalance)}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Disponível para novos aportes</p>
-                <button type="button" onClick={() => openMarket("hub")} className={`${BTN_PRIMARY} mt-4 inline-flex w-full items-center justify-center gap-2`}>
-                  <Wallet className="h-4 w-4" aria-hidden="true" />
-                  Investir agora
-                </button>
-                <button type="button" onClick={openCashSheet} className={`${BTN_SECONDARY} mt-2 w-full`}>
-                  {cashBalance > 0 ? "Ajustar saldo" : "Informar saldo"}
-                </button>
               </div>
             </section>
 
