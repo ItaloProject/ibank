@@ -95,23 +95,23 @@ export function StockDetailsSheet({
         {!loading && details && (
           <>
             <AssetFact label="Segmento" value={dash(details.segmento)} />
-            <AssetFact
-              label="Hoje"
-              value={details.variacaoDiaPct != null ? formatSignedPct(details.variacaoDiaPct) : "—"}
-              tone={dayTone}
-            />
-            <AssetFact label="P/L" hint="Preço ÷ lucro" value={details.pl != null ? formatMultiple(details.pl) : "—"} />
-            <AssetFact label="P/VP" hint="Preço ÷ patrimônio" value={details.pvp != null ? formatMultiple(details.pvp) : "—"} />
-            <AssetFact
-              label="Dividendos no ano"
-              value={
-                details.dividendYieldPct != null
-                  ? `${details.dividendYieldPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
-                  : "—"
-              }
-            />
-            <AssetFact label="Último provento" value={dash(ultimo)} />
-            <AssetFact label="No último ano" hint="Mínima – máxima" value={dash(faixa)} />
+            {details.variacaoDiaPct != null && (
+              <AssetFact label="Hoje" value={formatSignedPct(details.variacaoDiaPct)} tone={dayTone} />
+            )}
+            {details.pl != null && (
+              <AssetFact label="P/L" hint="Preço ÷ lucro" value={formatMultiple(details.pl)} />
+            )}
+            {details.pvp != null && (
+              <AssetFact label="P/VP" hint="Preço ÷ patrimônio" value={formatMultiple(details.pvp)} />
+            )}
+            {details.dividendYieldPct != null && (
+              <AssetFact
+                label="Dividendos no ano"
+                value={`${details.dividendYieldPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
+              />
+            )}
+            {ultimo && <AssetFact label="Último provento" value={ultimo} />}
+            {faixa && <AssetFact label="No último ano" hint="Mínima – máxima" value={faixa} />}
           </>
         )}
 
