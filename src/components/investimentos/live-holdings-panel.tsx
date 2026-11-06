@@ -50,7 +50,6 @@ const qty = (n: number) => (n % 1 === 0 ? String(n) : n.toFixed(2).replace(".", 
 const pct = (n: number, digits = 1) => `${n.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits })}%`;
 const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${pct(Math.abs(n), 2)}`;
 
-const SMALL_BTN = `inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${FOCUS}`;
 const ACTION_BTN = `inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-border px-4 text-sm font-semibold text-foreground hover:bg-muted transition-colors disabled:pointer-events-none disabled:opacity-40 ${FOCUS}`;
 
 function accountDetail(acc: LiveAccount) {
@@ -140,12 +139,19 @@ export function HoldingsPanel({
     ...ORDER.map((k) => ({ id: k as Filter, label: KINDS[k].label, icon: KINDS[k].icon, value: totals.byKind[k].value, count: totals.byKind[k].count })),
   ];
 
+  const emptyAction =
+    filter === "bolsa"
+      ? { label: "Comprar ação", onClick: onBuyStock }
+      : {
+          label: filter === "turbo" ? "Nova caixinha Turbo" : filter === "emergencia" ? "Nova emergência" : "Nova caixinha",
+          onClick: () => onNewCaixinha(filter === "turbo" ? "turbo" : filter === "emergencia" ? "emergencia" : "investimentos"),
+        };
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
       <div role="group" aria-label="Filtrar por tipo" className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {tiles.map((t) => {
           const active = filter === t.id;
-          const share = totals.all > 0 ? (t.value / totals.all) * 100 : 0;
           return (
             <button
               key={t.id}
@@ -153,7 +159,7 @@ export function HoldingsPanel({
               aria-pressed={active}
               onClick={() => chooseFilter(t.id)}
               className={cn(
-                "flex flex-col gap-3 rounded-xl border p-4 text-left transition-colors",
+                "flex flex-col gap-2.5 rounded-xl border p-4 text-left transition-colors",
                 FOCUS,
                 active ? "border-foreground bg-card" : "border-border hover:bg-muted/50",
               )}
@@ -178,38 +184,28 @@ export function HoldingsPanel({
                   </span>
                 )}
               </span>
-              <span className="h-1 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-                <span
-                  className="block h-full rounded-full bg-foreground transition-[width] duration-700"
-                  style={{ width: `${t.id === "all" ? 100 : share}%` }}
-                />
-              </span>
             </button>
           );
         })}
       </div>
 
       <section aria-label="Seus investimentos" className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className={LABEL}>{filter === "all" ? "Todos os investimentos" : KINDS[filter].label}</h2>
+        <div>
+          <h2 className={LABEL}>{filter === "all" ? "Todos os investimentos" : KINDS[filter].label}</h2>
+          {filter !== "all" && (
             <p className="mt-1 text-xs text-muted-foreground">
               {visible.length} {visible.length === 1 ? "item" : "itens"} · {formatCurrency(visibleTotal)}
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => onNewCaixinha(filter === "turbo" ? "turbo" : filter === "emergencia" ? "emergencia" : "investimentos")} className={SMALL_BTN}>
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Nova caixinha
-            </button>
-            <button type="button" onClick={onBuyStock} className={SMALL_BTN}>
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Comprar ação
-            </button>
-          </div>
+          )}
         </div>
 
         {visible.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+          <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center space-y-4">
             <p className="text-sm text-muted-foreground">{filter === "all" ? "Você ainda não tem investimentos." : KINDS[filter].empty}</p>
+            <button type="button" onClick={emptyAction.onClick} className={ACTION_BTN}>
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              {emptyAction.label}
+            </button>
           </div>
         ) : (
           <ul key={filter} className="space-y-2">

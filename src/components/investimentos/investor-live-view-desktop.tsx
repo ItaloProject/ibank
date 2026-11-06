@@ -333,9 +333,9 @@ export function InvestorLiveViewDesktop({
 
   /* ── Tabs ─────────────────────────────────────────────────────── */
   const tabs = [
-    { id: "inicio" as const, label: "Visão geral", kind: "overview" as const, icon: LayoutDashboard },
-    { id: "investimentos" as const, label: "Investimentos", kind: "wallet" as const, icon: Wallet },
-    { id: "simular" as const, label: "Simulador", kind: "calculator" as const, icon: Calculator },
+    { id: "inicio" as const, label: "Visão geral", short: "Visão", kind: "overview" as const, icon: LayoutDashboard },
+    { id: "investimentos" as const, label: "Investimentos", short: "Carteira", kind: "wallet" as const, icon: Wallet },
+    { id: "simular" as const, label: "Simulador", short: "Simular", kind: "calculator" as const, icon: Calculator },
   ];
 
   function openMarket(section: MarketSection) {
@@ -406,20 +406,15 @@ export function InvestorLiveViewDesktop({
                 aria-label={t.label}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  "group relative inline-flex h-11 w-14 items-center justify-center rounded-full transition-colors",
+                  "inline-flex h-11 items-center gap-2 rounded-full px-3.5 text-sm font-semibold transition-colors",
                   FOCUS,
                   tab === t.id
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <t.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1 text-xs font-semibold text-background opacity-0 shadow-lg transition-opacity motion-reduce:transition-none group-hover:opacity-100 group-focus-visible:opacity-100"
-                >
-                  {t.label}
-                </span>
+                <t.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{t.short}</span>
               </button>
             ))}
           </div>
@@ -427,7 +422,7 @@ export function InvestorLiveViewDesktop({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {tab !== null && (
+          {tab === "investimentos" && (
           <>
           <button
             type="button"
