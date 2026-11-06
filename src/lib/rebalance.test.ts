@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRebalancePlan, bucketOf } from "@/lib/rebalance";
+import { buildRebalancePlan, bucketOf, countsTowardEmergencyLiquidity } from "@/lib/rebalance";
 import type { PortfolioRow } from "@/lib/portfolio-return";
 
 function row(p: Partial<PortfolioRow> & Pick<PortfolioRow, "id" | "classe" | "valor">): PortfolioRow {
@@ -31,10 +31,39 @@ describe("bucketOf", () => {
   });
 });
 
+describe("countsTowardEmergencyLiquidity", () => {
+  it("aceita Emergência, Selic e CDI sem vencimento; rejeita Turbo, LCI e CDB travado", () => {
+    expect(countsTowardEmergencyLiquidity(row({ id: "e", classe: "emergencia", valor: 1 }))).toBe(true);
+    expect(countsTowardEmergencyLiquidity(row({
+      id: "selic", classe: "renda_fixa", valor: 1, nome: "Tesouro Selic 2031",
+      rate: { rate_index: "selic", rate_value: 0.1, maturity: "2031-03-01", tax_exempt: false },
+    }))).toBe(true);
+    expect(countsTowardEmergencyLiquidity(row({
+      id: "cdb", classe: "renda_fixa", valor: 1, nome: "CDB diário",
+      rate: { rate_index: "cdi", rate_value: 100, maturity: null, tax_exempt: false },
+    }))).toBe(true);
+    expect(countsTowardEmergencyLiquidity(row({ id: "turbo", classe: "turbo", valor: 1 }))).toBe(false);
+    expect(countsTowardEmergencyLiquidity(row({
+      id: "lci", classe: "renda_fixa", valor: 1, nome: "LCI 95%",
+      rate: { rate_index: "cdi", rate_value: 95, maturity: null, tax_exempt: true },
+    }))).toBe(false);
+    expect(countsTowardEmergencyLiquidity(row({
+      id: "cdb-travado", classe: "renda_fixa", valor: 1, nome: "CDB 120%",
+      rate: { rate_index: "cdi", rate_value: 120, maturity: "2028-01-01", tax_exempt: false },
+    }))).toBe(false);
+  });
+});
+
 describe("buildRebalancePlan", () => {
-  it("usa pós-fixado para cobrir a reserva e compara o resto com o alvo", () => {
+  it("usa pós-fixado com liquidez diária para cobrir a reserva e compara o resto com o alvo", () => {
     const plan = buildRebalancePlan({
-      rows: withWeights([row({ id: "cdb", classe: "renda_fixa", valor: 20000 }), row({ id: "acoes", classe: "acoes", valor: 10000, accountId: null })]),
+      rows: withWeights([
+        row({
+          id: "cdb", classe: "renda_fixa", valor: 20000, nome: "CDB liquidez diária",
+          rate: { rate_index: "cdi", rate_value: 100, maturity: null, tax_exempt: false },
+        }),
+        row({ id: "acoes", classe: "acoes", valor: 10000, accountId: null }),
+      ]),
       profile: "moderado",
       aporte: 0,
       gastoMensal: 2000,
@@ -43,6 +72,25 @@ describe("buildRebalancePlan", () => {
     const pos = plan.buckets.find((b) => b.id === "pos")!;
     expect(pos.valor).toBe(8000);
     expect(pos.pct).toBeCloseTo(44.44, 1);
+  });
+
+  it("não conta Turbo nem LCI como liquidez da reserva", () => {
+    const plan = buildRebalancePlan({
+      rows: withWeights([
+        row({ id: "turbo", classe: "turbo", valor: 15000 }),
+        row({
+          id: "lci", classe: "renda_fixa", valor: 10000, nome: "LCI banco",
+          rate: { rate_index: "cdi", rate_value: 95, maturity: "2027-06-01", tax_exempt: true },
+        }),
+      ]),
+      profile: "moderado",
+      aporte: 0,
+      gastoMensal: 2000,
+    });
+    expect(plan.reserva.atual).toBe(0);
+    expect(plan.reserva.alvo).toBe(12000);
+    expect(plan.sugestoes[0].id).toBe("reserva");
+    expect(plan.sugestoes[0].detalhe).toMatch(/não contam|não cobrem/i);
   });
 
   it("aporte completa a reserva antes de tudo", () => {

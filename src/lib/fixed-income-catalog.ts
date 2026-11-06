@@ -78,7 +78,7 @@ const EDUCA_PLUS: [number, number][] = [
 
 export const TESOURO_CATALOG: FixedIncomeEntry[] = [
   tesouro("reserva-2036", "Tesouro Reserva 2036", "Selic e reserva", "selic", 0, "2036-01-01", "A partir de R$ 1 · feito para reserva de emergência", true),
-  tesouro("selic-2031", "Tesouro Selic 2031", "Selic e reserva", "selic", 0.0746, "2031-03-01", "Resgate a qualquer dia sem sustos · bom para reserva", true),
+  tesouro("selic-2031", "Tesouro Selic 2031", "Selic e reserva", "selic", 0.0746, "2031-03-01", "Liquidez em dia útil · oscilação pequena · bom para reserva", true),
 
   tesouro("prefixado-2029", "Tesouro Prefixado 2029", "Prefixado", "pre", 13.91, "2029-01-01", "Taxa travada até 2029", true),
   tesouro("prefixado-2032", "Tesouro Prefixado 2032", "Prefixado", "pre", 14.13, "2032-01-01", "Taxa travada até 2032", true),
@@ -193,7 +193,7 @@ export const RENDA_FIXA_CATALOG: FixedIncomeEntry[] = [
 
   {
     id: "poupanca", nome: "Poupança", kind: "Poupança", group: "Outros",
-    descricao: "Sem Imposto de Renda e resgate a qualquer hora · rende menos que o CDI",
+    descricao: "Isenta de IR · rendimento só no aniversário do depósito · costuma render menos que Selic/CDB diário",
     rate_index: "poupanca", rate_value: 0, maturity: null, tax_exempt: true, noMaturity: true,
   },
   {

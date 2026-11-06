@@ -11,16 +11,32 @@ export const PRODUCT_LABEL: Record<Product, string> = {
 /** LCI, LCA e poupança não pagam Imposto de Renda para pessoas físicas. */
 export const isTaxFree = (p: Product) => p === "lci" || p === "lca" || p === "poupanca";
 
-/** Tabela regressiva do Imposto de Renda da renda fixa, pelo tempo aplicado. */
-export function incomeTaxRate(months: number): number {
-  const days = months * 30;
+/** Média de dias por mês (calendário) para converter prazo em faixas do IR. */
+export const DAYS_PER_MONTH = 365.25 / 12;
+
+/** Tabela regressiva do Imposto de Renda da renda fixa, por dias corridos. */
+export function regressiveIncomeTaxRate(days: number): number {
   if (days <= 180) return 0.225;
   if (days <= 360) return 0.2;
   if (days <= 720) return 0.175;
   return 0.15;
 }
 
-/** Poupança com a Selic acima de 8,5% ao ano: 0,5% ao mês, sem contar a TR. */
+/** Tabela regressiva pelo tempo aplicado em meses (usa dias corridos médios). */
+export function incomeTaxRate(months: number): number {
+  return regressiveIncomeTaxRate(months * DAYS_PER_MONTH);
+}
+
+/**
+ * Rendimento anual da poupança pela Selic vigente (% a.a. → fração).
+ * Selic > 8,5%: 0,5% ao mês (+ TR, ignorada aqui). Senão: 70% da Selic (+ TR).
+ */
+export function poupancaAnnualFromSelic(selicPct: number): number {
+  if (selicPct > 8.5) return Math.pow(1.005, 12) - 1;
+  return (selicPct / 100) * 0.7;
+}
+
+/** Atalho com a regra de Selic alta (0,5% a.m.), sem TR. Prefira `poupancaAnnualFromSelic`. */
 export const POUPANCA_YEAR = Math.pow(1.005, 12) - 1;
 
 export function netYield(amount: number, annualRate: number, months: number, taxFree: boolean) {

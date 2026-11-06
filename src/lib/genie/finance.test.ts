@@ -8,14 +8,14 @@ const empty: PlanSnapshot = { month: "2026-10", monthLabel: "outubro", salary: 0
 
 describe("contas de investimento", () => {
   it("calcula com a tabela do Imposto de Renda", () => {
-    expect(incomeTaxRate(6)).toBe(0.225);
-    expect(incomeTaxRate(12)).toBe(0.2);
-    expect(incomeTaxRate(24)).toBe(0.175);
-    expect(incomeTaxRate(25)).toBe(0.15);
+    expect(incomeTaxRate(5.9)).toBe(0.225);
+    expect(incomeTaxRate(6)).toBe(0.2);
+    expect(incomeTaxRate(12)).toBe(0.175);
+    expect(incomeTaxRate(24)).toBe(0.15);
     expect(taxedEquivalent(90, 36)).toBeCloseTo(105.88, 1);
     const r = netYield(10_000, 0.1, 12, false);
     expect(r.gross).toBe(1000);
-    expect(r.net).toBe(800);
+    expect(r.net).toBe(825);
   });
 
   it("entende rendimento líquido", () => {
@@ -28,8 +28,9 @@ describe("contas de investimento", () => {
     expect(p("LCI a 90% ou CDB a 110%?")).toEqual({ kind: "compareYield", options: [{ product: "lci", pct: 90 }, { product: "cdb", pct: 110 }], months: null });
     expect(p("o que é melhor cdb 110% do cdi ou lca 92% em 2 anos")).toMatchObject({ kind: "compareYield", months: 24 });
     expect(p("lci de 90% equivale a quanto em cdb?")).toMatchObject({ kind: "equivalent", product: "lci", pct: 90 });
-    expect(answer(p("LCI a 90% ou CDB a 110%?"), empty)!.value).toBe("LCI a 90%");
+    expect(answer(p("LCI a 90% ou CDB a 110%?"), empty)!.value).toBe("CDB a 110%");
     expect(answer(p("LCI a 90% ou CDB a 110% em 3 anos"), empty)!.value).toBe("CDB a 110%");
+    expect(answer(p("LCI a 90% ou CDB a 110% em 6 meses"), empty)!.value).toBe("LCI a 90%");
   });
 
   it("ganho real, independência e 50/30/20", () => {

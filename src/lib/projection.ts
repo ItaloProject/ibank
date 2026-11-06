@@ -10,6 +10,7 @@
  * - No vencimento, o IR é pago e o líquido é reaplicado a 100% do CDI.
  */
 import type { Curve } from "@/lib/market-curve";
+import { incomeTaxRate } from "@/lib/finance-calc";
 
 export type Rule =
   | { k: "cdi"; pct: number }
@@ -70,14 +71,10 @@ export type MonthPoint = {
 };
 
 const LONG_TERM = 0.15;
-const DAYS_PER_MONTH = 365.25 / 12;
 
+/** Mesma tabela do Gênio / finance-calc (dias corridos médios). */
 export function regressiveRate(months: number): number {
-  const days = months * DAYS_PER_MONTH;
-  if (days <= 180) return 0.225;
-  if (days <= 360) return 0.2;
-  if (days <= 720) return 0.175;
-  return 0.15;
+  return incomeTaxRate(months);
 }
 
 export function longTermRate(tax: TaxMode): number {

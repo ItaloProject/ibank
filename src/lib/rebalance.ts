@@ -1,14 +1,16 @@
 /**
  * Rebalanceamento da carteira por perfil de risco.
  *
- * - A reserva de emergência é dimensionada em meses de gastos e pode ser coberta
- *   por contas de reserva e, na falta delas, por pós-fixados com liquidez.
+ * - A reserva de emergência é dimensionada em meses de gastos e só conta
+ *   liquidez diária/D+1 (caixinha Emergência, Tesouro Selic/Reserva, CDB CDI
+ *   sem vencimento). Turbo, LCI/LCA e CDB com carência não cobrem a reserva.
  * - O restante é comparado com a alocação-alvo do perfil.
  * - O plano de aporte só usa dinheiro novo: completa a reserva e depois reforça as
  *   classes abaixo do alvo, proporcionalmente ao que falta. Vender só é sugerido
  *   em desvios grandes, porque gera imposto.
  */
 import type { PortfolioRow } from "@/lib/portfolio-return";
+import { isEmergenciaProductName } from "@/lib/fixed-income-catalog";
 
 export type RiskProfile = "conservador" | "moderado" | "arrojado";
 export type InvestBucket = "pos" | "inflacao" | "prefixado" | "fiis" | "acoes";
@@ -129,6 +131,25 @@ export function bucketOf(row: PortfolioRow): Bucket {
   }
 }
 
+/**
+ * Dinheiro que dá para usar na reserva de emergência (liquidez diária / D+1).
+ * Turbo e pós-fixado com vencimento/carência (LCI, LCA, CDB travado) ficam de fora.
+ */
+export function countsTowardEmergencyLiquidity(row: PortfolioRow): boolean {
+  if (row.classe === "emergencia") return true;
+  if (row.classe !== "renda_fixa") return false;
+
+  const nome = row.nome;
+  if (/\blci\b|\blca\b|\bcri\b|\bcra\b|poupanca|poupança/i.test(nome)) return false;
+  if (isEmergenciaProductName(nome) || /liquidez|resgate\s*diari|caixinha|cofrinho/i.test(nome)) return true;
+
+  const r = row.rate;
+  if (!r) return false;
+  if (r.rate_index === "selic") return true;
+  if (r.rate_index === "cdi") return !r.maturity;
+  return false;
+}
+
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 function roundAllocations(items: Allocation[], total: number): Allocation[] {
   const step = total >= 500 ? 10 : 1;
@@ -153,11 +174,13 @@ export function buildRebalancePlan(input: RebalanceInput): RebalancePlan {
 
   const baseadaEmGastos = input.gastoMensal != null && input.gastoMensal > 0;
   const reservaAlvo = baseadaEmGastos ? input.gastoMensal! * cfg.reservaMeses : MIN_RESERVE;
-  const liquidez = valor.reserva + valor.pos;
+  const liquidez = rows.filter(countsTowardEmergencyLiquidity).reduce((s, r) => s + r.valor, 0);
   const reservaAtual = Math.min(reservaAlvo, liquidez);
+  /** Pós + caixinha Emergência; a parte líquida usada na reserva sai do bucket investido. */
+  const posBruto = valor.pos + valor.reserva;
 
   const inv: Record<InvestBucket, number> = {
-    pos: liquidez - reservaAtual,
+    pos: posBruto - reservaAtual,
     inflacao: valor.inflacao,
     prefixado: valor.prefixado,
     fiis: valor.fiis,
@@ -197,13 +220,14 @@ export function buildRebalancePlan(input: RebalanceInput): RebalancePlan {
   // Sugestões
   const sugestoes: Suggestion[] = [];
   if (faltaReserva > 0) {
+    const temPosIlliquido = valor.pos + valor.reserva > liquidez;
     sugestoes.push({
       id: "reserva",
       prioridade: "alta",
       titulo: "Complete a reserva de emergência",
       detalhe: baseadaEmGastos
-        ? `Faltam ${brl(faltaReserva)} para ${cfg.reservaMeses} meses dos seus gastos (${brl(input.gastoMensal!)} por mês). Use aplicação com liquidez diária, como Tesouro Selic ou CDB 100% do CDI.`
-        : `Faltam ${brl(faltaReserva)} para a reserva mínima de ${brl(MIN_RESERVE)}. Cadastre seus gastos no Planejamento para calcular o valor ideal.`,
+        ? `Faltam ${brl(faltaReserva)} para ${cfg.reservaMeses} meses dos seus gastos (${brl(input.gastoMensal!)} por mês). Use aplicação com liquidez diária, como Tesouro Selic ou CDB 100% do CDI.${temPosIlliquido ? " Pós-fixado com vencimento, LCI/LCA ou Turbo não contam como reserva." : ""}`
+        : `Faltam ${brl(faltaReserva)} para a reserva mínima de ${brl(MIN_RESERVE)}. Cadastre seus gastos no Planejamento para calcular o valor ideal.${temPosIlliquido ? " Pós-fixado travado ou Turbo não cobrem a reserva." : ""}`,
     });
   }
   if (valor.caixa >= 500 && valor.caixa >= total * 0.05) {

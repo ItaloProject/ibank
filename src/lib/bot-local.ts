@@ -212,7 +212,7 @@ export function matchReservaProductChoice(
     return {
       kind: "text",
       text:
-        "**Não use poupança na reserva.** Com a Selic alta ela rende menos que **Tesouro Selic** ou **CDB 100% do CDI com liquidez diária**, mesmo depois do Imposto de Renda.\n\n" +
+        "**Não use poupança na reserva.** Ela só credita no aniversário do depósito e, com a Selic alta, rende menos que **Tesouro Selic** ou **CDB 100% do CDI com liquidez diária**, mesmo depois do Imposto de Renda.\n\n" +
         `Aplique no Selic ou no CDB diário.${hint}`,
       followups: ["rebal", "visao"],
     };

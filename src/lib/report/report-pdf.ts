@@ -1,6 +1,6 @@
 import type { RGB } from "pdf-lib";
 import { LOGO_PNG_BASE64 } from "@/lib/report/logo";
-import { BUCKET_LABEL, MIN_INVESTIDO_ALOCACAO, RISK_PROFILES, alocacaoRelevante, bucketOf, type Suggestion } from "@/lib/rebalance";
+import { BUCKET_LABEL, MIN_INVESTIDO_ALOCACAO, RISK_PROFILES, alocacaoRelevante, countsTowardEmergencyLiquidity, type Suggestion } from "@/lib/rebalance";
 import type { AssetClass } from "@/lib/portfolio-return";
 import type { UserSnapshot } from "@/lib/server/portfolio-snapshot";
 import { reportDate } from "@/lib/report/report-text";
@@ -136,7 +136,7 @@ export async function renderReportPdf(s: UserSnapshot): Promise<Uint8Array> {
   }
 
   // Reserva
-  const naReserva = rows.filter((r) => ["reserva", "pos"].includes(bucketOf(r))).map((r) => r.nome);
+  const naReserva = rows.filter((r) => countsTowardEmergencyLiquidity(r)).map((r) => r.nome);
   l.section(
     "Reserva de emergência",
     [

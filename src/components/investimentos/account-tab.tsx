@@ -144,7 +144,7 @@ export function AccountTab({
                     {account.name} está no teto — {formatCurrency(account.current_balance)} / {formatCurrency(account.max_rendimento)}
                   </p>
                   <p className="text-xs text-amber-700 dark:text-amber-400/80 mt-0.5">
-                    O rendimento extra para de contar quando atinge o teto. Direcione novos aportes para FIIs ou ações.
+                    O rendimento extra para de contar quando atinge o teto. Novos aportes: complete a reserva (Selic/CDB diário) e depois as classes abaixo do alvo — o excedente ainda rende ~100% do CDI.
                   </p>
                 </div>
               </div>

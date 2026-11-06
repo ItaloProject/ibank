@@ -55,12 +55,15 @@ export const CATEGORY_META: Record<RateCategory, {
 };
 
 // Detecta a categoria pelo nome da conta (ignora acentos).
+// "poupanca" no meta = NuConta / conta remunerada a % do CDI — não a caderneta tradicional.
 export function detectCategory(name: string): RateCategory | null {
   const n = name
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
-  if (n.includes("poup") || n.includes("nuconta") || n.includes("conta")) return "poupanca";
+  // Caderneta tradicional: não misturar com NuConta (100% CDI).
+  if (/\bpoup/.test(n) && !n.includes("nuconta")) return null;
+  if (n.includes("nuconta") || /conta\s*(nubank|remunerada|digital)/.test(n)) return "poupanca";
   if (n.includes("lci") || n.includes("lca")) return "lci_lca";
   if (n.includes("cdb") || n.includes("rdb")) return "cdb";
   if (n.includes("selic") || n.includes("tesouro")) return "selic";

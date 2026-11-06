@@ -1,8 +1,8 @@
 import type { FinanceCommand } from "./finance-parse";
 import type { GenieAnswer, GenieLine } from "./answer";
 import {
-  CHEQUE_ESPECIAL_MONTH, FREEDOM_MULTIPLE, POUPANCA_YEAR, PRODUCT_LABEL, REAL_RATE_YEAR, ROTATIVO_MONTH,
-  amortization, debtGrowth, incomeTaxRate, isTaxFree, monthToYear, monthsToTarget, netYield, realRate,
+  CHEQUE_ESPECIAL_MONTH, FREEDOM_MULTIPLE, PRODUCT_LABEL, REAL_RATE_YEAR, ROTATIVO_MONTH,
+  amortization, debtGrowth, incomeTaxRate, isTaxFree, monthToYear, monthsToTarget, netYield, poupancaAnnualFromSelic, realRate,
   taxFreeEquivalent, taxedEquivalent, yearToMonth, type Product,
 } from "@/lib/finance-calc";
 
@@ -20,7 +20,13 @@ const longPeriod = (n: number) => {
 export type PlanNumbers = { salary: number; planned: number; actual: number; fixo: number; variavel: number; sobraPlanned: number };
 
 function annualRateOf(product: Product, pctCdi: number | null, rateYear: number | null, cdi: number): { rate: number; label: string } {
-  if (product === "poupanca") return { rate: POUPANCA_YEAR, label: "poupança (0,5% ao mês, sem a TR)" };
+  if (product === "poupanca") {
+    const rate = poupancaAnnualFromSelic(cdi);
+    const label = cdi > 8.5
+      ? "poupança (0,5% ao mês + TR, regra com Selic alta — TR não contada)"
+      : "poupança (70% da Selic + TR — TR não contada)";
+    return { rate, label };
+  }
   if (rateYear !== null) return { rate: rateYear / 100, label: `${PRODUCT_LABEL[product]} a ${pct(rateYear)} ao ano` };
   const p = pctCdi ?? 100;
   return { rate: (cdi / 100) * (p / 100), label: `${PRODUCT_LABEL[product]} a ${pct(p)} do CDI` };
@@ -46,7 +52,7 @@ export function financeAnswer(cmd: FinanceCommand, cdi: number, plan: PlanNumber
         raw: r.final,
         tone: "good",
         lines,
-        note: `Com CDI de ${pct(cdi)} ao ano mantido no período.${cmd.pct === null && cmd.rateYear === null && cmd.product !== "poupanca" ? " Considerei 100% do CDI; diga a taxa para um cálculo exato." : ""}${cmd.product === "tesouro" ? " O Tesouro também cobra 0,20% ao ano de custódia acima de R$ 10 mil." : ""}`,
+        note: `Com CDI de ${pct(cdi)} ao ano mantido no período.${cmd.pct === null && cmd.rateYear === null && cmd.product !== "poupanca" ? " Considerei 100% do CDI; diga a taxa para um cálculo exato." : ""}${cmd.product === "poupanca" ? " Na poupança o rendimento só credita no aniversário do depósito; resgate antes perde o rendimento do período. Para reserva, prefira Tesouro Selic ou CDB 100% CDI com liquidez diária." : ""}${cmd.product === "tesouro" ? " O Tesouro também cobra 0,20% ao ano de custódia acima de R$ 10 mil." : ""}`,
         chips: free ? ["o que é FGC?"] : [`quanto rendem ${money(cmd.amount).replace("R$", "").trim()} na LCI a 90% do CDI em ${period(cmd.months)}`],
       };
     }
