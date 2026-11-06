@@ -28,7 +28,7 @@ import type { MarketResearchPayload } from "@/lib/market-research";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
 import { RISK_PROFILES, alocacaoRelevante, type RiskProfile } from "@/lib/rebalance";
 import { formatMonths as duration, type ProfileTransition } from "@/lib/profile-transition";
-import { BUCKET_SECTION, actionHref, actionLabel, type AnalysisPayload, type BotAction } from "@/lib/plan-view";
+import { BUCKET_SECTION, actionHref, actionLabel, actionLines, type AnalysisPayload, type BotAction } from "@/lib/plan-view";
 import { WhatsappPanel } from "@/components/bot/whatsapp-panel";
 import { RiskProfilePicker, saveRiskProfile } from "@/components/bot/risk-profile-picker";
 
@@ -171,12 +171,19 @@ function rebalReply(a: AnalysisPayload): Msg {
   ];
 
   if (plan.plano.length > 0) {
+    const primeiroReserva = plan.plano[0]?.bucket === "reserva";
     blocks.push({
       kind: "list",
       title: `Aporte de ${formatCurrency(plan.aporte)} nesta ordem`,
       ordered: true,
       items: plan.plano.map((p) => ({ title: p.label, value: formatCurrency(p.valor) })),
     });
+    if (primeiroReserva) {
+      blocks.push({
+        kind: "text",
+        text: "A reserva no MUVO fica na **caixinha Emergência** (dinheiro líquido). Tesouro Selic/CDI entram depois, em pós-fixado — não substituem a reserva.",
+      });
+    }
     blocks.push({
       kind: "actions",
       items: plan.plano.slice(0, 3).map((p): BotAction => ({ kind: "investir", section: BUCKET_SECTION[p.bucket], amount: p.valor })),
@@ -184,13 +191,17 @@ function rebalReply(a: AnalysisPayload): Msg {
     blocks.push({
       kind: "text",
       muted: true,
-      text: `Aporte ${APORTE_ORIGEM[a.aporteOrigem]}. Toque num botão para registrar no LIVE.`,
+      text: `Aporte ${APORTE_ORIGEM[a.aporteOrigem]}. Toque no botão para abrir a caixinha certa no LIVE.`,
     });
   } else if (!reservaOk) {
     blocks.push({
       kind: "alert",
       tone: "warn",
-      text: `Prioridade: reforçar a reserva em ${formatCurrency(faltaReserva)}.`,
+      text: `Prioridade: reforçar a caixinha Emergência em ${formatCurrency(faltaReserva)}.`,
+    });
+    blocks.push({
+      kind: "text",
+      text: "Crie ou use a **caixinha Emergência**. Tesouro Selic é pós-fixado — entra no plano depois que a reserva estiver completa.",
     });
     blocks.push({
       kind: "actions",
@@ -730,21 +741,32 @@ function BlockView({ block, onPdf, onProfile, onAction, notice }: {
       if (block.items.length === 0) return null;
       return (
         <div className="flex flex-col gap-1.5">
-          {block.items.map((a, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => onAction(a)}
-              className={cn(
-                "inline-flex min-h-10 w-full items-center justify-between gap-2 rounded-lg px-3.5 text-left text-sm font-semibold transition-colors",
-                i === 0 ? "bg-white text-[#0D0D0D] hover:bg-white/90" : "border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12]",
-                FOCUS,
-              )}
-            >
-              <span className="truncate">{actionLabel(a)}</span>
-              <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-            </button>
-          ))}
+          {block.items.map((a, i) => {
+            const lines = actionLines(a);
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onAction(a)}
+                aria-label={actionLabel(a)}
+                className={cn(
+                  "inline-flex min-h-12 w-full items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 text-left transition-colors",
+                  i === 0 ? "bg-white text-[#0D0D0D] hover:bg-white/90" : "border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12]",
+                  FOCUS,
+                )}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold leading-snug break-words">{lines.title}</span>
+                  {lines.subtitle && (
+                    <span className={cn("mt-0.5 block text-xs font-medium leading-snug", i === 0 ? "text-[#0D0D0D]/65" : "text-white/55")}>
+                      {lines.subtitle}
+                    </span>
+                  )}
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+              </button>
+            );
+          })}
         </div>
       );
     case "md":

@@ -281,8 +281,8 @@ export function SimulatorInvestFlow({
           )}
 
           {section === "eme" && emergenciaAccounts.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              Você ainda não tem reserva de emergência. Crie uma para poder aplicar.
+            <p className="text-sm text-muted-foreground text-center py-6 px-2 leading-relaxed">
+              A reserva fica numa caixinha Emergência (liquidez). Tesouro Selic entra depois, em pós-fixado.
             </p>
           )}
           {section === "eme" &&
@@ -296,7 +296,7 @@ export function SimulatorInvestFlow({
               />
             ))}
           {section === "eme" && onCreateAccount && (
-            <CreateAccountButton label="Criar reserva de emergência" onClick={() => onCreateAccount("emergencia")} />
+            <CreateAccountButton label="Criar caixinha Emergência" onClick={() => onCreateAccount("emergencia")} />
           )}
         </div>
       )}

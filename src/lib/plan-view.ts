@@ -46,12 +46,40 @@ export function actionHref(a: BotAction): string {
   return `/investimentos?investir=${a.section}${valor}`;
 }
 
+/** Rótulo curto do destino — cabe no botão do chat sem cortar o valor. */
+const SECTION_SHORT: Record<InvestSection, string> = {
+  hub: "Investir",
+  acoes: "ações",
+  fiis: "FIIs",
+  tesouro: "Tesouro",
+  rendafixa: "renda fixa",
+  turbo: "Turbo",
+  eme: "Emergência",
+};
+
 export function actionLabel(a: BotAction): string {
   if (a.kind === "perfil") return `Ver o caminho para o perfil ${RISK_PROFILES[a.to].label.toLowerCase()}`;
   if (a.kind === "vender") return `Vender ${a.ticker}`;
   if (a.section === "hub") return a.amount ? `Investir ${brl(a.amount)}` : "Abrir Investir";
+  const dest = SECTION_SHORT[a.section];
+  return a.amount ? `Aplicar ${brl(a.amount)} · ${dest}` : `Abrir ${dest}`;
+}
+
+/** Título e subtítulo do botão de ação (evita truncar valor + destino numa linha só). */
+export function actionLines(a: BotAction): { title: string; subtitle?: string } {
+  if (a.kind === "perfil") {
+    return { title: `Perfil ${RISK_PROFILES[a.to].label.toLowerCase()}`, subtitle: "Ver o caminho" };
+  }
+  if (a.kind === "vender") return { title: `Vender ${a.ticker}` };
+  if (a.section === "hub") {
+    return a.amount
+      ? { title: `Investir ${brl(a.amount)}`, subtitle: "Abrir LIVE" }
+      : { title: "Abrir Investir" };
+  }
   const dest = SECTION_LABEL[a.section];
-  return a.amount ? `Aplicar ${brl(a.amount)} em ${dest}` : `Abrir ${dest}`;
+  return a.amount
+    ? { title: `Aplicar ${brl(a.amount)}`, subtitle: dest }
+    : { title: `Abrir ${SECTION_SHORT[a.section]}` };
 }
 
 /**

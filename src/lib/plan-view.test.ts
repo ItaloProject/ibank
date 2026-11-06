@@ -42,7 +42,7 @@ describe("plan-view", () => {
     expect(text).toBe("Aplique na reserva.");
     expect(actions).toEqual([{ kind: "investir", section: "eme", amount: 500 }, { kind: "vender", ticker: "PTR4" }]);
     expect(actionHref(actions[0])).toBe("/investimentos?investir=eme&valor=500");
-    expect(actionLabel(actions[0])).toMatch(/^Aplicar R\$\s?500 em Reserva de emergência$/);
+    expect(actionLabel(actions[0])).toMatch(/^Aplicar R\$\s?500 · Emergência$/);
     const perfil = extractActions("Dá para migrar aos poucos.\n<<perfil:agressivo>>\n<<perfil:ousado>>", []);
     expect(perfil.text).toBe("Dá para migrar aos poucos.");
     expect(perfil.actions).toEqual([{ kind: "perfil", to: "arrojado" }]);
