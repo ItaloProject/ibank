@@ -16,8 +16,8 @@ describe("plan-view", () => {
   it("reserva vazia vira alerta crítico com atalho para aplicar na reserva", () => {
     const p = plan([row({ id: "acoes", classe: "acoes", valor: 5000, accountId: null })]);
     const reserva = planInsights(p).find((i) => i.title.includes("reserva"));
-    expect(reserva).toMatchObject({ level: "critical", section: "eme" });
-    expect(planMoves(p)[0]).toMatchObject({ prioridade: 1, section: "eme" });
+    expect(reserva).toMatchObject({ level: "critical", section: "tesouro" });
+    expect(planMoves(p)[0]).toMatchObject({ prioridade: 1, section: "tesouro" });
     expect(planScore(p)).toBeLessThanOrEqual(75);
   });
 
