@@ -122,9 +122,9 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 5.6rem;
-  height: 5.6rem;
-  margin: -2.8rem 0 0 -2.8rem;
+  width: calc(var(--size) * 0.53);
+  height: calc(var(--size) * 0.53);
+  margin: calc(var(--size) * -0.265) 0 0 calc(var(--size) * -0.265);
   display: block;
   border-radius: 50%;
   background: radial-gradient(closest-side, rgb(0 0 0 / 0.5), transparent);
@@ -143,9 +143,9 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 6.4rem;
-  height: 6.4rem;
-  margin: -3.2rem 0 0 -3.2rem;
+  width: calc(var(--size) * 0.61);
+  height: calc(var(--size) * 0.61);
+  margin: calc(var(--size) * -0.305) 0 0 calc(var(--size) * -0.305);
   display: block;
   transform-style: preserve-3d;
   transform: translateZ(36px);
@@ -208,6 +208,14 @@
 .l3d:is(:hover, :focus-visible) .l3d-money { animation: l3d-money 1.8s var(--ease) infinite; }
 .l3d:is(:hover, :focus-visible) .l3d-dot { animation: l3d-dot 1.8s ease-in-out infinite; }
 
+/* Rebalancear: a balança oscila até se equilibrar. */
+.l3d-beam {
+  transform-box: view-box;
+  transform-origin: 32px 19px;
+  transform: rotate(0deg);
+}
+.l3d:is(:hover, :focus-visible) .l3d-beam { animation: l3d-beam 2.4s ease-in-out infinite; }
+
 /* Calculadora: as teclas afundam em sequência e o visor muda. */
 .l3d:is(:hover, :focus-visible) .l3d-key { animation: l3d-key 1.4s ease-in-out infinite var(--d, 0s); }
 .l3d:is(:hover, :focus-visible) .l3d-digits { animation: l3d-digits 1.4s ease-in-out infinite; transform-origin: left center; }
@@ -247,10 +255,32 @@
   0%, 55%, 100% { transform: scale(1); }
   20% { transform: scale(0.74); }
 }
+@keyframes l3d-beam {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
 @keyframes l3d-digits {
   0%, 100% { transform: scaleX(1); }
   45% { transform: scaleX(0.3); }
   70% { transform: scaleX(1.25); }
+}
+
+/* Celular: ícones menores, em grade, e o nome sempre visível, já que não existe passar o mouse. */
+@media (max-width: 640px) {
+  .l3d {
+    --size: 7.75rem;
+    width: 9.25rem;
+    padding: 1.25rem 0 3rem;
+  }
+}
+@media (hover: none) {
+  .l3d-label {
+    background: none;
+    color: hsl(var(--foreground));
+    font-size: 0.85rem;
+    opacity: 1;
+    translate: -50% 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,7 +3,7 @@
 import { useId, type CSSProperties, type PointerEvent } from "react";
 import "./live-icons-3d.css";
 
-export type Icon3DKind = "overview" | "wallet" | "calculator";
+export type Icon3DKind = "overview" | "wallet" | "calculator" | "rebalance";
 
 /** Uma cópia frontal e as demais empilhadas em profundidade, o que dá volume ao símbolo. */
 const LAYERS = 11;
@@ -33,6 +33,21 @@ function Shapes({ kind, fill }: { kind: Icon3DKind; fill: string }) {
           <rect x="5" y="17" width="52" height="41" rx="11" fill={fill} />
           <rect className="l3d-edge" x="41" y="30" width="20" height="16" rx="8" fill={fill} />
           <circle className="l3d-part l3d-dot l3d-cut" cx="50" cy="38" r="2.6" />
+        </>
+      );
+    case "rebalance":
+      return (
+        <>
+          <rect x="29" y="12" width="6" height="42" rx="3" fill={fill} />
+          <rect x="15" y="51" width="34" height="9" rx="4.5" fill={fill} />
+          <g className="l3d-beam">
+            <rect className="l3d-edge" x="6" y="16.5" width="52" height="5" rx="2.5" fill={fill} />
+            <rect x="15" y="22" width="2" height="12" fill={fill} />
+            <rect x="47" y="22" width="2" height="12" fill={fill} />
+            <path d="M4.5 34 H27.5 A11.5 11.5 0 0 1 4.5 34 Z" fill={fill} />
+            <path d="M36.5 34 H59.5 A11.5 11.5 0 0 1 36.5 34 Z" fill={fill} />
+          </g>
+          <circle className="l3d-edge" cx="32" cy="10" r="5" fill={fill} />
         </>
       );
     case "calculator":

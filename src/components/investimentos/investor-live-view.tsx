@@ -29,6 +29,7 @@ import {
 } from "@/components/investimentos/simulator-invest-flow";
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 import { BankPicker } from "@/components/investimentos/bank-picker";
+import { Icon3D } from "@/components/investimentos/live-icons-3d";
 import { InicialShortcuts, SimChart, SimLegend, SimParam, SimRateParam, simRateText, useSimulation } from "@/components/investimentos/sim-controls";
 import { liveBotContext } from "@/components/investimentos/live-bot-context";
 import { useBotPageContext } from "@/lib/bot-page-context";
@@ -361,7 +362,8 @@ export function InvestorLiveView({
   onClose,
   liveAction,
 }: InvestorLiveViewProps) {
-  const [tab, setTab] = useState<"inicio" | "investimentos" | "rebalancear" | "simular">("inicio");
+  // Começa sem seção: só aparece algo depois que o usuário escolhe um grupo no menu.
+  const [tab, setTab] = useState<"inicio" | "investimentos" | "rebalancear" | "simular" | null>(null);
   const [focusGroup, setFocusGroup] = useState<"all" | "turbo" | "emergencia" | "investimentos">("all");
   const [investSubPage, setInvestSubPage] = useState<"tesouro" | "acoes" | null>(null);
   const [marketOpen, setMarketOpen] = useState(false);
@@ -799,7 +801,7 @@ export function InvestorLiveView({
 
   const sim = useSimulation(patrimonioTotal, cash);
   useBotPageContext("live:mobile", liveBotContext({
-    tab,
+    tab: tab ?? "menu",
     marketOpen,
     marketSection,
     newCaixinha: { open: newCaixinhaOpen, tipo: newCaixinhaTipo, nome: newCaixinhaName, instituicao: newCaixinhaInstituicao, rate: newCaixinhaRate, cdiMask: newCaixinhaCdiMask },
@@ -850,6 +852,13 @@ export function InvestorLiveView({
     </>
   );
 
+  const LIVE_TABS = [
+    { id: "inicio" as const, label: "Visão geral", short: "Início", icon: Home, kind: "overview" as const },
+    { id: "investimentos" as const, label: "Investimentos", short: "Investir", icon: Wallet, kind: "wallet" as const },
+    { id: "rebalancear" as const, label: "Rebalancear", short: "Rebalancear", icon: Scale, kind: "rebalance" as const },
+    { id: "simular" as const, label: "Simulador", short: "Simular", icon: Calculator, kind: "calculator" as const },
+  ];
+
   return (
     <div
       role="dialog"
@@ -863,10 +872,22 @@ export function InvestorLiveView({
           className="flex items-center justify-between pl-5 pr-3 pb-2 shrink-0 border-b border-border"
           style={{ paddingTop: "calc(0.5rem + var(--safe-top))" }}
         >
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
-            <span className={LABEL}>MUVO · Live</span>
-          </div>
+          {tab === null ? (
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+              <span className={LABEL}>MUVO · Live</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => goToTab(null)}
+              aria-label="MUVO Live: voltar ao menu"
+              className={`-ml-2 flex min-h-11 items-center gap-2 rounded-lg px-2 ${FOCUS}`}
+            >
+              <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+              <span className={LABEL}>MUVO · Live</span>
+            </button>
+          )}
           {onClose && (
             <button
               type="button"
@@ -881,6 +902,18 @@ export function InvestorLiveView({
 
         {/* Conteúdo scrollável */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pt-4 pb-6">
+          {tab === null && (
+            <nav aria-label="Escolha uma seção do MUVO Live" className="flex min-h-[calc(100dvh-8rem)] items-center justify-center">
+              <ul className="grid grid-cols-2 place-items-center gap-x-1 gap-y-2">
+                {LIVE_TABS.map((t, i) => (
+                  <li key={t.id}>
+                    <Icon3D kind={t.kind} label={t.label} index={i} onSelect={() => goToTab(t.id)} />
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
+
           {!marketOpen && tab === "investimentos" && focusGroup === "all" && (
             <div className="space-y-4">
               <CaixinhaHeader label="Total das caixinhas" total={totalCaixinhas} />
@@ -1313,18 +1346,14 @@ export function InvestorLiveView({
           )}
         </main>
 
-        {/* Barra de abas */}
+        {/* Barra de abas: só depois que o usuário escolhe uma seção no menu */}
+        {tab !== null && (
         <nav
           aria-label="Seções do MUVO Live"
           className="grid grid-cols-4 border-t border-border bg-background px-2 pt-1 shrink-0"
           style={{ paddingBottom: "calc(0.25rem + var(--safe-bottom))" }}
         >
-          {[
-            { id: "inicio" as const, label: "Início", icon: Home },
-            { id: "investimentos" as const, label: "Investir", icon: Wallet },
-            { id: "rebalancear" as const, label: "Rebalancear", icon: Scale },
-            { id: "simular" as const, label: "Simular", icon: Calculator },
-          ].map((t) => {
+          {LIVE_TABS.map((t) => {
             const active = tab === t.id;
             return (
               <button
@@ -1337,11 +1366,12 @@ export function InvestorLiveView({
                 }`}
               >
                 <t.icon className="h-5 w-5" aria-hidden="true" />
-                <span className={`text-[11px] ${active ? "font-bold" : "font-medium"}`}>{t.label}</span>
+                <span className={`text-[11px] ${active ? "font-bold" : "font-medium"}`}>{t.short}</span>
               </button>
             );
           })}
         </nav>
+        )}
 
         {/* Compra/aporte via Live (sobre a tela inteira) */}
         {marketOpen && (
