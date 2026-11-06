@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { ensureBotSchema } from "@/lib/bot-schema";
 import { requireBotUser } from "@/lib/server/bot-auth";
+import { resetDigestConsent } from "@/lib/server/whatsapp-outbox";
 
 /** Remove o número salvo para envio automático. */
 export async function DELETE() {
@@ -14,5 +15,6 @@ export async function DELETE() {
         whatsapp_consent_at = NULL, whatsapp_pending_report_at = NULL
     WHERE user_id = ${auth.userId}
   `;
+  await resetDigestConsent(auth.userId);
   return NextResponse.json({ ok: true });
 }

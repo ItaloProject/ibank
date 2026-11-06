@@ -79,6 +79,15 @@ export function isDigestDue(input: { frequency: Frequency; userId: string; now: 
   return input.lastDigestDay === null || daysBetween(input.lastDigestDay, today) >= 6;
 }
 
+export type DigestMode = "off" | "pending" | "weekly" | "daily";
+
+/** Estado do resumo de um usuário: desligado, aguardando a escolha, semanal ou só avisos. */
+export function digestMode(input: { optinAt: unknown; optoutAt: unknown; frequency: string | null | undefined }): DigestMode {
+  if (input.optoutAt) return "off";
+  if (!input.optinAt) return "pending";
+  return input.frequency === "daily" ? "daily" : "weekly";
+}
+
 export type Reply = "sim" | "sair" | "avisos" | "semanal";
 
 const REPLIES: Record<Reply, string[]> = {

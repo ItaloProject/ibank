@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { CheckCircle2, Copy, FileText, Loader2, Send, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useWhatsapp, type SendResult } from "./use-whatsapp";
+import { useWhatsapp, type DigestChoice, type SendResult } from "./use-whatsapp";
 import { useReportShare, type ShareOutcome } from "./use-report-share";
 
 type Variant = "bot" | "app";
@@ -38,6 +38,19 @@ const SHARE_MSG: Record<"shared" | "downloaded", string> = {
   downloaded: "PDF baixado. Na conversa do WhatsApp que abriu, anexe o arquivo (clipe › Documento) e envie.",
 };
 
+const DIGEST_OPTIONS: { id: DigestChoice; label: string }[] = [
+  { id: "weekly", label: "Semanal" },
+  { id: "daily", label: "Só avisos" },
+  { id: "off", label: "Desligado" },
+];
+
+const DIGEST_HINT: Record<"off" | "pending" | "weekly" | "daily", string> = {
+  weekly: "Uma mensagem por semana, em dia útil, com o panorama da bolsa e os avisos mais importantes.",
+  daily: "Só mandamos mensagem quando algo importante acontecer, como uma queda forte. No máximo uma por dia.",
+  off: "Você não recebe resumos nem avisos. O envio do relatório em PDF continua funcionando.",
+  pending: "Escolha como quer receber. Se preferir, vamos te convidar pelo WhatsApp: é só responder SIM.",
+};
+
 /** Máscara (11) 98765-4321 enquanto digita; números com + ficam livres. */
 function maskPhoneInput(raw: string): string {
   if (raw.trim().startsWith("+")) return raw.replace(/[^\d+\s()-]/g, "").slice(0, 20);
@@ -50,7 +63,9 @@ function maskPhoneInput(raw: string): string {
 
 export function WhatsappPanel({ variant = "bot" }: { variant?: Variant }) {
   const st = STYLES[variant];
-  const { status, unlink, sendReport } = useWhatsapp();
+  const { status, unlink, sendReport, setDigest } = useWhatsapp();
+  const [digestBusy, setDigestBusy] = useState(false);
+  const [digestError, setDigestError] = useState<string | null>(null);
   const report = useReportShare();
   const [shareResult, setShareResult] = useState<ShareOutcome | null>(null);
   const [copied, setCopied] = useState(false);
@@ -78,6 +93,13 @@ export function WhatsappPanel({ variant = "bot" }: { variant?: Variant }) {
     setSendResult(res);
     if (res.ok) setEditing(false);
     setSending(false);
+  }
+
+  async function chooseDigest(mode: DigestChoice) {
+    setDigestBusy(true);
+    setDigestError(null);
+    setDigestError(await setDigest(mode));
+    setDigestBusy(false);
   }
 
   const showForm = editing || !status?.connected;
@@ -138,7 +160,7 @@ export function WhatsappPanel({ variant = "bot" }: { variant?: Variant }) {
               </div>
               <label className={cn("flex cursor-pointer items-start gap-2 text-[11px] leading-snug", st.muted)}>
                 <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-current" />
-                Este número é meu e autorizo o MUVO a me enviar relatórios pelo WhatsApp.
+                Este número é meu e autorizo o MUVO a me enviar relatórios, resumos e avisos da minha carteira pelo WhatsApp. Posso parar a qualquer momento respondendo SAIR.
               </label>
               {editing && (
                 <button type="button" onClick={() => setEditing(false)} className={cn("text-[11px] underline underline-offset-2", st.link, st.ring)}>
@@ -160,6 +182,33 @@ export function WhatsappPanel({ variant = "bot" }: { variant?: Variant }) {
                   Remover número
                 </button>
               </div>
+            </div>
+          )}
+
+          {!showForm && status?.digestAvailable && (
+            <div className={cn("space-y-2 border-t pt-3", st.divider)}>
+              <p id={`wa-digest-${variant}`} className={cn("text-xs font-semibold", st.text)}>Resumo da carteira no WhatsApp</p>
+              <div role="radiogroup" aria-labelledby={`wa-digest-${variant}`} className="grid grid-cols-3 gap-1.5">
+                {DIGEST_OPTIONS.map((o) => {
+                  const active = status.digest === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      disabled={digestBusy}
+                      onClick={() => void chooseDigest(o.id)}
+                      className={cn(btn, "px-2", active ? st.primary : st.secondary)}
+                    >
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p aria-live="polite" className={cn("text-[11px] leading-relaxed", digestError ? "text-red-500" : st.muted)}>
+                {digestError ?? DIGEST_HINT[status.digest]}
+              </p>
             </div>
           )}
 

@@ -10,7 +10,13 @@ export type WhatsappStatus = {
   templateReady: boolean;
   /** Envio automático possível para qualquer número (exige modelo aprovado). */
   autoAvailable: boolean;
+  /** Resumo periódico da carteira disponível (exige a Evolution API). */
+  digestAvailable: boolean;
+  /** off: desligado; pending: ainda não escolheu; weekly: resumo semanal; daily: só avisos importantes. */
+  digest: "off" | "pending" | "weekly" | "daily";
 };
+
+export type DigestChoice = "weekly" | "daily" | "off";
 
 export type SendResult =
   | { ok: true; mode: "full" | "template"; phone?: string }
@@ -57,5 +63,23 @@ export function useWhatsapp() {
     }
   }, [refresh]);
 
-  return { status, refresh, unlink, sendReport };
+  const setDigest = useCallback(async (mode: DigestChoice): Promise<string | null> => {
+    try {
+      const res = await fetch("/api/whatsapp/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        return data?.error ?? "Não foi possível salvar.";
+      }
+      await refresh();
+      return null;
+    } catch {
+      return "Sem conexão. Tente de novo.";
+    }
+  }, [refresh]);
+
+  return { status, refresh, unlink, sendReport, setDigest };
 }

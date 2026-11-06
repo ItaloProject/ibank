@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { consumeDailyQuota, ensureBotSchema } from "@/lib/bot-schema";
 import { requireBotUser } from "@/lib/server/bot-auth";
+import { ensureOutboxSchema, resetDigestConsent } from "@/lib/server/whatsapp-outbox";
 import { evolutionConfig } from "@/lib/evolution";
 import { sendFullReport, sendReportViaEvolution, sendTemplateReport } from "@/lib/server/send-report";
 import { WhatsappError, isWindowOpen, maskPhone, normalizePhone, whatsappConfig } from "@/lib/whatsapp";
@@ -30,12 +31,17 @@ export async function POST(request: Request) {
     if (body.consent !== true) return NextResponse.json({ error: "Marque a autorização para receber mensagens do MUVO." }, { status: 400 });
     const taken = await sql`SELECT 1 FROM app_users WHERE whatsapp_phone = ${phone} AND user_id <> ${auth.userId}`;
     if (taken.length > 0) return NextResponse.json({ error: "Este número já está cadastrado em outra conta." }, { status: 409 });
+    await ensureOutboxSchema();
+    const before = await sql`SELECT whatsapp_phone FROM app_users WHERE user_id = ${auth.userId}`;
+    const changed = before[0]?.whatsapp_phone !== phone;
     await sql`
       UPDATE app_users
       SET whatsapp_phone = ${phone}, whatsapp_consent_at = NOW(), whatsapp_verified_at = NULL,
           whatsapp_last_inbound_at = CASE WHEN whatsapp_phone = ${phone} THEN whatsapp_last_inbound_at ELSE NULL END
       WHERE user_id = ${auth.userId}
     `;
+    // O aceite do resumo vale para o número antigo; um número novo precisa de nova escolha.
+    if (changed) await resetDigestConsent(auth.userId);
   }
 
   const rows = await sql`SELECT whatsapp_phone, whatsapp_last_inbound_at FROM app_users WHERE user_id = ${auth.userId}`;

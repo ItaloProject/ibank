@@ -6,6 +6,7 @@ import {
   composeDigest,
   composeOptin,
   dailyCap,
+  digestMode,
   isDigestDue,
   isSendWindow,
   nextGapSeconds,
@@ -142,6 +143,24 @@ describe("composeDigest", () => {
 
   it("funciona sem nome", () => {
     expect(composeDigest({ nome: "", frequency: "weekly", bolsa, alerts: [], seed: "s" })!.split("\n")[0]).not.toMatch(/,\s*!/);
+  });
+});
+
+describe("digestMode", () => {
+  const agora = new Date();
+  it("começa aguardando a escolha do usuário", () => {
+    expect(digestMode({ optinAt: null, optoutAt: null, frequency: "weekly" })).toBe("pending");
+  });
+
+  it("segue a frequência escolhida depois do aceite", () => {
+    expect(digestMode({ optinAt: agora, optoutAt: null, frequency: "weekly" })).toBe("weekly");
+    expect(digestMode({ optinAt: agora, optoutAt: null, frequency: "daily" })).toBe("daily");
+    expect(digestMode({ optinAt: agora, optoutAt: null, frequency: null })).toBe("weekly");
+  });
+
+  it("SAIR desliga, mesmo com aceite anterior", () => {
+    expect(digestMode({ optinAt: agora, optoutAt: agora, frequency: "daily" })).toBe("off");
+    expect(digestMode({ optinAt: null, optoutAt: agora, frequency: "weekly" })).toBe("off");
   });
 });
 

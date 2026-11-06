@@ -81,7 +81,10 @@ export async function planOutbox(limit = 3, now = new Date()): Promise<PlanResul
     SELECT u.user_id, u.name FROM app_users u
     WHERE u.whatsapp_phone IS NOT NULL AND u.whatsapp_consent_at IS NOT NULL
       AND u.whatsapp_optin_at IS NULL AND u.whatsapp_optout_at IS NULL AND u.is_active IS NOT FALSE
-      AND NOT EXISTS (SELECT 1 FROM whatsapp_outbox o WHERE o.user_id = u.user_id AND o.kind = 'optin')
+      AND NOT EXISTS (
+        SELECT 1 FROM whatsapp_outbox o
+        WHERE o.user_id = u.user_id AND o.kind = 'optin' AND o.created_at >= u.whatsapp_consent_at
+      )
     ORDER BY u.whatsapp_consent_at
     LIMIT ${limit}
   `;
@@ -197,7 +200,7 @@ export async function dispatchNext(now = new Date(), random = Math.random()): Pr
     WHERE id = (
       SELECT o.id FROM whatsapp_outbox o JOIN app_users u ON u.user_id = o.user_id
       WHERE o.status = 'queued' AND u.whatsapp_phone IS NOT NULL AND u.whatsapp_optout_at IS NULL
-        AND (o.kind = 'optin' OR u.whatsapp_optin_at IS NOT NULL)
+        AND ((o.kind = 'optin' AND u.whatsapp_optin_at IS NULL) OR (o.kind = 'digest' AND u.whatsapp_optin_at IS NOT NULL))
       ORDER BY (o.kind = 'digest') DESC, o.created_at
       LIMIT 1
       FOR UPDATE OF o SKIP LOCKED
@@ -240,6 +243,29 @@ export async function dispatchNext(now = new Date(), random = Math.random()): Pr
     }
     return { status: "failed", detail: message };
   }
+}
+
+/** Escolha do usuário (no app ou por resposta): semanal, só avisos ou desligado. Desligar cancela o que está na fila. */
+export async function applyDigestMode(userId: string, mode: "weekly" | "daily" | "off") {
+  await ensureOutboxSchema();
+  if (mode === "off") {
+    await sql`UPDATE app_users SET whatsapp_optout_at = NOW() WHERE user_id = ${userId}`;
+    await sql`UPDATE whatsapp_outbox SET status = 'cancelled' WHERE user_id = ${userId} AND status = 'queued'`;
+    return;
+  }
+  await sql`
+    UPDATE app_users
+    SET whatsapp_optin_at = COALESCE(whatsapp_optin_at, NOW()), whatsapp_optout_at = NULL,
+        whatsapp_frequency = ${mode}::varchar
+    WHERE user_id = ${userId}
+  `;
+}
+
+/** Remove o aceite e a fila quando o número é removido ou trocado. */
+export async function resetDigestConsent(userId: string) {
+  await ensureOutboxSchema();
+  await sql`UPDATE app_users SET whatsapp_optin_at = NULL, whatsapp_optout_at = NULL WHERE user_id = ${userId}`;
+  await sql`UPDATE whatsapp_outbox SET status = 'cancelled' WHERE user_id = ${userId} AND status = 'queued'`;
 }
 
 export type InboundResult = "unknown-user" | "ignored" | Reply;
