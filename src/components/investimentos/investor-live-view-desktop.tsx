@@ -179,7 +179,8 @@ export function InvestorLiveViewDesktop({
   onClose,
   liveAction,
 }: InvestorLiveViewProps) {
-  const [tab, setTab] = useState<"inicio" | "investimentos" | "simular">("inicio");
+  // Começa sem seção: só aparece algo depois que o usuário escolhe um grupo.
+  const [tab, setTab] = useState<"inicio" | "investimentos" | "simular" | null>(null);
 
   /* ── Market / buy flow ────────────────────────────────────────── */
   const [marketOpen, setMarketOpen] = useState(false);
@@ -387,7 +388,7 @@ export function InvestorLiveViewDesktop({
   const simInicialMax = Math.max(200000, Math.ceil((patrimonioTotal * 2) / 10000) * 10000);
 
   useBotPageContext("live:desktop", liveBotContext({
-    tab,
+    tab: tab ?? "menu",
     marketOpen,
     marketSection,
     newCaixinha: { open: newCaixinhaOpen, tipo: newCaixinhaTipo, nome: newCaixinhaName, instituicao: newCaixinhaInstituicao, rate: newCaixinhaRate, cdiMask: newCaixinhaCdiMask },
@@ -396,9 +397,9 @@ export function InvestorLiveViewDesktop({
 
   /* ── Tabs ─────────────────────────────────────────────────────── */
   const tabs = [
-    { id: "inicio" as const, label: "Visão geral", icon: LayoutDashboard },
-    { id: "investimentos" as const, label: "Investimentos", icon: Wallet },
-    { id: "simular" as const, label: "Simulador", icon: Calculator },
+    { id: "inicio" as const, label: "Visão geral", hint: "Resumo e movimentações", icon: LayoutDashboard },
+    { id: "investimentos" as const, label: "Investimentos", hint: "Caixinhas, renda fixa e ações", icon: Wallet },
+    { id: "simular" as const, label: "Simulador", hint: "Projete seu patrimônio", icon: Calculator },
   ];
 
   function openMarket(section: MarketSection) {
@@ -436,7 +437,21 @@ export function InvestorLiveViewDesktop({
       {/* ── Header ────────────────────────────────────────────────── */}
       <header className="flex items-center justify-between gap-4 px-7 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-6 min-w-0">
-          <h1 className="text-sm font-black uppercase tracking-[0.2em] text-foreground shrink-0">MUVO Live</h1>
+          <h1 className="text-sm font-black uppercase tracking-[0.2em] text-foreground shrink-0">
+            {tab === null ? (
+              "MUVO Live"
+            ) : (
+              <button
+                type="button"
+                onClick={() => setTab(null)}
+                aria-label="MUVO Live: voltar ao menu"
+                className={`rounded-md uppercase tracking-[0.2em] hover:text-muted-foreground transition-colors ${FOCUS}`}
+              >
+                MUVO Live
+              </button>
+            )}
+          </h1>
+          {tab !== null && (
           <div
             role="tablist"
             aria-label="Seções do MUVO Live"
@@ -476,9 +491,12 @@ export function InvestorLiveViewDesktop({
               </button>
             ))}
           </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {tab !== null && (
+          <>
           <button
             type="button"
             onClick={() => openNewCaixinha("investimentos")}
@@ -495,6 +513,8 @@ export function InvestorLiveViewDesktop({
             <Plus className="h-4 w-4" aria-hidden="true" />
             Investir
           </button>
+          </>
+          )}
           {onClose && (
             <button
               type="button"
@@ -509,6 +529,7 @@ export function InvestorLiveViewDesktop({
       </header>
 
       {/* ── KPI strip ─────────────────────────────────────────────── */}
+      {tab !== null && (
       <dl className="grid grid-cols-4 divide-x divide-border border-b border-border shrink-0">
         <div className="px-7 py-4">
           <dt className={LABEL}>Patrimônio</dt>
@@ -530,9 +551,33 @@ export function InvestorLiveViewDesktop({
           <dd className={`${MONEY} mt-1 text-xl leading-none`}>{holdingRows.length}</dd>
         </div>
       </dl>
+      )}
 
       {/* ── Content area ──────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto">
+
+        {/* ═══ MENU: escolha da seção ═══════════════════════════════ */}
+        {tab === null && (
+          <nav aria-label="Escolha uma seção do MUVO Live" className="flex h-full items-center justify-center p-8">
+            <ul className="flex flex-wrap items-stretch justify-center gap-5">
+              {tabs.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => setTab(t.id)}
+                    className={`group flex h-full w-52 flex-col items-center gap-4 rounded-2xl border border-border bg-card px-6 py-9 text-center transition-colors hover:border-foreground/30 hover:bg-muted/60 ${FOCUS}`}
+                  >
+                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-foreground transition-colors group-hover:bg-background">
+                      <t.icon className="h-8 w-8" aria-hidden="true" />
+                    </span>
+                    <span className="block text-base font-bold text-foreground">{t.label}</span>
+                    <span className="block text-xs leading-snug text-muted-foreground">{t.hint}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
 
         {/* ═══ INÍCIO ═══════════════════════════════════════════════ */}
         {tab === "inicio" && (
