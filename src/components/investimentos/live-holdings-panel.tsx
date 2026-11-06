@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ElementType } from "react";
-import { ChevronDown, Landmark, Layers, Plus, Shield, Trash2, TrendingUp, Zap } from "lucide-react";
+import { Boxes, ChevronDown, Landmark, Layers, Plus, Shield, Trash2, TrendingUp, Zap } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { LiveAccount } from "./live-actions";
 import { FOCUS, GAIN, LABEL, LOSS, MONEY } from "./live-ui";
@@ -16,17 +16,24 @@ export type HoldingRow = {
   type: string;
 };
 
+/** Tipo real do item (ícone e rótulo na linha). */
 type Kind = "turbo" | "emergencia" | "rendafixa" | "bolsa";
-type Filter = "all" | Kind;
+/** Filtro da grade: Turbo + Emergência entram juntos em Caixinhas. */
+type Filter = "all" | "caixinhas" | "rendafixa" | "bolsa";
 
-const KINDS: Record<Kind, { label: string; icon: ElementType; empty: string }> = {
-  turbo: { label: "Turbo", icon: Zap, empty: "Você ainda não tem uma caixinha Turbo." },
-  emergencia: { label: "Emergência", icon: Shield, empty: "Você ainda não tem reserva de emergência." },
-  rendafixa: { label: "Renda fixa", icon: Landmark, empty: "Nenhuma aplicação em renda fixa." },
-  bolsa: { label: "Bolsa", icon: TrendingUp, empty: "Nenhuma posição em bolsa." },
+const KINDS: Record<Kind, { label: string; icon: ElementType }> = {
+  turbo: { label: "Turbo", icon: Zap },
+  emergencia: { label: "Emergência", icon: Shield },
+  rendafixa: { label: "Renda fixa", icon: Landmark },
+  bolsa: { label: "Bolsa", icon: TrendingUp },
 };
 
-const ORDER: Kind[] = ["turbo", "emergencia", "rendafixa", "bolsa"];
+const FILTERS: { id: Filter; label: string; icon: ElementType; empty: string; kinds: Kind[] }[] = [
+  { id: "all", label: "Tudo", icon: Layers, empty: "Você ainda não tem investimentos.", kinds: ["turbo", "emergencia", "rendafixa", "bolsa"] },
+  { id: "caixinhas", label: "Caixinhas", icon: Boxes, empty: "Você ainda não tem caixinhas.", kinds: ["turbo", "emergencia"] },
+  { id: "rendafixa", label: "Renda fixa", icon: Landmark, empty: "Nenhuma aplicação em renda fixa.", kinds: ["rendafixa"] },
+  { id: "bolsa", label: "Bolsa", icon: TrendingUp, empty: "Nenhuma posição em bolsa.", kinds: ["bolsa"] },
+];
 
 type Item = {
   key: string;
@@ -56,6 +63,10 @@ function accountDetail(acc: LiveAccount) {
   return [acc.instituicao, acc.cdiPercent ? `${acc.cdiPercent}% do CDI` : "", acc.maxRendimento ? `teto ${formatCurrency(acc.maxRendimento)}` : ""]
     .filter(Boolean)
     .join(" · ");
+}
+
+function filterMeta(id: Filter) {
+  return FILTERS.find((f) => f.id === id)!;
 }
 
 export function HoldingsPanel({
@@ -99,17 +110,13 @@ export function HoldingsPanel({
   }, [turbo, emergencia, rendaFixa, holdings]);
 
   const totals = useMemo(() => {
-    const byKind: Record<Kind, { value: number; count: number }> = {
-      turbo: { value: 0, count: 0 },
-      emergencia: { value: 0, count: 0 },
-      rendafixa: { value: 0, count: 0 },
-      bolsa: { value: 0, count: 0 },
-    };
-    for (const i of items) {
-      byKind[i.kind].value += i.value;
-      byKind[i.kind].count += 1;
-    }
-    return { byKind, all: items.reduce((s, i) => s + i.value, 0) };
+    const byFilter = Object.fromEntries(
+      FILTERS.map((f) => {
+        const list = items.filter((i) => f.kinds.includes(i.kind));
+        return [f.id, { value: list.reduce((s, i) => s + i.value, 0), count: list.length }];
+      }),
+    ) as Record<Filter, { value: number; count: number }>;
+    return byFilter;
   }, [items]);
 
   // Resultado da bolsa em R$ e % sobre o que foi pago (mesma base da Visão geral).
@@ -126,32 +133,32 @@ export function HoldingsPanel({
     return { amount, pct: (amount / cost) * 100 };
   }, [holdings]);
 
-  const visible = filter === "all" ? items : items.filter((i) => i.kind === filter);
+  const activeFilter = filterMeta(filter);
+  const visible = items.filter((i) => activeFilter.kinds.includes(i.kind));
   const visibleTotal = visible.reduce((s, i) => s + i.value, 0);
+  const allTotal = totals.all.value;
 
   function chooseFilter(next: Filter) {
     setFilter(next);
     setOpenKey(null);
   }
 
-  const tiles: { id: Filter; label: string; icon: ElementType; value: number; count: number }[] = [
-    { id: "all", label: "Tudo", icon: Layers, value: totals.all, count: items.length },
-    ...ORDER.map((k) => ({ id: k as Filter, label: KINDS[k].label, icon: KINDS[k].icon, value: totals.byKind[k].value, count: totals.byKind[k].count })),
-  ];
-
   const emptyAction =
     filter === "bolsa"
       ? { label: "Comprar ação", onClick: onBuyStock }
       : {
-          label: filter === "turbo" ? "Nova caixinha Turbo" : filter === "emergencia" ? "Nova emergência" : "Nova caixinha",
-          onClick: () => onNewCaixinha(filter === "turbo" ? "turbo" : filter === "emergencia" ? "emergencia" : "investimentos"),
+          label: "Nova caixinha",
+          onClick: () => onNewCaixinha(filter === "caixinhas" ? "turbo" : "investimentos"),
         };
+
+  const showKindInDetail = filter === "all" || filter === "caixinhas";
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
-      <div role="group" aria-label="Filtrar por tipo" className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {tiles.map((t) => {
+      <div role="group" aria-label="Filtrar por tipo" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {FILTERS.map((t) => {
           const active = filter === t.id;
+          const stats = totals[t.id];
           return (
             <button
               key={t.id}
@@ -169,10 +176,10 @@ export function HoldingsPanel({
                   <t.icon className="h-4 w-4" aria-hidden="true" />
                   {t.label}
                 </span>
-                <span className="text-[11px] tabular-nums text-muted-foreground">{t.count}</span>
+                <span className="text-[11px] tabular-nums text-muted-foreground">{stats.count}</span>
               </span>
               <span className="flex flex-col gap-1">
-                <span className={`${MONEY} text-lg leading-none`}>{formatCurrency(t.value)}</span>
+                <span className={`${MONEY} text-lg leading-none`}>{formatCurrency(stats.value)}</span>
                 {t.id === "bolsa" && bolsaGain !== null && (
                   <span className={cn("flex items-baseline gap-1.5 text-[11px] font-semibold tabular-nums", bolsaGain.pct > 0.005 ? GAIN : bolsaGain.pct < -0.005 ? LOSS : "text-muted-foreground")}>
                     <span>
@@ -191,7 +198,7 @@ export function HoldingsPanel({
 
       <section aria-label="Seus investimentos" className="space-y-3">
         <div>
-          <h2 className={LABEL}>{filter === "all" ? "Todos os investimentos" : KINDS[filter].label}</h2>
+          <h2 className={LABEL}>{filter === "all" ? "Todos os investimentos" : activeFilter.label}</h2>
           {filter !== "all" && (
             <p className="mt-1 text-xs text-muted-foreground">
               {visible.length} {visible.length === 1 ? "item" : "itens"} · {formatCurrency(visibleTotal)}
@@ -201,7 +208,7 @@ export function HoldingsPanel({
 
         {visible.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">{filter === "all" ? "Você ainda não tem investimentos." : KINDS[filter].empty}</p>
+            <p className="text-sm text-muted-foreground">{activeFilter.empty}</p>
             <button type="button" onClick={emptyAction.onClick} className={ACTION_BTN}>
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               {emptyAction.label}
@@ -212,7 +219,7 @@ export function HoldingsPanel({
             {visible.map((item, i) => {
               const open = openKey === item.key;
               const Icon = KINDS[item.kind].icon;
-              const share = totals.all > 0 ? (item.value / totals.all) * 100 : 0;
+              const share = allTotal > 0 ? (item.value / allTotal) * 100 : 0;
               return (
                 <li key={item.key} className="lh-row overflow-hidden rounded-xl border border-border bg-card" style={{ "--i": i } as React.CSSProperties}>
                   <button
@@ -227,7 +234,7 @@ export function HoldingsPanel({
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold text-foreground">{item.title}</span>
                       <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                        {filter === "all" ? `${KINDS[item.kind].label} · ` : ""}
+                        {showKindInDetail ? `${KINDS[item.kind].label} · ` : ""}
                         {item.detail}
                       </span>
                     </span>
