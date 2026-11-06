@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { X, Plus, Wallet, Trash2, LayoutDashboard, Calculator } from "lucide-react";
+import { Icon3D } from "@/components/investimentos/live-icons-3d";
 import { PlanLeftoverOffer } from "@/components/investimentos/plan-leftover-offer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
@@ -397,9 +398,9 @@ export function InvestorLiveViewDesktop({
 
   /* ── Tabs ─────────────────────────────────────────────────────── */
   const tabs = [
-    { id: "inicio" as const, label: "Visão geral", hint: "Resumo e movimentações", icon: LayoutDashboard },
-    { id: "investimentos" as const, label: "Investimentos", hint: "Caixinhas, renda fixa e ações", icon: Wallet },
-    { id: "simular" as const, label: "Simulador", hint: "Projete seu patrimônio", icon: Calculator },
+    { id: "inicio" as const, label: "Visão geral", kind: "overview" as const, icon: LayoutDashboard },
+    { id: "investimentos" as const, label: "Investimentos", kind: "wallet" as const, icon: Wallet },
+    { id: "simular" as const, label: "Simulador", kind: "calculator" as const, icon: Calculator },
   ];
 
   function openMarket(section: MarketSection) {
@@ -559,20 +560,10 @@ export function InvestorLiveViewDesktop({
         {/* ═══ MENU: escolha da seção ═══════════════════════════════ */}
         {tab === null && (
           <nav aria-label="Escolha uma seção do MUVO Live" className="flex h-full items-center justify-center p-8">
-            <ul className="flex flex-wrap items-stretch justify-center gap-5">
-              {tabs.map((t) => (
+            <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+              {tabs.map((t, i) => (
                 <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => setTab(t.id)}
-                    className={`group flex h-full w-52 flex-col items-center gap-4 rounded-2xl border border-border bg-card px-6 py-9 text-center transition-colors hover:border-foreground/30 hover:bg-muted/60 ${FOCUS}`}
-                  >
-                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-foreground transition-colors group-hover:bg-background">
-                      <t.icon className="h-8 w-8" aria-hidden="true" />
-                    </span>
-                    <span className="block text-base font-bold text-foreground">{t.label}</span>
-                    <span className="block text-xs leading-snug text-muted-foreground">{t.hint}</span>
-                  </button>
+                  <Icon3D kind={t.kind} label={t.label} index={i} onSelect={() => setTab(t.id)} />
                 </li>
               ))}
             </ul>
