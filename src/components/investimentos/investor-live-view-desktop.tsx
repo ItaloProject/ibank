@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { X, Plus, Wallet, Calculator } from "lucide-react";
+import { X, Plus, Wallet, Calculator, Receipt, ChevronRight } from "lucide-react";
 import { Icon3D } from "@/components/investimentos/live-icons-3d";
 import { WalletIcon } from "@/components/icons/wallet";
 import { GaugeIcon } from "@/components/icons/gauge";
@@ -132,7 +132,7 @@ export function InvestorLiveViewDesktop({
   const [withdrawAccount, setWithdrawAccount] = useState<LiveAccount | null>(null);
   const [updateAccount, setUpdateAccount] = useState<LiveAccount | null>(null);
   const [undoMovement, setUndoMovement] = useState<LiveMovement | null>(null);
-  const [showAllMovements, setShowAllMovements] = useState(false);
+  const [movementsOpen, setMovementsOpen] = useState(false);
   type AccountRef = LiveAccount;
 
   /* ── New caixinha flow ────────────────────────────────────────── */
@@ -462,22 +462,41 @@ export function InvestorLiveViewDesktop({
             />
 
             <section aria-labelledby="mov-heading" className="mx-auto w-full max-w-5xl space-y-3 px-6 pb-6">
-              <div>
-                <SectionHeading id="mov-heading">Últimas movimentações</SectionHeading>
-                <p className="text-[11px] text-muted-foreground mt-1">Lançou algo errado? Use o botão de desfazer ao lado.</p>
-              </div>
-              <MovementsList
-                movements={showAllMovements ? actions.movements : actions.movements.slice(0, 8)}
-                onUndo={setUndoMovement}
-              />
-              {actions.movements.length > 8 && (
+              {!movementsOpen ? (
                 <button
                   type="button"
-                  onClick={() => setShowAllMovements((v) => !v)}
-                  className={`${SMALL_BTN} w-full justify-center`}
+                  onClick={() => setMovementsOpen(true)}
+                  className={`flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left hover:bg-muted/40 transition-colors ${FOCUS}`}
                 >
-                  {showAllMovements ? "Mostrar menos" : `Ver todas (${actions.movements.length})`}
+                  <Receipt className="h-4 w-4 text-foreground/70 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    <span id="mov-heading" className="block text-sm font-semibold text-foreground">
+                      Últimas movimentações
+                    </span>
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">
+                      {actions.movements.length === 0
+                        ? "Nenhuma ainda · clique para ver"
+                        : `${actions.movements.length} lançamento${actions.movements.length === 1 ? "" : "s"} · clique para ver`}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
                 </button>
+              ) : (
+                <>
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <SectionHeading id="mov-heading">Últimas movimentações</SectionHeading>
+                      <p className="text-[11px] text-muted-foreground mt-1">Lançou algo errado? Use o botão de desfazer ao lado.</p>
+                    </div>
+                    <button type="button" onClick={() => setMovementsOpen(false)} className={SMALL_BTN}>
+                      Fechar
+                    </button>
+                  </div>
+                  <MovementsList
+                    movements={actions.movements.slice(0, 12)}
+                    onUndo={setUndoMovement}
+                  />
+                </>
               )}
             </section>
           </div>

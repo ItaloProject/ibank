@@ -380,6 +380,7 @@ export function InvestorLiveView({
   const [cashSheetOpen, setCashSheetOpen] = useState(false);
   const [cashInput, setCashInput] = useState("");
   const [financePanel, setFinancePanel] = useState<FinancePanelId | null>(null);
+  const [movementsOpen, setMovementsOpen] = useState(false);
   const [selectedFixedIncome, setSelectedFixedIncome] = useState<RealAccountItem | null>(null);
   const [deleteAccount, setDeleteAccount] = useState<RealAccountItem | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
@@ -814,6 +815,7 @@ export function InvestorLiveView({
     setMarketOpen(false);
     setMarketSection("hub");
     setFinancePanel(null);
+    setMovementsOpen(false);
   }
 
   const caixinhaRows = (onSelect: (group: "turbo" | "emergencia" | "investimentos") => void) => (
@@ -983,22 +985,53 @@ export function InvestorLiveView({
                 ))}
               </div>
 
-              <section className="space-y-2.5" aria-labelledby="live-movimentacoes">
-                <div className="flex items-center gap-2">
-                  <Receipt className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                  <h2 id="live-movimentacoes" className={LABEL}>Últimas movimentações</h2>
-                </div>
-
-                {actions.movements.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center">
-                    <p className="text-sm font-semibold text-foreground/70">Nenhuma movimentação ainda</p>
-                    <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                      Compras, vendas, aplicações e retiradas aparecem aqui. Dá para desfazer qualquer uma.
-                    </p>
-                  </div>
+              <section aria-labelledby="live-movimentacoes">
+                {!movementsOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => setMovementsOpen(true)}
+                    className={`${ROW} w-full min-h-14 px-3.5 flex items-center gap-3 text-left`}
+                  >
+                    <Receipt className="h-4 w-4 text-foreground/70 shrink-0" aria-hidden="true" />
+                    <span className="min-w-0 flex-1">
+                      <span id="live-movimentacoes" className="block text-sm font-semibold text-foreground">
+                        Últimas movimentações
+                      </span>
+                      <span className="block text-[11px] text-muted-foreground mt-0.5">
+                        {actions.movements.length === 0
+                          ? "Nenhuma ainda · toque para ver"
+                          : `${actions.movements.length} lançamento${actions.movements.length === 1 ? "" : "s"} · toque para ver`}
+                      </span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                  </button>
                 ) : (
-                  <div className="rounded-xl border border-border bg-card px-3.5">
-                    <MovementsList movements={actions.movements.slice(0, 8)} onUndo={setUndoMovement} />
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Receipt className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                        <h2 id="live-movimentacoes" className={LABEL}>Últimas movimentações</h2>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMovementsOpen(false)}
+                        className={`-mr-2 min-h-11 rounded-lg px-2 text-xs font-semibold text-foreground/70 hover:text-foreground ${FOCUS}`}
+                      >
+                        Fechar
+                      </button>
+                    </div>
+                    {actions.movements.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center">
+                        <p className="text-sm font-semibold text-foreground/70">Nenhuma movimentação ainda</p>
+                        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                          Compras, vendas, aplicações e retiradas aparecem aqui. Dá para desfazer qualquer uma.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-border bg-card px-3.5">
+                        <MovementsList movements={actions.movements.slice(0, 8)} onUndo={setUndoMovement} />
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
