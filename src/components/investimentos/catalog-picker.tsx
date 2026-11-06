@@ -13,8 +13,9 @@ import {
   type CatalogEntry,
   type CatalogKind,
 } from "@/lib/market-catalog";
-import { FOCUS, INPUT_BOX, LABEL, LiveSheet, MONEY, ROW } from "@/components/investimentos/live-ui";
+import { FOCUS, INPUT_BOX, LABEL, MONEY, ROW } from "@/components/investimentos/live-ui";
 import { FiiDetailsSheet } from "@/components/investimentos/fii-details-sheet";
+import { StockDetailsSheet } from "@/components/investimentos/stock-details-sheet";
 
 const QUOTE_TTL_MS = 2 * 60 * 1000;
 const QUOTE_BATCH = 40;
@@ -251,31 +252,7 @@ export function CatalogPicker({
       {kind === "fii" ? (
         <FiiDetailsSheet ticker={infoAsset?.ticker ?? null} name={infoAsset?.name} onClose={() => setInfoAsset(null)} />
       ) : (
-        <LiveSheet
-          open={!!infoAsset}
-          onOpenChange={(o) => !o && setInfoAsset(null)}
-          title={infoAsset?.ticker ?? ""}
-          description={infoAsset?.name}
-        >
-          {infoAsset && (
-            <div className="space-y-2.5">
-              <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 flex items-start justify-between gap-3">
-                <span className={`${LABEL} pt-0.5`}>Segmento</span>
-                <span className={`${MONEY} text-sm text-right leading-snug`}>{infoAsset.group}</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                Tipo de fundo, valor patrimonial e último rendimento aparecem na ficha dos fundos imobiliários.
-              </p>
-              <button
-                type="button"
-                onClick={() => setInfoAsset(null)}
-                className={`mt-2 w-full min-h-12 rounded-xl border border-border text-sm font-bold text-foreground hover:bg-muted transition-colors ${FOCUS}`}
-              >
-                Fechar
-              </button>
-            </div>
-          )}
-        </LiveSheet>
+        <StockDetailsSheet ticker={infoAsset?.ticker ?? null} name={infoAsset?.name} onClose={() => setInfoAsset(null)} />
       )}
     </div>
   );

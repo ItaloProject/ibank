@@ -5,16 +5,8 @@ import { formatCurrency } from "@/lib/utils";
 import { getFiiDetails } from "@/lib/api";
 import type { FiiDetails } from "@/lib/fii-details";
 import { formatPatrimonio } from "@/lib/fii-details";
-import { FOCUS, LABEL, LiveSheet, MONEY } from "@/components/investimentos/live-ui";
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 flex items-start justify-between gap-3">
-      <span className={`${LABEL} pt-0.5`}>{label}</span>
-      <span className={`${MONEY} text-sm text-right leading-snug`}>{value}</span>
-    </div>
-  );
-}
+import { AssetFact } from "@/components/investimentos/asset-fact";
+import { FOCUS, LiveSheet } from "@/components/investimentos/live-ui";
 
 function dash(value: string | null | undefined): string {
   return value && value.trim() ? value : "—";
@@ -61,16 +53,19 @@ export function FiiDetailsSheet({
     };
   }, [ticker]);
 
-  const title = ticker ? ticker : "";
-  const description = details?.name || name || "Ficha do fundo imobiliário";
-
   const ultimo =
     details?.ultimoRendimento != null
       ? `${formatCurrency(details.ultimoRendimento)}${details.ultimoRendimentoRef ? ` · ${details.ultimoRendimentoRef}` : ""}`
       : null;
 
   return (
-    <LiveSheet open={!!ticker} onOpenChange={(o) => !o && onClose()} title={title} description={description} layer="over">
+    <LiveSheet
+      open={!!ticker}
+      onOpenChange={(o) => !o && onClose()}
+      title={ticker ?? ""}
+      description={details?.name || name || "Ficha do fundo imobiliário"}
+      layer="over"
+    >
       <div className="space-y-2.5">
         {loading && (
           <div className="space-y-2.5" aria-busy="true" aria-live="polite">
@@ -81,20 +76,18 @@ export function FiiDetailsSheet({
           </div>
         )}
 
-        {!loading && error && (
-          <p className="text-sm text-muted-foreground py-6 text-center">{error}</p>
-        )}
+        {!loading && error && <p className="text-sm text-muted-foreground py-6 text-center">{error}</p>}
 
         {!loading && details && (
           <>
-            <Fact label="Segmento" value={dash(details.segmento)} />
-            <Fact label="Tipo de fundo" value={dash(details.tipoFundo)} />
-            <Fact
+            <AssetFact label="Segmento" value={dash(details.segmento)} />
+            <AssetFact label="Tipo de fundo" value={dash(details.tipoFundo)} />
+            <AssetFact
               label="Val. patrimonial p/ cota"
               value={details.valPatrimonialCota != null ? formatCurrency(details.valPatrimonialCota) : "—"}
             />
-            <Fact label="Último rendimento" value={dash(ultimo)} />
-            <Fact
+            <AssetFact label="Último rendimento" value={dash(ultimo)} />
+            <AssetFact
               label="Valor patrimonial"
               value={details.valorPatrimonial != null ? formatPatrimonio(details.valorPatrimonial) : "—"}
             />
@@ -106,7 +99,11 @@ export function FiiDetailsSheet({
           </>
         )}
 
-        <button type="button" onClick={onClose} className={`mt-2 w-full min-h-12 rounded-xl border border-border text-sm font-bold text-foreground hover:bg-muted transition-colors ${FOCUS}`}>
+        <button
+          type="button"
+          onClick={onClose}
+          className={`mt-2 w-full min-h-12 rounded-xl border border-border text-sm font-bold text-foreground hover:bg-muted transition-colors ${FOCUS}`}
+        >
           Fechar
         </button>
       </div>

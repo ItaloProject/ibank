@@ -7,9 +7,9 @@ import { FOCUS, LABEL, MONEY, BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, INPUT_BOX,
 import { formatQty, type FixedIncomeProduct, type LiveAccount, type LiveMovement, type MoneySource } from "./live-actions";
 import type { RateIndex } from "@/lib/account-rate";
 import { fixedRateLabel, type FixedIncomeEntry } from "@/lib/fixed-income-catalog";
-import { STOCK_CATALOG } from "@/lib/market-catalog";
 import { detectAssetType } from "@/lib/stock-utils";
 import { FiiDetailsSheet } from "@/components/investimentos/fii-details-sheet";
+import { StockDetailsSheet } from "@/components/investimentos/stock-details-sheet";
 
 /* ── Máscaras ─────────────────────────────────────────────────────── */
 
@@ -304,7 +304,7 @@ export function StockOrderSheet({
         : "Registre a compra com o preço que você pagou.";
   const infoTicker = order?.ticker?.trim().toUpperCase() || "";
   const infoIsFii = infoTicker.length >= 4 && detectAssetType(infoTicker) === "FII";
-  const stockSegment = infoTicker ? STOCK_CATALOG.find((a) => a.ticker === infoTicker)?.group ?? null : null;
+  const infoName = order && "name" in order ? order.name : undefined;
 
   return (
     <>
@@ -337,28 +337,9 @@ export function StockOrderSheet({
       </LiveSheet>
 
       {infoIsFii ? (
-        <FiiDetailsSheet ticker={infoOpen ? infoTicker : null} name={order && "name" in order ? order.name : undefined} onClose={() => setInfoOpen(false)} />
+        <FiiDetailsSheet ticker={infoOpen ? infoTicker : null} name={infoName} onClose={() => setInfoOpen(false)} />
       ) : (
-        <LiveSheet
-          open={infoOpen && !!infoTicker}
-          onOpenChange={(o) => !o && setInfoOpen(false)}
-          title={infoTicker}
-          description={order && "name" in order ? order.name : undefined}
-          layer="over"
-        >
-          <div className="space-y-2.5">
-            <div className="rounded-xl border border-border bg-muted/40 px-3.5 py-3 flex items-start justify-between gap-3">
-              <span className={`${LABEL} pt-0.5`}>Segmento</span>
-              <span className={`${MONEY} text-sm text-right leading-snug`}>{stockSegment ?? "—"}</span>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-snug">
-              Tipo de fundo, valor patrimonial e último rendimento aparecem na ficha dos fundos imobiliários.
-            </p>
-            <button type="button" onClick={() => setInfoOpen(false)} className={BTN_SECONDARY}>
-              Fechar
-            </button>
-          </div>
-        </LiveSheet>
+        <StockDetailsSheet ticker={infoOpen ? infoTicker : null} name={infoName} onClose={() => setInfoOpen(false)} />
       )}
     </>
   );
