@@ -28,7 +28,16 @@ import type { MarketResearchPayload } from "@/lib/market-research";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
 import { RISK_PROFILES, alocacaoRelevante, type RiskProfile } from "@/lib/rebalance";
 import { formatMonths as duration, type ProfileTransition } from "@/lib/profile-transition";
-import { BUCKET_SECTION, actionHref, actionLabel, actionLines, type AnalysisPayload, type BotAction } from "@/lib/plan-view";
+import {
+  BUCKET_SECTION,
+  actionHref,
+  actionLabel,
+  actionLines,
+  hasEmergenciaCaixinha,
+  reservaAdviceText,
+  type AnalysisPayload,
+  type BotAction,
+} from "@/lib/plan-view";
 import { WhatsappPanel } from "@/components/bot/whatsapp-panel";
 import { RiskProfilePicker, saveRiskProfile } from "@/components/bot/risk-profile-picker";
 
@@ -58,6 +67,8 @@ export type BotPortfolioContext = {
   holdings: { ticker: string; kind: string; value: number }[];
   /** Resultado em bolsa (positivo ou negativo), para responder sem IA. */
   bolsaResultado?: number | null;
+  /** Só mencionar caixinha Emergência se o usuário já tiver criado uma. */
+  hasEmergenciaCaixinha?: boolean;
 };
 
 /* ── Modelo da conversa ─────────────────────────────────────────── */
@@ -181,7 +192,7 @@ function rebalReply(a: AnalysisPayload): Msg {
     if (primeiroReserva) {
       blocks.push({
         kind: "text",
-        text: "Na reserva, use **Tesouro Selic** ou **CDB 100% do CDI com liquidez diária** — **não use poupança**. Depois registre o saldo na caixinha Emergência do LIVE.",
+        text: reservaAdviceText(hasEmergenciaCaixinha(a.rows)),
       });
     }
     blocks.push({
@@ -201,7 +212,7 @@ function rebalReply(a: AnalysisPayload): Msg {
     });
     blocks.push({
       kind: "text",
-      text: "Aplique em **Tesouro Selic** (ou CDB 100% CDI liquidez diária). Poupança rende menos. No MUVO, anote o valor na caixinha Emergência.",
+      text: reservaAdviceText(hasEmergenciaCaixinha(a.rows)),
     });
     blocks.push({
       kind: "actions",
@@ -1028,6 +1039,7 @@ export function InvestorBot({
       sources: context.sources,
       alerts: visibleAlerts,
       bolsaResultado: context.bolsaResultado ?? null,
+      hasEmergenciaCaixinha: Boolean(context.hasEmergenciaCaixinha),
     });
     if (!hit) return null;
     if (hit.kind === "intent") {
@@ -1173,6 +1185,7 @@ export function InvestorBot({
           sources: context.sources,
           alerts: visibleAlerts,
           bolsaResultado: context.bolsaResultado ?? null,
+          hasEmergenciaCaixinha: Boolean(context.hasEmergenciaCaixinha),
         });
         if (localHit?.kind === "intent" && localHit.intent === "rebal") {
           reply = await rebalance();

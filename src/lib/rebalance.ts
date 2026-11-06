@@ -212,7 +212,7 @@ export function buildRebalancePlan(input: RebalanceInput): RebalancePlan {
       prioridade: "alta",
       titulo: `Invista os ${brl(valor.caixa)} parados`,
       detalhe: faltaReserva > 0
-        ? "Saldo em conta não rende. Leve para Tesouro Selic ou CDB 100% do CDI com liquidez diária (não poupança) e registre na caixinha Emergência."
+        ? "Saldo em conta não rende. Leve para Tesouro Selic ou CDB 100% do CDI com liquidez diária (não poupança)."
         : "Saldo em conta não rende. Leve para um CDB com liquidez diária ou siga o plano de aporte abaixo.",
     });
   }

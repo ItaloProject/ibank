@@ -17,7 +17,7 @@ export function ReservaEmergenciaHelp() {
     <HelpTip label="reserva de emergência">
       Use <strong>Tesouro Selic</strong> ou <strong>CDB 100% do CDI com liquidez diária</strong>.
       Com a Selic alta, esses produtos costumam render mais que a poupança mesmo depois do Imposto de Renda.
-      A caixinha Emergência no MUVO só organiza o saldo — não deixe a reserva na poupança.
+      Se você criar uma caixinha Emergência, use só para registrar esse saldo — o dinheiro fica no Selic/CDB, não na poupança.
     </HelpTip>
   );
 }

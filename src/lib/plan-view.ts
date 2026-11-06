@@ -137,10 +137,25 @@ export type AnalysisPayload = {
   gastoMensal: number | null;
   metaRenda?: number | null;
   plan: RebalancePlan | null;
+  /** Linhas do patrimônio — usadas p.ex. para saber se já existe caixinha Emergência. */
+  rows?: { classe: string; nome?: string; valor?: number }[];
   alerts?: BotAlert[];
   goal?: GoalProjection | null;
   rates: { selic: number; cdi: number; ipca12m: number | null; source: string; focusData: string | null };
 };
+
+/** Só fala em caixinha Emergência se o usuário já tiver uma cadastrada. */
+export function hasEmergenciaCaixinha(rows: { classe: string }[] | null | undefined): boolean {
+  return (rows ?? []).some((r) => r.classe === "emergencia");
+}
+
+/** Texto padrão da reserva: produto certo; caixinha EME só se já existir. */
+export function reservaAdviceText(hasEme: boolean): string {
+  const base =
+    "Na reserva, use **Tesouro Selic** ou **CDB 100% do CDI com liquidez diária** — **não use poupança**.";
+  if (!hasEme) return base;
+  return `${base} Como você já tem caixinha **Emergência**, atualize o saldo nela depois de aplicar.`;
+}
 
 export type InsightLevel = "critical" | "warning" | "ok" | "suggestion";
 

@@ -66,7 +66,15 @@ describe("matchLocalPortfolio", () => {
       expect(hit.text).toMatch(/Tesouro Selic/i);
       expect(hit.text).toMatch(/CDB/i);
       expect(hit.text).toMatch(/[Nn]ão use poupança|Evite poupança|não é indicada/);
+      expect(hit.text).not.toMatch(/caixinha \*\*Emergência\*\*|caixinha Emergência/);
     }
+
+    const comEme = matchLocalPortfolio("Qual eu utilizo Tesouro Selic ou CDB com liquidez diaria?", {
+      ...ctx,
+      hasEmergenciaCaixinha: true,
+    });
+    expect(comEme?.kind).toBe("text");
+    if (comEme?.kind === "text") expect(comEme.text).toMatch(/caixinha \*\*Emergência\*\*/);
 
     const poup = matchLocalPortfolio("vale a pena deixar a reserva na poupança?", ctx);
     expect(poup?.kind).toBe("text");

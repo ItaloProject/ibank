@@ -642,7 +642,8 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       const atual = q !== undefined ? q * p.quantity : p.totalInvested;
       return s + (atual - p.totalInvested);
     }, 0),
-  }), [score, portfolioAnalysis, analysis, investorData, incomeGoal, grandTotal, stockPositions, quoteMap]);
+    hasEmergenciaCaixinha: accounts.some((a) => !isCashAccountName(a.name) && categorizeAccount(a) === "emergencia"),
+  }), [score, portfolioAnalysis, analysis, investorData, incomeGoal, grandTotal, stockPositions, quoteMap, accounts]);
 
   const botDataVersion = portfolioVersion;
 
