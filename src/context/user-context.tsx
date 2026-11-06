@@ -69,7 +69,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const start = Date.now();
-    fetch("/api/auth/me")
+    const ctrl = new AbortController();
+    const kill = setTimeout(() => ctrl.abort(), 8_000);
+    fetch("/api/auth/me", { signal: ctrl.signal })
       .then((r) => r.json())
       .then((data) => {
         if (data.user) {
@@ -81,10 +83,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {})
       .finally(() => {
+        clearTimeout(kill);
         const elapsed = Date.now() - start;
         const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
         setTimeout(() => setReady(true), remaining);
       });
+    return () => {
+      clearTimeout(kill);
+      ctrl.abort();
+    };
   }, []);
 
   // Quem foi desconectado por outro login descobre ao voltar para a aba ou para o app.

@@ -224,14 +224,21 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   const load = useCallback(async () => {
     try {
       setLoadError(null);
-      const [loadedAccounts, loadedInvestments, loadedStocks, loadedQuotes, loadedSnapshots, loadedScores] = await Promise.all([
-        getInvestmentAccounts(),
-        getInvestments(),
-        getStockTrades(),
-        getStockQuotes(),
-        getPortfolioSnapshots(),
-        getScoreHistory(),
-      ]);
+      const withTimeout = <T,>(p: Promise<T>, ms = 12_000) =>
+        Promise.race([
+          p,
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+        ]);
+      const [loadedAccounts, loadedInvestments, loadedStocks, loadedQuotes, loadedSnapshots, loadedScores] = await withTimeout(
+        Promise.all([
+          getInvestmentAccounts(),
+          getInvestments(),
+          getStockTrades(),
+          getStockQuotes(),
+          getPortfolioSnapshots(),
+          getScoreHistory(),
+        ]),
+      );
       setPortfolioSnapshots(Array.isArray(loadedSnapshots) ? loadedSnapshots : []);
       setScoreHistory(Array.isArray(loadedScores) ? loadedScores : []);
       setStockQuotes(Array.isArray(loadedQuotes) ? loadedQuotes : []);
