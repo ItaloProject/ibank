@@ -105,6 +105,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
   // Item form
   const [itemOpen, setItemOpen] = useState(false);
+  const [itemSaving, setItemSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<ExpenseItem | null>(null);
   const [itemForm, setItemForm] = useState({
     groupId: "", name: "", type: "fixo" as "fixo" | "variavel", planned: "", actual: "",
@@ -379,7 +380,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   }
 
   async function submitItem() {
-    if (!itemForm.name.trim() || !itemForm.groupId) return;
+    if (!itemForm.name.trim() || !itemForm.groupId || itemSaving) return;
     const body = {
       user_id: userId,
       group_id: itemForm.groupId,
@@ -389,26 +390,26 @@ function PlanejamentoContent({ userId }: { userId: string }) {
       planned: parseFloat(itemForm.planned) || 0,
       actual: parseFloat(itemForm.actual) || 0,
     };
+    setItemSaving(true);
     try {
-      if (editingItem) {
-        await fetch(`/api/plan-items/${editingItem.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      } else {
-        await fetch("/api/plan-items", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      }
-      await loadItems(currentMonth);
+      // A rota devolve a linha salva: a lista é atualizada com ela, sem recarregar tudo.
+      const res = await fetch(editingItem ? `/api/plan-items/${editingItem.id}` : "/api/plan-items", {
+        method: editingItem ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error();
+      const saved = (await res.json()) as ExpenseItem;
+      if (editingItem) setItems((prev) => prev.map((i) => (i.id === editingItem.id ? { ...i, ...saved } : i)));
+      else setItems((prev) => [...prev, saved]);
       toast.success(editingItem ? "Item atualizado" : "Item adicionado");
+      setItemOpen(false);
     } catch {
+      // Diálogo continua aberto para a pessoa tentar de novo, sem perder o que digitou.
       toast.error("Erro ao salvar item. Tente novamente.");
+    } finally {
+      setItemSaving(false);
     }
-    setItemOpen(false);
   }
 
   function openDeleteItem(item: ExpenseItem) {
@@ -968,7 +969,11 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             </div>
             <div className="flex gap-2 pt-1">
               <Button variant="outline" className="flex-1" onClick={() => setItemOpen(false)}>Cancelar</Button>
-              <Button className="flex-1" onClick={submitItem}>{editingItem ? "Salvar" : "Adicionar"}</Button>
+              <Button className="flex-1" onClick={submitItem} disabled={itemSaving} aria-busy={itemSaving}>
+                {itemSaving ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />{editingItem ? "Salvando…" : "Adicionando…"}</>
+                ) : editingItem ? "Salvar" : "Adicionar"}
+              </Button>
             </div>
           </div>
         </DialogContent>
