@@ -3,7 +3,10 @@ import { consumeDailyQuota, recentDislikes, recordBotFeedback } from "@/lib/bot-
 import { feedbackText, looksUnanswered } from "@/lib/bot-feedback";
 import { requireBotUser } from "@/lib/server/bot-auth";
 import { getCachedSnapshot } from "@/lib/server/portfolio-snapshot";
-import { completeChat, llmProvider, type ChatMessage } from "@/lib/server/llm";
+import { completeChatWithTools, llmProvider, type ChatMessage } from "@/lib/server/llm";
+import { BOT_TOOLS, runBotTool } from "@/lib/bot-tools";
+import { fetchMarketRates } from "@/lib/market-research";
+import { FALLBACK_CDI } from "@/lib/investment-rates";
 import { buildBotSystemPrompt } from "@/lib/report/bot-prompt";
 import { extractActions } from "@/lib/plan-view";
 import { peekTesouroLive } from "@/lib/server/tesouro-live";
@@ -59,7 +62,12 @@ export async function POST(request: Request) {
     ]);
     const hidden = parseHiddenAlerts(body);
     const visible = hidden.size ? { ...snap, alerts: snap.alerts.filter((a) => !hidden.has(a.id)) } : snap;
-    const raw = await completeChat(buildBotSystemPrompt(visible, parsePage(body), peekTesouroLive(), dislikes), messages);
+    const rates = await fetchMarketRates().catch(() => null);
+    const cdi = rates?.cdiAnual ?? FALLBACK_CDI;
+    const system =
+      buildBotSystemPrompt(visible, parsePage(body), peekTesouroLive(), dislikes) +
+      "\n\nPara qualquer conta de rendimento, use as ferramentas calcular_aplicacao_dias ou calcular_aplicacao_meses e explique o resultado devolvido. Nunca faça essas contas de cabeça. Se a ferramenta devolver erro, peça o dado que falta.";
+    const raw = await completeChatWithTools(system, messages, BOT_TOOLS, (name, input) => Promise.resolve(runBotTool(name, input, cdi)));
     const { text, actions } = extractActions(raw ?? "", snap.stocks.map((s) => s.ticker));
     if (!text || looksUnanswered(text)) {
       const question = feedbackText(messages[messages.length - 1].content);
