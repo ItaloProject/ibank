@@ -1,6 +1,6 @@
 import type { RiskProfile } from "@/lib/rebalance";
 
-export type Intent = "visao" | "rebal" | "fiis" | "meta" | "explica_meta" | "whatsapp" | "perfil" | "transicao" | "pdf" | "avisos" | "help";
+export type Intent = "visao" | "rebal" | "fiis" | "meta" | "explica_meta" | "aporte_prazo" | "whatsapp" | "perfil" | "transicao" | "pdf" | "avisos" | "help";
 
 function normalize(raw: string): string {
   return raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -21,6 +21,8 @@ const DEFINITION = /^(o que|oque|qual a diferenca|diferenca|explica|me explica)\
 /** Assunto indicado por palavra-chave, sem olhar se é pergunta ou pedido. */
 export function keywordIntent(raw: string): Intent | null {
   const t = normalize(raw);
+  // Quanto aportar para chegar até um ano: "aporte para 2027", "em 2027 preciso aumentar meu aporte para quanto".
+  if (/\b(?:aporte|aportar|aportes)\b/.test(t) && /\b20\d{2}\b/.test(t) && (/quanto|preciso|precis|aument|devo|chegar/.test(t) || t.split(" ").length <= 4)) return "aporte_prazo";
   if (/\bmeta\b/.test(t) && /explic|explique|explica|como (funciona|e calculad|eh calculad)|como voce calcula|de onde vem|por que/.test(t)) return "explica_meta";
   if (/quanto falta|qnto falta|minha meta|quando chego|que ano|prazo da meta|ritmo atual/.test(t)) return "meta";
   if (/pdf|baixar|download|imprim/.test(t)) return "pdf";
@@ -59,6 +61,7 @@ export function detectIntent(raw: string): Intent {
   if (words <= 16 && keywordIntent(t) === "transicao") return "transicao";
   // Antes da checagem de pergunta: "como é calculada a minha meta?" é pergunta, mas pede a explicação da meta.
   if (keywordIntent(t) === "explica_meta") return "explica_meta";
+  if (keywordIntent(t) === "aporte_prazo") return "aporte_prazo";
   if (words <= 3 && profileTarget(t) && !DEFINITION.test(t)) return "transicao";
   if (words > 7) return "help";
   if (QUESTION.test(t) && !TEMPLATE_QUESTION.test(t)) return "help";

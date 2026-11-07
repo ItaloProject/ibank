@@ -54,3 +54,23 @@ describe("pedido de explicação da meta", () => {
     expect(detectIntent("quanto falta para minha meta?")).toBe("meta");
   });
 });
+
+describe("aporte necessário para um ano da meta", () => {
+  it("reconhece a pergunta da tela", () => {
+    expect(detectIntent("Para que eu consiga superar a inflação, em 2027 em preciso aumentar meu aporte mensal para quanto ?")).toBe("aporte_prazo");
+    expect(detectIntent("aporte para 2027")).toBe("aporte_prazo");
+  });
+  it("calcula o aporte para 2027 com os números da meta", () => {
+    const p = projectGoal({
+      metaRendaMensal: 200,
+      patrimonio: 8500,
+      aporteMensal: 1300,
+      retornoAnualPct: 11.49,
+      ipcaAnualPct: 4.5,
+      prazoAno: 2027,
+      today: HOJE,
+    })!;
+    expect(p.aporteParaPrazo).toBeGreaterThan(1_300);
+    expect(p.aporteParaPrazo!).toBeLessThan(3_000);
+  });
+});

@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { BotAlert } from "@/lib/alerts";
-import { conservativeGoal, type GoalProjection } from "@/lib/goal-projection";
+import { conservativeGoal, projectGoal, type GoalProjection } from "@/lib/goal-projection";
 import { detectIntent, keywordIntent, profileTarget, type Intent } from "@/lib/bot-intent";
 import { matchLocalPortfolio } from "@/lib/bot-local";
 import { askAbout, asksExample, findTerms, holdingsFor, termById, termExample, termMarkdown, type Term } from "@/lib/glossary";
@@ -349,6 +349,61 @@ function goalExplainReply(ctx: BotPortfolioContext, research?: MarketResearchPay
     { kind: "alert", tone: "warn", text: "Os números usam o retorno dos últimos 12 meses da carteira. Esse retorno muda com o mercado e não é garantido." },
   );
   return { id: uid(), role: "bot", blocks, followups: ["rebal", "visao"] };
+}
+
+/** Aporte mensal para a meta ficar pronta até o fim do ano pedido, em valores de hoje. */
+function aporteDeadlineReply(text: string, ctx: BotPortfolioContext): Msg {
+  const g = ctx.goal;
+  const ano = Number(text.match(/\b(20\d{2})\b/)?.[1] ?? 0);
+  const proximoAno = new Date().getFullYear() + 1;
+  const bloco = (texto: string): Block => ({ kind: "text", text: texto });
+  const blocks: Block[] = [];
+
+  if (!(ctx.incomeGoal > 0) || !g) {
+    blocks.push(bloco("Defina sua meta de renda no topo desta página. Depois eu calculo quanto aportar para chegar no ano que você quer."));
+  } else if (!ano) {
+    blocks.push(bloco(`Para qual ano? Por exemplo: "aporte para ${proximoAno}".`));
+  } else if (ano <= new Date().getFullYear()) {
+    blocks.push(bloco(`Esse ano já passou. Diga um ano futuro, por exemplo ${proximoAno}.`));
+  } else {
+    const plano = projectGoal({
+      metaRendaMensal: g.metaRendaMensal,
+      patrimonio: g.patrimonio,
+      aporteMensal: g.aporteMensal,
+      retornoAnualPct: g.retornoNominalAnualPct,
+      ipcaAnualPct: g.ipcaAnualPct,
+      prazoAno: ano,
+    });
+    const necessario = plano?.aporteParaPrazo;
+    if (necessario === null || necessario === undefined) {
+      blocks.push(bloco("Não consegui calcular o aporte para esse ano. Tente outro ano."));
+    } else {
+      const atual = g.aporteMensal;
+      const supera = g.retornoNominalAnualPct > g.ipcaAnualPct;
+      blocks.push(
+        bloco(
+          supera
+            ? `A carteira rende ${percentText(g.retornoNominalAnualPct)} ao ano, acima da inflação de ${percentText(g.ipcaAnualPct)}. Ou seja, a inflação já está sendo superada: o que falta é o prazo.`
+            : `A carteira rende ${percentText(g.retornoNominalAnualPct)} ao ano, abaixo da inflação de ${percentText(g.ipcaAnualPct)}. Antes de aumentar o aporte, vale rever a carteira.`,
+        ),
+      );
+      blocks.push({
+        kind: "stats",
+        items: [
+          { label: `Aporte para ${ano}`, value: formatCurrency(necessario), hint: "por mês, em valores de hoje" },
+          { label: "Aporte atual", value: formatCurrency(atual), hint: "por mês" },
+        ],
+      });
+      blocks.push(
+        bloco(
+          necessario <= atual
+            ? `Seu aporte atual já basta para a meta ficar pronta até o fim de ${ano}.`
+            : `Você precisa aportar ${formatCurrency(necessario - atual)} a mais por mês para a meta ficar pronta até o fim de ${ano}.`,
+        ),
+      );
+    }
+  }
+  return { id: uid(), role: "bot", blocks, followups: ["meta", "explica_meta"] };
 }
 
 function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketResearchPayload | null): Msg {
@@ -1290,6 +1345,8 @@ export function InvestorBot({
           if (local) await new Promise((r) => setTimeout(r, THINK_MS));
           reply = local ?? (await learnedReply(userText)) ?? (await askLocalOnly(userText));
         }
+      } else if (intent === "aporte_prazo") {
+        reply = aporteDeadlineReply(userText, botContext);
       } else {
         const needsMarket = intent === "fiis" || intent === "visao" || intent === "meta" || intent === "explica_meta";
         const [research] = await Promise.all([
