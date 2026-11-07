@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { useUser } from "@/context/user-context";
 import { answerInlineMuvo } from "@/lib/bot-inline";
+import { useMarketRates } from "@/lib/use-market-rates";
 import { FOCUS } from "@/components/investimentos/live-ui";
 
 function Bold({ text }: { text: string }) {
@@ -28,6 +29,8 @@ export function AskMuvoInline({ question, label, resetKey }: { question: string;
   const [answer, setAnswer] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const { cdiAnual } = useMarketRates();
+
   useEffect(() => {
     setAnswer(null);
     setError(null);
@@ -41,7 +44,7 @@ export function AskMuvoInline({ question, label, resetKey }: { question: string;
     try {
       // Pequena pausa só para o botão mostrar que está pensando.
       await new Promise((r) => setTimeout(r, 280));
-      const text = answerInlineMuvo(question);
+      const text = answerInlineMuvo(question, cdiAnual);
       if (!text) {
         setError("Não consegui responder com os dados desta tela. Preencha banco e taxa, ou abra o assistente Muvo.");
         return;

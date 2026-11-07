@@ -16,7 +16,7 @@ export type FinanceCommand =
   | { kind: "payOrInvest"; rateMonth: number | null }
   | { kind: "amortization"; principal: number; months: number; rateMonth: number }
   /** "4 dias de 4000 a 100% do CDI": `mil` marca "4000 mil", lido como R$ 4.000. */
-  | { kind: "dayYield"; amount: number; product: Product; pct: number | null; rateYear: number | null; days: number; mil: boolean };
+  | { kind: "dayYield"; amount: number; product: Product; pct: number | null; rateYear: number | null; days: number; businessDays: number | null; mil: boolean };
 
 const N = NUMBER_RE;
 /** Impede que "110%" vire o número 11 seguido de "0%". */
@@ -111,9 +111,11 @@ export function parseFinance(t: string): FinanceCommand | null {
     }
   }
 
-  const dayM = t.match(/\b(\d+)\s*dias?\b/);
+  const dayM = t.match(/\b(\d+)\s*(dias?|semanas?)(\s+uteis)?\b/);
   if (dayM && !monthsIn(t) && /\b(?:rend\w*|deix\w*|aplic\w*|invest\w*|guard\w*|resgat\w*|fica\w*|sobr\w*|ganh\w*)\b/.test(t)) {
-    const days = Number(dayM[1]);
+    const n = Number(dayM[1]);
+    const uteis = !!dayM[3];
+    const days = uteis ? Math.round((n * 7) / 5) : dayM[2].startsWith("semana") ? n * 7 : n;
     const prod = t.match(new RegExp(String.raw`\b(${PRODUCT})\b`));
     const pctCdi = t.match(new RegExp(String.raw`(${N})\s*%\s*do\s*cdi`));
     const rateYearM = t.match(new RegExp(String.raw`(${N})\s*%\s*(?:ao ano|a\.?a\.?|anual|por ano)`));
@@ -133,6 +135,7 @@ export function parseFinance(t: string): FinanceCommand | null {
           pct,
           rateYear: rateYearM ? parseNumber(rateYearM[1]) : null,
           days,
+          businessDays: uteis ? n : null,
           mil,
         };
       }

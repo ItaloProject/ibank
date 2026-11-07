@@ -132,7 +132,7 @@ export function installment(principal: number, n: number, rateMonth: number) {
 }
 
 /** Resposta pronta para contas, simulações e consultas; null para ações e pedidos que vão à inteligência artificial. */
-export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
+export function answer(cmd: GenieCommand, s: PlanSnapshot, cdi: number = FALLBACK_CDI): GenieAnswer | null {
   const t = totals(s);
   switch (cmd.kind) {
     case "calc":
@@ -212,7 +212,7 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
     }
 
     case "query":
-      return query(cmd.topic, cmd.target, s, t);
+      return query(cmd.topic, cmd.target, s, t, cdi);
 
     case "chat":
       return chatReply(cmd.topic);
@@ -224,7 +224,7 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
 
     case "netYield": case "dayYield": case "compareYield": case "equivalent": case "realReturn": case "freedom":
     case "budgetRule": case "debt": case "payOrInvest": case "amortization":
-      return financeAnswer(cmd, FALLBACK_CDI, {
+      return financeAnswer(cmd, cdi, {
         salary: s.salary, planned: t.planned, actual: t.actual,
         fixo: t.fixoPlanned, variavel: t.varPlanned, sobraPlanned: t.sobraPlanned,
       });
@@ -256,7 +256,7 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
   }
 }
 
-function query(topic: Extract<GenieCommand, { kind: "query" }>["topic"], target: string | null, s: PlanSnapshot, t: ReturnType<typeof totals>): GenieAnswer {
+function query(topic: Extract<GenieCommand, { kind: "query" }>["topic"], target: string | null, s: PlanSnapshot, t: ReturnType<typeof totals>, cdi: number): GenieAnswer {
   const noSalary = { title: "Informe a renda do mês primeiro", note: "Toque em \"Renda do mês\" no topo, ou escreva por exemplo \"recebi 5.000 de salário\"." };
   switch (topic) {
     case "sobra":
@@ -355,7 +355,7 @@ function query(topic: Extract<GenieCommand, { kind: "query" }>["topic"], target:
     }
 
     case "dicas":
-      return tips(s, t);
+      return tips(s, t, cdi);
 
     case "resumo":
       return {
@@ -374,7 +374,7 @@ function query(topic: Extract<GenieCommand, { kind: "query" }>["topic"], target:
 }
 
 /** Dicas tiradas só do planejamento do mês, calculadas no aparelho. */
-function tips(s: PlanSnapshot, t: ReturnType<typeof totals>): GenieAnswer {
+function tips(s: PlanSnapshot, t: ReturnType<typeof totals>, cdi: number): GenieAnswer {
   if (!s.salary) {
     return {
       title: "Para dar dicas, preciso da sua renda do mês",
@@ -426,7 +426,7 @@ function tips(s: PlanSnapshot, t: ReturnType<typeof totals>): GenieAnswer {
           : `Seis meses de gastos dão ${money(reserve)}. Com a sobra de hoje levaria mais de 10 anos: vale aumentar a sobra antes.`,
       });
     }
-    const rateMonth = Math.pow(1 + FALLBACK_CDI / 100, 1 / 12) - 1;
+    const rateMonth = Math.pow(1 + cdi / 100, 1 / 12) - 1;
     const year = compound(0, t.sobraPlanned, rateMonth, 12);
     lines.push({ label: "Investir a sobra", value: `Guardar ${money(t.sobraPlanned)} por mês a 100% do CDI vira cerca de ${money(year.fv)} em um ano, ${money(year.interest)} só de rendimento.`, tone: "good" });
   }

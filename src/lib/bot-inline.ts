@@ -148,7 +148,7 @@ export function answerNovaCaixinha(page: Record<string, unknown> | null): string
 }
 
 /** Resposta local para o botão inline: caixinha, glossário, conta ou conversa curta. */
-export function answerInlineMuvo(question: string): string | null {
+export function answerInlineMuvo(question: string, cdi: number = FALLBACK_CDI): string | null {
   const page = readBotPageContext();
   if (/taxa|banco|imposto|cdi|lci|lca|cdb|aplicacao|caixinha/i.test(question)) {
     const caixinha = answerNovaCaixinha(page);
@@ -158,7 +158,7 @@ export function answerInlineMuvo(question: string): string | null {
   if (topic) return investorChatText(topic);
   const terms = findTerms(question);
   if (terms.length) return terms.map(termMarkdown).join("\n\n");
-  const calc = financeReply(question, FALLBACK_CDI);
+  const calc = financeReply(question, cdi);
   if (calc) return answerMarkdown(calc);
   return null;
 }

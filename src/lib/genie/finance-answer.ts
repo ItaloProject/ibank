@@ -37,8 +37,13 @@ export function financeAnswer(cmd: FinanceCommand, cdi: number, plan: PlanNumber
     case "dayYield": {
       const { rate, label } = annualRateOf(cmd.product, cmd.pct, cmd.rateYear, cdi);
       const free = isTaxFree(cmd.product);
-      const r = netYieldDays(cmd.amount, rate, cmd.days, free);
-      const dias = cmd.days === 1 ? "1 dia" : `${cmd.days} dias`;
+      const semRendimento = cmd.product === "poupanca" && cmd.days < 30;
+      const r = semRendimento
+        ? { gross: 0, iof: 0, iofPct: 0, tax: 0, taxRate: 0, businessDays: 0, final: cmd.amount }
+        : netYieldDays(cmd.amount, rate, cmd.days, free, { businessDays: cmd.businessDays });
+      const dias = cmd.businessDays
+        ? `${cmd.businessDays} ${cmd.businessDays === 1 ? "dia útil" : "dias úteis"}`
+        : cmd.days === 1 ? "1 dia" : `${cmd.days} dias`;
       const lines: GenieLine[] = [
         { label: "Valor aplicado", value: money(cmd.amount) },
         { label: "Rendimento bruto", value: money(r.gross) },
@@ -48,18 +53,22 @@ export function financeAnswer(cmd: FinanceCommand, cdi: number, plan: PlanNumber
           : { label: `Imposto de Renda (${pct(r.taxRate * 100, 1)})`, value: `− ${money(r.tax)}`, tone: "bad" as const },
         { label: "Valor no resgate", value: money(r.final), tone: "good" as const },
       ];
-      const notes = [
-        `CDI de ${pct(cdi)} ao ano, em ${r.businessDays} ${r.businessDays === 1 ? "dia útil" : "dias úteis"} (o CDI só rende em dia útil).`,
-        cmd.mil ? `Considerei ${money(cmd.amount)}, porque você escreveu "${cmd.amount} mil".` : "",
-        free ? "Produto isento de IR e de IOF." : r.iofPct > 0 ? `Resgate antes de 30 dias: o IOF come ${pct(r.iofPct * 100, 0)} do rendimento.` : "",
-      ].filter(Boolean);
+      const notes = semRendimento
+        ? ["Na poupança o rendimento só entra no aniversário do depósito: antes de 30 dias não rende nada."]
+        : [
+            `CDI de ${pct(cdi)} ao ano, em ${r.businessDays} ${r.businessDays === 1 ? "dia útil" : "dias úteis"} (o CDI só rende em dia útil; feriados não são descontados).`,
+            cmd.product === "poupanca" ? "Na poupança o rendimento entra todo mês: este valor é uma estimativa." : "",
+            cmd.mil ? `Considerei ${money(cmd.amount)}, porque você escreveu "${cmd.amount} mil".` : "",
+            free ? "Produto isento de IR e de IOF." : r.iofPct > 0 ? `Resgate antes de 30 dias: o IOF come ${pct(r.iofPct * 100, 0)} do rendimento.` : "",
+          ];
+      const filtered = notes.filter(Boolean);
       return {
         title: `${label}, em ${dias}`,
         value: money(r.final),
         raw: r.final,
         tone: "good",
         lines,
-        note: notes.join(" "),
+        note: filtered.join(" "),
       };
     }
 

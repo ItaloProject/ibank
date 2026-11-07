@@ -16,7 +16,7 @@ const NO_PLAN: PlanSnapshot = { month: "", monthLabel: "", salary: 0, groups: []
 /** Conta de investimento ou dívida que o Gênio sabe fazer, para outros assistentes responderem sem a inteligência artificial. */
 export function financeReply(text: string, cdi: number): GenieAnswer | null {
   const cmd = parseGenie(text, [], cdi);
-  return FINANCE.includes(cmd.kind) ? answer(cmd, NO_PLAN) : null;
+  return FINANCE.includes(cmd.kind) ? answer(cmd, NO_PLAN, cdi) : null;
 }
 
 /**

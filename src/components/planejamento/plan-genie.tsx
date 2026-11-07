@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowUp, Brain, Calculator, Check, Copy, Delete, ExternalLink, Loader2, Sparkles, ThumbsDown, ThumbsUp, Trash2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { FALLBACK_CDI } from "@/lib/investment-rates";
+import { useMarketRates } from "@/lib/use-market-rates";
 import { caretAfterGrouping, groupCalcNumbers } from "@/lib/money-mask";
 import { normalize } from "@/lib/genie/calc";
 import { findGroup, parseGenie, type GenieCommand, type ItemType } from "@/lib/genie/parse";
@@ -174,6 +174,7 @@ const asInput = (v: number) => String(Math.round(v * 100) / 100).replace(".", ",
 
 export function PlanGenie(props: Props) {
   const { userId, month, monthLabel, salary, groups, items, incomes, colors, reloadGroups, reloadItems, onIncomes } = props;
+  const { cdiAnual } = useMarketRates();
   const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -304,7 +305,7 @@ export function PlanGenie(props: Props) {
   const preview = useMemo(() => {
     const text = withLast(input);
     if (!/\d/.test(text)) return null;
-    const cmd = parseGenie(text, groupNames, FALLBACK_CDI);
+    const cmd = parseGenie(text, groupNames, cdiAnual);
     return cmd.kind === "calc" ? cmd.value : null;
   }, [input, groupNames, last]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -840,7 +841,7 @@ export function PlanGenie(props: Props) {
         return;
       case "unknown": return looksLikeWebQuestion(text) ? searchWeb(text) : notUnderstood(text);
       default: {
-        const a = answer(cmd, snapshot);
+        const a = answer(cmd, snapshot, cdiAnual);
         if (a) showAnswer(a);
       }
     }
@@ -926,7 +927,7 @@ export function PlanGenie(props: Props) {
         if (fu?.kind === "paid") return await markPaid();
         if (fu?.kind === "text") said = fu.text;
       }
-      let cmd = parseGenie(said, groupNames, FALLBACK_CDI);
+      let cmd = parseGenie(said, groupNames, cdiAnual);
       if (pending && (pending.kind === "itemValue" || pending.kind === "spendValue" || pending.kind === "incomeValue") && cmd.kind === "unknown" && !/\d/.test(text)) {
         if (/^(?:cancela|cancelar|esquece|deixa)/.test(normalize(text))) { setPending(null); return showAnswer({ title: "Cancelado." }); }
         push({ id: uid(), role: "ask", prompt: "Não entendi o valor.", hint: "Mande só o número, por exemplo 80. Para desistir, diga cancelar." });
@@ -935,7 +936,7 @@ export function PlanGenie(props: Props) {
       if (pending) {
         const joined = complete(pending, text, cmd);
         setPending(null);
-        if (joined) cmd = parseGenie(joined, groupNames, FALLBACK_CDI);
+        if (joined) cmd = parseGenie(joined, groupNames, cdiAnual);
       }
       await run(cmd, text);
       const understood = cmd.kind !== "unknown" && cmd.kind !== "help" && cmd.kind !== "chat";

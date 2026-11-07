@@ -53,12 +53,30 @@ export function iofRate(days: number): number {
   return IOF_BY_DAY[Math.max(1, Math.floor(days)) - 1] / 100;
 }
 
-/** O CDI só rende em dia útil; sem calendário, usa 5 dias úteis a cada 7 corridos. */
-export const businessDaysOf = (days: number) => Math.round((days * 5) / 7);
+const SP_WEEKDAY = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", weekday: "short" });
 
-/** Aplicação por dias corridos: CDI pelos dias úteis, IOF do resgate e IR regressivo sobre o que sobrar. */
-export function netYieldDays(amount: number, annualRate: number, days: number, taxFree: boolean) {
-  const businessDays = businessDaysOf(days);
+/** Dias úteis (seg a sex, fuso de Brasília) entre a data da aplicação e o prazo. Feriados não são descontados. */
+export function businessDaysOf(days: number, from: Date = new Date()): number {
+  let count = 0;
+  for (let i = 0; i < days; i++) {
+    const weekday = SP_WEEKDAY.format(new Date(from.getTime() + i * 86_400_000));
+    if (weekday !== "Sat" && weekday !== "Sun") count++;
+  }
+  return count;
+}
+
+/**
+ * Aplicação por dias corridos: CDI pelos dias úteis, IOF do resgate e IR regressivo sobre o que sobrar.
+ * `businessDays` substitui a conta quando o pedido já vem em dias úteis.
+ */
+export function netYieldDays(
+  amount: number,
+  annualRate: number,
+  days: number,
+  taxFree: boolean,
+  opts: { from?: Date; businessDays?: number | null } = {},
+) {
+  const businessDays = opts.businessDays ?? businessDaysOf(days, opts.from);
   const gross = r2(amount * (Math.pow(1 + annualRate, businessDays / 252) - 1));
   const iofPct = taxFree ? 0 : iofRate(days);
   const iof = r2(gross * iofPct);

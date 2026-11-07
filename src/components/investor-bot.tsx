@@ -1058,7 +1058,7 @@ export function InvestorBot({
   }
 
   /** Glossário ou conta pronta: a mesma resposta do Gênio, sem chamar a inteligência artificial. */
-  function localReply(question: string): Msg | null {
+  function localReply(question: string, cdi: number): Msg | null {
     const prev = lastTermRef.current;
     lastTermRef.current = null;
     if (prev && asksExample(question)) {
@@ -1072,7 +1072,7 @@ export function InvestorBot({
       const text = investorChatText(topic);
       return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
     }
-    const byDays = dayYieldAnswer(question, researchCache.current?.rates.cdiAnual ?? FALLBACK_CDI);
+    const byDays = dayYieldAnswer(question, cdi);
     if (byDays) {
       const text = answerMarkdown(byDays);
       return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
@@ -1084,7 +1084,7 @@ export function InvestorBot({
       lastTermRef.current = terms[terms.length - 1];
       return glossaryReply(question, terms);
     }
-    const calc = financeReply(question, FALLBACK_CDI);
+    const calc = financeReply(question, cdi);
     if (!calc) return null;
     const text = answerMarkdown(calc);
     return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
@@ -1195,7 +1195,8 @@ export function InvestorBot({
         if (localHit?.kind === "intent" && localHit.intent === "rebal") {
           reply = await rebalance();
         } else {
-          const local = localReply(userText);
+          const cdi = (await loadResearch())?.rates?.cdiAnual ?? FALLBACK_CDI;
+          const local = localReply(userText, cdi);
           if (local) await new Promise((r) => setTimeout(r, THINK_MS));
           reply = local ?? (await learnedReply(userText)) ?? (await askLocalOnly(userText));
         }
