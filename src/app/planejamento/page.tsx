@@ -608,14 +608,14 @@ function PlanejamentoContent({ userId }: { userId: string }) {
             </div>
           </button>
           {incomes.length > 0 && (
-            <ul className="flex flex-wrap gap-1.5" aria-label="Receitas do mês">
+            <ul className="grid grid-cols-2 gap-1.5 md:grid-cols-4" aria-label="Receitas do mês">
               {incomes.map((income) => (
                 <li
                   key={income.id}
-                  className="inline-flex items-baseline gap-1.5 rounded-full border bg-background px-2.5 py-1 max-w-full"
+                  className="flex min-w-0 items-center justify-between gap-2 rounded-lg border bg-background px-2.5 py-1.5"
                 >
-                  <span className="text-[11px] text-muted-foreground truncate">{income.description}</span>
-                  <span className="text-[11px] font-display font-black tabular-nums">{fmt(income.amount)}</span>
+                  <span className="min-w-0 truncate text-[11px] text-muted-foreground">{income.description}</span>
+                  <span className="shrink-0 text-[11px] font-display font-black tabular-nums">{fmt(income.amount)}</span>
                 </li>
               ))}
             </ul>

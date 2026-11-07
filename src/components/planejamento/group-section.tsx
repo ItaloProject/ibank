@@ -23,7 +23,7 @@ function ActualField({ item, onCommit }: { item: ExpenseItem; onCommit: (item: E
   return (
     <MoneyInput
       aria-label={`Valor real de ${item.name}`}
-      className="h-9 w-[5.5rem] border-border/40 bg-muted/30 text-right text-sm focus:bg-background sm:w-24"
+      className="h-9 w-full border-border/40 bg-muted/30 text-right text-sm focus:bg-background"
       value={draft}
       onValueChange={setDraft}
       onBlur={() => { if (draft !== item.actual) onCommit(item, draft); }}
@@ -33,6 +33,9 @@ function ActualField({ item, onCommit }: { item: ExpenseItem; onCommit: (item: E
 }
 
 const ICON_BTN = "flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation md:h-9 md:w-9";
+
+/** Colunas da lista de itens: marcar, nome, gasto real, editar, excluir. Cabeçalho e linhas usam a mesma grade. */
+const ITEM_GRID = "grid grid-cols-[2.5rem_minmax(0,1fr)_6rem_2.5rem_2.5rem] items-center gap-x-1 md:grid-cols-[2.25rem_minmax(0,1fr)_6.5rem_2.25rem_2.25rem]";
 
 export function GroupSection({
   group, items, collapsed, done, onToggle, onToggleDone, onTogglePaid, onAddItem, onShare, onEditGroup, onDeleteGroup, onEditItem, onDeleteItem, onActual,
@@ -182,31 +185,30 @@ export function GroupSection({
             </button>
           ) : (
             <ul className="divide-y divide-border/40">
-              <li aria-hidden="true" className="flex items-center justify-between gap-2 pb-1 pl-2 pr-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
-                <span className="whitespace-nowrap pl-[3.875rem] md:pl-[3.625rem]">Item</span>
-                <span className="flex shrink-0 items-center gap-0.5">
-                  <span className="w-[5.5rem] whitespace-nowrap pr-3 text-right sm:w-24">Gasto real</span>
-                  <span className="w-10 md:w-9" />
-                  <span className="w-10 md:w-9" />
-                </span>
+              <li aria-hidden="true" className={`${ITEM_GRID} pb-1 pl-2 pr-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70`}>
+                <span />
+                <span className="whitespace-nowrap pl-[0.875rem]">Item</span>
+                <span className="whitespace-nowrap pr-3 text-right">Gasto real</span>
+                <span />
+                <span />
               </li>
               {items.map((item) => (
-                <li key={item.id} className="flex items-center justify-between gap-2 py-2 pl-2 pr-2 transition-colors hover:bg-muted/10">
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onTogglePaid(item)}
-                      aria-pressed={!!item.paid}
-                      aria-label={item.paid ? `${item.name} está pago. Desmarcar` : `Marcar ${item.name} como pago`}
-                      title={item.paid ? "Pago" : "Marcar como pago"}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation md:h-9 md:w-9"
-                    >
-                      {item.paid ? (
-                        <CircleCheck className="h-[18px] w-[18px] text-emerald-500" aria-hidden="true" />
-                      ) : (
-                        <Circle className="h-[18px] w-[18px] text-muted-foreground/50" aria-hidden="true" />
-                      )}
-                    </button>
+                <li key={item.id} className={`${ITEM_GRID} py-2 pl-2 pr-2 transition-colors hover:bg-muted/10`}>
+                  <button
+                    type="button"
+                    onClick={() => onTogglePaid(item)}
+                    aria-pressed={!!item.paid}
+                    aria-label={item.paid ? `${item.name} está pago. Desmarcar` : `Marcar ${item.name} como pago`}
+                    title={item.paid ? "Pago" : "Marcar como pago"}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation md:h-9 md:w-9"
+                  >
+                    {item.paid ? (
+                      <CircleCheck className="h-[18px] w-[18px] text-emerald-500" aria-hidden="true" />
+                    ) : (
+                      <Circle className="h-[18px] w-[18px] text-muted-foreground/50" aria-hidden="true" />
+                    )}
+                  </button>
+                  <div className="flex min-w-0 items-center gap-2">
                     <span
                       className={cn("h-1.5 w-1.5 shrink-0 rounded-full", item.type === "fixo" ? "bg-blue-500" : "bg-orange-400", item.paid && "opacity-40")}
                       title={item.type === "fixo" ? "Fixo" : "Variável"}
@@ -214,9 +216,9 @@ export function GroupSection({
                     <div className="min-w-0">
                       <span className={cn("block truncate text-sm font-medium leading-snug", item.paid && "text-muted-foreground")}>{item.name}</span>
                       {item.installment_id ? (
-                        <span className="text-[10px] text-muted-foreground/70">Parcelamento · lançado automaticamente</span>
+                        <span className="block truncate text-[10px] text-muted-foreground/70">Parcelamento · lançado automaticamente</span>
                       ) : item.planned > 0 && (
-                        <span className={`text-[10px] tabular-nums ${item.actual > item.planned ? "text-destructive" : "text-muted-foreground/70"}`}>
+                        <span className={`block truncate text-[10px] tabular-nums ${item.actual > item.planned ? "text-destructive" : "text-muted-foreground/70"}`}>
                           Planejado {fmt(item.planned)}
                           {item.actual > item.planned && ` · ${fmt(item.actual - item.planned)} acima`}
                           {item.actual > 0 && item.actual < item.planned && (
@@ -226,31 +228,29 @@ export function GroupSection({
                       )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-0.5">
-                    <ActualField item={item} onCommit={onActual} />
-                    <button type="button" className={ICON_BTN} onClick={() => onEditItem(item)} aria-label={`Editar ${item.name}`}>
-                      <Pencil className="h-3 w-3" />
+                  <ActualField item={item} onCommit={onActual} />
+                  <button type="button" className={ICON_BTN} onClick={() => onEditItem(item)} aria-label={`Editar ${item.name}`}>
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                  {item.installment_id ? (
+                    <Link
+                      href="/parcelamentos"
+                      className={ICON_BTN}
+                      aria-label={`Gerenciar ${item.name} em Parcelamentos`}
+                      title="Gerenciar em Parcelamentos"
+                    >
+                      <Layers className="h-3 w-3" />
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`${ICON_BTN} hover:bg-destructive/10 hover:text-destructive`}
+                      onClick={() => onDeleteItem(item)}
+                      aria-label={`Excluir ${item.name}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
                     </button>
-                    {item.installment_id ? (
-                      <Link
-                        href="/parcelamentos"
-                        className={ICON_BTN}
-                        aria-label={`Gerenciar ${item.name} em Parcelamentos`}
-                        title="Gerenciar em Parcelamentos"
-                      >
-                        <Layers className="h-3 w-3" />
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        className={`${ICON_BTN} hover:bg-destructive/10 hover:text-destructive`}
-                        onClick={() => onDeleteItem(item)}
-                        aria-label={`Excluir ${item.name}`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </li>
               ))}
             </ul>
