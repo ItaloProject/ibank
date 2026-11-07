@@ -464,49 +464,74 @@ export function InvestorModeView({
           </div>
 
           {incomeGoal > 0 && path && (
-            <div className="mb-4 max-w-md space-y-2">
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {capitalReached ? (
-                  <>Patrimônio já cobre a renda-meta · alinhe a carteira no diagnóstico abaixo.</>
-                ) : showNominal && path.capitalNominal ? (
-                  <>
-                    Valor nominal, sem descontar a inflação: falta acumular até{" "}
-                    <span className="font-bold tabular-nums text-foreground">{formatCurrency(path.capitalNominal)}</span>
-                    {" "}({capitalProgress.toFixed(0)}% já). Cada real vale menos a cada ano.
-                  </>
-                ) : (
-                  <>
-                    Em valores de hoje, corrigido pelo IPCA de {path.ipcaAnualPct.toLocaleString("pt-BR")}% e líquido de IR: falta acumular até{" "}
-                    <span className="font-bold tabular-nums text-foreground">{formatCurrency(path.capitalNecessario)}</span>
-                    {" "}({capitalProgress.toFixed(0)}% já) · rendimento real ~{path.rendimentoRealAnualPct.toLocaleString("pt-BR")}% a.a. na carteira
-                  </>
-                )}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                {!capitalReached && path.capitalNominal && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNominal((v) => !v)}
-                    className="inline-flex min-h-9 items-center rounded-full border border-border px-3 text-[11px] font-bold text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {showNominal ? "Ver em valores de hoje" : "Ver valor nominal"}
-                  </button>
-                )}
+            <div className="mb-5 w-full max-w-md space-y-3 text-left">
+              {capitalReached ? (
+                <p className="text-sm text-muted-foreground">Patrimônio já cobre a renda-meta · alinhe a carteira no diagnóstico abaixo.</p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Falta acumular</span>
+                    <span className="font-bold tabular-nums text-foreground">{capitalProgress.toFixed(0)}% já</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-border/60" aria-hidden="true">
+                    <div className="h-full rounded-full bg-foreground transition-all duration-500" style={{ width: `${capitalProgress}%` }} />
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-display text-2xl font-black tabular-nums text-foreground">
+                      {formatCurrency(showNominal && path.capitalNominal ? path.capitalNominal : path.capitalNecessario)}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">{showNominal ? "valor nominal" : "em valores de hoje"}</span>
+                  </div>
+                </>
+              )}
+
+              <div className="flex items-center justify-between gap-3">
+                {path.capitalNominal ? (
+                  <div role="group" aria-label="Forma de exibir o capital" className="inline-flex rounded-full border border-border p-0.5 text-[11px] font-bold">
+                    <button
+                      type="button"
+                      aria-pressed={!showNominal}
+                      onClick={() => setShowNominal(false)}
+                      className={`min-h-8 rounded-full px-3 transition-colors ${!showNominal ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                    >
+                      Hoje
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={showNominal}
+                      onClick={() => setShowNominal(true)}
+                      className={`min-h-8 rounded-full px-3 transition-colors ${showNominal ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                    >
+                      Nominal
+                    </button>
+                  </div>
+                ) : <span />}
                 <button
                   type="button"
                   onClick={() => window.dispatchEvent(new CustomEvent(EXPLAIN_GOAL_EVENT))}
-                  className="inline-flex min-h-9 items-center rounded-full border border-foreground bg-foreground px-3 text-[11px] font-bold text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex min-h-8 items-center rounded-full border border-border px-3.5 text-[11px] font-bold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  Explique
+                  Explique a conta
                 </button>
               </div>
-              {!capitalReached && conservador && (
-                <p className="text-[11px] text-muted-foreground">
-                  Cenário conservador, com CDI líquido (~{(((Math.pow(1 + investorData.CDI_MENSAL, 12) - 1) * 100) * 0.85).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% a.a.):{" "}
-                  <span className="font-bold tabular-nums text-foreground">{formatCurrency(conservador.capitalNecessario)}</span>
-                  {" · "}
-                  {conservador.meses === null ? "passa de 100 anos" : conservador.meses === 0 ? "já coberto" : formatMonths(conservador.meses)}
-                </p>
+
+              {!capitalReached && (
+                <dl className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-border bg-muted/30 p-3">
+                    <dt className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Rendimento real</dt>
+                    <dd className="mt-1 font-display text-base font-black tabular-nums text-foreground">{path.rendimentoRealAnualPct.toLocaleString("pt-BR")}% a.a.</dd>
+                    <dd className="mt-0.5 text-[11px] text-muted-foreground">Líquido de IR, IPCA de {path.ipcaAnualPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</dd>
+                  </div>
+                  {conservador && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-3">
+                      <dt className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Só CDI líquido</dt>
+                      <dd className="mt-1 font-display text-base font-black tabular-nums text-foreground">{formatCurrency(conservador.capitalNecessario)}</dd>
+                      <dd className="mt-0.5 text-[11px] text-muted-foreground">
+                        {conservador.meses === null ? "passa de 100 anos" : conservador.meses === 0 ? "já coberto" : formatMonths(conservador.meses)}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
               )}
             </div>
           )}
