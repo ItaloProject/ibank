@@ -150,15 +150,16 @@ export function parseFinance(t: string): FinanceCommand | null {
   }
 
   const prod = t.match(new RegExp(String.raw`\b(${PRODUCT})\b`));
-  const pctCdi = t.match(new RegExp(String.raw`(${N})\s*%\s*do\s*cdi`));
+  const pctCdi = t.match(new RegExp(String.raw`(${N})\s*%\s*(?:do\s*)?cdi\b`));
   const months = monthsIn(t);
-  if (prod && months && /\b(?:rend\w*|ganh\w*|quanto|vira|fica|da|dao|aplic\w*|invest\w*|colocar|deixar)\b/.test(t)) {
+  // "4 mil com 100% CDI em 2 anos" não cita produto: lê como CDB, como na aplicação por dias.
+  if ((prod || pctCdi || /\bcdi\b/.test(t)) && months && /\b(?:rend\w*|ganh\w*|quanto|vira|fica|da|dao|aplic\w*|invest\w*|colocar|deixar)\b/.test(t)) {
     const rateYearM = t.match(new RegExp(String.raw`(${N})\s*%\s*(?:ao ano|a\.?a\.?|anual|por ano)`));
     const used = new Set([pctCdi?.[1], rateYearM?.[1]].filter(Boolean));
     const amountM = [...t.matchAll(new RegExp(String.raw`(${N})${LONE}(?!\s*%)(?!\s*(?:meses|mes|anos|ano)\b)`, "g"))].find((m) => !used.has(m[1]));
     const amount = amountM ? parseNumber(amountM[1]) : null;
     if (amount && amount > 0) {
-      const p = product(prod[1]);
+      const p = prod ? product(prod[1]) : "cdb";
       const pct = pctCdi ? parseNumber(pctCdi[1]) : list[0]?.pct ?? null;
       return { kind: "netYield", amount, product: p, pct, rateYear: rateYearM ? parseNumber(rateYearM[1]) : null, months };
     }

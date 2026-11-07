@@ -7,7 +7,7 @@ import type { GoalProjection } from "@/lib/goal-projection";
 import { detectIntent, keywordIntent, profileTarget, type Intent } from "@/lib/bot-intent";
 import { matchLocalPortfolio } from "@/lib/bot-local";
 import { askAbout, asksExample, findTerms, holdingsFor, termById, termExample, termMarkdown, type Term } from "@/lib/glossary";
-import { dayYieldReply, financeReply, type DayYield } from "@/lib/genie/local-answer";
+import { dayYieldReply, financeReply, missingPeriodReply, type DayYield } from "@/lib/genie/local-answer";
 import { answerMarkdown } from "@/lib/genie/answer";
 import { chatTopic, investorChatText, looksLikeWebQuestion } from "@/lib/genie/chat";
 import { SNOOZE_DAYS, alertStatus, snoozeChoice, type AlertChoices } from "@/lib/alert-choices";
@@ -1087,7 +1087,7 @@ export function InvestorBot({
       lastTermRef.current = terms[terms.length - 1];
       return glossaryReply(question, terms);
     }
-    const calc = financeReply(question, cdi);
+    const calc = financeReply(question, cdi) ?? missingPeriodReply(question);
     if (!calc) return null;
     const text = answerMarkdown(calc);
     return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };

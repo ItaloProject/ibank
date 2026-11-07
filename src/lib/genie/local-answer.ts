@@ -40,6 +40,23 @@ export function dayYieldAnswer(text: string, cdi: number): GenieAnswer | null {
   return dayYieldReply(text, cdi)?.answer ?? null;
 }
 
+/**
+ * Pergunta de rendimento com valor e CDI (ou produto) mas sem prazo: pede o prazo em vez de
+ * cair na resposta genérica "Posso ajudar sem inteligência artificial".
+ */
+export function missingPeriodReply(text: string): GenieAnswer | null {
+  const t = normalize(text);
+  if (!/\b(?:rend\w*|ganh\w*)\b/.test(t)) return null;
+  if (!(/\bcdi\b/.test(t) || /\b(?:cdbs?|lcis?|lcas?|lc|poupanca|tesouro|rdbs?)\b/.test(t))) return null;
+  // Precisa de um valor que não seja porcentagem.
+  if (!/\d/.test(t.replace(/\d[\d.,]*\s*%/g, " "))) return null;
+  if (/\d+\s*(?:dias?|semanas?|meses|mes|anos?)\b/.test(t)) return null;
+  return {
+    title: "Falta o prazo para calcular",
+    text: "Em quanto tempo? Por exemplo: \"quanto rendem 4 mil com 100% CDI em 30 dias\" ou \"… em 2 anos\".",
+  };
+}
+
 /** Só um prazo, sem valor nem produto: herda a aplicação anterior. */
 function followUpDays(t: string, prev?: DayYield | null): DayYield | null {
   if (!prev) return null;

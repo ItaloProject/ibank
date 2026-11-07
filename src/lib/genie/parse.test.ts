@@ -150,7 +150,7 @@ describe("pedidos ao planejamento", () => {
   it("juros compostos e financiamento", () => {
     const c = p("investindo 500 por mês a 1% ao mês por 12 meses");
     expect(c).toMatchObject({ kind: "compound", monthly: 500, initial: 0, months: 12 });
-    expect(p("quanto rende 10000 a 100% do CDI em 2 anos")).toMatchObject({ kind: "compound", initial: 10000, monthly: 0, months: 24 });
+    expect(p("quanto rende 10000 a 100% do CDI em 2 anos")).toMatchObject({ kind: "netYield", amount: 10000, product: "cdb", pct: 100, months: 24 });
     expect(p("parcela de 10.000 em 12x a 2% ao mês")).toMatchObject({ kind: "installment", principal: 10000, parcelas: 12, rateMonth: 0.02 });
   });
 
