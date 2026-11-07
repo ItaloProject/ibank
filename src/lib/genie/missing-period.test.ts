@@ -1,8 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { financeReply, missingPeriodReply } from "@/lib/genie/local-answer";
+import { dayYieldReply, financeReply, missingPeriodReply, withPendingPeriod } from "@/lib/genie/local-answer";
 import { parseFinance } from "@/lib/genie/finance-parse";
 
 const CDI = 14.9;
+
+describe("resposta só com o prazo", () => {
+  const PERGUNTA = "Quanto rendem 4 mil no CDI em 100%";
+
+  it("junta o prazo à pergunta que ficou sem ele", () => {
+    const junta = withPendingPeriod(PERGUNTA, "1 semana.");
+    expect(junta).toBe(`${PERGUNTA} em 1 semana`);
+    const r = dayYieldReply(junta, CDI);
+    expect(r).not.toBeNull();
+    expect(r!.cmd).toMatchObject({ amount: 4000, days: 7 });
+  });
+
+  it("aceita 'em 30 dias' e 'dias úteis'", () => {
+    expect(withPendingPeriod(PERGUNTA, "em 30 dias")).toBe(`${PERGUNTA} em 30 dias`);
+    expect(dayYieldReply(withPendingPeriod(PERGUNTA, "5 dias úteis"), CDI)!.cmd).toMatchObject({ businessDays: 5 });
+  });
+
+  it("sem pergunta pendente, ou com outra mensagem, não muda nada", () => {
+    expect(withPendingPeriod(null, "1 semana")).toBe("1 semana");
+    expect(withPendingPeriod(PERGUNTA, "oi, tudo bem?")).toBe("oi, tudo bem?");
+  });
+});
 
 describe("rendimento com CDI sem prazo", () => {
   it("pede o prazo para a pergunta da tela", () => {

@@ -57,6 +57,17 @@ export function missingPeriodReply(text: string): GenieAnswer | null {
   };
 }
 
+/**
+ * Resposta só com o prazo ("1 semana") depois de uma pergunta sem prazo: junta as duas.
+ * Qualquer outra mensagem volta sem mudança.
+ */
+export function withPendingPeriod(pending: string | null, text: string): string {
+  if (!pending) return text;
+  const t = normalize(text).replace(/[?!.]+$/, "").trim();
+  const prazo = t.replace(/^em\s+/, "");
+  return /^\d+\s*(?:dias?|semanas?|meses|mes|anos?)(?:\s+uteis)?$/.test(prazo) ? `${pending} em ${prazo}` : text;
+}
+
 /** Só um prazo, sem valor nem produto: herda a aplicação anterior. */
 function followUpDays(t: string, prev?: DayYield | null): DayYield | null {
   if (!prev) return null;

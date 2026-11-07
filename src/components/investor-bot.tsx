@@ -7,7 +7,7 @@ import type { GoalProjection } from "@/lib/goal-projection";
 import { detectIntent, keywordIntent, profileTarget, type Intent } from "@/lib/bot-intent";
 import { matchLocalPortfolio } from "@/lib/bot-local";
 import { askAbout, asksExample, findTerms, holdingsFor, termById, termExample, termMarkdown, type Term } from "@/lib/glossary";
-import { dayYieldReply, financeReply, missingPeriodReply, type DayYield } from "@/lib/genie/local-answer";
+import { dayYieldReply, financeReply, missingPeriodReply, withPendingPeriod, type DayYield } from "@/lib/genie/local-answer";
 import { answerMarkdown } from "@/lib/genie/answer";
 import { chatTopic, investorChatText, looksLikeWebQuestion } from "@/lib/genie/chat";
 import { SNOOZE_DAYS, alertStatus, snoozeChoice, type AlertChoices } from "@/lib/alert-choices";
@@ -957,6 +957,8 @@ export function InvestorBot({
   const researchCache = useRef<MarketResearchPayload | null>(null);
   /** Última aplicação por dias, para "e em 30 dias?" reaproveitar o valor. */
   const lastDayRef = useRef<DayYield | null>(null);
+  /** Pergunta de rendimento que ficou sem prazo: a próxima mensagem, só um prazo, completa essa pergunta. */
+  const pendingPeriodRef = useRef<string | null>(null);
 
   useEffect(() => {
     try {
@@ -1061,6 +1063,9 @@ export function InvestorBot({
 
   /** Glossário ou conta pronta: a mesma resposta do Gênio, sem chamar a inteligência artificial. */
   function localReply(question: string, cdi: number): Msg | null {
+    const pending = pendingPeriodRef.current;
+    pendingPeriodRef.current = null;
+    const full = withPendingPeriod(pending, question);
     const prev = lastTermRef.current;
     lastTermRef.current = null;
     if (prev && asksExample(question)) {
@@ -1074,7 +1079,7 @@ export function InvestorBot({
       const text = investorChatText(topic);
       return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
     }
-    const byDays = dayYieldReply(question, cdi, lastDayRef.current);
+    const byDays = dayYieldReply(full, cdi, lastDayRef.current);
     if (byDays) {
       lastDayRef.current = byDays.cmd;
       const text = answerMarkdown(byDays.answer);
@@ -1087,8 +1092,9 @@ export function InvestorBot({
       lastTermRef.current = terms[terms.length - 1];
       return glossaryReply(question, terms);
     }
-    const calc = financeReply(question, cdi) ?? missingPeriodReply(question);
+    const calc = financeReply(full, cdi) ?? missingPeriodReply(full);
     if (!calc) return null;
+    if (missingPeriodReply(full)) pendingPeriodRef.current = full;
     const text = answerMarkdown(calc);
     return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
   }
