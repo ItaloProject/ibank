@@ -1,7 +1,15 @@
 export type GoalProjection = {
-  /** Capital que gera a renda mensal desejada no rendimento real esperado. */
+  /** Capital que gera a renda mensal desejada no rendimento real esperado (valores de hoje). */
   capitalNecessario: number;
   rendimentoRealAnualPct: number;
+  /** Entradas do cálculo, para explicar a meta sem refazer as contas. */
+  metaRendaMensal: number;
+  patrimonio: number;
+  aporteMensal: number;
+  retornoNominalAnualPct: number;
+  ipcaAnualPct: number;
+  /** Capital sem descontar a inflação: a renda nominal da meta, do jeito que cai na conta. Null se o rendimento não for positivo. */
+  capitalNominal: number | null;
   /** Meses até a meta no ritmo atual; null se passar de 100 anos. */
   meses: number | null;
   anoPrevisto: number | null;
@@ -16,6 +24,20 @@ const MAX_MESES = 1200;
 function futureValue(capital: number, aporte: number, r: number, n: number): number {
   const g = Math.pow(1 + r, n);
   return r === 0 ? capital + aporte * n : capital * g + aporte * ((g - 1) / r);
+}
+
+/**
+ * Cenário conservador: a mesma meta, com o rendimento de um CDI líquido de IR (15%) no lugar da carteira.
+ * `cdiAnualPct` é o CDI anual em %.
+ */
+export function conservativeGoal(p: GoalProjection, cdiAnualPct: number): GoalProjection | null {
+  return projectGoal({
+    metaRendaMensal: p.metaRendaMensal,
+    patrimonio: p.patrimonio,
+    aporteMensal: p.aporteMensal,
+    retornoAnualPct: cdiAnualPct * 0.85,
+    ipcaAnualPct: p.ipcaAnualPct,
+  });
 }
 
 /**
@@ -60,9 +82,16 @@ export function projectGoal(input: {
     }
   }
 
+  const rNominal = Math.pow(1 + input.retornoAnualPct / 100, 1 / 12) - 1;
   return {
     capitalNecessario: Math.round(capitalNecessario),
     rendimentoRealAnualPct: Math.round(realAnual * 10000) / 100,
+    metaRendaMensal,
+    patrimonio,
+    aporteMensal,
+    retornoNominalAnualPct: input.retornoAnualPct,
+    ipcaAnualPct: input.ipcaAnualPct,
+    capitalNominal: rNominal > 0 ? Math.round(metaRendaMensal / rNominal) : null,
     meses,
     anoPrevisto,
     prazoAno,

@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { BotAlert } from "@/lib/alerts";
-import type { GoalProjection } from "@/lib/goal-projection";
+import { conservativeGoal, type GoalProjection } from "@/lib/goal-projection";
 import { detectIntent, keywordIntent, profileTarget, type Intent } from "@/lib/bot-intent";
 import { matchLocalPortfolio } from "@/lib/bot-local";
 import { askAbout, asksExample, findTerms, holdingsFor, termById, termExample, termMarkdown, type Term } from "@/lib/glossary";
@@ -272,6 +272,85 @@ function alertsReply(alerts: BotAlert[], hidden = 0): Msg {
   };
 }
 
+/** Evento disparado pelo botão "Explique" da tela de metas; o bot abre e responde com a explicação. */
+export const EXPLAIN_GOAL_EVENT = "muvo:explique-meta";
+export const EXPLAIN_GOAL_QUESTION = "Explique minha meta";
+
+function percentText(value: number): string {
+  return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+}
+
+/** Explicação direta da meta, com os números da própria conta. */
+function goalExplainReply(ctx: BotPortfolioContext, research?: MarketResearchPayload | null): Msg {
+  const g = ctx.goal;
+  if (!(ctx.incomeGoal > 0) || !g) {
+    return {
+      id: uid(),
+      role: "bot",
+      blocks: [
+        { kind: "heading", text: "Como funciona a sua meta" },
+        { kind: "text", text: "Defina uma meta de renda no topo desta página. Depois eu explico a conta com os seus números." },
+      ],
+      followups: ["visao"],
+    };
+  }
+  const cdiAnual = research?.rates?.cdiAnual ?? FALLBACK_CDI;
+  const cons = conservativeGoal(g, cdiAnual);
+  const prazo = (m: number | null) => (m === null ? "mais de 100 anos" : m === 0 ? "já coberta" : duration(m));
+  const pctDaMeta = g.capitalNecessario > 0 ? Math.min(100, (ctx.grandTotal / g.capitalNecessario) * 100) : 0;
+
+  const blocks: Block[] = [
+    { kind: "heading", text: "Como a sua meta é calculada" },
+    {
+      kind: "md",
+      text: `Você quer **${formatCurrency(g.metaRendaMensal)} por mês** de renda, em **valores de hoje**. A inflação reduz o poder de compra do dinheiro, então a conta desconta o IPCA de ${percentText(g.ipcaAnualPct)} ao ano. O que sobra é um rendimento real de **${percentText(g.rendimentoRealAnualPct)} ao ano**, já líquido de Imposto de Renda.`,
+    },
+    {
+      kind: "stats",
+      items: [
+        { label: "Capital necessário", value: formatCurrency(g.capitalNecessario), hint: "valores de hoje" },
+        { label: "Você tem", value: formatCurrency(ctx.grandTotal), hint: `${pctDaMeta.toFixed(0)}% do alvo` },
+        { label: "Aporte", value: formatCurrency(g.aporteMensal), hint: "por mês" },
+      ],
+    },
+    {
+      kind: "text",
+      text:
+        g.meses === null
+          ? "No ritmo atual, o patrimônio não chega à meta em 100 anos. Aumentar o aporte é o que mais encurta o prazo."
+          : g.meses === 0
+            ? "Seu patrimônio já cobre a meta."
+            : `No ritmo de ${formatCurrency(g.aporteMensal)} por mês, a meta fica pronta em ${duration(g.meses)}${g.anoPrevisto ? `, por volta de ${g.anoPrevisto}` : ""}.`,
+    },
+  ];
+  if (g.capitalNominal) {
+    blocks.push({
+      kind: "text",
+      muted: true,
+      text: `Sem descontar a inflação, o número seria ${formatCurrency(g.capitalNominal)}: é o valor que aparece na conta, mas cada real vale menos a cada ano.`,
+    });
+  }
+  if (cons) {
+    blocks.push({
+      kind: "text",
+      text: `Se a carteira render só o CDI líquido (cerca de ${percentText(cdiAnual * 0.85)} ao ano), a meta pede ${formatCurrency(cons.capitalNecessario)} e o prazo é ${prazo(cons.meses)}.`,
+    });
+  }
+  blocks.push(
+    {
+      kind: "list",
+      title: "O que mexe no resultado",
+      items: [
+        { title: "Aporte maior", meta: "encurta o prazo" },
+        { title: "Rendimento menor", meta: "aumenta o capital necessário" },
+        { title: "Inflação maior", meta: "também aumenta, porque a renda precisa acompanhá-la" },
+      ],
+    },
+    { kind: "alert", tone: "warn", text: "Os números usam o retorno dos últimos 12 meses da carteira. Esse retorno muda com o mercado e não é garantido." },
+  );
+  return { id: uid(), role: "bot", blocks, followups: ["rebal", "visao"] };
+}
+
 function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketResearchPayload | null): Msg {
   if (intent === "avisos") return alertsReply(ctx.alerts);
   const gap = Math.max(0, (ctx.incomeGoal || 0) - ctx.totalRendaMensal);
@@ -370,6 +449,8 @@ function replyFor(intent: Intent, ctx: BotPortfolioContext, research?: MarketRes
       { kind: "profile" },
     ], ["rebal"]);
   }
+
+  if (intent === "explica_meta") return goalExplainReply(ctx, research);
 
   if (intent === "meta") {
     if (!(ctx.incomeGoal > 0)) {
@@ -1210,7 +1291,7 @@ export function InvestorBot({
           reply = local ?? (await learnedReply(userText)) ?? (await askLocalOnly(userText));
         }
       } else {
-        const needsMarket = intent === "fiis" || intent === "visao" || intent === "meta";
+        const needsMarket = intent === "fiis" || intent === "visao" || intent === "meta" || intent === "explica_meta";
         const [research] = await Promise.all([
           needsMarket ? loadResearch() : Promise.resolve(researchCache.current),
           new Promise((r) => setTimeout(r, THINK_MS)),
@@ -1227,6 +1308,20 @@ export function InvestorBot({
       setBusy(false);
     }
   }
+
+  // O botão "Explique" da tela de metas abre o bot e manda a pergunta, sem a pessoa digitar.
+  const askRef = useRef<((text: string, intent: Intent) => Promise<void>) | null>(null);
+  useEffect(() => {
+    askRef.current = ask;
+  });
+  useEffect(() => {
+    const onExplain = () => {
+      setOpen(true);
+      void askRef.current?.(EXPLAIN_GOAL_QUESTION, "explica_meta");
+    };
+    window.addEventListener(EXPLAIN_GOAL_EVENT, onExplain);
+    return () => window.removeEventListener(EXPLAIN_GOAL_EVENT, onExplain);
+  }, []);
 
   function handleSend() {
     const text = input.trim();

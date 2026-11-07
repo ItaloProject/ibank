@@ -6,13 +6,14 @@ import { FileText, Target, Check, CheckCircle2, ArrowRight, Pencil, X, ChevronDo
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { InvestorBot, type BotPortfolioContext } from "@/components/investor-bot";
+import { EXPLAIN_GOAL_EVENT, InvestorBot, type BotPortfolioContext } from "@/components/investor-bot";
 import { ProgressRing, Reveal, useCountUp } from "@/components/motion/reveal";
 import { formatCurrency } from "@/lib/utils";
 import { maskMoney, toMoneyMask } from "@/lib/money-mask";
 import { RISK_PROFILES, type RiskProfile } from "@/lib/rebalance";
 import { actionHref, type PlanAllocation, type PlanInsight, type PlanMove } from "@/lib/plan-view";
-import { projectGoal, type GoalProjection } from "@/lib/goal-projection";
+import { conservativeGoal, projectGoal, type GoalProjection } from "@/lib/goal-projection";
+import { formatMonths } from "@/lib/profile-transition";
 import Link from "next/link";
 import type { ScoreSnapshot, InvestmentAccount, StockTrade, Investment } from "@/types/database";
 
@@ -139,6 +140,7 @@ export function InvestorModeView({
 }: InvestorModeViewProps) {
   const { allSources, totalRendaMensal, rendaRegistrada, rendaEstimada, chartMonths } = investorData;
   const [editingGoal, setEditingGoal] = useState(false);
+  const [showNominal, setShowNominal] = useState(false);
   const [savingGoal, setSavingGoal] = useState(false);
   const [deadlineInput, setDeadlineInput] = useState("");
   const [aporteInput, setAporteInput] = useState("");
@@ -166,6 +168,11 @@ export function InvestorModeView({
     ? Math.min(100, (grandTotal / path.capitalNecessario) * 100)
     : 0;
   const capitalReached = path != null && path.meses === 0;
+  /** Mesma meta com o rendimento de um CDI líquido, para comparar com a carteira. */
+  const conservador = useMemo(
+    () => (path ? conservativeGoal(path, (Math.pow(1 + investorData.CDI_MENSAL, 12) - 1) * 100) : null),
+    [path, investorData.CDI_MENSAL],
+  );
 
   function startGoalEdit() {
     setIncomeGoalInput(incomeGoal > 0 ? toMoneyMask(incomeGoal) : "");
@@ -457,19 +464,51 @@ export function InvestorModeView({
           </div>
 
           {incomeGoal > 0 && path && (
-            <p className="text-sm text-muted-foreground mb-4 max-w-md leading-relaxed">
-              {capitalReached ? (
-                <>Patrimônio já cobre a renda-meta · alinhe a carteira no diagnóstico abaixo.</>
-              ) : (
-                <>
-                  Falta acumular até{" "}
-                  <span className="font-bold tabular-nums text-foreground">{formatCurrency(path.capitalNecessario)}</span>
-                  {" "}(
-                  <span className="font-bold tabular-nums text-foreground">{capitalProgress.toFixed(0)}%</span>
-                  {" "}já) · rendimento real ~{path.rendimentoRealAnualPct.toLocaleString("pt-BR")}% a.a. na carteira
-                </>
+            <div className="mb-4 max-w-md space-y-2">
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {capitalReached ? (
+                  <>Patrimônio já cobre a renda-meta · alinhe a carteira no diagnóstico abaixo.</>
+                ) : showNominal && path.capitalNominal ? (
+                  <>
+                    Valor nominal, sem descontar a inflação: falta acumular até{" "}
+                    <span className="font-bold tabular-nums text-foreground">{formatCurrency(path.capitalNominal)}</span>
+                    {" "}({capitalProgress.toFixed(0)}% já). Cada real vale menos a cada ano.
+                  </>
+                ) : (
+                  <>
+                    Em valores de hoje, corrigido pelo IPCA de {path.ipcaAnualPct.toLocaleString("pt-BR")}% e líquido de IR: falta acumular até{" "}
+                    <span className="font-bold tabular-nums text-foreground">{formatCurrency(path.capitalNecessario)}</span>
+                    {" "}({capitalProgress.toFixed(0)}% já) · rendimento real ~{path.rendimentoRealAnualPct.toLocaleString("pt-BR")}% a.a. na carteira
+                  </>
+                )}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {!capitalReached && path.capitalNominal && (
+                  <button
+                    type="button"
+                    onClick={() => setShowNominal((v) => !v)}
+                    className="inline-flex min-h-9 items-center rounded-full border border-border px-3 text-[11px] font-bold text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {showNominal ? "Ver em valores de hoje" : "Ver valor nominal"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent(EXPLAIN_GOAL_EVENT))}
+                  className="inline-flex min-h-9 items-center rounded-full border border-foreground bg-foreground px-3 text-[11px] font-bold text-background transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Explique
+                </button>
+              </div>
+              {!capitalReached && conservador && (
+                <p className="text-[11px] text-muted-foreground">
+                  Cenário conservador, com CDI líquido (~{(((Math.pow(1 + investorData.CDI_MENSAL, 12) - 1) * 100) * 0.85).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% a.a.):{" "}
+                  <span className="font-bold tabular-nums text-foreground">{formatCurrency(conservador.capitalNecessario)}</span>
+                  {" · "}
+                  {conservador.meses === null ? "passa de 100 anos" : conservador.meses === 0 ? "já coberto" : formatMonths(conservador.meses)}
+                </p>
               )}
-            </p>
+            </div>
           )}
 
           {(rendaRegistrada > 0 || rendaEstimada > 0) && (
