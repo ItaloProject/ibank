@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { completeChatWithTools } from "@/lib/server/llm";
 
-const reply = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+const reply = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
 
 describe("laço de ferramentas do assistente", () => {
   beforeEach(() => {
@@ -63,7 +63,7 @@ describe("laço de ferramentas do assistente", () => {
   it("para depois do limite de passos mesmo se o modelo insistir em ferramentas", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
+      vi.fn().mockImplementation(async () =>
         reply({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "tu", name: "consultar_cdi", input: {} }] }),
       ),
     );

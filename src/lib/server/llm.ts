@@ -2,6 +2,10 @@
  * Chamada de modelo de linguagem, usando o provedor configurado:
  * ANTHROPIC_API_KEY (Claude) ou OPENAI_API_KEY (GPT). Modelo ajustável por env.
  */
+import { ChatAnthropic } from "@langchain/anthropic";
+import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
+import { END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
+
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export type ToolDef = { name: string; description: string; input_schema: Record<string, unknown> };
@@ -16,33 +20,30 @@ function anthropicModel(): string {
   return process.env.ANTHROPIC_MODEL?.trim() || "claude-haiku-5-5";
 }
 
-async function anthropicCall(body: Record<string, unknown>) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": process.env.ANTHROPIC_API_KEY!.trim(),
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ model: anthropicModel(), ...body }),
-    cache: "no-store",
-  });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data: any = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(data?.error?.message ?? `Anthropic ${res.status}`);
-  return data;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function textOf(content: any[]): string {
+function textOf(content: any): string {
+  if (typeof content === "string") return content.trim();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n").trim();
+  if (Array.isArray(content)) return content.filter((c: any) => c?.type === "text").map((c: any) => c.text).join("\n").trim();
+  return "";
 }
 
 export async function completeChat(system: string, messages: ChatMessage[], maxTokens = 900): Promise<string> {
   const provider = llmProvider();
   if (provider === "anthropic") {
-    const data = await anthropicCall({ max_tokens: maxTokens, system, messages });
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": process.env.ANTHROPIC_API_KEY!.trim(),
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ model: anthropicModel(), max_tokens: maxTokens, system, messages }),
+      cache: "no-store",
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error?.message ?? `Anthropic ${res.status}`);
     return textOf(data?.content);
   }
   if (provider === "openai") {
@@ -65,8 +66,8 @@ export async function completeChat(system: string, messages: ChatMessage[], maxT
 }
 
 /**
- * Conversa com ferramentas (Claude): o modelo pede um cálculo, o servidor executa com as funções do
- * próprio app e devolve o resultado, até a resposta final. Sem Claude, cai no texto puro.
+ * Conversa com ferramentas em LangGraph: um nó chama o Claude, outro executa as ferramentas do app,
+ * e a aresta repete até a resposta final. Sem Claude, cai no texto puro.
  */
 export async function completeChatWithTools(
   system: string,
@@ -77,22 +78,42 @@ export async function completeChatWithTools(
 ): Promise<string> {
   if (llmProvider() !== "anthropic") return completeChat(system, messages, maxTokens);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const convo: { role: "user" | "assistant"; content: any }[] = messages.map((m) => ({ role: m.role, content: m.content }));
-  let last: string[] = [];
-  for (let step = 0; step < maxSteps; step++) {
-    const data = await anthropicCall({ max_tokens: maxTokens, system, messages: convo, tools });
-    const content = data?.content ?? [];
-    if (data?.stop_reason !== "tool_use") return textOf(content);
-    convo.push({ role: "assistant", content });
-    const results = [];
-    for (const block of content) {
-      if (block.type !== "tool_use") continue;
-      const out = await run(block.name, block.input).catch((err: unknown) => `Erro: ${err instanceof Error ? err.message : "falha no cálculo"}`);
-      results.push({ type: "tool_result", tool_use_id: block.id, content: out });
+  const model = new ChatAnthropic({
+    model: anthropicModel(),
+    apiKey: process.env.ANTHROPIC_API_KEY!.trim(),
+    maxTokens,
+  }).bindTools(tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.input_schema } })));
+
+  const graph = new StateGraph(MessagesAnnotation)
+    .addNode("agent", async (state) => ({ messages: [await model.invoke([new SystemMessage(system), ...state.messages])] }))
+    .addNode("tools", async (state) => {
+      const last = state.messages.at(-1) as AIMessage;
+      const results = await Promise.all(
+        (last.tool_calls ?? []).map(async (call) =>
+          new ToolMessage({
+            tool_call_id: call.id ?? call.name,
+            name: call.name,
+            content: await run(call.name, call.args).catch((err: unknown) => `Erro: ${err instanceof Error ? err.message : "falha no cálculo"}`),
+          }),
+        ),
+      );
+      return { messages: results };
+    })
+    .addEdge(START, "agent")
+    .addConditionalEdges("agent", (state) => ((state.messages.at(-1) as AIMessage).tool_calls?.length ? "tools" : END))
+    .addEdge("tools", "agent")
+    .compile();
+
+  try {
+    const result = await graph.invoke(
+      { messages: messages.map((m) => (m.role === "user" ? new HumanMessage(m.content) : new AIMessage(m.content))) },
+      { recursionLimit: 2 * maxSteps + 1 },
+    );
+    return textOf((result.messages.at(-1) as AIMessage).content) || "Não consegui formular uma resposta. Pode reformular a pergunta?";
+  } catch (err) {
+    if (err instanceof Error && err.name === "GraphRecursionError") {
+      return "Não consegui concluir o cálculo. Tente reformular a pergunta.";
     }
-    convo.push({ role: "user", content: results });
-    last = [textOf(content)];
+    throw err;
   }
-  return last[0] || "Não consegui concluir o cálculo. Tente reformular a pergunta.";
 }
