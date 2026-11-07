@@ -636,39 +636,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
               </div>
             </div>
           )}
-          {/* Mobile: compact inline summary */}
-          <div className="md:hidden flex items-center gap-x-3 flex-wrap gap-y-0.5">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />
-              <span className="text-[11px] text-muted-foreground">Fixos</span>
-              <span className="text-[11px] font-display font-black tabular-nums">{fmt(totalFixoActual)}</span>
-            </span>
-            <span className="text-border/60 text-xs select-none">·</span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-orange-400 shrink-0" />
-              <span className="text-[11px] text-muted-foreground">Variáveis</span>
-              <span className="text-[11px] font-display font-black tabular-nums">{fmt(totalVarActual)}</span>
-            </span>
-            <span className="text-border/60 text-xs select-none">·</span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="text-[11px] text-muted-foreground">Total</span>
-              <span className="text-[11px] font-display font-black tabular-nums">{fmt(totalActual)}</span>
-            </span>
-            {salary > 0 && (
-              <>
-                <span className="text-border/60 text-xs select-none">·</span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${sobra >= 0 ? "bg-green-500" : "bg-destructive"}`} />
-                  <span className="text-[11px] text-muted-foreground">Sobra</span>
-                  <span className={`text-[11px] font-display font-black tabular-nums ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>
-                    {fmt(Math.abs(sobra))}
-                  </span>
-                </span>
-              </>
-            )}
-          </div>
-          {/* Desktop: 3-card grid */}
-          <div className="hidden md:grid grid-cols-4 gap-2">
+          {/* Resumo: 2 colunas no celular, 4 no computador */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
               <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-500">
                 Fixos
