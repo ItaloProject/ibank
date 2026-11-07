@@ -2,10 +2,18 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAdmin } from "@/lib/auth";
 import sql from "@/lib/db";
+import { secretMatches } from "@/lib/server/secret-auth";
 
-// Rota de setup único — cria tabela e usuários iniciais
-// Acesse GET /api/auth/setup uma vez após o deploy
-export async function GET() {
+// Rota de setup: cria tabela e usuários iniciais. Exige admin logado ou SETUP_SECRET no
+// header Authorization: Bearer. Nada é alterado no banco antes dessa checagem.
+export async function GET(request: Request) {
+  const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const porSegredo = secretMatches(bearer, process.env.SETUP_SECRET?.trim());
+  if (!porSegredo) {
+    const admin = await requireAdmin();
+    if (admin instanceof NextResponse) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
+
   try {
     await sql`
       CREATE TABLE IF NOT EXISTS app_users (
@@ -36,10 +44,6 @@ export async function GET() {
 
     const existing = await sql`SELECT id FROM app_users LIMIT 1`;
     if (existing.length > 0) {
-      const admin = await requireAdmin();
-      if (admin instanceof NextResponse) {
-        return NextResponse.json({ error: "Setup já executado" }, { status: 403 });
-      }
       await sql`UPDATE app_users SET is_admin = true WHERE user_id = 'italo'`;
       return NextResponse.json({
         ok: true,
@@ -47,7 +51,10 @@ export async function GET() {
       });
     }
 
-    const defaultPassword = process.env.DEFAULT_PASSWORD ?? "ibank2026";
+    const defaultPassword = process.env.DEFAULT_PASSWORD?.trim();
+    if (!defaultPassword) {
+      return NextResponse.json({ error: "Defina DEFAULT_PASSWORD antes de criar os usuários iniciais." }, { status: 400 });
+    }
     const hash = await bcrypt.hash(defaultPassword, 12);
 
     await sql`

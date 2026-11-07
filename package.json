@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src",
     "test": "vitest run",
     "icons": "node scripts/generate-pwa-icons.mjs"
   },
@@ -52,7 +52,7 @@
     "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.0.1",
     "dotenv": "^17.4.2",
-    "eslint": "^10.5.0",
+    "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.9",
     "postcss": "^8",
     "serwist": "^9.5.12",
