@@ -3,6 +3,8 @@
  * da carteira e atalhos conhecidos. Mantém o bot útil sem custo de API.
  */
 
+import { reservaAdviceText } from "@/lib/plan-view";
+
 export type LocalHolding = { ticker: string; kind: string; value: number };
 export type LocalSource = { nome: string; tipo: string; capital: number; rendaMensal: number };
 export type LocalAlert = { id: string; titulo: string; nivel: string };
@@ -170,6 +172,17 @@ export function matchLocalPortfolio(question: string, ctx: LocalPortfolio): Loca
       text:
         "Eu não indico compra ou venda de um papel isolado. Olhe o aviso de preço (se houver), o seu perfil e o rebalanceamento: vender só para 'estancar' uma queda costuma realizar o prejuízo.",
       followups: ["avisos", "rebal"],
+    };
+  }
+
+  if (/^(reserva|emergencia|reserva de emergencia|reserva emergencia|caixinha de emergencia|caixinha emergencia)$/.test(t)) {
+    return {
+      kind: "text",
+      text:
+        "A **reserva de emergência** guarda dinheiro para imprevistos: o ideal é cerca de **6 meses dos seus gastos**, sempre com liquidez.\n\n" +
+        `${reservaAdviceText(Boolean(ctx.hasEmergenciaCaixinha))}\n\n` +
+        "Quer comparar? Pergunte, por exemplo: *Tesouro Selic ou CDB para a reserva?*",
+      followups: ["visao", "rebal"],
     };
   }
 

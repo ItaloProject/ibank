@@ -7,7 +7,7 @@ import type { GoalProjection } from "@/lib/goal-projection";
 import { detectIntent, keywordIntent, profileTarget, type Intent } from "@/lib/bot-intent";
 import { matchLocalPortfolio } from "@/lib/bot-local";
 import { askAbout, asksExample, findTerms, holdingsFor, termById, termExample, termMarkdown, type Term } from "@/lib/glossary";
-import { dayYieldAnswer, financeReply } from "@/lib/genie/local-answer";
+import { dayYieldReply, financeReply, type DayYield } from "@/lib/genie/local-answer";
 import { answerMarkdown } from "@/lib/genie/answer";
 import { chatTopic, investorChatText, looksLikeWebQuestion } from "@/lib/genie/chat";
 import { SNOOZE_DAYS, alertStatus, snoozeChoice, type AlertChoices } from "@/lib/alert-choices";
@@ -955,6 +955,8 @@ export function InvestorBot({
   const inputRef = useRef<HTMLInputElement>(null);
   const fabRef = useRef<HTMLButtonElement>(null);
   const researchCache = useRef<MarketResearchPayload | null>(null);
+  /** Última aplicação por dias, para "e em 30 dias?" reaproveitar o valor. */
+  const lastDayRef = useRef<DayYield | null>(null);
 
   useEffect(() => {
     try {
@@ -1072,9 +1074,10 @@ export function InvestorBot({
       const text = investorChatText(topic);
       return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
     }
-    const byDays = dayYieldAnswer(question, cdi);
+    const byDays = dayYieldReply(question, cdi, lastDayRef.current);
     if (byDays) {
-      const text = answerMarkdown(byDays);
+      lastDayRef.current = byDays.cmd;
+      const text = answerMarkdown(byDays.answer);
       return { id: uid(), role: "bot", blocks: [{ kind: "md", text }], ai: text, q: question, followups: ["visao", "rebal"] };
     }
     const portfolio = portfolioReply(question);

@@ -112,17 +112,18 @@ export function parseFinance(t: string): FinanceCommand | null {
   }
 
   const dayM = t.match(/\b(\d+)\s*(dias?|semanas?)(\s+uteis)?\b/);
-  if (dayM && !monthsIn(t) && /\b(?:rend\w*|deix\w*|aplic\w*|invest\w*|guard\w*|resgat\w*|fica\w*|sobr\w*|ganh\w*)\b/.test(t)) {
+  const growthVerb = /\b(?:rend\w*|deix\w*|aplic\w*|invest\w*|guard\w*|resgat\w*|fica\w*|sobr\w*|ganh\w*)\b/.test(t);
+  const namesProduct = new RegExp(String.raw`\b${PRODUCT}\b`).test(t) || /\bcdi\b|%\s*(?:ao ano|a\.?a\.?|anual|por ano)/.test(t);
+  if (dayM && !monthsIn(t) && (growthVerb || namesProduct)) {
     const n = Number(dayM[1]);
     const uteis = !!dayM[3];
     const days = uteis ? Math.round((n * 7) / 5) : dayM[2].startsWith("semana") ? n * 7 : n;
     const prod = t.match(new RegExp(String.raw`\b(${PRODUCT})\b`));
     const pctCdi = t.match(new RegExp(String.raw`(${N})\s*%\s*do\s*cdi`));
     const rateYearM = t.match(new RegExp(String.raw`(${N})\s*%\s*(?:ao ano|a\.?a\.?|anual|por ano)`));
-    const hasRate = pctCdi || rateYearM || prod || /\bcdi\b/.test(t);
     const rest = t.replace(dayM[0], " ").replace(new RegExp(String.raw`${N}\s*%`, "g"), " ");
     const amountRaw = rest.match(new RegExp(String.raw`(${N})${LONE}`))?.[1];
-    if (hasRate && days >= 1 && days <= 720 && amountRaw) {
+    if (days >= 1 && days <= 720 && amountRaw) {
       const milM = amountRaw.match(/^(\d+)\s*mil$/i);
       const mil = !!milM && Number(milM[1]) >= 1000;
       const amount = mil ? Number(milM![1]) : parseNumber(amountRaw);
