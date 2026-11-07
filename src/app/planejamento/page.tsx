@@ -27,7 +27,6 @@ import {
   ChevronLeft, ChevronRight, Copy, FileDown, Loader2,
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
-import { MONTH_RE } from "@/lib/plan-income";
 import { ptBR } from "date-fns/locale";
 import type { PlanReportGroup } from "@/lib/report/plan-share";
 import { USERS } from "@/lib/user";
@@ -71,6 +70,9 @@ export default function PlanejamentoPage() {
   if (!userId) return null;
   return <PlanejamentoContent userId={userId} />;
 }
+
+/** Mês no formato AAAA-MM, o mesmo que a API aceita. Fica aqui para não puxar o banco para o navegador. */
+const MONTH_RE = /^\d{4}-\d{2}$/;
 
 function PlanejamentoContent({ userId }: { userId: string }) {
   const prefersReduced = useReducedMotion();
