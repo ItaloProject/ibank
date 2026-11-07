@@ -14,7 +14,9 @@ export type FinanceCommand =
   | { kind: "budgetRule" }
   | { kind: "debt"; type: "rotativo" | "cheque"; amount: number | null; rateMonth: number | null }
   | { kind: "payOrInvest"; rateMonth: number | null }
-  | { kind: "amortization"; principal: number; months: number; rateMonth: number };
+  | { kind: "amortization"; principal: number; months: number; rateMonth: number }
+  /** "4 dias de 4000 a 100% do CDI": `mil` marca "4000 mil", lido como R$ 4.000. */
+  | { kind: "dayYield"; amount: number; product: Product; pct: number | null; rateYear: number | null; days: number; mil: boolean };
 
 const N = NUMBER_RE;
 /** Impede que "110%" vire o número 11 seguido de "0%". */
@@ -106,6 +108,34 @@ export function parseFinance(t: string): FinanceCommand | null {
       const nominalRaw = pcts.find((p) => p !== inflRaw) ?? (inflRaw ? null : pcts[0]);
       const nominal = nominalRaw ? parseNumber(nominalRaw) : null;
       if (nominal !== null) return { kind: "realReturn", nominal, inflation: inflRaw ? parseNumber(inflRaw) : null };
+    }
+  }
+
+  const dayM = t.match(/\b(\d+)\s*dias?\b/);
+  if (dayM && !monthsIn(t) && /\b(?:rend\w*|deix\w*|aplic\w*|invest\w*|guard\w*|resgat\w*|fica\w*|sobr\w*|ganh\w*)\b/.test(t)) {
+    const days = Number(dayM[1]);
+    const prod = t.match(new RegExp(String.raw`\b(${PRODUCT})\b`));
+    const pctCdi = t.match(new RegExp(String.raw`(${N})\s*%\s*do\s*cdi`));
+    const rateYearM = t.match(new RegExp(String.raw`(${N})\s*%\s*(?:ao ano|a\.?a\.?|anual|por ano)`));
+    const hasRate = pctCdi || rateYearM || prod || /\bcdi\b/.test(t);
+    const rest = t.replace(dayM[0], " ").replace(new RegExp(String.raw`${N}\s*%`, "g"), " ");
+    const amountRaw = rest.match(new RegExp(String.raw`(${N})${LONE}`))?.[1];
+    if (hasRate && days >= 1 && days <= 720 && amountRaw) {
+      const milM = amountRaw.match(/^(\d+)\s*mil$/i);
+      const mil = !!milM && Number(milM[1]) >= 1000;
+      const amount = mil ? Number(milM![1]) : parseNumber(amountRaw);
+      if (amount && amount > 0) {
+        const pct = pctCdi ? parseNumber(pctCdi[1]) : rateYearM ? null : 100;
+        return {
+          kind: "dayYield",
+          amount,
+          product: prod ? product(prod[1]) : "cdb",
+          pct,
+          rateYear: rateYearM ? parseNumber(rateYearM[1]) : null,
+          days,
+          mil,
+        };
+      }
     }
   }
 

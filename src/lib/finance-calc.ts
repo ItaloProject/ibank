@@ -46,6 +46,27 @@ export function netYield(amount: number, annualRate: number, months: number, tax
   return { gross, tax, net: r2(gross - tax), taxRate, final: r2(amount + gross - tax) };
 }
 
+/** IOF do resgate da renda fixa, em % do rendimento, por dia corrido; zera a partir do 30º dia. */
+const IOF_BY_DAY = [96, 93, 90, 86, 83, 80, 76, 73, 70, 66, 63, 60, 56, 53, 50, 46, 43, 40, 36, 33, 30, 26, 23, 20, 16, 13, 10, 6, 3];
+export function iofRate(days: number): number {
+  if (days >= 30) return 0;
+  return IOF_BY_DAY[Math.max(1, Math.floor(days)) - 1] / 100;
+}
+
+/** O CDI só rende em dia útil; sem calendário, usa 5 dias úteis a cada 7 corridos. */
+export const businessDaysOf = (days: number) => Math.round((days * 5) / 7);
+
+/** Aplicação por dias corridos: CDI pelos dias úteis, IOF do resgate e IR regressivo sobre o que sobrar. */
+export function netYieldDays(amount: number, annualRate: number, days: number, taxFree: boolean) {
+  const businessDays = businessDaysOf(days);
+  const gross = r2(amount * (Math.pow(1 + annualRate, businessDays / 252) - 1));
+  const iofPct = taxFree ? 0 : iofRate(days);
+  const iof = r2(gross * iofPct);
+  const taxRate = taxFree ? 0 : regressiveIncomeTaxRate(days);
+  const tax = r2((gross - iof) * taxRate);
+  return { gross, iof, iofPct, tax, taxRate, businessDays, final: r2(amount + gross - iof - tax) };
+}
+
 /** Percentual do CDI que um produto tributado precisa pagar para empatar com um isento, e o contrário. */
 export function taxedEquivalent(taxFreePct: number, months: number): number {
   return r2(taxFreePct / (1 - incomeTaxRate(months)));

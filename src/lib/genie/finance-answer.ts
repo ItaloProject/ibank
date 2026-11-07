@@ -2,7 +2,7 @@ import type { FinanceCommand } from "./finance-parse";
 import type { GenieAnswer, GenieLine } from "./answer";
 import {
   CHEQUE_ESPECIAL_MONTH, FREEDOM_MULTIPLE, PRODUCT_LABEL, REAL_RATE_YEAR, ROTATIVO_MONTH,
-  amortization, debtGrowth, incomeTaxRate, isTaxFree, monthToYear, monthsToTarget, netYield, poupancaAnnualFromSelic, realRate,
+  amortization, debtGrowth, incomeTaxRate, isTaxFree, monthToYear, monthsToTarget, netYield, netYieldDays, poupancaAnnualFromSelic, realRate,
   taxFreeEquivalent, taxedEquivalent, yearToMonth, type Product,
 } from "@/lib/finance-calc";
 
@@ -34,6 +34,36 @@ function annualRateOf(product: Product, pctCdi: number | null, rateYear: number 
 
 export function financeAnswer(cmd: FinanceCommand, cdi: number, plan: PlanNumbers | null): GenieAnswer {
   switch (cmd.kind) {
+    case "dayYield": {
+      const { rate, label } = annualRateOf(cmd.product, cmd.pct, cmd.rateYear, cdi);
+      const free = isTaxFree(cmd.product);
+      const r = netYieldDays(cmd.amount, rate, cmd.days, free);
+      const dias = cmd.days === 1 ? "1 dia" : `${cmd.days} dias`;
+      const lines: GenieLine[] = [
+        { label: "Valor aplicado", value: money(cmd.amount) },
+        { label: "Rendimento bruto", value: money(r.gross) },
+        ...(r.iof > 0 ? [{ label: `IOF (resgate em ${dias})`, value: `− ${money(r.iof)}`, tone: "bad" as const }] : []),
+        free
+          ? { label: "Imposto de Renda", value: "isento", tone: "good" as const }
+          : { label: `Imposto de Renda (${pct(r.taxRate * 100, 1)})`, value: `− ${money(r.tax)}`, tone: "bad" as const },
+        { label: "Valor no resgate", value: money(r.final), tone: "good" as const },
+      ];
+      const notes = [
+        `CDI de ${pct(cdi)} ao ano, em ${r.businessDays} ${r.businessDays === 1 ? "dia útil" : "dias úteis"} (o CDI só rende em dia útil).`,
+        cmd.mil ? `Considerei ${money(cmd.amount)}, porque você escreveu "${cmd.amount} mil".` : "",
+        free ? "Produto isento de IR e de IOF." : r.iofPct > 0 ? `Resgate antes de 30 dias: o IOF come ${pct(r.iofPct * 100, 0)} do rendimento.` : "",
+      ].filter(Boolean);
+      return {
+        title: `${label}, em ${dias}`,
+        value: money(r.final),
+        raw: r.final,
+        tone: "good",
+        lines,
+        note: notes.join(" "),
+      };
+    }
+
+
     case "netYield": {
       const { rate, label } = annualRateOf(cmd.product, cmd.pct, cmd.rateYear, cdi);
       const free = isTaxFree(cmd.product);

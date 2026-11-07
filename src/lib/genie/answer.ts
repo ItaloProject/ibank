@@ -222,7 +222,7 @@ export function answer(cmd: GenieCommand, s: PlanSnapshot): GenieAnswer | null {
       return term ? termAnswer(term) : null;
     }
 
-    case "netYield": case "compareYield": case "equivalent": case "realReturn": case "freedom":
+    case "netYield": case "dayYield": case "compareYield": case "equivalent": case "realReturn": case "freedom":
     case "budgetRule": case "debt": case "payOrInvest": case "amortization":
       return financeAnswer(cmd, FALLBACK_CDI, {
         salary: s.salary, planned: t.planned, actual: t.actual,
