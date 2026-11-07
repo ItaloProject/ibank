@@ -7,6 +7,8 @@ export type MarketQuote = {
   dy12m: number;
   /** Horário (ms) do último negócio que originou o preço; null se a fonte não informar. */
   time: number | null;
+  /** Variação do dia em relação ao fechamento anterior (%); ausente ou null se não houver. */
+  changePct?: number | null;
 };
 
 export const TICKER_RE = /^[A-Z0-9]{4,7}$/;

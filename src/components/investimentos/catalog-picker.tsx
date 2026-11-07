@@ -19,7 +19,7 @@ import { StockDetailsSheet } from "@/components/investimentos/stock-details-shee
 
 const QUOTE_TTL_MS = 2 * 60 * 1000;
 const QUOTE_BATCH = 40;
-const quoteCache = new Map<string, { price: number; at: number; time: number | null }>();
+const quoteCache = new Map<string, { price: number; at: number; time: number | null; change: number | null }>();
 
 /** Cotações de mercado dos tickers pedidos, com cache de 2 minutos entre aberturas da tela e atualização sob demanda. */
 function useCatalogQuotes(tickers: string[]) {
@@ -28,6 +28,8 @@ function useCatalogQuotes(tickers: string[]) {
   const [loading, setLoading] = useState(false);
   const key = tickers.join(",");
   const run = useRef(0);
+  // Recalculada a cada render: as variações vêm do mesmo cache que `prices`, atualizado junto com ela.
+  const changes = freshChanges(tickers);
 
   const load = useCallback(
     async (force: boolean) => {
@@ -47,7 +49,9 @@ function useCatalogQuotes(tickers: string[]) {
       try {
         const results = await Promise.all(batches.map((b) => getMarketQuotes(b, force)));
         const now = Date.now();
-        for (const q of results.flat()) if (q.price > 0) quoteCache.set(q.ticker, { price: q.price, at: now, time: q.time ?? null });
+        for (const q of results.flat()) {
+          if (q.price > 0) quoteCache.set(q.ticker, { price: q.price, at: now, time: q.time ?? null, change: q.changePct ?? null });
+        }
         if (id === run.current) {
           setPrices(freshPrices(tickers));
           setAsOf(latestQuoteTime(tickers));
@@ -67,7 +71,7 @@ function useCatalogQuotes(tickers: string[]) {
     };
   }, [load]);
 
-  return { prices, loading, asOf, refresh: () => load(true) };
+  return { prices, changes, loading, asOf, refresh: () => load(true) };
 }
 
 function freshPrices(tickers: string[]) {
@@ -77,6 +81,21 @@ function freshPrices(tickers: string[]) {
     if (hit) map.set(t, hit.price);
   }
   return map;
+}
+
+/** Variação do dia (%) dos tickers que a trazem. */
+function freshChanges(tickers: string[]) {
+  const map = new Map<string, number>();
+  for (const t of tickers) {
+    const change = quoteCache.get(t)?.change;
+    if (typeof change === "number") map.set(t, change);
+  }
+  return map;
+}
+
+function formatChange(pct: number) {
+  const abs = Math.abs(pct).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${pct >= 0 ? "+" : "−"}${abs}%`;
 }
 
 /** Horário do negócio mais recente entre as cotações em cache. */
@@ -102,7 +121,9 @@ export function normalizeSearch(text: string) {
 }
 
 const TOP = "Mais negociados";
+const EM_ALTA = "Em alta";
 const ALL = "Todos";
+const ALTAS_LIMITE = 10;
 
 const COPY: Record<CatalogKind, { search: string; manual: string; manualHint: string }> = {
   acao: {
@@ -133,7 +154,7 @@ export function CatalogPicker({
   const [filter, setFilter] = useState<string>(TOP);
   const [infoAsset, setInfoAsset] = useState<CatalogEntry | null>(null);
   const tickers = useMemo(() => catalog.map((a) => a.ticker), [catalog]);
-  const { prices, loading, asOf, refresh } = useCatalogQuotes(tickers);
+  const { prices, changes, loading, asOf, refresh } = useCatalogQuotes(tickers);
   const copy = COPY[kind];
 
   const priceOf = (ticker: string) => prices.get(ticker) ?? knownPrices?.get(ticker);
@@ -147,8 +168,14 @@ export function CatalogPicker({
       );
     if (filter === TOP) return catalog.filter((a) => a.top);
     if (filter === ALL) return catalog;
+    if (filter === EM_ALTA) {
+      return catalog
+        .filter((a) => (changes.get(a.ticker) ?? 0) > 0)
+        .sort((a, b) => (changes.get(b.ticker) ?? 0) - (changes.get(a.ticker) ?? 0))
+        .slice(0, ALTAS_LIMITE);
+    }
     return catalog.filter((a) => a.group === filter);
-  }, [catalog, filter, q, searching]);
+  }, [catalog, changes, filter, q, searching]);
 
   const sections = useMemo(() => {
     if (searching || filter !== ALL) return [{ title: null as string | null, items: results }];
@@ -168,7 +195,7 @@ export function CatalogPicker({
     <div className="space-y-3">
       <SearchBox value={query} onChange={setQuery} placeholder={copy.search} />
 
-      {!searching && <FilterChips label="Filtrar por setor" options={[TOP, ALL, ...groups]} value={filter} onChange={setFilter} />}
+      {!searching && <FilterChips label="Filtrar por setor" options={[TOP, EM_ALTA, ALL, ...groups]} value={filter} onChange={setFilter} />}
 
       <div className="flex items-center justify-between gap-2">
         <p className="min-w-0 text-[11px] text-muted-foreground" aria-live="polite">
@@ -196,6 +223,7 @@ export function CatalogPicker({
           {s.title && <p className={`${LABEL} pt-2`}>{s.title}</p>}
           {s.items.map((a) => {
             const price = priceOf(a.ticker);
+            const change = changes.get(a.ticker);
             return (
               <div key={a.ticker} className={`${ROW} min-h-14 p-0 flex items-stretch overflow-hidden`}>
                 <button
@@ -211,7 +239,14 @@ export function CatalogPicker({
                     </span>
                   </span>
                   {price !== undefined ? (
-                    <span className={`${MONEY} text-sm shrink-0`}>{formatCurrency(price)}</span>
+                    <span className="shrink-0 text-right">
+                      <span className={`${MONEY} block text-sm`}>{formatCurrency(price)}</span>
+                      {change !== undefined && (
+                        <span className={`block text-[11px] font-semibold tabular-nums ${change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                          {formatChange(change)}
+                        </span>
+                      )}
+                    </span>
                   ) : loading ? (
                     <span className="h-4 w-16 rounded bg-muted animate-pulse shrink-0" aria-hidden="true" />
                   ) : (

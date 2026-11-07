@@ -166,23 +166,18 @@ export function SimulatorInvestFlow({
         }}
       />
 
-      <div className="rounded-xl border border-border bg-card p-4 flex items-end justify-between gap-4">
-        <div className="min-w-0">
-          <p className={LABEL}>Saldo em conta</p>
-          <p className={`${MONEY} text-2xl mt-1.5 leading-none tracking-tight`}>{formatCurrency(cash)}</p>
-          <p className="text-[11px] text-muted-foreground mt-2 leading-snug">
-            {cash > 0
-              ? "Use o saldo ou dinheiro de fora. Você escolhe na hora de confirmar."
-              : "Sem saldo em conta. Você pode investir com dinheiro de fora e escolher isso na hora de confirmar."}
-          </p>
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <span className={LABEL}>Saldo em conta</span>
+          <span className={`${MONEY} text-sm font-bold`}>{formatCurrency(cash)}</span>
         </div>
         {onAdjustCash && (
           <button
             type="button"
             onClick={onAdjustCash}
-            className={`shrink-0 inline-flex min-h-10 items-center rounded-lg border border-border px-3 text-xs font-bold text-foreground hover:bg-muted transition-colors ${FOCUS}`}
+            className={`shrink-0 inline-flex min-h-8 items-center rounded-md px-2 text-[11px] font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${FOCUS}`}
           >
-            {cash > 0 ? "Ajustar saldo" : "Informar saldo"}
+            {cash > 0 ? "Ajustar" : "Informar"}
           </button>
         )}
       </div>
