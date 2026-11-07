@@ -27,6 +27,7 @@ import {
   ChevronLeft, ChevronRight, Copy, FileDown, Loader2,
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
+import { MONTH_RE } from "@/lib/plan-income";
 import { ptBR } from "date-fns/locale";
 import type { PlanReportGroup } from "@/lib/report/plan-share";
 import { USERS } from "@/lib/user";
@@ -182,9 +183,26 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     loadGroups().finally(() => setLoading(false));
   }, [loadGroups]);
 
+  // O mês vem da URL (?mes=AAAA-MM), assim um recarregamento mantém o mês escolhido.
+  // Só depois de lê-lo é que os itens são buscados, para não carregar o mês atual à toa.
+  const [monthReady, setMonthReady] = useState(false);
   useEffect(() => {
+    const saved = new URLSearchParams(window.location.search).get("mes");
+    if (saved && MONTH_RE.test(saved)) setCurrentMonth(saved);
+    setMonthReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!monthReady) return;
     loadItems(currentMonth);
-  }, [currentMonth, loadItems]);
+  }, [currentMonth, loadItems, monthReady]);
+
+  useEffect(() => {
+    if (!monthReady) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("mes", currentMonth);
+    window.history.replaceState(window.history.state, "", url.toString());
+  }, [currentMonth, monthReady]);
 
   // ── Month navigation ───────────────────────────────────────────────────────
 
