@@ -183,9 +183,9 @@ export function GroupSection({
           ) : (
             <ul className="divide-y divide-border/40">
               <li aria-hidden="true" className="flex items-center justify-between gap-2 pb-1 pl-2 pr-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
-                <span className="pl-[3.875rem] md:pl-[3.625rem]">Item · planejado</span>
+                <span className="whitespace-nowrap pl-[3.875rem] md:pl-[3.625rem]">Item</span>
                 <span className="flex shrink-0 items-center gap-0.5">
-                  <span className="w-[5.5rem] pr-3 text-right sm:w-24">Gasto real</span>
+                  <span className="w-[5.5rem] whitespace-nowrap pr-3 text-right sm:w-24">Gasto real</span>
                   <span className="w-10 md:w-9" />
                   <span className="w-10 md:w-9" />
                 </span>
