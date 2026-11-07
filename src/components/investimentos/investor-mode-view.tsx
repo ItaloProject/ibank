@@ -604,19 +604,20 @@ export function InvestorModeView({
             <button
               type="button"
               onClick={startGoalEdit}
-              className="flex min-h-10 items-center gap-2 rounded-full border border-border bg-muted/40 px-4 text-sm font-medium text-foreground/80 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-h-12 w-full items-center gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-2.5 text-left text-foreground/80 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Target className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
               {incomeGoal > 0 ? (
                 <>
-                  <span className="text-left">
-                    Meta: <span className="font-bold tabular-nums text-foreground">{goalSummaryBits.join(" · ")}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Meta</span>
+                    <span className="block text-sm font-bold tabular-nums text-foreground">{goalSummaryBits.join(" · ")}</span>
                   </span>
                   <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
                   <span className="sr-only">Editar meta</span>
                 </>
               ) : (
-                "Definir meta"
+                <span className="text-sm font-medium">Definir meta</span>
               )}
             </button>
           )}
@@ -830,7 +831,8 @@ export function InvestorModeView({
           )}
         </Reveal>
 
-        <div className="h-10" />
+        {/* Espaço para o botão flutuante do Muvo não cobrir o fim da página. */}
+        <div className="h-24" />
       </div>
 
       <InvestorBot

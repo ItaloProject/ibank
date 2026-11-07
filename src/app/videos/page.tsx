@@ -10,8 +10,8 @@ import { countVideos, groupVideos, type Group, type Kind, type Video, type View 
 const watchUrl = (v: Video) => `https://www.youtube.com/watch?v=${v.youtubeId}`;
 
 const TABS: { id: Kind; label: string; hint: string; icon: typeof Zap }[] = [
-  { id: "resumos", label: "Resumos rápidos", hint: "até 10 minutos", icon: Zap },
-  { id: "aulas", label: "Aulas completas", hint: "mais de 10 minutos", icon: BookOpen },
+  { id: "resumos", label: "Resumos rápidos", hint: "até 10 min", icon: Zap },
+  { id: "aulas", label: "Aulas completas", hint: "mais de 10 min", icon: BookOpen },
 ];
 
 const VIEWS: { id: View; label: string; icon: typeof Zap }[] = [
@@ -134,16 +134,16 @@ export default function VideosPage() {
               role="tab"
               aria-selected={active}
               onClick={() => setTab(t.id)}
-              className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-left transition-colors ${
+              className={`flex min-w-0 flex-col items-start gap-1 rounded-lg px-3 py-2.5 text-left transition-colors ${
                 active ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Icon className={`h-4 w-4 shrink-0 ${active ? "text-primary" : ""}`} />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold leading-tight">
-                  {t.label} <span className="font-normal text-muted-foreground tabular-nums">({countVideos(t.id, query)})</span>
-                </span>
-                <span className="block text-[11px] text-muted-foreground">{t.hint}</span>
+              <span className="flex items-center gap-1.5">
+                <Icon className={`h-3.5 w-3.5 shrink-0 ${active ? "text-primary" : ""}`} />
+                <span className="whitespace-nowrap text-[13px] font-semibold leading-tight">{t.label}</span>
+              </span>
+              <span className="text-[11px] leading-tight tabular-nums text-muted-foreground">
+                ({countVideos(t.id, query)}) · {t.hint}
               </span>
             </button>
           );

@@ -1538,7 +1538,7 @@ export function InvestorBot({
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Pergunte qualquer coisa sobre sua carteira"
+                placeholder="Pergunte sobre sua carteira"
                 autoComplete="off"
                 enterKeyHint="send"
                 className="min-h-10 flex-1 bg-transparent text-sm text-white caret-white placeholder:text-white/35 focus:outline-none"
