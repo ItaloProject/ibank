@@ -16,7 +16,7 @@ MUVO é um app de gestão financeira pessoal que unifica cartão de crédito, pl
 
 ## Positioning
 
-MUVO é o único app de finanças pessoais onde seus dados ficam no seu próprio banco (Neon/PostgreSQL), com design editorial premium e integração real entre gastos no cartão, orçamento mensal e carteira de investimentos. Nenhum app concorrente oferece os três juntos com controle total dos dados.
+MUVO é o único app de finanças pessoais onde seus dados ficam no seu próprio banco (Supabase/PostgreSQL), com design editorial premium e integração real entre gastos no cartão, orçamento mensal e carteira de investimentos. Nenhum app concorrente oferece os três juntos com controle total dos dados.
 
 ## Operating Context
 
@@ -35,7 +35,7 @@ MUVO é o único app de finanças pessoais onde seus dados ficam no seu próprio
 - Impostos sobre investimentos
 - Multi-usuário com admin panel (escopo futuro público)
 - PWA com offline support (serwist)
-- Stack: Next.js 16, React 18, Tailwind CSS + shadcn/ui, Neon PostgreSQL, TypeScript
+- Stack: Next.js 16, React 18, Tailwind CSS + shadcn/ui, Supabase PostgreSQL, TypeScript
 - Autenticação por sessão JWT (sem OAuth externo)
 
 ## Brand Commitments

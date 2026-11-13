@@ -39,7 +39,7 @@ export default function PoliticaPrivacidadePage() {
             <p>
               Não vendemos, alugamos ou compartilhamos seus dados com terceiros para fins de marketing.
               Os dados ficam armazenados em banco de dados próprio, hospedado em infraestrutura de nuvem
-              (Vercel/Neon), com acesso restrito.
+              (Vercel/Supabase), com acesso restrito.
             </p>
           </section>
 
