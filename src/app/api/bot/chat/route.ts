@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
-import { consumeDailyQuota, recentDislikes, recordBotFeedback } from "@/lib/bot-schema";
+import { consumeDailyQuota, recordBotFeedback } from "@/lib/bot-schema";
 import { feedbackText, looksUnanswered } from "@/lib/bot-feedback";
 import { requireBotUser } from "@/lib/server/bot-auth";
-import { getCachedSnapshot } from "@/lib/server/portfolio-snapshot";
-import { completeChatWithTools, llmProvider, type ChatMessage } from "@/lib/server/llm";
-import { BOT_TOOLS, runBotTool } from "@/lib/bot-tools";
+import { localBotReply, type LocalMessage } from "@/lib/server/bot-local";
 import { fetchMarketRates } from "@/lib/market-research";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
-import { buildBotSystemPrompt } from "@/lib/report/bot-prompt";
-import { extractActions } from "@/lib/plan-view";
-import { peekTesouroLive } from "@/lib/server/tesouro-live";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,36 +12,21 @@ export const maxDuration = 60;
 const DAILY_LIMIT = 60;
 const MAX_TURNS = 12;
 
-function parseMessages(body: unknown): ChatMessage[] | null {
+function parseMessages(body: unknown): LocalMessage[] | null {
   const raw = (body as { messages?: unknown })?.messages;
   if (!Array.isArray(raw)) return null;
   const msgs = raw
-    .filter((m): m is ChatMessage => (m?.role === "user" || m?.role === "assistant") && typeof m?.content === "string" && m.content.trim() !== "")
+    .filter((m): m is LocalMessage => (m?.role === "user" || m?.role === "assistant") && typeof m?.content === "string" && m.content.trim() !== "")
     .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }))
     .slice(-MAX_TURNS);
   while (msgs.length && msgs[0].role !== "user") msgs.shift();
   return msgs.length && msgs[msgs.length - 1].role === "user" ? msgs : null;
 }
 
-/** Contexto da tela enviado pelo app; limitado para não inflar o prompt. */
-function parsePage(body: unknown): string | null {
-  const page = (body as { page?: unknown })?.page;
-  if (!page || typeof page !== "object" || Array.isArray(page)) return null;
-  const json = JSON.stringify(page);
-  return json.length <= 3000 ? json : null;
-}
-
-/** Avisos que o usuário adiou ou desconsiderou no app: a IA não volta a insistir neles. */
-function parseHiddenAlerts(body: unknown): Set<string> {
-  const raw = (body as { hiddenAlerts?: unknown })?.hiddenAlerts;
-  if (!Array.isArray(raw)) return new Set();
-  return new Set(raw.filter((id): id is string => typeof id === "string" && id.length <= 100).slice(0, 50));
-}
-
+/** Assistente sem inteligência artificial: responde só com o conhecimento local (ver bot-local.ts). */
 export async function POST(request: Request) {
   const auth = await requireBotUser();
   if (auth instanceof NextResponse) return auth;
-  if (!llmProvider()) return NextResponse.json({ error: "IA não configurada", code: "no_llm" }, { status: 503 });
 
   const body = await request.json().catch(() => null);
   const messages = parseMessages(body);
@@ -56,24 +36,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const [snap, dislikes] = await Promise.all([
-      getCachedSnapshot(auth.userId, (body as { fresh?: unknown })?.fresh === true),
-      recentDislikes(auth.userId).catch(() => []),
-    ]);
-    const hidden = parseHiddenAlerts(body);
-    const visible = hidden.size ? { ...snap, alerts: snap.alerts.filter((a) => !hidden.has(a.id)) } : snap;
     const rates = await fetchMarketRates().catch(() => null);
     const cdi = rates?.cdiAnual ?? FALLBACK_CDI;
-    const system =
-      buildBotSystemPrompt(visible, parsePage(body), peekTesouroLive(), dislikes) +
-      "\n\nPara qualquer conta de rendimento, use as ferramentas calcular_aplicacao_dias ou calcular_aplicacao_meses e explique o resultado devolvido. Nunca faça essas contas de cabeça. Se a ferramenta devolver erro, peça o dado que falta.";
-    const raw = await completeChatWithTools(system, messages, BOT_TOOLS, (name, input) => Promise.resolve(runBotTool(name, input, cdi)));
-    const { text, actions } = extractActions(raw ?? "", snap.stocks.map((s) => s.ticker));
-    if (!text || looksUnanswered(text)) {
+    const { text, answered } = await localBotReply(messages, cdi);
+    if (!answered || looksUnanswered(text)) {
       const question = feedbackText(messages[messages.length - 1].content);
       void recordBotFeedback(auth.userId, "sem_resposta", question, feedbackText(text)).catch(() => {});
     }
-    return NextResponse.json({ reply: text || "Não consegui formular uma resposta. Pode reformular a pergunta?", actions });
+    return NextResponse.json({ reply: text, actions: [] });
   } catch (err) {
     console.error("[POST /api/bot/chat]", err);
     return NextResponse.json({ error: "O assistente está indisponível agora. Tente de novo em instantes." }, { status: 502 });
