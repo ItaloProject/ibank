@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cardapio/reset-pausados", "schedule": "0 3 * * *" },
-    { "path": "/api/cron/avisos-push", "schedule": "30 21 * * 1-5" }
+    { "path": "/api/cron/avisos-push", "schedule": "30 21 * * 1-5" },
+    { "path": "/api/cron/tesouro", "schedule": "30 21 * * 1-5" }
   ]
 }
