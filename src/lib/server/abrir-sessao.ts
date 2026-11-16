@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { getSession, signToken } from "@/lib/auth";
+import { VALIDADE_TOKEN_SEG } from "@/lib/token-renovacao";
 import { describeDevice, isSessionAlive } from "@/lib/session";
 import { hasBotAccess, isSubscriptionActive } from "@/lib/subscription";
 import { hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";

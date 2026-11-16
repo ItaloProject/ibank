@@ -13,7 +13,7 @@ export async function GET() {
 
   const rows = await sql`
     SELECT id, user_id, username, name, color, is_active, is_admin, created_at,
-           bot_enabled, paid_until, plan, email
+           bot_enabled, paid_until, plan, email, trial_ends_at
     FROM app_users ORDER BY created_at ASC
   `;
   return NextResponse.json(rows);
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
         ${withBot}, ${until}, ${planValue}, true, ${emailLimpo}
       )
       RETURNING id, user_id, username, name, color, is_active, is_admin, created_at,
-                bot_enabled, paid_until, plan, email
+                bot_enabled, paid_until, plan, email, trial_ends_at
     `;
     return NextResponse.json(user, { status: 201 });
   } catch {

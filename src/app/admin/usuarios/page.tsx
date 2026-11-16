@@ -20,6 +20,7 @@ interface AppUser {
   created_at: string;
   bot_enabled?: boolean;
   paid_until?: string | null;
+  trial_ends_at?: string | null;
   plan?: string | null;
   email?: string | null;
 }
@@ -39,6 +40,13 @@ const emptyForm = {
 
 function paidStatus(u: AppUser): { label: string; tone: "emerald" | "amber" | "red" | "muted" } | null {
   if (u.is_admin) return null;
+  // Teste grátis: mostra até quando vale (ou que acabou).
+  if (u.plan === "teste" && u.trial_ends_at) {
+    const fim = new Date(u.trial_ends_at);
+    return fim.getTime() > Date.now()
+      ? { label: `Teste até ${fim.toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}`, tone: "amber" }
+      : { label: "Teste acabou", tone: "red" };
+  }
   if (!u.paid_until) return { label: "Sem validade", tone: "muted" };
   const until = String(u.paid_until).slice(0, 10);
   const today = new Date().toISOString().slice(0, 10);

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, signToken } from "@/lib/auth";
+import { tokenPrecisaRenovar, VALIDADE_TOKEN_SEG } from "@/lib/token-renovacao";
 import sql from "@/lib/db";
-import { ensureSubscriptionColumns } from "@/lib/subscription";
+import { ensureSubscriptionColumns, hasBotAccess } from "@/lib/subscription";
 import { ensureOnboardingColumns } from "@/lib/onboarding";
 import { ensureSessionColumns, sessionMatches } from "@/lib/session";
 import { dadosDoUsuario } from "@/lib/server/abrir-sessao";
@@ -28,7 +29,29 @@ export async function GET() {
       return NextResponse.json({ user: null, code: "SESSION_REPLACED" }, { status: 401 });
     }
 
-    return NextResponse.json({ user: dadosDoUsuario(user as never) });
+    const resposta = NextResponse.json({ user: dadosDoUsuario(user as never) });
+
+    // Renova o token (mesmo login, mesma sessão) quando passa de 1 dia: quem usa o app pelo menos uma vez por semana
+    // não é deslogado, e um token roubado ainda expira.
+    if (tokenPrecisaRenovar(payload.iat)) {
+      const token = await signToken({
+        sid: payload.sid,
+        userId: user.user_id,
+        name: user.name,
+        color: user.color,
+        isAdmin: user.is_admin ?? false,
+        investmentProfile: user.investment_profile ?? undefined,
+        botEnabled: hasBotAccess(user),
+      });
+      resposta.cookies.set("ibank_session", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: VALIDADE_TOKEN_SEG,
+        path: "/",
+      });
+    }
+    return resposta;
   } catch (err) {
     console.error("[GET /api/auth/me]", err);
     return NextResponse.json({

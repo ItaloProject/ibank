@@ -8,7 +8,7 @@ export async function requireBotUser(): Promise<{ userId: string } | NextRespons
   const auth = await requireUserId();
   if (auth instanceof NextResponse) return auth;
   await ensureSubscriptionColumns();
-  const rows = await sql`SELECT is_admin, is_active, bot_enabled, paid_until FROM app_users WHERE user_id = ${auth.userId}`;
+  const rows = await sql`SELECT is_admin, is_active, bot_enabled, paid_until, trial_ends_at FROM app_users WHERE user_id = ${auth.userId}`;
   const row = rows[0];
   if (!row || !isSubscriptionActive(row) || !hasBotAccess(row)) {
     return NextResponse.json({ error: "O assistente Muvo não está liberado na sua assinatura." }, { status: 403 });

@@ -22,11 +22,17 @@ export type SessionUser = {
   botEnabled?: boolean;
   /** Identifica o login que gerou o token; só o último login de cada usuário fica ativo. */
   sid?: string;
+  /** Quando o token foi emitido (segundos desde 1970). Tokens antigos não têm. */
+  iat?: number;
 };
 
 export async function signToken(payload: SessionUser) {
-  return new SignJWT(payload)
+  // iat do payload antigo não pode vazar para o novo token: setIssuedAt() marca o momento atual.
+  const { iat: _antigo, ...dados } = payload;
+  void _antigo;
+  return new SignJWT(dados)
     .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
     .setExpirationTime("7d")
     .sign(getJwtSecret());
 }
