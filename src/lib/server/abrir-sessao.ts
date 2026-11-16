@@ -19,6 +19,7 @@ type LinhaUsuario = {
   bot_enabled?: boolean | null;
   paid_until?: string | Date | null;
   plan?: string | null;
+  google_sub?: string | null;
   trial_ends_at?: string | Date | null;
   active_session_id?: string | null;
   session_started_at?: string | Date | null;
@@ -40,6 +41,8 @@ export function dadosDoUsuario(user: LinhaUsuario) {
     subscriptionActive: isSubscriptionActive(user),
     paidUntil: user.paid_until ? String(user.paid_until).slice(0, 10) : null,
     plan: (user.plan as string | null) ?? "assinante",
+    // Entrou com o Google (sem senha): a exclusão de conta confirma sem pedir senha.
+    loginGoogle: Boolean(user.google_sub),
     // Teste grátis: quando acaba e quantos dias faltam (0 se não há teste ou já acabou).
     trialEndsAt: fimTeste ? new Date(fimTeste).toISOString() : null,
     trialActive: testeAtivo(fimTeste),

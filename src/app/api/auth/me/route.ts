@@ -17,7 +17,7 @@ export async function GET() {
     const rows = await sql`
       SELECT user_id, name, color, is_admin, is_active, investment_profile,
              carteira_vista_profile, risk_profile, risk_quiz_at, bot_enabled, paid_until, plan,
-             trial_ends_at, active_session_id
+             trial_ends_at, google_sub, active_session_id
       FROM app_users WHERE user_id = ${payload.userId}
     `;
     const user = rows[0];
@@ -44,6 +44,7 @@ export async function GET() {
         paidUntil: null,
         plan: "assinante",
         trialEndsAt: null,
+        loginGoogle: false,
         trialActive: false,
         trialDaysLeft: 0,
       },
