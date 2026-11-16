@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { ensureSessionColumns, sessionMatches } from "@/lib/session";
+import { ensureSubscriptionColumns, isSubscriptionActive } from "@/lib/subscription";
 
 export function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
@@ -70,15 +71,30 @@ const SESSION_REPLACED = NextResponse.json(
   { status: 401 },
 );
 
-export async function requireUserId(): Promise<{ userId: string } | NextResponse> {
+/** Teste acabou ou assinatura venceu: o servidor recusa os dados (a tela de bloqueio sozinha não basta, o app e a API são acessíveis por fora). */
+const ASSINATURA_EXPIRADA = () =>
+  NextResponse.json({ error: "Assinatura necessária.", code: "ASSINATURA_EXPIRADA" }, { status: 402 });
+
+/**
+ * `permitirAssinaturaExpirada` serve às rotas que precisam funcionar mesmo sem assinatura,
+ * como excluir a própria conta.
+ */
+export async function requireUserId(
+  opcoes: { permitirAssinaturaExpirada?: boolean } = {},
+): Promise<{ userId: string } | NextResponse> {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   await ensureSessionColumns();
+  await ensureSubscriptionColumns();
   // Reconsulta is_active no banco a cada requisição -- o JWT sozinho fica
   // valido por 7 dias e nao saberia que a conta foi desativada nesse meio-tempo.
-  const rows = await sql`SELECT is_active, active_session_id FROM app_users WHERE user_id = ${session.userId}`;
+  const rows = await sql`
+    SELECT is_active, is_admin, paid_until, trial_ends_at, active_session_id
+    FROM app_users WHERE user_id = ${session.userId}
+  `;
   if (rows.length === 0 || rows[0].is_active === false) return SESSION_STALE;
   if (!sessionMatches(rows[0].active_session_id, session.sid)) return SESSION_REPLACED;
+  if (!opcoes.permitirAssinaturaExpirada && !isSubscriptionActive(rows[0])) return ASSINATURA_EXPIRADA();
   return { userId: session.userId };
 }
 

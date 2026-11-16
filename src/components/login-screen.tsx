@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { BrandLockup } from "@/components/brand-lockup";
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useUser } from "@/context/user-context";
 
@@ -13,17 +15,29 @@ export function LoginScreen() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [conflict, setConflict] = useState<{ device: string; since: string } | null>(null);
+  // Token do Google guardado enquanto a pessoa decide se desconecta o outro aparelho.
+  const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const googleAtivo = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
-  async function submit(force: boolean) {
+  async function submit(force: boolean, idToken?: string) {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, force }),
-        signal: AbortSignal.timeout(20_000),
-      });
+      const token = idToken ?? (force ? googleToken : null);
+      const res = token
+        ? await fetch("/api/auth/google", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idToken: token, force }),
+            signal: AbortSignal.timeout(20_000),
+          })
+        : await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password, force }),
+            signal: AbortSignal.timeout(20_000),
+          });
+      if (token) setGoogleToken(token);
       const data = await res.json();
       if (res.status === 409 && data.code === "SESSION_ACTIVE") {
         setConflict({ device: data.device, since: data.since });
@@ -181,6 +195,24 @@ export function LoginScreen() {
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
+
+        {googleAtivo && !conflict ? (
+          <div className="mt-5">
+            <div className="flex items-center gap-3 text-[11px] uppercase tracking-widest text-muted-foreground/50">
+              <span className="h-px flex-1 bg-border" />
+              ou
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div className="mt-4">
+              <GoogleSignInButton disabled={loading} onToken={(t) => void submit(false, t)} />
+            </div>
+            <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground/60">
+              Novo por aqui? Entre com o Google e ganhe 3 dias grátis. Ao continuar, você aceita os{" "}
+              <Link href="/termos-de-uso" className="underline underline-offset-2">Termos de Uso</Link> e a{" "}
+              <Link href="/politica-privacidade" className="underline underline-offset-2">Política de Privacidade</Link>.
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <p className="mt-8 text-xs text-muted-foreground/30 text-center">

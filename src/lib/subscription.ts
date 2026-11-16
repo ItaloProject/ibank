@@ -1,9 +1,10 @@
 import sql from "@/lib/db";
 import { missingColumns, runDdl } from "@/lib/schema-check";
+import { testeAtivo } from "@/lib/trial";
 
 let ensured = false;
 
-const SUB_COLUMNS = ["bot_enabled", "paid_until", "plan"] as const;
+const SUB_COLUMNS = ["bot_enabled", "paid_until", "plan", "trial_ends_at", "google_sub", "terms_accepted_at"] as const;
 
 /** Colunas comerciais. Só faz ALTER se faltar algo — evita fila de locks no login. */
 export async function ensureSubscriptionColumns() {
@@ -14,6 +15,11 @@ export async function ensureSubscriptionColumns() {
       if (missing.includes("bot_enabled")) await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS bot_enabled BOOLEAN DEFAULT false`;
       if (missing.includes("paid_until")) await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS paid_until DATE DEFAULT NULL`;
       if (missing.includes("plan")) await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS plan VARCHAR(30) DEFAULT 'assinante'`;
+      // Teste grátis e entrada com o Google. google_sub é o identificador estável da conta Google.
+      if (missing.includes("trial_ends_at")) await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ DEFAULT NULL`;
+      if (missing.includes("google_sub")) await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS google_sub VARCHAR(64) DEFAULT NULL`;
+      if (missing.includes("terms_accepted_at")) await tx`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ DEFAULT NULL`;
+      await tx`CREATE UNIQUE INDEX IF NOT EXISTS app_users_google_sub_key ON app_users (google_sub) WHERE google_sub IS NOT NULL`;
     });
     // Contas já existentes (fundadores) não ficam bloqueadas após o deploy das colunas
     await sql`
@@ -31,9 +37,12 @@ export function isSubscriptionActive(row: {
   is_admin?: boolean | null;
   is_active?: boolean | null;
   paid_until?: string | Date | null;
+  trial_ends_at?: string | Date | null;
 }): boolean {
   if (row.is_admin) return true;
   if (row.is_active === false) return false;
+  // Teste grátis em andamento libera o uso, mesmo sem data de assinatura.
+  if (testeAtivo(row.trial_ends_at)) return true;
   if (!row.paid_until) return false;
   const until = String(row.paid_until).slice(0, 10);
   const today = new Date().toISOString().slice(0, 10);

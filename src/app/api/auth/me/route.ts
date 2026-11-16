@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import sql from "@/lib/db";
-import {
-  ensureSubscriptionColumns,
-  hasBotAccess,
-  isSubscriptionActive,
-} from "@/lib/subscription";
-import { ensureOnboardingColumns, hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";
+import { ensureSubscriptionColumns } from "@/lib/subscription";
+import { ensureOnboardingColumns } from "@/lib/onboarding";
 import { ensureSessionColumns, sessionMatches } from "@/lib/session";
+import { dadosDoUsuario } from "@/lib/server/abrir-sessao";
 
 export async function GET() {
   const payload = await getSession();
@@ -20,7 +17,7 @@ export async function GET() {
     const rows = await sql`
       SELECT user_id, name, color, is_admin, is_active, investment_profile,
              carteira_vista_profile, risk_profile, risk_quiz_at, bot_enabled, paid_until, plan,
-             active_session_id
+             trial_ends_at, active_session_id
       FROM app_users WHERE user_id = ${payload.userId}
     `;
     const user = rows[0];
@@ -31,21 +28,7 @@ export async function GET() {
       return NextResponse.json({ user: null, code: "SESSION_REPLACED" }, { status: 401 });
     }
 
-    return NextResponse.json({
-      user: {
-        id: user.user_id,
-        name: user.name,
-        color: user.color,
-        isAdmin: user.is_admin ?? false,
-        investmentProfile: user.investment_profile ?? null,
-        carteiraVista: hasSeenCarteira(user),
-        needsRiskQuiz: needsRiskQuiz(user),
-        botEnabled: hasBotAccess(user),
-        subscriptionActive: isSubscriptionActive(user),
-        paidUntil: user.paid_until ? String(user.paid_until).slice(0, 10) : null,
-        plan: user.plan ?? "assinante",
-      },
-    });
+    return NextResponse.json({ user: dadosDoUsuario(user as never) });
   } catch (err) {
     console.error("[GET /api/auth/me]", err);
     return NextResponse.json({
@@ -60,6 +43,9 @@ export async function GET() {
         subscriptionActive: true,
         paidUntil: null,
         plan: "assinante",
+        trialEndsAt: null,
+        trialActive: false,
+        trialDaysLeft: 0,
       },
     });
   }

@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import sql from "@/lib/db";
-import { getSession, signToken } from "@/lib/auth";
-import { describeDevice, ensureSessionColumns, isSessionAlive } from "@/lib/session";
-import {
-  ensureSubscriptionColumns,
-  hasBotAccess,
-  isSubscriptionActive,
-} from "@/lib/subscription";
-import { ensureOnboardingColumns, hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";
+import { ensureSessionColumns } from "@/lib/session";
+import { ensureSubscriptionColumns } from "@/lib/subscription";
+import { ensureOnboardingColumns } from "@/lib/onboarding";
 import { bloqueioAtivo, chavesDeLogin, limparFalhas, mensagemBloqueio, registrarFalha } from "@/lib/login-limit";
+import { abrirSessao } from "@/lib/server/abrir-sessao";
 
 /** Hash de uma senha que ninguém usa: gasta o mesmo tempo quando o usuário não existe, para não revelar quem tem conta. */
 const HASH_FALSO = "$2b$10$p9SNafGgWS7jkR/p89IXmOBKv373KorcKXc9kwVx4B55IiFXizQ2O";
@@ -63,73 +59,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Conta desativada. Fale conosco no WhatsApp." }, { status: 403 });
     }
 
-    // Só vale um login por conta. Se já existe outro, pergunta antes de desconectá-lo;
-    // entrar de novo no mesmo aparelho (cookie com a sessão atual) não pergunta nada.
-    const currentCookieSid = (await getSession())?.sid;
-    const otherSession =
-      user.active_session_id &&
-      user.active_session_id !== currentCookieSid &&
-      isSessionAlive(user.session_started_at);
-    if (otherSession && force !== true) {
-      return NextResponse.json(
-        {
-          code: "SESSION_ACTIVE",
-          error: "Esta conta já está conectada em outro dispositivo.",
-          device: user.session_device ?? "outro dispositivo",
-          since: new Date(user.session_started_at).toISOString(),
-        },
-        { status: 409 },
-      );
-    }
-
-    const sid = crypto.randomUUID();
-    await sql`
-      UPDATE app_users
-      SET active_session_id = ${sid},
-          session_device = ${describeDevice(request.headers.get("user-agent"))},
-          session_started_at = NOW()
-      WHERE user_id = ${user.user_id}
-    `;
-
-    const subscriptionActive = isSubscriptionActive(user);
-    const botEnabled = hasBotAccess(user);
-
-    const token = await signToken({
-      sid,
-      userId: user.user_id,
-      name: user.name,
-      color: user.color,
-      isAdmin: user.is_admin ?? false,
-      investmentProfile: user.investment_profile ?? undefined,
-      botEnabled,
-    });
-
-    const response = NextResponse.json({
-      ok: true,
-      user: {
-        id: user.user_id,
-        name: user.name,
-        color: user.color,
-        isAdmin: user.is_admin ?? false,
-        investmentProfile: user.investment_profile ?? null,
-        carteiraVista: hasSeenCarteira(user),
-        needsRiskQuiz: needsRiskQuiz(user),
-        botEnabled,
-        subscriptionActive,
-        paidUntil: user.paid_until ? String(user.paid_until).slice(0, 10) : null,
-        plan: user.plan ?? "assinante",
-      },
-    });
-
-    response.cookies.set("ibank_session", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60,
-      path: "/",
-    });
-
-    return response;
+    return await abrirSessao(request, user as never, force === true);
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });

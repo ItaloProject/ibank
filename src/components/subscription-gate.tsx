@@ -21,10 +21,14 @@ export function SubscriptionGate() {
       <div className="mb-6">
         <BrandLockup className="h-11" priority />
       </div>
-      <h1 className="text-xl font-bold text-center">Assinatura necessária</h1>
+      <h1 className="text-xl font-bold text-center">
+        {user?.plan === "teste" ? "Seu teste grátis terminou" : "Assinatura necessária"}
+      </h1>
       <p className="text-sm text-muted-foreground text-center mt-2 max-w-sm">
-        Olá{user?.name ? `, ${user.name}` : ""}. Seu acesso está expirado ou ainda não foi
-        liberado. Fale conosco no WhatsApp para assinar (R$ 30/mês) ou renovar.
+        Olá{user?.name ? `, ${user.name}` : ""}.{" "}
+        {user?.plan === "teste"
+          ? "Os 3 dias de teste acabaram. Seus dados continuam guardados. Assine para voltar a usar (R$ 30/mês)."
+          : "Seu acesso está expirado ou ainda não foi liberado. Fale conosco no WhatsApp para assinar (R$ 30/mês) ou renovar."}
       </p>
       <a
         href={whatsappUrl()}

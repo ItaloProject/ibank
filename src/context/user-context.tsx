@@ -16,6 +16,10 @@ interface AuthUser {
   subscriptionActive?: boolean;
   paidUntil?: string | null;
   plan?: string | null;
+  /** Teste grátis: quando acaba, se ainda vale e quantos dias faltam. */
+  trialEndsAt?: string | null;
+  trialActive?: boolean;
+  trialDaysLeft?: number;
 }
 
 interface UserContextType {
