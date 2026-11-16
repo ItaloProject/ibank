@@ -23,6 +23,7 @@ interface AppUser {
   trial_ends_at?: string | null;
   plan?: string | null;
   email?: string | null;
+  via_google?: boolean;
 }
 
 const COLORS = ["#3b82f6","#ec4899","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#f97316"];
@@ -81,6 +82,7 @@ export default function UsuariosPage() {
   const [resetSaving, setResetSaving] = useState(false);
   const [resetError, setResetError] = useState("");
   const [resetDone, setResetDone] = useState(false);
+  const [soGoogle, setSoGoogle] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) { router.replace("/"); return; }
@@ -174,6 +176,8 @@ export default function UsuariosPage() {
 
   const active = users.filter((u) => u.is_active).length;
   const inactive = users.filter((u) => !u.is_active).length;
+  const googleCount = users.filter((u) => u.via_google).length;
+  const visiveis = soGoogle ? users.filter((u) => u.via_google) : users;
 
   if (!isAdmin) return null;
 
@@ -215,6 +219,21 @@ export default function UsuariosPage() {
           ))}
         </div>
 
+        {/* Filtro: contas criadas com o Google */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSoGoogle((v) => !v)}
+            aria-pressed={soGoogle}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${soGoogle ? "bg-foreground text-background border-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}
+          >
+            Só Google
+          </button>
+          <span className="text-xs text-muted-foreground">
+            {loading ? "" : `${googleCount} de ${users.length} entraram com o Google`}
+          </span>
+        </div>
+
         {/* Lista */}
         <div className="rounded-2xl border bg-card overflow-hidden">
           {loading ? (
@@ -229,14 +248,14 @@ export default function UsuariosPage() {
                 </div>
               ))}
             </div>
-          ) : users.length === 0 ? (
+          ) : visiveis.length === 0 ? (
             <div className="py-14 text-center space-y-2">
               <Users className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-              <p className="text-sm text-muted-foreground">Nenhum usuário cadastrado</p>
+              <p className="text-sm text-muted-foreground">{soGoogle ? "Ninguém entrou com o Google ainda" : "Nenhum usuário cadastrado"}</p>
             </div>
           ) : (
             <div className="divide-y">
-              {users.map((u) => {
+              {visiveis.map((u) => {
                 const status = paidStatus(u);
                 return (
                   <div
@@ -259,6 +278,11 @@ export default function UsuariosPage() {
                           {u.is_admin && (
                             <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-foreground/10 text-foreground/70">
                               <ShieldCheck className="h-3 w-3" /> Admin
+                            </span>
+                          )}
+                          {u.via_google && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-300">
+                              Google
                             </span>
                           )}
                           {u.bot_enabled && (

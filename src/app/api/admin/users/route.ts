@@ -13,7 +13,8 @@ export async function GET() {
 
   const rows = await sql`
     SELECT id, user_id, username, name, color, is_active, is_admin, created_at,
-           bot_enabled, paid_until, plan, email, trial_ends_at
+           bot_enabled, paid_until, plan, email, trial_ends_at,
+           (google_sub IS NOT NULL) AS via_google
     FROM app_users ORDER BY created_at ASC
   `;
   return NextResponse.json(rows);
