@@ -46,6 +46,8 @@ export async function GET() {
         trialEndsAt: null,
         loginGoogle: false,
         dataExclusao: null,
+        billingAccountId: null,
+        billingDisponivel: false,
         trialActive: false,
         trialDaysLeft: 0,
       },

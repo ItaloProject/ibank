@@ -5,6 +5,7 @@ import { describeDevice, isSessionAlive } from "@/lib/session";
 import { hasBotAccess, isSubscriptionActive } from "@/lib/subscription";
 import { hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";
 import { dataDeExclusao, diasDeTesteRestantes, testeAtivo } from "@/lib/trial";
+import { billingConfigurado, identificadorDeConta } from "@/lib/server/play-billing";
 
 type LinhaUsuario = {
   user_id: string;
@@ -43,6 +44,9 @@ export function dadosDoUsuario(user: LinhaUsuario) {
     plan: (user.plan as string | null) ?? "assinante",
     // Entrou com o Google (sem senha): a exclusão de conta confirma sem pedir senha.
     loginGoogle: Boolean(user.google_sub),
+    // Compra pela Google Play: o app manda este identificador junto com a compra, e o servidor confere.
+    billingAccountId: identificadorDeConta(user.user_id),
+    billingDisponivel: billingConfigurado(),
     // Teste grátis: quando acaba e quantos dias faltam (0 se não há teste ou já acabou).
     trialEndsAt: fimTeste ? new Date(fimTeste).toISOString() : null,
     trialActive: testeAtivo(fimTeste),
