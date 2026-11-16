@@ -52,6 +52,14 @@ export default function ExcluirContaPage() {
           </section>
 
           <section>
+            <h2 className="text-base font-semibold text-white mb-2">Contas de teste sem assinatura</h2>
+            <p>
+              Quem faz o teste grátis e não assina tem os dados guardados por 10 dias depois do fim do teste. Depois disso, a
+              conta e todos os dados são apagados automaticamente, sem precisar pedir.
+            </p>
+          </section>
+
+          <section>
             <h2 className="text-base font-semibold text-white mb-2">O que é apagado</h2>
             <p>
               Ao excluir a conta, apagamos o seu cadastro (nome, e-mail, ligação com o Google) e todos os dados que você
@@ -64,7 +72,7 @@ export default function ExcluirContaPage() {
             <h2 className="text-base font-semibold text-white mb-2">O que pode ficar</h2>
             <p>
               Registros mínimos de segurança e de obrigações legais podem ser mantidos pelo prazo que a lei exigir, sem
-              ligação com o seu conteúdo financeiro. Cópias de segurança do banco de dados são sobrescritas em até 30 dias.
+              ligação com o seu conteúdo financeiro. Cópias de segurança do provedor do banco de dados podem manter os dados por um período limitado até serem sobrescritas.
             </p>
           </section>
         </div>

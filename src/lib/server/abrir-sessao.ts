@@ -4,7 +4,7 @@ import { getSession, signToken } from "@/lib/auth";
 import { describeDevice, isSessionAlive } from "@/lib/session";
 import { hasBotAccess, isSubscriptionActive } from "@/lib/subscription";
 import { hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";
-import { diasDeTesteRestantes, testeAtivo } from "@/lib/trial";
+import { dataDeExclusao, diasDeTesteRestantes, testeAtivo } from "@/lib/trial";
 
 type LinhaUsuario = {
   user_id: string;
@@ -47,6 +47,11 @@ export function dadosDoUsuario(user: LinhaUsuario) {
     trialEndsAt: fimTeste ? new Date(fimTeste).toISOString() : null,
     trialActive: testeAtivo(fimTeste),
     trialDaysLeft: diasDeTesteRestantes(fimTeste),
+    // Conta de teste que não assinou: dia em que os dados serão apagados (só depois que o teste acabou).
+    dataExclusao:
+      user.plan === "teste" && !user.paid_until && fimTeste && !testeAtivo(fimTeste)
+        ? (dataDeExclusao(fimTeste)?.toISOString() ?? null)
+        : null,
   };
 }
 

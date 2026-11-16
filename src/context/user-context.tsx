@@ -20,6 +20,8 @@ interface AuthUser {
   trialEndsAt?: string | null;
   trialActive?: boolean;
   trialDaysLeft?: number;
+  /** Conta de teste sem assinatura: dia em que os dados serão apagados. */
+  dataExclusao?: string | null;
 }
 
 interface UserContextType {

@@ -12,7 +12,7 @@ export default function PoliticaPrivacidadePage() {
         </Link>
 
         <h1 className="text-2xl md:text-3xl font-bold mb-2">Política de Privacidade</h1>
-        <p className="text-sm text-zinc-500 mb-10">Última atualização: setembro de 2026</p>
+        <p className="text-sm text-zinc-500 mb-10">Última atualização: novembro de 2026</p>
 
         <div className="space-y-8 text-sm text-zinc-300 leading-relaxed">
           <section>
@@ -67,6 +67,25 @@ export default function PoliticaPrivacidadePage() {
             <p>
               Dúvidas sobre esta política ou sobre o tratamento dos seus dados podem ser enviadas pelo
               WhatsApp de suporte do MUVO.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-base font-semibold text-white mb-2">7. Entrar com o Google, teste grátis e exclusão</h2>
+            <p>
+              Você pode criar a conta com o Google. Recebemos do Google apenas o seu nome, o seu e-mail e um
+              identificador da conta Google; não recebemos a sua senha do Google nem acesso a outros dados dela.
+              Contas novas têm 3 dias de teste grátis. Quem não assina até o fim do teste mantém os dados guardados
+              por mais 10 dias e, depois disso, a conta e todos os dados são apagados automaticamente.
+            </p>
+            <p className="mt-3">
+              Você pode excluir a conta e todos os dados a qualquer momento, no app (Mais → Configurações → Excluir
+              minha conta) ou pelas instruções em{" "}
+              <Link href="/excluir-conta" className="text-emerald-400 underline underline-offset-2">
+                excluir conta
+              </Link>
+              . Registros mínimos exigidos por lei e cópias de segurança do provedor do banco de dados podem
+              permanecer por um período limitado.
             </p>
           </section>
         </div>

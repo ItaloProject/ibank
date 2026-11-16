@@ -27,7 +27,11 @@ export function SubscriptionGate() {
       <p className="text-sm text-muted-foreground text-center mt-2 max-w-sm">
         Olá{user?.name ? `, ${user.name}` : ""}.{" "}
         {user?.plan === "teste"
-          ? "Os 3 dias de teste acabaram. Seus dados continuam guardados. Assine para voltar a usar (R$ 30/mês)."
+          ? `Os 3 dias de teste acabaram. ${
+              user?.dataExclusao
+                ? `Seus dados ficam guardados até ${new Date(user.dataExclusao).toLocaleDateString("pt-BR")}; depois disso são apagados.`
+                : "Seus dados continuam guardados."
+            } Assine para voltar a usar (R$ 30/mês).`
           : "Seu acesso está expirado ou ainda não foi liberado. Fale conosco no WhatsApp para assinar (R$ 30/mês) ou renovar."}
       </p>
       <a

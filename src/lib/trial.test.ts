@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diasDeTesteRestantes, fimDoTeste, TESTE_HORAS, testeAtivo } from "./trial";
+import { dataDeExclusao, diasDeTesteRestantes, fimDoTeste, prazoDeGuardaVencido, RETENCAO_DIAS, TESTE_HORAS, testeAtivo } from "./trial";
 
 describe("teste grátis de 3 dias", () => {
   const agora = new Date("2026-11-16T12:00:00Z");
@@ -29,5 +29,22 @@ describe("teste grátis de 3 dias", () => {
     expect(diasDeTesteRestantes(fim, new Date(agora.getTime() + 25 * 3600 * 1000))).toBe(2);
     expect(diasDeTesteRestantes(fim, new Date(fim.getTime() - 3600 * 1000))).toBe(1);
     expect(diasDeTesteRestantes(fim, fim)).toBe(0);
+  });
+});
+
+describe("guarda dos dados depois do teste", () => {
+  const fim = new Date("2026-11-19T12:00:00Z");
+
+  it("apaga 10 dias depois do fim do teste", () => {
+    expect(RETENCAO_DIAS).toBe(10);
+    expect(dataDeExclusao(fim)?.toISOString()).toBe("2026-11-29T12:00:00.000Z");
+    expect(dataDeExclusao(null)).toBeNull();
+    expect(dataDeExclusao("lixo")).toBeNull();
+  });
+
+  it("o prazo só vence no instante certo", () => {
+    expect(prazoDeGuardaVencido(fim, new Date("2026-11-29T11:59:59Z"))).toBe(false);
+    expect(prazoDeGuardaVencido(fim, new Date("2026-11-29T12:00:00Z"))).toBe(true);
+    expect(prazoDeGuardaVencido(null)).toBe(false);
   });
 });

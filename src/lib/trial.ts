@@ -26,3 +26,23 @@ export function diasDeTesteRestantes(fim: string | Date | null | undefined, agor
   const faltam = new Date(fim as string | Date).getTime() - agora.getTime();
   return Math.ceil(faltam / (24 * HORA_MS));
 }
+
+/**
+ * Quem fez o teste e não assinou tem os dados apagados 10 dias depois do fim do teste
+ * ("uma semana e meia"). Quem assinou algum dia nunca entra nessa limpeza.
+ */
+export const RETENCAO_DIAS = 10;
+
+/** Quando os dados de uma conta de teste que não assinou são apagados. */
+export function dataDeExclusao(fimDoTesteEm: string | Date | null | undefined): Date | null {
+  if (!fimDoTesteEm) return null;
+  const t = new Date(fimDoTesteEm).getTime();
+  if (!Number.isFinite(t)) return null;
+  return new Date(t + RETENCAO_DIAS * 24 * HORA_MS);
+}
+
+/** Já passou o prazo de guarda? */
+export function prazoDeGuardaVencido(fimDoTesteEm: string | Date | null | undefined, agora: Date = new Date()): boolean {
+  const limite = dataDeExclusao(fimDoTesteEm);
+  return limite !== null && limite.getTime() <= agora.getTime();
+}

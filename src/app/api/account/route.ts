@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { createHash } from "node:crypto";
 import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
+import { excluirContaDoUsuario } from "@/lib/conta";
 import { bloqueioAtivo, chaveTrocaSenha, limparFalhas, mensagemBloqueio, registrarFalha } from "@/lib/login-limit";
 
 /**
@@ -47,23 +48,8 @@ export async function DELETE(request: Request) {
       await limparFalhas(chave);
     }
 
-    // Todas as tabelas que guardam dados da pessoa (coluna user_id), numa transação só.
-    const tabelas = (
-      await sql`
-        SELECT table_name FROM information_schema.columns
-        WHERE table_schema = 'public' AND column_name = 'user_id'
-        ORDER BY table_name
-      `
-    )
-      .map((r) => String(r.table_name))
-      .filter((t) => /^[a-z_][a-z0-9_]*$/.test(t) && t !== "app_users");
-
-    await sql.begin(async (tx) => {
-      for (const tabela of tabelas) {
-        await tx`DELETE FROM ${tx(tabela)} WHERE user_id = ${userId}`;
-      }
-      await tx`DELETE FROM app_users WHERE user_id = ${userId} AND is_admin = false`;
-    });
+    // Todas as tabelas que guardam dados da pessoa, numa transação só (a mesma rotina da limpeza automática).
+    await excluirContaDoUsuario(userId);
 
     // Registro mínimo, sem dado pessoal: só para saber quando e quantas contas foram excluídas.
     console.info("[conta-excluida]", createHash("sha256").update(`conta:${userId}`).digest("hex").slice(0, 12));

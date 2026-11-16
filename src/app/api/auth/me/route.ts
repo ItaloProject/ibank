@@ -45,6 +45,7 @@ export async function GET() {
         plan: "assinante",
         trialEndsAt: null,
         loginGoogle: false,
+        dataExclusao: null,
         trialActive: false,
         trialDaysLeft: 0,
       },
