@@ -35,7 +35,7 @@ export async function GET() {
     const rows = await sql`SELECT * FROM stock_quotes WHERE user_id = ${userId}`;
     return NextResponse.json(rows);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }
 
@@ -56,6 +56,6 @@ export async function POST(request: Request) {
     `;
     return NextResponse.json(row);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }

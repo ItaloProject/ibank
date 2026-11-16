@@ -46,7 +46,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json(row);
   } catch (err) {
     console.error("[PATCH /api/parcelamentos/:id]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }
 
@@ -61,6 +61,6 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[DELETE /api/parcelamentos/:id]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }

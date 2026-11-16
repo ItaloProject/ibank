@@ -12,6 +12,6 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     console.error("[DELETE /api/investments/[id]]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }

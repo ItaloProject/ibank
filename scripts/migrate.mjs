@@ -1,13 +1,20 @@
-import { neon } from "@neondatabase/serverless";
+// Aplica supabase/schema.sql no banco apontado por DATABASE_URL.
+// Uso: DATABASE_URL="postgresql://..." node scripts/migrate.mjs
+// A URL do banco nunca fica no código: ela vem do ambiente (veja .env.example).
+import postgres from "postgres";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATABASE_URL =
-  "postgresql://neondb_owner:npg_5RzdIjDYqy6m@ep-plain-surf-aciln5bl.sa-east-1.aws.neon.tech/neondb?sslmode=require";
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error("Defina DATABASE_URL no ambiente antes de rodar a migração.");
+  process.exit(1);
+}
 
-const sql = neon(DATABASE_URL);
+// prepare:false porque o pooler do Supabase em modo transação não guarda comandos preparados.
+const sql = postgres(DATABASE_URL, { prepare: false, max: 1, onnotice: () => {} });
 const schema = readFileSync(join(__dirname, "../supabase/schema.sql"), "utf-8");
 
 const stripped = schema
@@ -22,7 +29,7 @@ const statements = stripped
 
 for (const stmt of statements) {
   try {
-    await sql.query(stmt);
+    await sql.unsafe(stmt);
     console.log("✓", stmt.slice(0, 70).replace(/\n/g, " ").trim());
   } catch (err) {
     console.error("✗", stmt.slice(0, 70).replace(/\n/g, " ").trim());
@@ -30,4 +37,4 @@ for (const stmt of statements) {
   }
 }
 
-console.log("\nMigração concluída!");
+await sql.end();

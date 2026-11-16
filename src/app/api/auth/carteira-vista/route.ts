@@ -16,6 +16,6 @@ export async function POST() {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[POST /api/auth/carteira-vista]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }

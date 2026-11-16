@@ -9,6 +9,10 @@ import {
   isSubscriptionActive,
 } from "@/lib/subscription";
 import { ensureOnboardingColumns, hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";
+import { bloqueioAtivo, chavesDeLogin, limparFalhas, mensagemBloqueio, registrarFalha } from "@/lib/login-limit";
+
+/** Hash de uma senha que ninguém usa: gasta o mesmo tempo quando o usuário não existe, para não revelar quem tem conta. */
+const HASH_FALSO = "$2b$10$p9SNafGgWS7jkR/p89IXmOBKv373KorcKXc9kwVx4B55IiFXizQ2O";
 
 export async function POST(request: Request) {
   try {
@@ -16,6 +20,19 @@ export async function POST(request: Request) {
 
     if (!username || !password) {
       return NextResponse.json({ error: "Preencha todos os campos" }, { status: 400 });
+    }
+    if (typeof username !== "string" || typeof password !== "string" || password.length > 200) {
+      return NextResponse.json({ error: "Usuário ou senha incorretos" }, { status: 400 });
+    }
+
+    // Quem errou demais fica um tempo sem poder tentar, antes de gastar o bcrypt.
+    const chaves = chavesDeLogin(username, request.headers);
+    const segundos = await bloqueioAtivo(chaves);
+    if (segundos > 0) {
+      return NextResponse.json(
+        { error: mensagemBloqueio(segundos), code: "LOGIN_BLOQUEADO" },
+        { status: 429, headers: { "Retry-After": String(segundos) } },
+      );
     }
 
     await ensureSubscriptionColumns();
@@ -27,6 +44,8 @@ export async function POST(request: Request) {
     `;
 
     if (rows.length === 0) {
+      await bcrypt.compare(password, HASH_FALSO);
+      await registrarFalha(chaves);
       return NextResponse.json({ error: "Usuário ou senha incorretos" }, { status: 401 });
     }
 
@@ -34,8 +53,11 @@ export async function POST(request: Request) {
     const valid = await bcrypt.compare(password, user.password_hash);
 
     if (!valid) {
+      await registrarFalha(chaves);
       return NextResponse.json({ error: "Usuário ou senha incorretos" }, { status: 401 });
     }
+    // Senha certa: zera as falhas desse usuário (as da origem continuam contando).
+    await limparFalhas([chaves[0]]);
 
     if (user.is_active === false) {
       return NextResponse.json({ error: "Conta desativada. Fale conosco no WhatsApp." }, { status: 403 });

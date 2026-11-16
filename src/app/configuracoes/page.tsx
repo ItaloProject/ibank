@@ -211,11 +211,11 @@ export default function ConfiguracoesPage() {
           <div className="relative">
             <input
               type={showNova ? "text" : "password"}
-              placeholder="Nova senha (mín. 6 caracteres)"
+              placeholder="Nova senha (mín. 8 caracteres)"
               value={novaSenha}
               onChange={(e) => setNovaSenha(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
               className="w-full border rounded-xl px-4 py-3 text-sm bg-background pr-11 focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
             <button type="button" onClick={() => setShowNova(!showNova)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">

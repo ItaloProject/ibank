@@ -13,7 +13,7 @@ export async function GET() {
     return NextResponse.json(rows);
   } catch (err) {
     console.error("[GET /api/plan-groups]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }
 
@@ -31,6 +31,6 @@ export async function POST(request: Request) {
     return NextResponse.json(rows[0], { status: 201 });
   } catch (err) {
     console.error("[POST /api/plan-groups]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }

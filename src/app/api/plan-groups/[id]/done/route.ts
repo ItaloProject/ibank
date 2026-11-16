@@ -30,6 +30,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ done_months: rows[0].done_months });
   } catch (err) {
     console.error("[PUT /api/plan-groups/[id]/done]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }

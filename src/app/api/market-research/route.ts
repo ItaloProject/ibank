@@ -17,7 +17,7 @@ export async function GET() {
         },
         fiis: [],
         fetchedAt: new Date().toISOString(),
-        error: String(err),
+        error: "Erro interno. Tente novamente em instantes.",
       },
       { status: 200 },
     );

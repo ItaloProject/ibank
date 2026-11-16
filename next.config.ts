@@ -17,9 +17,24 @@ const withSerwist = withSerwistInit({
   exclude: [/pdf\.worker/, /videos\//],
 });
 
+/** Cabeçalhos de segurança em todas as respostas. Sem CSP aqui: ela precisa ser testada com o Sentry e o service worker. */
+const CABECALHOS_SEGURANCA = [
+  // O navegador não adivinha o tipo do arquivo: bloqueia script disfarçado de imagem.
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  // Só o próprio site pode colocar as páginas dentro de um frame (evita clickjacking).
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  // Não vaza o caminho completo para outros sites.
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  // O app não usa câmera, microfone, localização nem pagamento do navegador.
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+];
+
 const nextConfig: NextConfig = {
   // Permite acesso ao dev server via IP de rede (ex.: Tailscale)
   allowedDevOrigins: ["100.77.211.95"],
+  async headers() {
+    return [{ source: "/:path*", headers: CABECALHOS_SEGURANCA }];
+  },
 };
 
 export default withSentryConfig(withSerwist(nextConfig), {

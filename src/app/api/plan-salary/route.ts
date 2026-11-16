@@ -35,6 +35,6 @@ export async function PUT(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[PUT /api/plan-salary]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }

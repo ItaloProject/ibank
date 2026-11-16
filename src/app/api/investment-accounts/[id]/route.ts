@@ -70,7 +70,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json(rows[0]);
   } catch (err) {
     console.error("[PATCH /api/investment-accounts/[id]]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }
 
@@ -85,6 +85,6 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     console.error("[DELETE /api/investment-accounts/[id]]", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }

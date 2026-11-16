@@ -71,6 +71,6 @@ export async function GET(request: Request) {
     });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }

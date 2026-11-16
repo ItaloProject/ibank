@@ -11,6 +11,6 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     await sql`DELETE FROM turbo_monthly_records WHERE id = ${id} AND user_id = ${userId}`;
     return new NextResponse(null, { status: 204 });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }
 }
