@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession, signToken } from "@/lib/auth";
-import { tokenPrecisaRenovar, VALIDADE_TOKEN_SEG } from "@/lib/token-renovacao";
+import { tokenPrecisaRenovar } from "@/lib/token-renovacao";
+import { opcoesCookieSessao } from "@/lib/session-cookie";
 import sql from "@/lib/db";
 import { ensureSubscriptionColumns, hasBotAccess } from "@/lib/subscription";
 import { ensureOnboardingColumns } from "@/lib/onboarding";
@@ -43,37 +44,12 @@ export async function GET() {
         investmentProfile: user.investment_profile ?? undefined,
         botEnabled: hasBotAccess(user),
       });
-      resposta.cookies.set("ibank_session", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: VALIDADE_TOKEN_SEG,
-        path: "/",
-      });
+      resposta.cookies.set("ibank_session", token, opcoesCookieSessao());
     }
     return resposta;
   } catch (err) {
+    // Nunca inventar um usuário "assinante ativo": isso burlaria o gate se o banco falhasse.
     console.error("[GET /api/auth/me]", err);
-    return NextResponse.json({
-      user: {
-        id: payload.userId,
-        name: payload.name,
-        color: payload.color,
-        isAdmin: payload.isAdmin ?? false,
-        investmentProfile: payload.investmentProfile ?? null,
-        carteiraVista: true,
-        botEnabled: payload.botEnabled ?? false,
-        subscriptionActive: true,
-        paidUntil: null,
-        plan: "assinante",
-        trialEndsAt: null,
-        loginGoogle: false,
-        dataExclusao: null,
-        billingAccountId: null,
-        billingDisponivel: false,
-        trialActive: false,
-        trialDaysLeft: 0,
-      },
-    });
+    return NextResponse.json({ user: null, error: "Não foi possível validar a sessão." }, { status: 503 });
   }
 }

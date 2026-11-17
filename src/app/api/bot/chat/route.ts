@@ -5,6 +5,7 @@ import { requireBotUser } from "@/lib/server/bot-auth";
 import { localBotReply, type LocalMessage } from "@/lib/server/bot-local";
 import { fetchMarketRates } from "@/lib/market-research";
 import { FALLBACK_CDI } from "@/lib/investment-rates";
+import { limitar } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -27,6 +28,15 @@ function parseMessages(body: unknown): LocalMessage[] | null {
 export async function POST(request: Request) {
   const auth = await requireBotUser();
   if (auth instanceof NextResponse) return auth;
+
+  // Limite curto além da cota diária: evita rajada que satura o servidor.
+  const rajada = await limitar({ chave: `bot-chat:${auth.userId}`, max: 20, janelaSeg: 60 });
+  if (!rajada.ok) {
+    return NextResponse.json(
+      { error: "Muitas perguntas em pouco tempo. Espere um instante." },
+      { status: 429, headers: { "Retry-After": String(rajada.retryAfter) } },
+    );
+  }
 
   const body = await request.json().catch(() => null);
   const messages = parseMessages(body);

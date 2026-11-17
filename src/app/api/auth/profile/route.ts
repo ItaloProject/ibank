@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession, signToken } from "@/lib/auth";
 import sql from "@/lib/db";
+import { opcoesCookieSessao } from "@/lib/session-cookie";
 
 export async function POST(request: Request) {
   const payload = await getSession();
@@ -26,12 +27,6 @@ export async function POST(request: Request) {
   });
 
   const response = NextResponse.json({ ok: true, profile });
-  response.cookies.set("ibank_session", newToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60,
-    path: "/",
-  });
+  response.cookies.set("ibank_session", newToken, opcoesCookieSessao());
   return response;
 }

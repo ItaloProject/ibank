@@ -3,10 +3,22 @@ import bcrypt from "bcryptjs";
 import { requireAdmin } from "@/lib/auth";
 import sql from "@/lib/db";
 import { secretMatches } from "@/lib/server/secret-auth";
+import { extrairIp } from "@/lib/limite-envios";
+import { limitar } from "@/lib/rate-limit";
 
 // Rota de setup: cria tabela e usuários iniciais. Exige admin logado ou SETUP_SECRET no
 // header Authorization: Bearer. Nada é alterado no banco antes dessa checagem.
 export async function GET(request: Request) {
+  // Poucas tentativas por origem: dificulta força bruta do SETUP_SECRET.
+  const origem = extrairIp(request.headers);
+  const limite = await limitar({ chave: `setup:${origem}`, max: 10, janelaSeg: 3600 });
+  if (!limite.ok) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Tente mais tarde." },
+      { status: 429, headers: { "Retry-After": String(limite.retryAfter) } },
+    );
+  }
+
   const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   const porSegredo = secretMatches(bearer, process.env.SETUP_SECRET?.trim());
   if (!porSegredo) {

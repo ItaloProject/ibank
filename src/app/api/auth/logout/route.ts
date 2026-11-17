@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import sql from "@/lib/db";
 import { ensureSessionColumns } from "@/lib/session";
+import { opcoesCookieSessaoApagar } from "@/lib/session-cookie";
 
 export async function POST() {
   // Libera a conta para o próximo login sem perguntar; só limpa se a sessão ainda for esta.
@@ -20,12 +21,6 @@ export async function POST() {
   }
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set("ibank_session", "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 0,
-    path: "/",
-  });
+  response.cookies.set("ibank_session", "", opcoesCookieSessaoApagar());
   return response;
 }

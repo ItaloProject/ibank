@@ -5,6 +5,7 @@ import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 import { excluirContaDoUsuario } from "@/lib/conta";
 import { bloqueioAtivo, chaveTrocaSenha, limparFalhas, mensagemBloqueio, registrarFalha } from "@/lib/login-limit";
+import { opcoesCookieSessaoApagar } from "@/lib/session-cookie";
 
 /**
  * Exclui a conta e todos os dados do usuário. Exigido pelas lojas (Google Play e App Store):
@@ -55,7 +56,7 @@ export async function DELETE(request: Request) {
     console.info("[conta-excluida]", createHash("sha256").update(`conta:${userId}`).digest("hex").slice(0, 12));
 
     const resposta = NextResponse.json({ ok: true });
-    resposta.cookies.set("ibank_session", "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 0, path: "/" });
+    resposta.cookies.set("ibank_session", "", opcoesCookieSessaoApagar());
     return resposta;
   } catch (err) {
     console.error("[DELETE /api/account]", err);

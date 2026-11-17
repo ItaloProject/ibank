@@ -1,8 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getSession } from "@/lib/auth";
+import { getSession, signToken } from "@/lib/auth";
 import sql from "@/lib/db";
 import { bloqueioAtivo, chaveTrocaSenha, limparFalhas, mensagemBloqueio, registrarFalha } from "@/lib/login-limit";
+import { describeDevice, ensureSessionColumns } from "@/lib/session";
+import { opcoesCookieSessao } from "@/lib/session-cookie";
 
 const TAMANHO_MINIMO_SENHA = 8;
 
@@ -34,18 +37,41 @@ export async function POST(request: Request) {
     );
   }
 
-  const rows = await sql`SELECT password_hash FROM app_users WHERE user_id = ${payload.userId}`;
+  const rows = await sql`SELECT password_hash, name, color, is_admin, investment_profile, bot_enabled FROM app_users WHERE user_id = ${payload.userId}`;
   if (!rows.length) return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
 
-  const valid = await bcrypt.compare(senhaAtual, rows[0].password_hash);
+  const user = rows[0];
+  const valid = await bcrypt.compare(senhaAtual, user.password_hash as string);
   if (!valid) {
     await registrarFalha(chave);
     return NextResponse.json({ error: "Senha atual incorreta" }, { status: 400 });
   }
   await limparFalhas(chave);
 
+  // Nova senha + nova sessão: qualquer token antigo (outro aparelho ou roubado) deixa de valer.
+  const sid = randomUUID().replace(/-/g, "");
   const hash = await bcrypt.hash(novaSenha, 12);
-  await sql`UPDATE app_users SET password_hash = ${hash} WHERE user_id = ${payload.userId}`;
+  await ensureSessionColumns();
+  await sql`
+    UPDATE app_users
+    SET password_hash = ${hash},
+        active_session_id = ${sid},
+        session_device = ${describeDevice(request.headers.get("user-agent"))},
+        session_started_at = NOW()
+    WHERE user_id = ${payload.userId}
+  `;
 
-  return NextResponse.json({ ok: true });
+  const token = await signToken({
+    sid,
+    userId: payload.userId,
+    name: (user.name as string) ?? payload.name,
+    color: (user.color as string) ?? payload.color,
+    isAdmin: Boolean(user.is_admin ?? payload.isAdmin),
+    investmentProfile: (user.investment_profile as string | null) ?? payload.investmentProfile,
+    botEnabled: Boolean(user.bot_enabled ?? payload.botEnabled),
+  });
+
+  const resposta = NextResponse.json({ ok: true });
+  resposta.cookies.set("ibank_session", token, opcoesCookieSessao());
+  return resposta;
 }

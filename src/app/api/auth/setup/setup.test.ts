@@ -6,6 +6,9 @@ vi.mock("@/lib/db", () => ({ default: (...args: unknown[]) => sqlMock(...args) }
 vi.mock("@/lib/auth", () => ({
   requireAdmin: vi.fn(async () => NextResponse.json({ error: "Não autenticado" }, { status: 401 })),
 }));
+vi.mock("@/lib/rate-limit", () => ({
+  limitar: vi.fn(async () => ({ ok: true as const })),
+}));
 
 import { GET } from "@/app/api/auth/setup/route";
 

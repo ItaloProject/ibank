@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { getSession, signToken } from "@/lib/auth";
 import { VALIDADE_TOKEN_SEG } from "@/lib/token-renovacao";
+import { opcoesCookieSessao } from "@/lib/session-cookie";
 import { describeDevice, isSessionAlive } from "@/lib/session";
 import { isSubscriptionActive } from "@/lib/subscription";
 import { hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";
@@ -123,12 +124,6 @@ export async function abrirSessao(request: Request, user: LinhaUsuario, force: b
   });
 
   const response = NextResponse.json({ ok: true, user: dados });
-  response.cookies.set("ibank_session", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60,
-    path: "/",
-  });
+  response.cookies.set("ibank_session", token, opcoesCookieSessao(VALIDADE_TOKEN_SEG));
   return response;
 }

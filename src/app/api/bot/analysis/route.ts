@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
 import { requireBotUser } from "@/lib/server/bot-auth";
 import { getCachedSnapshot } from "@/lib/server/portfolio-snapshot";
+import { limitar } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const auth = await requireBotUser();
   if (auth instanceof NextResponse) return auth;
+
+  const rajada = await limitar({ chave: `bot-analysis:${auth.userId}`, max: 30, janelaSeg: 60 });
+  if (!rajada.ok) {
+    return NextResponse.json(
+      { error: "Muitas análises em pouco tempo. Espere um instante." },
+      { status: 429, headers: { "Retry-After": String(rajada.retryAfter) } },
+    );
+  }
+
   try {
     const s = await getCachedSnapshot(auth.userId, true);
     return NextResponse.json({
