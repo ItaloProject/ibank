@@ -72,9 +72,13 @@ export async function bloqueioAtivo(chaves: ChaveLimite[]): Promise<number> {
   return segundosRestantes(ate, new Date());
 }
 
-/** Soma uma falha em cada chave; ao passar do limite, bloqueia. */
-export async function registrarFalha(chaves: ChaveLimite[]): Promise<void> {
+/**
+ * Soma uma falha em cada chave; ao passar do limite, bloqueia.
+ * Devolve as chaves que acabaram de ser bloqueadas nesta chamada (para disparar alerta uma vez).
+ */
+export async function registrarFalha(chaves: ChaveLimite[]): Promise<string[]> {
   await garantirTabela();
+  const bloqueadas: string[] = [];
   for (const { chave, limite } of chaves) {
     await sql`
       INSERT INTO login_attempts (chave, falhas, primeira_em)
@@ -83,11 +87,16 @@ export async function registrarFalha(chaves: ChaveLimite[]): Promise<void> {
         falhas = CASE WHEN login_attempts.primeira_em < NOW() - (${JANELA_MIN}::int * interval '1 minute') THEN 1 ELSE login_attempts.falhas + 1 END,
         primeira_em = CASE WHEN login_attempts.primeira_em < NOW() - (${JANELA_MIN}::int * interval '1 minute') THEN NOW() ELSE login_attempts.primeira_em END
     `;
-    await sql`
+    // Só “novo” bloqueio: se já estava bloqueado, não dispara outro alerta.
+    const rows = await sql`
       UPDATE login_attempts
       SET bloqueado_ate = NOW() + (${BLOQUEIO_MIN}::int * interval '1 minute')
-      WHERE chave = ${chave} AND falhas >= ${limite}::int
+      WHERE chave = ${chave}
+        AND falhas >= ${limite}::int
+        AND (bloqueado_ate IS NULL OR bloqueado_ate <= NOW())
+      RETURNING chave
     `;
+    if (rows[0]?.chave) bloqueadas.push(String(rows[0].chave));
   }
   // Limpeza ocasional de linhas antigas.
   if (Math.random() < 0.02) {
@@ -96,6 +105,7 @@ export async function registrarFalha(chaves: ChaveLimite[]): Promise<void> {
       WHERE primeira_em < NOW() - interval '1 day' AND (bloqueado_ate IS NULL OR bloqueado_ate < NOW())
     `;
   }
+  return bloqueadas;
 }
 
 /** Zera as falhas das chaves (entrada com sucesso). */

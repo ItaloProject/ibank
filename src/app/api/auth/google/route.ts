@@ -7,6 +7,7 @@ import { ensureSubscriptionColumns } from "@/lib/subscription";
 import { ensureOnboardingColumns } from "@/lib/onboarding";
 import { bloqueioAtivo, chavesDeLogin, mensagemBloqueio, registrarFalha } from "@/lib/login-limit";
 import { abrirSessao } from "@/lib/server/abrir-sessao";
+import { avisarBloqueioLogin } from "@/lib/server/alerta-login";
 import { idsDeClienteGoogle, usuarioInternoDe, verificarIdTokenGoogle } from "@/lib/server/google-auth";
 import { fimDoTeste, PLANO_TESTE } from "@/lib/trial";
 
@@ -39,7 +40,11 @@ export async function POST(request: Request) {
 
     const perfil = await verificarIdTokenGoogle(idToken, clientIds);
     if (!perfil) {
-      await registrarFalha(chaves);
+      const bloqueadas = await registrarFalha(chaves);
+      // Token inválido em série: avisa só o admin (não há conta confiável neste ponto).
+      if (bloqueadas[0]) {
+        avisarBloqueioLogin({ quem: "google-token", motivo: "login", chaveBloqueio: bloqueadas[0] });
+      }
       return NextResponse.json({ error: "Não foi possível validar sua conta Google." }, { status: 401 });
     }
 

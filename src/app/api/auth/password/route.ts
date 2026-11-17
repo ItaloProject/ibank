@@ -6,6 +6,7 @@ import sql from "@/lib/db";
 import { bloqueioAtivo, chaveTrocaSenha, limparFalhas, mensagemBloqueio, registrarFalha } from "@/lib/login-limit";
 import { describeDevice, ensureSessionColumns } from "@/lib/session";
 import { opcoesCookieSessao } from "@/lib/session-cookie";
+import { avisarBloqueioLogin } from "@/lib/server/alerta-login";
 
 const TAMANHO_MINIMO_SENHA = 8;
 
@@ -37,13 +38,24 @@ export async function POST(request: Request) {
     );
   }
 
-  const rows = await sql`SELECT password_hash, name, color, is_admin, investment_profile, bot_enabled FROM app_users WHERE user_id = ${payload.userId}`;
+  const rows = await sql`
+    SELECT password_hash, name, color, is_admin, investment_profile, bot_enabled, email
+    FROM app_users WHERE user_id = ${payload.userId}
+  `;
   if (!rows.length) return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
 
   const user = rows[0];
   const valid = await bcrypt.compare(senhaAtual, user.password_hash as string);
   if (!valid) {
-    await registrarFalha(chave);
+    const bloqueadas = await registrarFalha(chave);
+    if (bloqueadas[0]) {
+      avisarBloqueioLogin({
+        email: typeof user.email === "string" ? user.email : null,
+        quem: (user.name as string) || payload.name || payload.userId,
+        motivo: "senha",
+        chaveBloqueio: bloqueadas[0],
+      });
+    }
     return NextResponse.json({ error: "Senha atual incorreta" }, { status: 400 });
   }
   await limparFalhas(chave);
