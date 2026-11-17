@@ -298,7 +298,7 @@ export default function UsuariosPage() {
                           </button>
                           <span className="text-muted-foreground/30 text-xs">·</span>
                           <span className="text-xs text-muted-foreground">
-                            {u.plan === "completo" ? "Completo R$45" : "R$30"}
+                            {u.plan === "completo" ? "Completo R$35" : "R$30"}
                           </span>
                           {status && (
                             <>
@@ -431,7 +431,7 @@ export default function UsuariosPage() {
                     className="accent-violet-600"
                   />
                   <Bot className="h-4 w-4 text-violet-500" />
-                  <span className="text-xs font-medium">Bot (+R$ 15)</span>
+                  <span className="text-xs font-medium">Bot (+R$ 5)</span>
                 </label>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Validade (dias)</label>
@@ -470,7 +470,7 @@ export default function UsuariosPage() {
               </div>
 
               <div className="rounded-xl bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
-                Plano: <span className="font-semibold text-foreground">{form.bot_enabled ? "Completo — R$ 45" : "Assinante — R$ 30"}</span>
+                Plano: <span className="font-semibold text-foreground">{form.bot_enabled ? "Completo — R$ 35" : "Assinante — R$ 30"}</span>
                 {" · "}validade: <span className="font-semibold text-foreground">{form.paid_days} dias</span>
               </div>
 

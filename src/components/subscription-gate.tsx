@@ -8,7 +8,7 @@ function whatsappUrl() {
   const raw = process.env.NEXT_PUBLIC_WHATSAPP ?? "5500000000000";
   const phone = raw.replace(/\D/g, "");
   const text = encodeURIComponent(
-    "Olá! Quero renovar / assinar o MUVO (R$ 30/mês ou R$ 45 com Bot).",
+    "Olá! Quero renovar / assinar o MUVO (R$ 30/mês ou R$ 35 com Bot).",
   );
   return `https://wa.me/${phone}?text=${text}`;
 }
@@ -44,7 +44,7 @@ export function SubscriptionGate() {
         Assinar / renovar no WhatsApp
       </a>
       <p className="text-xs text-muted-foreground mt-4 text-center">
-        Assinante R$ 30 · Bot opcional +R$ 15 · Total R$ 45
+        Assinante R$ 30 · Bot opcional +R$ 5 · Total R$ 35
       </p>
       <button
         type="button"

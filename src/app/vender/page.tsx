@@ -8,7 +8,7 @@ function whatsappUrl(plan: "assinante" | "completo") {
   const raw = process.env.NEXT_PUBLIC_WHATSAPP ?? "5500000000000";
   const phone = raw.replace(/\D/g, "");
   const label = plan === "completo"
-    ? "Completo R$ 45 (app + bot)"
+    ? "Completo R$ 35 (app + bot)"
     : "Assinante R$ 30";
   const text = encodeURIComponent(
     `Olá! Quero assinar o MUVO — plano ${label}. Pode me passar o Pix e liberar o acesso?`,
@@ -80,7 +80,7 @@ export default function VenderPage() {
                 <p className="font-bold text-lg">Completo</p>
                 <p className="text-xs text-muted-foreground">App + MUVO Bot</p>
               </div>
-              <p className="text-2xl font-bold tabular-nums">R$ 45<span className="text-sm font-medium text-muted-foreground">/mês</span></p>
+              <p className="text-2xl font-bold tabular-nums">R$ 35<span className="text-sm font-medium text-muted-foreground">/mês</span></p>
             </div>
             <ul className="space-y-2 text-sm text-muted-foreground">
               {["Tudo do Assinante", "Bot de carteira e FIIs", "Pesquisa de mercado"].map((t) => (

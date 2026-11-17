@@ -104,7 +104,7 @@ function whatsappUrl(lead: LeadData, plan: "assinante" | "completo") {
   const phone = raw.replace(/\D/g, "");
   const goalLabel = GOAL_OPTIONS.find((g) => g.id === lead.objetivo)?.label ?? lead.objetivo;
   const aporteLabel = APORTE_OPTIONS.find((a) => a.id === lead.aporte)?.label ?? lead.aporte;
-  const planLabel = plan === "completo" ? "Completo R$ 45 (app + bot)" : "Assinante R$ 30";
+  const planLabel = plan === "completo" ? "Completo R$ 35 (app + bot)" : "Assinante R$ 30";
   const text = encodeURIComponent(
     `Olá! Me chamo ${lead.nome} e tenho interesse no MUVO — plano ${planLabel}.\n\nMeu objetivo: ${goalLabel}\nInvisto: ${aporteLabel}\nWhatsApp: ${lead.whatsapp}\n\nPode me passar os detalhes para começar o teste grátis de 3 dias?`,
   );
@@ -477,11 +477,11 @@ export default function ComecarPage() {
                       <p className="font-bold text-lg">Completo</p>
                       <p className="text-xs text-zinc-500">App + MUVO Bot com IA</p>
                       <span className="inline-block mt-1.5 text-[11px] font-semibold text-violet-400 bg-violet-500/10 border border-violet-500/30 rounded-full px-2.5 py-0.5">
-                        3 dias grátis, depois R$ 45/mês
+                        3 dias grátis, depois R$ 35/mês
                       </span>
                     </div>
                     <p className="text-2xl font-bold tabular-nums shrink-0">
-                      R$ 45<span className="text-sm font-medium text-zinc-500">/mês</span>
+                      R$ 35<span className="text-sm font-medium text-zinc-500">/mês</span>
                     </p>
                   </div>
                   <ul className="space-y-1.5 text-sm text-zinc-400">
@@ -497,7 +497,7 @@ export default function ComecarPage() {
                     rel="noopener noreferrer"
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3.5 text-sm font-semibold text-white hover:bg-violet-500 transition-colors touch-manipulation"
                   >
-                    <Bot className="h-4 w-4" /> Quero Completo — R$ 45/mês
+                    <Bot className="h-4 w-4" /> Quero Completo — R$ 35/mês
                   </a>
                 </div>
               </div>
