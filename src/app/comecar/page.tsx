@@ -154,60 +154,65 @@ export default function ComecarPage() {
   const side = SIDE_CONTENT[Math.min(step, SIDE_CONTENT.length - 1)];
 
   return (
-    <div className="min-h-[100dvh] bg-background text-foreground flex flex-col md:flex-row">
+    <div className="min-h-[100dvh] bg-background text-foreground flex flex-col lg:flex-row">
 
-      {/* ── painel esquerdo (desktop) ─────────────────────────────────────── */}
-      <div className="hidden md:flex md:w-1/2 lg:w-[55%] md:sticky md:top-0 md:h-[100dvh] md:overflow-y-auto flex-col px-12 py-12 border-r border-zinc-800 relative bg-zinc-950 text-zinc-100">
+      {/* ── painel esquerdo (desktop largo) ───────────────────────────────── */}
+      <div className="hidden lg:flex lg:w-[48%] xl:w-[52%] lg:sticky lg:top-0 lg:h-[100dvh] lg:min-h-0 flex-col px-8 xl:px-12 py-8 xl:py-10 border-r border-zinc-800 relative bg-zinc-950 text-zinc-100">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/30 via-transparent to-violet-950/20 pointer-events-none" />
 
-        <div className="relative z-10 flex-1 flex flex-col">
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col">
           {/* Logo */}
-          <div className="flex items-center mb-10">
-            <BrandLockup tone="onDark" className="h-10" priority />
+          <div className="flex items-center mb-6 xl:mb-8 shrink-0">
+            <BrandLockup tone="onDark" className="h-9 xl:h-10" priority />
           </div>
 
-          {/* Headline + features */}
-          <div key={step} className="transition-all duration-300">
-            <h2 className="text-3xl lg:text-4xl font-bold leading-tight mb-3 text-white font-display">
+          {/* Headline + features (rola se a altura for baixa) */}
+          <div key={step} className="min-h-0 flex-1 overflow-y-auto transition-all duration-300 pr-1">
+            <h2 className="text-2xl xl:text-4xl font-bold leading-tight mb-2 xl:mb-3 text-white font-display">
               {side.headline}
             </h2>
-            <p className="text-zinc-400 text-base leading-relaxed mb-6">{side.sub}</p>
+            <p className="text-zinc-400 text-sm xl:text-base leading-relaxed mb-4 xl:mb-6">{side.sub}</p>
             <div className="grid grid-cols-1 gap-2">
               {side.stats.map((s) => {
                 const Icon = s.icon;
                 return (
-                  <div key={s.label} className="flex items-center gap-3 bg-zinc-900/60 border border-zinc-800/60 rounded-xl px-4 py-3">
-                    <Icon className={cn("h-5 w-5 shrink-0", s.color)} />
+                  <div key={s.label} className="flex items-center gap-3 bg-zinc-900/60 border border-zinc-800/60 rounded-xl px-3 xl:px-4 py-2.5 xl:py-3">
+                    <Icon className={cn("h-4 w-4 xl:h-5 xl:w-5 shrink-0", s.color)} />
                     <span className="text-sm text-zinc-300 font-medium">{s.label}</span>
                   </div>
                 );
               })}
             </div>
+
+            {/* Mockup: só em telas altas o bastante para não empurrar a barra */}
+            <div className="mt-6 hidden min-[900px]:flex justify-center pb-2">
+              <AppMockup compact />
+            </div>
           </div>
 
-          {/* Mockup do app — visível sempre no desktop */}
-          <div className="mt-8 flex justify-center">
-            <AppMockup />
+          {/* Barra comercial sempre visível no rodapé do painel */}
+          <div className="relative z-10 mt-4 shrink-0 pt-2">
+            <SocialProofBar />
           </div>
-        </div>
-
-        {/* Prova social (só informações verdadeiras) */}
-        <div className="relative z-10 mt-8 space-y-3">
-          <SocialProofBar />
         </div>
       </div>
 
       {/* ── painel direito — formulário ───────────────────────────────────── */}
-      <div className="flex-1 flex flex-col px-5 py-8 md:px-10 md:py-12 max-w-lg mx-auto w-full md:max-w-none md:mx-0">
+      <div
+        className={cn(
+          "flex-1 flex flex-col px-5 py-8 sm:px-8 lg:px-10 lg:py-10 w-full max-w-lg mx-auto lg:max-w-xl xl:max-w-none lg:mx-0",
+          step < 4 && "lg:justify-center lg:min-h-[100dvh]",
+        )}
+      >
 
-        {/* Mobile: logo */}
-        <div className="flex items-center mb-8 md:hidden">
+        {/* Mobile / tablet: logo */}
+        <div className="flex items-center mb-6 lg:hidden">
           <BrandLockup className="h-8" priority />
         </div>
 
         {/* Barra de progresso */}
         {step < 4 && (
-          <div className="mb-8">
+          <div className="mb-6 lg:mb-8 shrink-0">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-zinc-500 font-medium">Etapa {step + 1} de {TOTAL_STEPS - 1}</span>
               <span className="text-xs text-zinc-500 font-medium">{progress}%</span>
@@ -220,7 +225,8 @@ export default function ComecarPage() {
 
         {/* Conteúdo animado */}
         <div className={cn(
-          "flex-1 flex flex-col transition-all duration-220",
+          "flex flex-col transition-all duration-220",
+          step < 4 ? "lg:flex-none" : "flex-1",
           animating
             ? slideDir === "right" ? "-translate-x-8 opacity-0" : "translate-x-8 opacity-0"
             : "translate-x-0 opacity-100",
@@ -357,7 +363,7 @@ export default function ComecarPage() {
 
           {/* ETAPA 4 — Preços */}
           {step === 4 && (
-            <div className="flex-1 flex flex-col gap-5 animate-in fade-in slide-in-from-right-4 duration-300 pb-6">
+            <div className="flex-1 flex flex-col gap-4 sm:gap-5 animate-in fade-in slide-in-from-right-4 duration-300 pb-8">
 
               {/* Cabeçalho */}
               <div>
@@ -369,76 +375,24 @@ export default function ComecarPage() {
                 </h2>
               </div>
 
-              {/* ① Social proof */}
+              {/* Barra comercial */}
               <SocialProofBar />
 
-              {/* ② Mockup do app — só mobile (desktop já tem no painel esquerdo) */}
-              <div className="md:hidden flex justify-center py-2">
-                <AppMockup />
-              </div>
-
-              {/* Features resumidas */}
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { icon: TrendingUp,    label: "Carteira inteligente" },
-                  { icon: Landmark,      label: "IR automático" },
-                  { icon: CalendarCheck, label: "Proventos" },
-                  { icon: BarChart2,     label: "Rentabilidade vs CDI" },
-                  { icon: Wallet,        label: "Controle de cartão" },
-                  { icon: Target,        label: "Metas e planejamento" },
-                ].map((f) => {
-                  const Icon = f.icon;
-                  return (
-                    <div key={f.label} className="flex items-center gap-2 text-xs text-zinc-400">
-                      <Icon className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                      {f.label}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* ③ FAQ */}
-              <div className="rounded-2xl border border-zinc-800 overflow-hidden">
-                <p className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500 border-b border-zinc-800">
-                  Perguntas frequentes
-                </p>
-                {FAQ_ITEMS.map((item, i) => (
-                  <div key={i} className={cn("border-zinc-800", i < FAQ_ITEMS.length - 1 && "border-b")}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-zinc-900/40 transition-colors"
-                    >
-                      <span className="text-sm font-medium text-zinc-200">{item.q}</span>
-                      <ChevronDown className={cn(
-                        "h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200",
-                        openFaq === i && "rotate-180",
-                      )} />
-                    </button>
-                    {openFaq === i && (
-                      <p className="px-4 pb-4 text-sm text-zinc-400 leading-relaxed">
-                        {item.a}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* ④ Garantia */}
-              <div className="flex gap-3 items-start bg-emerald-500/8 border border-emerald-500/25 rounded-2xl px-4 py-4">
+              {/* Garantia — curta, antes dos planos (mobile chega no CTA mais rápido) */}
+              <div className="flex gap-3 items-start bg-emerald-500/8 border border-emerald-500/25 rounded-2xl px-4 py-3.5">
                 <div className="h-9 w-9 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
                   <BadgeCheck className="h-5 w-5 text-emerald-400" />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-emerald-400">Teste grátis de 3 dias — sem risco</p>
                   <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                    Acesso completo por 3 dias. Se não gostar, é só avisar pelo WhatsApp antes do período acabar.
-                    <strong className="text-zinc-300"> Não cobramos nada. Sem contrato.</strong>
+                    Acesso completo por 3 dias. Depois continue no Muvo Grátis ou assine.
+                    <strong className="text-zinc-300"> Sem contrato.</strong>
                   </p>
                 </div>
               </div>
 
-              {/* Planos */}
+              {/* Planos primeiro — CTAs acima do FAQ */}
               <div className="flex flex-col gap-3">
                 {/* Grátis */}
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 space-y-3">
@@ -534,13 +488,60 @@ export default function ComecarPage() {
                 </div>
               </div>
 
+              {/* Features resumidas — compactas */}
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                {[
+                  { icon: TrendingUp,    label: "Carteira inteligente" },
+                  { icon: Landmark,      label: "IR automático" },
+                  { icon: CalendarCheck, label: "Proventos" },
+                  { icon: BarChart2,     label: "Rentabilidade vs CDI" },
+                  { icon: Wallet,        label: "Gastos e planejamento" },
+                  { icon: Target,        label: "Metas" },
+                ].map((f) => {
+                  const Icon = f.icon;
+                  return (
+                    <div key={f.label} className="flex items-center gap-2 text-xs text-zinc-400">
+                      <Icon className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      {f.label}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* FAQ depois dos planos */}
+              <div className="rounded-2xl border border-zinc-800 overflow-hidden">
+                <p className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-500 border-b border-zinc-800">
+                  Perguntas frequentes
+                </p>
+                {FAQ_ITEMS.map((item, i) => (
+                  <div key={i} className={cn("border-zinc-800", i < FAQ_ITEMS.length - 1 && "border-b")}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-zinc-900/40 transition-colors min-h-11"
+                    >
+                      <span className="text-sm font-medium text-zinc-200">{item.q}</span>
+                      <ChevronDown className={cn(
+                        "h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200",
+                        openFaq === i && "rotate-180",
+                      )} />
+                    </button>
+                    {openFaq === i && (
+                      <p className="px-4 pb-4 text-sm text-zinc-400 leading-relaxed">
+                        {item.a}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
               <p className="text-[11px] text-center text-zinc-600 leading-relaxed">
-                Acesso liberado após confirmação do Pix. Estimativas de renda não são recomendação
-                de investimento (CVM). Cancelamento a qualquer momento.
+                No site o acesso é liberado após confirmação do Pix; no app Android, pela Google Play.
+                Estimativas não são recomendação de investimento (CVM). Cancelamento a qualquer momento.
               </p>
 
               <div className="text-center">
-                <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
+                <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors inline-flex min-h-11 items-center">
                   Já sou assinante — entrar
                 </Link>
               </div>
@@ -577,24 +578,20 @@ function SocialProofBar() {
 }
 
 // ── Mockup do app ─────────────────────────────────────────────────────────────
-function AppMockup() {
+function AppMockup({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="w-48 shrink-0">
-      {/* Frame do celular */}
+    <div className={cn("shrink-0", compact ? "w-40 xl:w-44" : "w-48")}>
       <div className="border-2 border-zinc-700 rounded-[2rem] bg-zinc-950 p-1.5 shadow-2xl shadow-black/60">
-        {/* Barra de status */}
         <div className="flex items-center justify-between px-4 py-1.5">
           <span className="text-[9px] text-zinc-500 font-medium">9:41</span>
           <div className="flex gap-1">
-            {[...Array(3)].map((_, i) => (
+            {[0, 1, 2].map((i) => (
               <div key={i} className="h-1 w-1 rounded-full bg-zinc-600" />
             ))}
           </div>
         </div>
 
-        {/* Conteúdo da tela */}
-        <div className="bg-zinc-900 rounded-[1.5rem] overflow-hidden px-3 py-3 space-y-3">
-          {/* Header do app */}
+        <div className={cn("bg-zinc-900 rounded-[1.5rem] overflow-hidden px-3 py-3", compact ? "space-y-2" : "space-y-3")}>
           <div className="flex items-center justify-between">
             <BrandLockup tone="onDark" className="h-5" />
             <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center">
@@ -602,14 +599,12 @@ function AppMockup() {
             </div>
           </div>
 
-          {/* Patrimônio */}
           <div className="bg-zinc-800/60 rounded-xl px-3 py-2.5">
             <p className="text-[8px] text-zinc-500">Patrimônio total</p>
             <p className="text-sm font-bold text-blue-400 tabular-nums">R$ 12.450,00</p>
             <p className="text-[8px] text-zinc-600 mt-0.5">renda fixa + ações</p>
           </div>
 
-          {/* Barra de alocação */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[8px] text-zinc-500">Alocação atual</span>
@@ -619,28 +614,25 @@ function AppMockup() {
               <div className="bg-emerald-500 rounded-l-full" style={{ width: "68%" }} />
               <div className="bg-blue-500 rounded-r-full flex-1" />
             </div>
-            <div className="flex justify-between mt-1">
-              <span className="text-[7px] text-zinc-600">Renda Fixa</span>
-              <span className="text-[7px] text-zinc-600">Ações</span>
-            </div>
           </div>
 
-          {/* Ativos */}
-          <div className="space-y-1.5">
-            {[
-              { name: "TURBO", sub: "Nubank", val: "R$ 5.110", color: "text-green-400" },
-              { name: "MXRF11", sub: "FII",   val: "R$ 3.240", color: "text-green-400" },
-              { name: "PETR4",  sub: "Ação",  val: "R$ 2.100", color: "text-blue-400" },
-            ].map((a) => (
-              <div key={a.name} className="flex items-center justify-between bg-zinc-800/40 rounded-lg px-2 py-1.5">
-                <div>
-                  <p className="text-[9px] font-bold text-zinc-200">{a.name}</p>
-                  <p className="text-[7px] text-zinc-600">{a.sub}</p>
+          {!compact && (
+            <div className="space-y-1.5">
+              {[
+                { name: "TURBO", sub: "Nubank", val: "R$ 5.110", color: "text-green-400" },
+                { name: "MXRF11", sub: "FII",   val: "R$ 3.240", color: "text-green-400" },
+                { name: "PETR4",  sub: "Ação",  val: "R$ 2.100", color: "text-blue-400" },
+              ].map((a) => (
+                <div key={a.name} className="flex items-center justify-between bg-zinc-800/40 rounded-lg px-2 py-1.5">
+                  <div>
+                    <p className="text-[9px] font-bold text-zinc-200">{a.name}</p>
+                    <p className="text-[7px] text-zinc-600">{a.sub}</p>
+                  </div>
+                  <p className={cn("text-[9px] font-semibold tabular-nums", a.color)}>{a.val}</p>
                 </div>
-                <p className={cn("text-[9px] font-semibold tabular-nums", a.color)}>{a.val}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <p className="text-[10px] text-center text-zinc-600 mt-2">Dados ilustrativos</p>
@@ -651,7 +643,7 @@ function AppMockup() {
 // ── sub-componentes ───────────────────────────────────────────────────────────
 function FormStep({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <div className="flex-1 flex flex-col gap-5">
+    <div className="flex flex-col gap-5 w-full">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold leading-tight text-white">{title}</h1>
         <p className="text-zinc-400 text-sm mt-2 leading-relaxed">{subtitle}</p>
