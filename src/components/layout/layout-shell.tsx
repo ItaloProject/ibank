@@ -19,6 +19,7 @@ import { NavigationSplash } from "@/components/navigation-splash";
 import { AlertsProvider } from "@/components/notifications/alerts-provider";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { TrialBanner } from "@/components/trial-banner";
+import { FreePlanBanner } from "@/components/free-plan-banner";
 
 const PUBLIC_PATHS = new Set(["/vender", "/comecar", "/politica-privacidade", "/termos-de-uso", "/excluir-conta", "/~offline"]);
 /** Abertas a todos; assinantes as veem dentro do app. Vídeos: o YouTube proíbe cobrar para assistir no player incorporado. */
@@ -166,6 +167,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           <NotificationBell />
         </div>
         <TrialBanner />
+        <FreePlanBanner />
         <main
           className="flex-1 overflow-y-auto overflow-x-hidden bg-background pb-bottom-nav scrollbar-thin-dark"
           onClick={() => { if (mobileOpen) setMobileOpen(false); }}

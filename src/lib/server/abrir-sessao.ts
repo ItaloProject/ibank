@@ -3,8 +3,9 @@ import sql from "@/lib/db";
 import { getSession, signToken } from "@/lib/auth";
 import { VALIDADE_TOKEN_SEG } from "@/lib/token-renovacao";
 import { describeDevice, isSessionAlive } from "@/lib/session";
-import { hasBotAccess, isSubscriptionActive } from "@/lib/subscription";
+import { isSubscriptionActive } from "@/lib/subscription";
 import { hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";
+import { entitlementsFor, PLANO_GRATUITO } from "@/lib/plans";
 import { dataDeExclusao, diasDeTesteRestantes, testeAtivo } from "@/lib/trial";
 import { billingConfigurado, identificadorDeConta } from "@/lib/server/play-billing";
 
@@ -31,6 +32,13 @@ type LinhaUsuario = {
 /** O que o app e o site recebem sobre o usuário logado. Igual em /login, /google e /me. */
 export function dadosDoUsuario(user: LinhaUsuario) {
   const fimTeste = (user.trial_ends_at as string | Date | null | undefined) ?? null;
+  const trialActive = testeAtivo(fimTeste);
+  const entitlements = entitlementsFor({
+    plan: user.plan,
+    bot_enabled: user.bot_enabled,
+    is_admin: user.is_admin,
+    trialActive,
+  });
   return {
     id: user.user_id,
     name: user.name,
@@ -39,7 +47,7 @@ export function dadosDoUsuario(user: LinhaUsuario) {
     investmentProfile: (user.investment_profile as string | null) ?? null,
     carteiraVista: hasSeenCarteira(user),
     needsRiskQuiz: needsRiskQuiz(user),
-    botEnabled: hasBotAccess(user),
+    botEnabled: entitlements.bot,
     subscriptionActive: isSubscriptionActive(user),
     paidUntil: user.paid_until ? String(user.paid_until).slice(0, 10) : null,
     plan: (user.plan as string | null) ?? "assinante",
@@ -50,13 +58,23 @@ export function dadosDoUsuario(user: LinhaUsuario) {
     billingDisponivel: billingConfigurado(),
     // Teste grátis: quando acaba e quantos dias faltam (0 se não há teste ou já acabou).
     trialEndsAt: fimTeste ? new Date(fimTeste).toISOString() : null,
-    trialActive: testeAtivo(fimTeste),
+    trialActive,
     trialDaysLeft: diasDeTesteRestantes(fimTeste),
-    // Conta de teste que não assinou: dia em que os dados serão apagados (só depois que o teste acabou).
+    // Conta de teste que não assinou nem virou gratuita: dia em que os dados serão apagados.
     dataExclusao:
-      user.plan === "teste" && !user.paid_until && fimTeste && !testeAtivo(fimTeste)
+      user.plan === "teste" && !user.paid_until && fimTeste && !trialActive
         ? (dataDeExclusao(fimTeste)?.toISOString() ?? null)
         : null,
+    // Freemium: direitos e limites para o app montar upselles e travas de UI.
+    entitlements: {
+      plan: entitlements.plan,
+      label: entitlements.label,
+      bot: entitlements.bot,
+      marketAi: entitlements.marketAi,
+      impostos: entitlements.impostos,
+      limits: entitlements.limits,
+      isFree: entitlements.plan === PLANO_GRATUITO,
+    },
   };
 }
 

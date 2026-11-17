@@ -87,7 +87,11 @@ const FAQ_ITEMS = [
   },
   {
     q: "Como funciona o teste grátis de 3 dias?",
-    a: "Você recebe acesso completo por 3 dias sem pagar nada. Só cobramos se você decidir continuar, via Pix mensal. Se decidir não continuar, basta avisar pelo WhatsApp antes do fim do período — sem multa, sem burocracia.",
+    a: "Você recebe acesso completo por 3 dias sem pagar nada. Depois pode continuar no Muvo Grátis (com limites) ou assinar Assinante (R$ 30) / Completo com bot (R$ 35). Sem multa e sem burocracia.",
+  },
+  {
+    q: "Existe versão gratuita?",
+    a: "Sim. Depois do teste, você pode ficar no Muvo Grátis para sempre: planejamento e investimentos básicos, com limites. Bot com IA, pesquisa de mercado e IR completo ficam nos planos pagos.",
   },
   {
     q: "Meus investimentos ficam seguros?",
@@ -436,6 +440,34 @@ export default function ComecarPage() {
 
               {/* Planos */}
               <div className="flex flex-col gap-3">
+                {/* Grátis */}
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-lg">Muvo Grátis</p>
+                      <p className="text-xs text-zinc-500">Depois do teste — permanente</p>
+                    </div>
+                    <p className="text-2xl font-bold tabular-nums shrink-0">
+                      R$ 0<span className="text-sm font-medium text-zinc-500">/mês</span>
+                    </p>
+                  </div>
+                  <ul className="space-y-1.5 text-sm text-zinc-400">
+                    {[
+                      "Dashboard e planejamento (até 3 grupos)",
+                      "Até 2 contas de investimento",
+                      "Vídeos e simulador",
+                      "Sem bot e sem IA de mercado",
+                    ].map((t) => (
+                      <li key={t} className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-zinc-500 shrink-0" /> {t}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[11px] text-zinc-500 leading-relaxed">
+                    No app (Play Store), após o teste você escolhe continuar grátis ou assinar.
+                  </p>
+                </div>
+
                 {/* Assinante */}
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4">
                   <div className="flex items-start justify-between gap-3">

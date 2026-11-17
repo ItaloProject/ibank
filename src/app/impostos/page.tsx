@@ -18,6 +18,8 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 import { SplashScreen } from "@/components/splash-screen";
+import Link from "next/link";
+import { useUser } from "@/context/user-context";
 
 const CAT_COLOR: Record<TaxCategory, string> = {
   acoes: "text-emerald-600 bg-emerald-500/10",
@@ -30,16 +32,22 @@ function monthLabel(m: string) {
 }
 
 export default function ImpostosPage() {
+  const { user } = useUser();
   const [trades, setTrades] = useState<StockTrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [year, setYear] = useState<string>("todos");
+  const sohGratis = user?.plan === "gratuito" && !user?.trialActive;
 
   useEffect(() => {
+    if (sohGratis) {
+      setLoading(false);
+      return;
+    }
     getStockTrades()
       .then((t) => setTrades(Array.isArray(t) ? (t as StockTrade[]) : []))
       .finally(() => setLoading(false));
-  }, []);
+  }, [sohGratis]);
 
   const allRows = useMemo(() => computeMonthlyTax(trades), [trades]);
   const lossPool = useMemo(() => currentLossPool(allRows), [allRows]);
@@ -57,6 +65,28 @@ export default function ImpostosPage() {
 
   if (loading) {
     return <SplashScreen />;
+  }
+
+  if (sohGratis) {
+    return (
+      <PageShell>
+        <PageHeader title="Imposto de Renda" description="Disponível nos planos pagos" width="medium" />
+        <PageBody width="medium">
+          <div className="rounded-2xl border bg-card p-6 text-center space-y-3">
+            <Receipt className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              No Muvo Grátis o módulo de IR completo fica bloqueado. Assine o Assinante ou o Completo para calcular DARF e prejuízos.
+            </p>
+            <Link
+              href="/comecar"
+              className="inline-flex items-center justify-center rounded-xl bg-foreground px-4 py-2.5 text-sm font-semibold text-background"
+            >
+              Ver planos
+            </Link>
+          </div>
+        </PageBody>
+      </PageShell>
+    );
   }
 
   return (

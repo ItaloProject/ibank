@@ -1,5 +1,6 @@
 import sql from "@/lib/db";
 import { missingColumns, runDdl } from "@/lib/schema-check";
+import { PLANO_GRATUITO } from "@/lib/plans";
 import { testeAtivo } from "@/lib/trial";
 
 let ensured = false;
@@ -38,11 +39,14 @@ export function isSubscriptionActive(row: {
   is_active?: boolean | null;
   paid_until?: string | Date | null;
   trial_ends_at?: string | Date | null;
+  plan?: string | null;
 }): boolean {
   if (row.is_admin) return true;
   if (row.is_active === false) return false;
   // Teste grátis em andamento libera o uso, mesmo sem data de assinatura.
   if (testeAtivo(row.trial_ends_at)) return true;
+  // Freemium permanente (Play Store): acesso com funcionalidades limitadas.
+  if (row.plan === PLANO_GRATUITO) return true;
   if (!row.paid_until) return false;
   const until = String(row.paid_until).slice(0, 10);
   const today = new Date().toISOString().slice(0, 10);

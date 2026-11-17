@@ -298,7 +298,13 @@ export default function UsuariosPage() {
                           </button>
                           <span className="text-muted-foreground/30 text-xs">·</span>
                           <span className="text-xs text-muted-foreground">
-                            {u.plan === "completo" ? "Completo R$35" : "R$30"}
+                            {u.plan === "gratuito"
+                              ? "Grátis"
+                              : u.plan === "teste"
+                              ? "Teste"
+                              : u.plan === "completo"
+                              ? "Completo R$35"
+                              : "R$30"}
                           </span>
                           {status && (
                             <>

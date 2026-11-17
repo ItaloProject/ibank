@@ -36,7 +36,8 @@ MUVO é o único app de finanças pessoais onde seus dados ficam no seu próprio
 - Multi-usuário com admin panel (escopo futuro público)
 - PWA com offline support (serwist)
 - Stack: Next.js 16, React 18, Tailwind CSS + shadcn/ui, Supabase PostgreSQL, TypeScript
-- Autenticação por sessão JWT (sem OAuth externo)
+- Autenticação por sessão JWT + Google (Play Store)
+- **Freemium:** teste 3 dias → Muvo Grátis (limites) ou Assinante R$ 30 / Completo R$ 35 — ver `docs/FREEMIUM.md`
 
 ## Brand Commitments
 

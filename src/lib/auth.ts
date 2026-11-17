@@ -95,7 +95,7 @@ export async function requireUserId(
   // Reconsulta is_active no banco a cada requisição -- o JWT sozinho fica
   // valido por 7 dias e nao saberia que a conta foi desativada nesse meio-tempo.
   const rows = await sql`
-    SELECT is_active, is_admin, paid_until, trial_ends_at, active_session_id
+    SELECT is_active, is_admin, paid_until, trial_ends_at, plan, active_session_id
     FROM app_users WHERE user_id = ${session.userId}
   `;
   if (rows.length === 0 || rows[0].is_active === false) return SESSION_STALE;

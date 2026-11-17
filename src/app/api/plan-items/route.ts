@@ -4,6 +4,7 @@ import sql from "@/lib/db";
 import { syncInstallmentItems } from "@/lib/installments";
 import { ensurePlanGroupSchema } from "@/lib/plan-groups";
 import { MONTH_RE } from "@/lib/plan-income";
+import { enforcePlanLimit } from "@/lib/plan-limits";
 
 export async function GET(request: Request) {
   try {
@@ -31,6 +32,13 @@ export async function POST(request: Request) {
     if (auth instanceof NextResponse) return auth;
     const { userId } = auth;
     const { group_id, month, name, type, planned, actual } = await request.json();
+    if (typeof month === "string" && MONTH_RE.test(month)) {
+      const existentes = await sql`
+        SELECT COUNT(*)::int AS n FROM plan_items WHERE user_id = ${userId} AND month = ${month}
+      `;
+      const bloqueio = await enforcePlanLimit(userId, "planItemsPerMonth", Number(existentes[0]?.n ?? 0));
+      if (bloqueio) return bloqueio;
+    }
     const rows = await sql`
       INSERT INTO plan_items (user_id, group_id, month, name, type, planned, actual)
       VALUES (${userId}, ${group_id}, ${month}, ${name}, ${type}, ${planned ?? 0}, ${actual ?? 0})

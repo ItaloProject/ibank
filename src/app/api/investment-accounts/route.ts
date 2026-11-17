@@ -3,6 +3,7 @@ import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
 import { ensureAccountColumns } from "@/lib/account-schema";
 import { validateAccountRate } from "@/lib/account-rate";
+import { enforcePlanLimit } from "@/lib/plan-limits";
 
 export async function GET() {
   try {
@@ -29,6 +30,10 @@ export async function POST(request: Request) {
       name, institution,
       is_turbo = false, cdi_percent = null, max_rendimento = null, valor_liquido = null,
     } = body;
+
+    const existentes = await sql`SELECT COUNT(*)::int AS n FROM investment_accounts WHERE user_id = ${userId}`;
+    const bloqueio = await enforcePlanLimit(userId, "investmentAccounts", Number(existentes[0]?.n ?? 0));
+    if (bloqueio) return bloqueio;
 
     let rate = null;
     if (body.rate_index != null) {
