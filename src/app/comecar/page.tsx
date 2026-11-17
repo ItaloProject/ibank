@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowRight, Check, TrendingUp, Wallet, Bot, Smartphone,
   BarChart2, Shield, CalendarCheck, Landmark, Target,
-  ChevronLeft, MessageCircle, Star, ChevronDown, Users,
+  ChevronLeft, MessageCircle, ChevronDown, Users,
   BadgeCheck, Zap, Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -66,23 +66,6 @@ const SIDE_CONTENT = [
   },
 ];
 
-// Depoimentos ilustrativos — não representam clientes reais, usados apenas
-// para demonstrar o layout enquanto não há depoimentos reais coletados.
-const TESTIMONIALS: { name: string; initials: string; color: string; quote: string }[] = [
-  {
-    name: "Raimundo Nonato",
-    initials: "RT",
-    color: "bg-blue-600",
-    quote: "Finalmente tenho controle real da minha carteira. O cálculo de IR automático me salvou muito tempo na declaração do imposto de renda.",
-  },
-  {
-    name: "Antonio carlos",
-    initials: "AC",
-    color: "bg-emerald-600",
-    quote: "Uso todo dia para acompanhar o cartão e as ações. É simples e direto ao ponto.",
-  },
-];
-
 const GOAL_OPTIONS: { id: Goal; label: string; tagline: string; icon: React.ElementType; color: string }[] = [
   { id: "aposentadoria", label: "Aposentadoria",      tagline: "Crescimento no longo prazo",    icon: Landmark,      color: "border-blue-500/60 bg-blue-500/10 text-blue-400" },
   { id: "renda_mensal",  label: "Renda Mensal",       tagline: "Proventos todo mês",             icon: CalendarCheck, color: "border-emerald-500/60 bg-emerald-500/10 text-emerald-400" },
@@ -103,8 +86,8 @@ const FAQ_ITEMS = [
     a: "Não. O MUVO é um PWA — abre direto no navegador do celular ou computador. Você pode salvar na tela inicial como um app normal, sem precisar da App Store ou Play Store.",
   },
   {
-    q: "Como funciona o período grátis de 15 dias?",
-    a: "Você recebe acesso completo por 15 dias sem pagar nada. Só cobramos após esse período, via Pix mensal. Se decidir não continuar, basta avisar pelo WhatsApp antes do fim do período — sem multa, sem burocracia.",
+    q: "Como funciona o teste grátis de 3 dias?",
+    a: "Você recebe acesso completo por 3 dias sem pagar nada. Só cobramos se você decidir continuar, via Pix mensal. Se decidir não continuar, basta avisar pelo WhatsApp antes do fim do período — sem multa, sem burocracia.",
   },
   {
     q: "Meus investimentos ficam seguros?",
@@ -123,7 +106,7 @@ function whatsappUrl(lead: LeadData, plan: "assinante" | "completo") {
   const aporteLabel = APORTE_OPTIONS.find((a) => a.id === lead.aporte)?.label ?? lead.aporte;
   const planLabel = plan === "completo" ? "Completo R$ 45 (app + bot)" : "Assinante R$ 30";
   const text = encodeURIComponent(
-    `Olá! Me chamo ${lead.nome} e tenho interesse no MUVO — plano ${planLabel}.\n\nMeu objetivo: ${goalLabel}\nInvisto: ${aporteLabel}\nWhatsApp: ${lead.whatsapp}\n\nPode me passar os detalhes para começar os 15 dias grátis?`,
+    `Olá! Me chamo ${lead.nome} e tenho interesse no MUVO — plano ${planLabel}.\n\nMeu objetivo: ${goalLabel}\nInvisto: ${aporteLabel}\nWhatsApp: ${lead.whatsapp}\n\nPode me passar os detalhes para começar o teste grátis de 3 dias?`,
   );
   return `https://wa.me/${phone}?text=${text}`;
 }
@@ -204,35 +187,9 @@ export default function ComecarPage() {
           </div>
         </div>
 
-        {/* Social proof + depoimentos */}
+        {/* Prova social (só informações verdadeiras) */}
         <div className="relative z-10 mt-8 space-y-3">
           <SocialProofBar />
-          {TESTIMONIALS.map((t, i) => (
-            <div key={i} className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-5">
-              <div className="flex items-start gap-3">
-                <Avatar initials={t.initials} color={t.color} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex gap-0.5 mb-1.5">
-                    {[...Array(5)].map((_, j) => (
-                      <Star key={j} className="h-3 w-3 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <p className="text-sm text-zinc-300 leading-relaxed">
-                    &ldquo;{t.quote}&rdquo;
-                  </p>
-                  <p className="text-xs text-zinc-500 mt-2 font-medium">
-                    {t.name}
-                  </p>
-                  <p className="text-[7px] text-zinc-600 font-normal mt-0.5">
-                    Cliente fictício (ilustrativo)
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="pt-1">
-            <WhatsappMockup />
-          </div>
         </div>
       </div>
 
@@ -469,9 +426,9 @@ export default function ComecarPage() {
                   <BadgeCheck className="h-5 w-5 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-emerald-400">15 dias grátis — sem risco nenhum</p>
+                  <p className="text-sm font-bold text-emerald-400">Teste grátis de 3 dias — sem risco</p>
                   <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                    Acesso completo por 15 dias. Se não gostar, é só avisar pelo WhatsApp antes do período acabar.
+                    Acesso completo por 3 dias. Se não gostar, é só avisar pelo WhatsApp antes do período acabar.
                     <strong className="text-zinc-300"> Não cobramos nada. Sem contrato.</strong>
                   </p>
                 </div>
@@ -486,7 +443,7 @@ export default function ComecarPage() {
                       <p className="font-bold text-lg">Assinante</p>
                       <p className="text-xs text-zinc-500">App completo sem bot</p>
                       <span className="inline-block mt-1.5 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-2.5 py-0.5">
-                        15 dias grátis, após R$ 30/mês
+                        3 dias grátis, depois R$ 30/mês
                       </span>
                     </div>
                     <p className="text-2xl font-bold tabular-nums shrink-0">
@@ -520,7 +477,7 @@ export default function ComecarPage() {
                       <p className="font-bold text-lg">Completo</p>
                       <p className="text-xs text-zinc-500">App + MUVO Bot com IA</p>
                       <span className="inline-block mt-1.5 text-[11px] font-semibold text-violet-400 bg-violet-500/10 border border-violet-500/30 rounded-full px-2.5 py-0.5">
-                        15 dias grátis, após R$ 45/mês
+                        3 dias grátis, depois R$ 45/mês
                       </span>
                     </div>
                     <p className="text-2xl font-bold tabular-nums shrink-0">
@@ -564,25 +521,14 @@ export default function ComecarPage() {
 }
 
 // ── Avatar ilustrativo (iniciais, não é foto de pessoa real) ─────────────────
-function Avatar({ initials, color }: { initials: string; color: string }) {
-  return (
-    <div className={cn(
-      "h-10 w-10 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0",
-      color
-    )}>
-      {initials}
-    </div>
-  );
-}
-
 // ── Social proof bar ──────────────────────────────────────────────────────────
 function SocialProofBar() {
   return (
     <div className="grid grid-cols-3 gap-0 rounded-2xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
       <div className="flex flex-col items-center justify-center py-3.5 px-2 text-center border-r border-zinc-800">
         <Users className="h-4 w-4 text-emerald-400 mb-1" />
-        <p className="text-base font-bold text-white leading-none">Exclusivo</p>
-        <p className="text-[10px] text-zinc-500 mt-0.5">acesso por convite</p>
+        <p className="text-base font-bold text-white leading-none">3 dias</p>
+        <p className="text-[10px] text-zinc-500 mt-0.5">de teste grátis</p>
       </div>
       <div className="flex flex-col items-center justify-center py-3.5 px-2 text-center border-r border-zinc-800">
         <Zap className="h-4 w-4 text-amber-400 mb-1" />
@@ -599,68 +545,6 @@ function SocialProofBar() {
 }
 
 // ── Mockup do app ─────────────────────────────────────────────────────────────
-function WhatsappMockup() {
-  return (
-    <div className="w-48 shrink-0 mx-auto">
-      <div className="border-2 border-zinc-700 rounded-[2rem] bg-zinc-950 p-1.5 shadow-2xl shadow-black/60">
-        {/* Barra de status */}
-        <div className="flex items-center justify-between px-4 py-1.5">
-          <span className="text-[9px] text-zinc-500 font-medium">9:41</span>
-          <div className="flex gap-1">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-1 w-1 rounded-full bg-zinc-600" />
-            ))}
-          </div>
-        </div>
-
-        {/* Tela do WhatsApp */}
-        <div className="bg-[#0b141a] rounded-[1.5rem] overflow-hidden">
-          {/* Header do contato */}
-          <div className="flex items-center gap-2 bg-[#1f2c34] px-3 py-2">
-            <ChevronLeft className="h-3.5 w-3.5 text-zinc-400" />
-            <div className="h-6 w-6 rounded-full bg-emerald-600 flex items-center justify-center text-[8px] font-bold text-white">
-              IB
-            </div>
-            <div>
-              <p className="text-[9px] font-semibold text-zinc-100">MUVO Suporte</p>
-              <p className="text-[7px] text-emerald-400">online</p>
-            </div>
-          </div>
-
-          {/* Mensagens */}
-          <div className="px-2.5 py-3 space-y-2 min-h-[180px]">
-            <div className="flex justify-start">
-              <div className="bg-[#1f2c34] rounded-lg rounded-tl-none px-2.5 py-1.5 max-w-[80%]">
-                <p className="text-[8px] text-zinc-200 leading-relaxed">
-                  Oi! Consegui organizar tudo minha carteira e o cartão no mesmo lugar 🙌
-                </p>
-                <p className="text-[6px] text-zinc-500 text-right mt-0.5">09:12</p>
-              </div>
-            </div>
-            <div className="flex justify-start">
-              <div className="bg-[#1f2c34] rounded-lg rounded-tl-none px-2.5 py-1.5 max-w-[80%]">
-                <p className="text-[8px] text-zinc-200 leading-relaxed">
-                  Muito obrigada pela ajuda, era exatamente isso que eu precisava!
-                </p>
-                <p className="text-[6px] text-zinc-500 text-right mt-0.5">09:13</p>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <div className="bg-[#005c4b] rounded-lg rounded-tr-none px-2.5 py-1.5 max-w-[80%]">
-                <p className="text-[8px] text-zinc-100 leading-relaxed">
-                  Que bom saber! Qualquer coisa é só chamar 😊
-                </p>
-                <p className="text-[6px] text-emerald-200/70 text-right mt-0.5">09:14 ✓✓</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <p className="text-[7px] text-center text-zinc-600 mt-1.5">Conversa fictícia (ilustrativo)</p>
-    </div>
-  );
-}
-
 function AppMockup() {
   return (
     <div className="w-48 shrink-0">
