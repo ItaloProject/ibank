@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import sql from "@/lib/db";
@@ -5,14 +6,15 @@ import { ensureSessionColumns } from "@/lib/session";
 import { opcoesCookieSessaoApagar } from "@/lib/session-cookie";
 
 export async function POST() {
-  // Libera a conta para o próximo login sem perguntar; só limpa se a sessão ainda for esta.
+  // Invalida a sessão no banco com sid revoked-… (NULL reabriria JWTs antigos via sessionMatches).
   try {
     const session = await getSession();
     if (session?.sid) {
       await ensureSessionColumns();
+      const revoked = `revoked-${randomUUID().replace(/-/g, "")}`;
       await sql`
         UPDATE app_users
-        SET active_session_id = NULL, session_device = NULL, session_started_at = NULL
+        SET active_session_id = ${revoked}, session_device = NULL, session_started_at = NULL
         WHERE user_id = ${session.userId} AND active_session_id = ${session.sid}
       `;
     }

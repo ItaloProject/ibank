@@ -18,9 +18,13 @@ export async function ensureSessionColumns() {
   ensured = true;
 }
 
-/** Sem sessão registrada no banco (conta antiga ou após sair), qualquer token válido continua valendo. */
+/**
+ * Conta antiga sem sid no banco: qualquer JWT com userId ainda vale.
+ * Depois do logout grava um sid "revoked-…" — nenhum token antigo casa.
+ */
 export function sessionMatches(dbSessionId: string | null | undefined, tokenSessionId: string | undefined): boolean {
   if (!dbSessionId) return true;
+  if (dbSessionId.startsWith("revoked-")) return false;
   return dbSessionId === tokenSessionId;
 }
 

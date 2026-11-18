@@ -18,6 +18,11 @@ describe("sessionMatches", () => {
   it("derruba token antigo, sem sid, quando já existe uma sessão registrada", () => {
     expect(sessionMatches("abc", undefined)).toBe(false);
   });
+
+  it("rejeita qualquer token depois do logout (sid revoked-…)", () => {
+    expect(sessionMatches("revoked-abc123", "abc")).toBe(false);
+    expect(sessionMatches("revoked-abc123", "revoked-abc123")).toBe(false);
+  });
 });
 
 describe("isSessionAlive", () => {

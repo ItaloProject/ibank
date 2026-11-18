@@ -3,10 +3,12 @@ import { getSession, signToken } from "@/lib/auth";
 import { tokenPrecisaRenovar } from "@/lib/token-renovacao";
 import { opcoesCookieSessao } from "@/lib/session-cookie";
 import sql from "@/lib/db";
-import { ensureSubscriptionColumns, hasBotAccess } from "@/lib/subscription";
+import { ensureSubscriptionColumns } from "@/lib/subscription";
 import { ensureOnboardingColumns } from "@/lib/onboarding";
 import { ensureSessionColumns, sessionMatches } from "@/lib/session";
 import { dadosDoUsuario } from "@/lib/server/abrir-sessao";
+import { entitlementsFor } from "@/lib/plans";
+import { testeAtivo } from "@/lib/trial";
 
 export async function GET() {
   const payload = await getSession();
@@ -35,6 +37,12 @@ export async function GET() {
     // Renova o token (mesmo login, mesma sessão) quando passa de 1 dia: quem usa o app pelo menos uma vez por semana
     // não é deslogado, e um token roubado ainda expira.
     if (tokenPrecisaRenovar(payload.iat)) {
+      const ent = entitlementsFor({
+        plan: user.plan as string | null,
+        bot_enabled: user.bot_enabled as boolean | null,
+        is_admin: user.is_admin as boolean | null,
+        trialActive: testeAtivo(user.trial_ends_at as string | Date | null),
+      });
       const token = await signToken({
         sid: payload.sid,
         userId: user.user_id,
@@ -42,7 +50,7 @@ export async function GET() {
         color: user.color,
         isAdmin: user.is_admin ?? false,
         investmentProfile: user.investment_profile ?? undefined,
-        botEnabled: hasBotAccess(user),
+        botEnabled: ent.bot,
       });
       resposta.cookies.set("ibank_session", token, opcoesCookieSessao());
     }

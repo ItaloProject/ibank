@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import sql from "@/lib/db";
-import { clearUpcomingInstallmentItems, ensureInstallmentSchema } from "@/lib/installments";
+import {
+  clearUpcomingInstallmentItems,
+  ensureInstallmentSchema,
+  mesAtualBrasil,
+  syncInstallmentItems,
+  syncInstallmentPaidFlags,
+} from "@/lib/installments";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -29,6 +35,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       `;
       if (!row) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
       await clearUpcomingInstallmentItems(userId, id);
+      await syncInstallmentItems(userId, mesAtualBrasil());
       return NextResponse.json(row);
     }
 
@@ -43,6 +50,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       RETURNING *
     `;
     if (!row) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+    // Garante o item do mês e alinha paid/actual com o contador.
+    await syncInstallmentItems(userId, mesAtualBrasil());
+    await syncInstallmentPaidFlags(userId, id);
     return NextResponse.json(row);
   } catch (err) {
     console.error("[PATCH /api/parcelamentos/:id]", err);

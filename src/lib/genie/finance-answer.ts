@@ -57,7 +57,7 @@ export function financeAnswer(cmd: FinanceCommand, cdi: number, plan: PlanNumber
         ? ["Na poupança o rendimento só entra no aniversário do depósito: antes de 30 dias não rende nada."]
         : [
             `CDI de ${pct(cdi)} ao ano, em ${r.businessDays} ${r.businessDays === 1 ? "dia útil" : "dias úteis"} (o CDI só rende em dia útil; feriados não são descontados).`,
-            cmd.product === "poupanca" ? "Na poupança o rendimento entra todo mês: este valor é uma estimativa." : "",
+            cmd.product === "poupanca" ? "Na poupança o rendimento só credita no aniversário do depósito: este valor é uma estimativa." : "",
             cmd.mil ? `Considerei ${money(cmd.amount)}, porque você escreveu "${cmd.amount} mil".` : "",
             free ? "Produto isento de IR e de IOF." : r.iofPct > 0 ? `Resgate antes de 30 dias: o IOF come ${pct(r.iofPct * 100, 0)} do rendimento.` : "",
           ];

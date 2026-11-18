@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -132,6 +132,8 @@ function PlanejamentoContent({ userId }: { userId: string }) {
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
+  const seedingGroups = useRef(false);
+
   const loadGroups = useCallback(async () => {
     try {
       const res = await fetch(`/api/plan-groups?user=${userId}`);
@@ -141,17 +143,23 @@ function PlanejamentoContent({ userId }: { userId: string }) {
         return;
       }
       if (data.length === 0) {
-        // Cria grupos padrão na primeira vez
-        const created = await Promise.all(
-          DEFAULT_GROUPS.map((g) =>
-            fetch("/api/plan-groups", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ user_id: userId, name: g.name, color: g.color }),
-            }).then((r) => r.json())
-          )
-        );
-        setGroups(created.filter((g): g is ExpenseGroup => Boolean(g?.id)));
+        // Evita seed paralelo (Strict Mode / remount) que duplicava os grupos padrão.
+        if (seedingGroups.current) return;
+        seedingGroups.current = true;
+        try {
+          const created = await Promise.all(
+            DEFAULT_GROUPS.map((g) =>
+              fetch("/api/plan-groups", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId, name: g.name, color: g.color }),
+              }).then((r) => r.json())
+            )
+          );
+          setGroups(created.filter((g): g is ExpenseGroup => Boolean(g?.id)));
+        } finally {
+          seedingGroups.current = false;
+        }
       } else {
         setGroups(data);
       }
@@ -170,6 +178,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
       ]);
       const data: Record<string, unknown>[] = await itemsRes.json();
       const incomeData = await incomeRes.json();
+      if (!itemsRes.ok) throw new Error((data as { error?: string })?.error || "Falha ao carregar itens");
       if (!incomeRes.ok) throw new Error(incomeData?.error);
       setItems(Array.isArray(data) ? data.map(toItem) : []);
       setIncomes(Array.isArray(incomeData.incomes) ? incomeData.incomes : []);

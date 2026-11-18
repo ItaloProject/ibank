@@ -3,6 +3,7 @@ import { requireUserId } from "@/lib/auth";
 import { consumeDailyQuota } from "@/lib/bot-schema";
 import { buildSearchQuery } from "@/lib/genie/chat";
 import { canLearn } from "@/lib/genie/knowledge";
+import { requirePaidFeature } from "@/lib/plan-limits";
 import { learnAnswer, recall, type Source } from "@/lib/server/genie-knowledge";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,9 @@ const cache = new Map<string, { at: number; data: Result }>();
 export async function POST(request: Request) {
   const auth = await requireUserId();
   if (auth instanceof NextResponse) return auth;
+
+  const gate = await requirePaidFeature(auth.userId, "marketAi");
+  if (gate) return gate;
 
   const body = (await request.json().catch(() => null)) as { text?: unknown; context?: unknown; fresh?: unknown; memoryOnly?: unknown } | null;
   const query = buildSearchQuery(typeof body?.text === "string" ? body.text : "", typeof body?.context === "string" ? body.context : null);

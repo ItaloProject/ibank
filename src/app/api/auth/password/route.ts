@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getSession, signToken } from "@/lib/auth";
+import { getSession, requireUserId, signToken } from "@/lib/auth";
 import sql from "@/lib/db";
 import { bloqueioAtivo, chaveTrocaSenha, limparFalhas, mensagemBloqueio, registrarFalha } from "@/lib/login-limit";
 import { describeDevice, ensureSessionColumns } from "@/lib/session";
@@ -11,8 +11,13 @@ import { avisarBloqueioLogin } from "@/lib/server/alerta-login";
 const TAMANHO_MINIMO_SENHA = 8;
 
 export async function POST(request: Request) {
+  // Exige a sessão ativa no banco (não só JWT): token pós-logout ou de outro aparelho não troca senha.
+  const auth = await requireUserId({ permitirAssinaturaExpirada: true });
+  if (auth instanceof NextResponse) return auth;
   const payload = await getSession();
-  if (!payload) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (!payload || payload.userId !== auth.userId) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
 
   const { senhaAtual, novaSenha } = await request.json();
   if (!senhaAtual || !novaSenha || typeof senhaAtual !== "string" || typeof novaSenha !== "string") {
