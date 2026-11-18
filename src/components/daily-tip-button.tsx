@@ -28,7 +28,7 @@ export function DailyTipButton() {
           setOpen(true);
         }}
       >
-        <Lightbulb className="h-4 w-4 text-amber-500" />
+        <Lightbulb className="h-4 w-4 text-[#C2A878]" />
         Dica
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -39,20 +39,20 @@ export function DailyTipButton() {
             <div
               aria-hidden
               className="pointer-events-none absolute left-1/2 top-[-6px] h-[200px] w-[200px] -translate-x-1/2 rounded-full"
-              style={{ background: "radial-gradient(circle, rgba(245,158,11,0.38), transparent 70%)" }}
+              style={{ background: "radial-gradient(circle, rgba(194,168,120,0.16), transparent 70%)" }}
             />
             <div
-              className="relative flex w-full flex-col items-center rounded-[28px] border border-amber-500/35 px-6 pb-6 pt-[76px] text-center shadow-[0_0_60px_-10px_rgba(245,158,11,0.45)]"
-              style={{ background: "linear-gradient(180deg, #2b2008 0%, #151515 38%, #111111 100%)" }}
+              className="relative flex w-full flex-col items-center rounded-[28px] border border-[#C2A878]/30 px-6 pb-6 pt-[76px] text-center shadow-[0_0_50px_-14px_rgba(194,168,120,0.22)]"
+              style={{ background: "linear-gradient(180deg, #1d1a15 0%, #151412 38%, #111111 100%)" }}
             >
-              <div className="flex items-center gap-1.5 text-amber-500">
+              <div className="flex items-center gap-1.5 text-[#C2A878]">
                 <Lightbulb className="h-4 w-4" />
-                <DialogTitle className="text-xs font-bold uppercase leading-none tracking-[0.2em] text-amber-500">
+                <DialogTitle className="text-xs font-bold uppercase leading-none tracking-[0.2em] text-[#C2A878]">
                   Dica do dia
                 </DialogTitle>
               </div>
               <p className="mt-1 text-sm text-zinc-400">{date}</p>
-              <span aria-hidden className="mt-2 h-10 font-serif text-5xl font-bold leading-[1.1] text-amber-500/60">
+              <span aria-hidden className="mt-2 h-10 font-serif text-5xl font-bold leading-[1.1] text-[#C2A878]/55">
                 “
               </span>
               <DialogDescription className="text-lg font-medium leading-7 text-zinc-100 sm:text-xl sm:leading-8">
@@ -61,7 +61,7 @@ export function DailyTipButton() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="mt-6 h-12 w-full rounded-[14px] bg-amber-500 text-base font-bold text-[#1a1200] transition-colors hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                className="mt-6 h-12 w-full rounded-[14px] bg-[#C2A878] text-base font-bold text-[#17130b] transition-colors hover:bg-[#CDB88E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E0D2B0]"
               >
                 Entendi
               </button>
