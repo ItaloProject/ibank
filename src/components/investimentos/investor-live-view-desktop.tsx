@@ -473,14 +473,17 @@ export function InvestorLiveViewDesktop({
 
         {/* ═══ HUB: padrão do app Android ═══════════════════════════ */}
         {tab === null && (
-          <LiveHubMenu
-            patrimonio={patrimonioTotal}
-            rebalancePendentes={rebalancePendentes}
-            onSelect={(destino) => {
-              if (destino === "aplicar") openMarket("hub");
-              else setTab(destino);
-            }}
-          />
+          <div className="flex min-h-full items-center">
+            <LiveHubMenu
+              variant="desktop"
+              patrimonio={patrimonioTotal}
+              rebalancePendentes={rebalancePendentes}
+              onSelect={(destino) => {
+                if (destino === "aplicar") openMarket("hub");
+                else setTab(destino);
+              }}
+            />
+          </div>
         )}
 
         {/* ═══ CARTEIRA ═════════════════════════════════════════════ */}
