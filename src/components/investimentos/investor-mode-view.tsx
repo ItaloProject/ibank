@@ -46,17 +46,6 @@ export type PortfolioAnalysis = {
   ipca12m: number | null;
 };
 
-function HeroValue({ value, active, suffix }: { value: string; active: boolean; suffix?: string }) {
-  return (
-    <div className={`flex flex-col items-center px-6 transition-opacity duration-700 ${active ? "opacity-100" : "opacity-0"}`}>
-      <p className="text-3xl sm:text-4xl font-black tabular-nums text-foreground leading-none text-center font-display">
-        {value}
-      </p>
-      {suffix && <p className="text-xs text-muted-foreground mt-2">{suffix}</p>}
-    </div>
-  );
-}
-
 function ScoreValue({ value, active, color }: { value: number; active: boolean; color: string }) {
   const shown = useCountUp(value, active);
   return (
@@ -381,21 +370,6 @@ export function InvestorModeView({
     );
   })();
 
-  const heroRingValue = (() => {
-    if (!(incomeGoal > 0)) return { value: "—", suffix: "defina a meta de renda" };
-    if (!path) return { value: "…", suffix: "calculando caminho" };
-    if (capitalReached) return { value: "Pronto", suffix: "patrimônio já cobre a renda" };
-    if (path.meses != null) {
-      return {
-        value: monthsLabel(path.meses),
-        suffix: path.anoPrevisto
-          ? `para gerar ${formatCurrency(incomeGoal)}/mês · ~${path.anoPrevisto}`
-          : `para gerar ${formatCurrency(incomeGoal)}/mês`,
-      };
-    }
-    return { value: "100+ anos", suffix: `para gerar ${formatCurrency(incomeGoal)}/mês neste ritmo` };
-  })();
-
   return (
     <div className="relative min-h-full bg-background text-foreground overflow-hidden">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -420,14 +394,14 @@ export function InvestorModeView({
 
       <div className="relative mx-auto max-w-5xl px-5 sm:px-8 py-8 sm:py-12">
         {/* 1. Caminho até a meta */}
-        <div className="flex flex-col items-center text-center mb-14 sm:mb-16">
+        <div className="flex flex-col items-start text-left mb-10 sm:mb-12">
           {incomeGoal > 0 ? (
             <>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight font-display text-foreground mb-1">
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight font-display text-foreground mb-1">
                 Renda de {formatCurrency(incomeGoal)}
                 <span className="text-base sm:text-lg font-bold text-muted-foreground">/mês</span>
               </h2>
-              <p className="text-sm text-muted-foreground mb-6 max-w-md">
+              <p className="text-sm text-muted-foreground mb-5 max-w-md">
                 {goalMonthlyContribution > 0 ? (
                   <>
                     Com aporte de{" "}
@@ -450,37 +424,21 @@ export function InvestorModeView({
             </p>
           )}
 
-          <div className="mb-4">
-            <ProgressRing
-              size={280}
-              radius={118}
-              stroke={6}
-              progress={incomeGoal > 0 ? capitalProgress : 0}
-              color={capitalReached ? "#34d399" : "hsl(var(--foreground))"}
-              duration={1.8}
-            >
-              {(inView) => <HeroValue value={heroRingValue.value} suffix={heroRingValue.suffix} active={inView} />}
-            </ProgressRing>
-          </div>
-
           {incomeGoal > 0 && path && (
-            <div className="mb-5 w-full max-w-md space-y-3 text-left">
+            <div className="mb-5 w-full space-y-4">
               {capitalReached ? (
                 <p className="text-sm text-muted-foreground">Patrimônio já cobre a renda-meta · alinhe a carteira no diagnóstico abaixo.</p>
               ) : (
                 <>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Falta acumular</span>
-                    <span className="font-bold tabular-nums text-foreground">{capitalProgress.toFixed(0)}% já</span>
+                  <div className="space-y-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-sm font-bold text-foreground">Progresso do capital</span>
+                      <span className="text-sm font-bold tabular-nums text-foreground">{capitalProgress.toFixed(0)}% já</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Falta acumular para gerar a renda desejada.</p>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-border/60" aria-hidden="true">
-                    <div className="h-full rounded-full bg-foreground transition-all duration-500" style={{ width: `${capitalProgress}%` }} />
-                  </div>
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="font-display text-2xl font-black tabular-nums text-foreground">
-                      {formatCurrency(showNominal && path.capitalNominal ? path.capitalNominal : path.capitalNecessario)}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">{showNominal ? "valor nominal" : "em valores de hoje"}</span>
+                  <div className="h-2 overflow-hidden rounded-full bg-border/60" aria-hidden="true">
+                    <div className="h-full rounded-full bg-foreground transition-all duration-500" style={{ width: `${Math.max(capitalProgress, 2)}%` }} />
                   </div>
                 </>
               )}
@@ -701,10 +659,10 @@ export function InvestorModeView({
                 <div className="rounded-2xl border border-border bg-card backdrop-blur-xl p-5 text-left">
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-2">Capital necessário</p>
                   <p className="text-2xl font-extrabold tabular-nums text-foreground font-display">
-                    {formatCurrency(path.capitalNecessario)}
+                    {formatCurrency(showNominal && path.capitalNominal ? path.capitalNominal : path.capitalNecessario)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    valores de hoje · ~{path.rendimentoRealAnualPct.toLocaleString("pt-BR")}% a.a. acima da inflação
+                    {showNominal && path.capitalNominal ? "valor nominal" : "valores de hoje"} · ~{path.rendimentoRealAnualPct.toLocaleString("pt-BR")}% a.a. acima da inflação
                   </p>
                 </div>
               </div>
