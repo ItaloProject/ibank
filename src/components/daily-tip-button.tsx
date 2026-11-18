@@ -1,22 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { tipOfTheDay } from "@/lib/daily-tip";
 
-/** Botão "Dica": abre a dica financeira do dia (muda todo dia). */
+function todayLabel() {
+  const label = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 export function DailyTipButton() {
   const [open, setOpen] = useState(false);
-  // Calculada ao abrir, para acompanhar a virada do dia sem recarregar a página.
   const [tip, setTip] = useState("");
+  const [date, setDate] = useState("");
 
   return (
     <>
@@ -25,6 +24,7 @@ export function DailyTipButton() {
         size="sm"
         onClick={() => {
           setTip(tipOfTheDay());
+          setDate(todayLabel());
           setOpen(true);
         }}
       >
@@ -32,14 +32,49 @@ export function DailyTipButton() {
         Dica
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5 text-amber-500" />
-              Dica do dia
-            </DialogTitle>
-            <DialogDescription className="text-base text-foreground">{tip}</DialogDescription>
-          </DialogHeader>
+        {/* Conteúdo transparente e sem overflow: o rato sobrepõe a borda superior do cartão dourado. */}
+        <DialogContent className="max-w-sm gap-0 overflow-visible border-0 bg-transparent p-0 shadow-none sm:p-0 [&>button]:hidden">
+          <style>{`@keyframes muvo-float{0%,100%{transform:translateY(-3px)}50%{transform:translateY(3px)}}@media (prefers-reduced-motion:no-preference){.muvo-float{animation:muvo-float 3.4s ease-in-out infinite}}`}</style>
+          <div className="relative flex flex-col items-center pt-[70px]">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute left-1/2 top-[-6px] h-[200px] w-[200px] -translate-x-1/2 rounded-full"
+              style={{ background: "radial-gradient(circle, rgba(245,158,11,0.38), transparent 70%)" }}
+            />
+            <div
+              className="relative flex w-full flex-col items-center rounded-[28px] border border-amber-500/35 px-6 pb-6 pt-[76px] text-center shadow-[0_0_60px_-10px_rgba(245,158,11,0.45)]"
+              style={{ background: "linear-gradient(180deg, #2b2008 0%, #151515 38%, #111111 100%)" }}
+            >
+              <div className="flex items-center gap-1.5 text-amber-500">
+                <Lightbulb className="h-4 w-4" />
+                <DialogTitle className="text-xs font-bold uppercase leading-none tracking-[0.2em] text-amber-500">
+                  Dica do dia
+                </DialogTitle>
+              </div>
+              <p className="mt-1 text-sm text-zinc-400">{date}</p>
+              <span aria-hidden className="mt-2 h-10 font-serif text-5xl font-bold leading-[1.1] text-amber-500/60">
+                “
+              </span>
+              <DialogDescription className="text-lg font-medium leading-7 text-zinc-100 sm:text-xl sm:leading-8">
+                {tip}
+              </DialogDescription>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="mt-6 h-12 w-full rounded-[14px] bg-amber-500 text-base font-bold text-[#1a1200] transition-colors hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+              >
+                Entendi
+              </button>
+            </div>
+            <Image
+              src="/bot/muvo-xadrez.webp"
+              alt="Muvo pensando na jogada"
+              width={800}
+              height={644}
+              priority
+              className="muvo-float pointer-events-none absolute left-1/2 top-0 h-[132px] w-auto -translate-x-1/2 select-none"
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </>
