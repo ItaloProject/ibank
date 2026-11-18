@@ -430,12 +430,10 @@ export function InvestorModeView({
                 <p className="text-sm text-muted-foreground">Patrimônio já cobre a renda-meta · alinhe a carteira no diagnóstico abaixo.</p>
               ) : (
                 <>
-                  <div className="space-y-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-sm font-bold text-foreground">Progresso do capital</span>
-                      <span className="text-sm font-bold tabular-nums text-foreground">{capitalProgress.toFixed(0)}% já</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Falta acumular para gerar a renda desejada.</p>
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <p className="text-sm font-bold text-foreground">Progresso do capital</p>
+                    <p className="mt-1 font-display text-2xl font-black tabular-nums text-emerald-400">{capitalProgress.toFixed(0)}% já</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Falta acumular para gerar a renda desejada.</p>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-border/60" aria-hidden="true">
                     <div className="h-full rounded-full bg-foreground transition-all duration-500" style={{ width: `${Math.max(capitalProgress, 2)}%` }} />
@@ -495,20 +493,25 @@ export function InvestorModeView({
           )}
 
           {(rendaRegistrada > 0 || rendaEstimada > 0) && (
-            <p className="text-xs text-muted-foreground mb-6 max-w-md leading-relaxed">
-              Renda hoje:{" "}
-              {rendaRegistrada > 0 && (
-                <><span className="font-semibold text-foreground">{formatCurrency(rendaRegistrada)}</span> registrados</>
-              )}
-              {rendaRegistrada > 0 && rendaEstimada > 0 && " · "}
-              {rendaEstimada > 0 && (
-                <><span className="font-semibold text-foreground">{formatCurrency(rendaEstimada)}</span> estimados</>
-              )}
-              {" "}/mês
-              {totalRendaMensal > 0 && incomeGoal > 0 && !capitalReached && (
-                <> · faltam {formatCurrency(Math.max(0, incomeGoal - totalRendaMensal))} na renda corrente</>
-              )}
-            </p>
+            <div className="mb-5 w-full rounded-2xl border border-border bg-card p-4">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Renda hoje</p>
+              <dl className="grid grid-cols-3 gap-3">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Registrados</dt>
+                  <dd className="mt-1 font-display text-base font-black tabular-nums text-foreground">{formatCurrency(rendaRegistrada)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Estimados</dt>
+                  <dd className="mt-1 font-display text-base font-black tabular-nums text-foreground">{formatCurrency(rendaEstimada)}</dd>
+                </div>
+                {incomeGoal > 0 && !capitalReached && (
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Faltam</dt>
+                    <dd className="mt-1 font-display text-base font-black tabular-nums text-foreground">{formatCurrency(Math.max(0, incomeGoal - totalRendaMensal))}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
           )}
 
           {editingGoal ? (
