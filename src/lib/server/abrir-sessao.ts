@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import sql from "@/lib/db";
-import { getSession, signToken } from "@/lib/auth";
+import { signToken } from "@/lib/auth";
 import { VALIDADE_TOKEN_SEG } from "@/lib/token-renovacao";
 import { opcoesCookieSessao } from "@/lib/session-cookie";
-import { describeDevice, isSessionAlive } from "@/lib/session";
+import { describeDevice } from "@/lib/session";
 import { isSubscriptionActive } from "@/lib/subscription";
 import { hasSeenCarteira, needsRiskQuiz } from "@/lib/onboarding";
 import { entitlementsFor, PLANO_GRATUITO } from "@/lib/plans";
@@ -80,37 +80,28 @@ export function dadosDoUsuario(user: LinhaUsuario) {
 }
 
 /**
- * Abre a sessão de um usuário já autenticado (senha ou Google): só vale um login por conta.
- * Se já existe outro aparelho, pergunta antes de desconectá-lo (a menos que `force`);
- * entrar de novo no mesmo aparelho (cookie com a sessão atual) não pergunta nada.
+ * Abre a sessão de um usuário já autenticado (senha ou Google).
+ * A conta pode ficar conectada em vários aparelhos ao mesmo tempo (celular e computador): todos
+ * compartilham o mesmo identificador de sessão. Se já existe uma sessão válida, ela é reaproveitada
+ * (sem derrubar nenhum aparelho); só é criada uma nova quando a conta não tem sessão ou a anterior foi
+ * revogada (troca de senha). O UPDATE é atômico, então dois logins ao mesmo tempo também convergem.
+ * `force` fica só por compatibilidade com o app e o site antigos: não é mais necessário.
  */
 export async function abrirSessao(request: Request, user: LinhaUsuario, force: boolean): Promise<NextResponse> {
-  const activeSessionId = user.active_session_id as string | null | undefined;
-  const currentCookieSid = (await getSession())?.sid;
-  const otherSession =
-    activeSessionId &&
-    activeSessionId !== currentCookieSid &&
-    isSessionAlive(user.session_started_at as string | Date | null);
-  if (otherSession && !force) {
-    return NextResponse.json(
-      {
-        code: "SESSION_ACTIVE",
-        error: "Esta conta já está conectada em outro dispositivo.",
-        device: (user.session_device as string | null) ?? "outro dispositivo",
-        since: new Date(user.session_started_at as string | Date).toISOString(),
-      },
-      { status: 409 },
-    );
-  }
-
-  const sid = crypto.randomUUID();
-  await sql`
+  void force;
+  const novoSid = crypto.randomUUID();
+  const atualizado = await sql`
     UPDATE app_users
-    SET active_session_id = ${sid},
+    SET active_session_id = CASE
+          WHEN active_session_id IS NULL OR active_session_id LIKE 'revoked-%' THEN ${novoSid}
+          ELSE active_session_id
+        END,
         session_device = ${describeDevice(request.headers.get("user-agent"))},
         session_started_at = NOW()
     WHERE user_id = ${user.user_id}
+    RETURNING active_session_id
   `;
+  const sid = (atualizado[0]?.active_session_id as string | undefined) ?? novoSid;
 
   const dados = dadosDoUsuario(user);
   const token = await signToken({
