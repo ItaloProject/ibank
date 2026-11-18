@@ -442,7 +442,7 @@ export function InvestorModeView({
                   <div className="rounded-2xl border border-border bg-card p-4">
                     <p className="text-sm font-bold text-foreground">Progresso do capital</p>
                     <p className="mt-1 font-display text-2xl font-black tabular-nums text-emerald-400">
-                      {capitalProgress.toFixed(0)}% já
+                      {capitalProgress.toFixed(0)}% já atingido
                     </p>
                     {capitalFalta > 0.005 ? (
                       <p className={`mt-2 text-sm font-bold tabular-nums ${capitalFaltaTone}`}>
@@ -460,7 +460,7 @@ export function InvestorModeView({
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={Math.round(capitalProgress)}
-                    aria-label={`Progresso do capital: ${capitalProgress.toFixed(0)}% já. Faltam ainda ${formatCurrency(capitalFalta)} (${capitalFaltaPct.toFixed(0)}%).`}
+                    aria-label={`Progresso do capital: ${capitalProgress.toFixed(0)}% já atingido. Faltam ainda ${formatCurrency(capitalFalta)} (${capitalFaltaPct.toFixed(0)}%).`}
                   >
                     <div className="h-full rounded-full bg-foreground transition-all duration-500" style={{ width: `${Math.max(capitalProgress, 2)}%` }} />
                   </div>
