@@ -3,7 +3,8 @@ import sql from "@/lib/db";
 import cardapioSql from "@/lib/cardapio-db";
 import { pizzariasDoAcesso, type LinhaAcesso } from "@/lib/permissoes-pizzaria";
 export type { LinhaAcesso } from "@/lib/permissoes-pizzaria";
-import { getSession, verifyToken } from "@/lib/auth";
+import { getSession, verifyToken, type SessionUser } from "@/lib/auth";
+import { ensureSessionColumns, sessionMatches } from "@/lib/session";
 import { lerSessaoGarcom } from "@/lib/garcom-sessao";
 
 /** garcomSlug: quando é um garçom, a única pizzaria dele. Garçom não tem conta no Muvo. */
@@ -11,12 +12,11 @@ export type UsuarioCardapio = { userId: string; name: string; isAdmin: boolean; 
 
 /**
  * Quem está chamando a API do cardápio. Aceita o token do login (Authorization: Bearer)
- * ou a sessão do próprio Muvo (cookie). Confere a conta no banco a cada chamada.
+ * ou a sessão do próprio Muvo (cookie). Confere a conta e a sessão ativa no banco a cada chamada.
  */
 export async function usuarioCardapio(request: Request): Promise<UsuarioCardapio | NextResponse> {
   const cabecalho = request.headers.get("authorization") ?? "";
-  let userId: string | null = null;
-  let name = "";
+  let payload: SessionUser | null = null;
 
   if (cabecalho.startsWith("Bearer ")) {
     const garcom = await lerSessaoGarcom(cabecalho.slice(7));
@@ -25,27 +25,30 @@ export async function usuarioCardapio(request: Request): Promise<UsuarioCardapio
       if (!ativo) return json({ error: "Sessão encerrada. Entre de novo." }, 401);
       return { userId: `garcom:${garcom.garcomId}`, name: ativo.nome as string, isAdmin: false, garcomSlug: garcom.slug };
     }
-    const payload = await verifyToken(cabecalho.slice(7));
-    if (payload?.userId) {
-      userId = payload.userId;
-      name = payload.name ?? "";
-    }
+    payload = await verifyToken(cabecalho.slice(7));
   } else {
-    const sessao = await getSession();
-    if (sessao?.userId) {
-      userId = sessao.userId;
-      name = sessao.name ?? "";
-    }
+    payload = await getSession();
   }
 
   // Respostas de erro também precisam do cabeçalho de CORS, senão o painel mostra "Failed to fetch" em vez de pedir login
-  if (!userId) return json({ error: "Não autenticado" }, 401);
+  if (!payload?.userId) return json({ error: "Não autenticado" }, 401);
 
-  const rows = await sql`SELECT is_active, is_admin, name FROM app_users WHERE user_id = ${userId}`;
+  await ensureSessionColumns();
+  const rows = await sql`
+    SELECT is_active, is_admin, name, active_session_id
+    FROM app_users WHERE user_id = ${payload.userId}
+  `;
   if (rows.length === 0 || rows[0].is_active === false) {
     return json({ error: "Sessão inválida. Faça login novamente." }, 401);
   }
-  return { userId, name: rows[0].name ?? name, isAdmin: Boolean(rows[0].is_admin) };
+  if (!sessionMatches(rows[0].active_session_id as string | null, payload.sid)) {
+    return json({ error: "Sessão encerrada. Entre de novo.", code: "SESSION_REPLACED" }, 401);
+  }
+  return {
+    userId: payload.userId,
+    name: (rows[0].name as string) ?? payload.name ?? "",
+    isAdmin: Boolean(rows[0].is_admin),
+  };
 }
 
 export function json(corpo: unknown, status = 200) {
