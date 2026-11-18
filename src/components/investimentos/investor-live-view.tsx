@@ -432,7 +432,10 @@ export function InvestorLiveView({
     const extraColors = ["#22c55e", "#3b82f6", "#a855f7", "#f59e0b", "#ef4444", "#06b6d4"];
     const base: Asset[] = ASSETS.map((a) => {
       const realPrice = quoteMap.get(a.ticker);
-      return realPrice !== undefined ? { ...a, price: realPrice, variation: 0, isReal: true } : { ...a, isReal: false };
+      // Sem cotação real: preço de catálogo, variação 0 — nunca inventar P&L no patrimônio.
+      return realPrice !== undefined
+        ? { ...a, price: realPrice, variation: 0, isReal: true }
+        : { ...a, variation: 0, isReal: false };
     });
 
     // Tickers fora do catálogo: posições reais (ex.: compras personalizadas)
@@ -460,7 +463,7 @@ export function InvestorLiveView({
     return holdings.reduce((sum, h) => {
       const asset = liveAssets.find((a) => a.ticker === h.ticker);
       if (!asset) return sum;
-      return sum + h.quantity * asset.price * (1 + asset.variation);
+      return sum + h.quantity * asset.price;
     }, 0);
   }, [holdings, liveAssets]);
 
@@ -476,7 +479,7 @@ export function InvestorLiveView({
     const h = holdings.find((x) => x.ticker === selectedTicker);
     const asset = liveAssets.find((a) => a.ticker === selectedTicker);
     if (!h || !asset) return null;
-    const value = h.quantity * asset.price * (1 + asset.variation);
+    const value = h.quantity * asset.price;
     const cost = h.quantity * h.avgPrice;
     const gain = value - cost;
     const gainPct = cost > 0 ? (gain / cost) * 100 : 0;
@@ -488,7 +491,7 @@ export function InvestorLiveView({
     const asset = liveAssets.find((a) => a.ticker === ticker);
     if (!h || !asset) return;
     setSelectedTicker(null);
-    setOrder({ mode: "venda", ticker, price: asset.price * (1 + asset.variation), maxQty: h.quantity });
+    setOrder({ mode: "venda", ticker, price: asset.price, maxQty: h.quantity });
   }
 
   useEffect(() => {
@@ -601,7 +604,7 @@ export function InvestorLiveView({
       if (detectAssetType(h.ticker) !== "FII") return sum;
       const asset = liveAssets.find((a) => a.ticker === h.ticker);
       if (!asset) return sum;
-      return sum + h.quantity * asset.price * (1 + asset.variation);
+      return sum + h.quantity * asset.price;
     }, 0);
   }, [holdings, liveAssets]);
   const acoesValue = investedValue - fiiValue;
@@ -653,7 +656,7 @@ export function InvestorLiveView({
     for (const h of holdings) {
       const asset = liveAssets.find((a) => a.ticker === h.ticker);
       if (!asset) continue;
-      const price = asset.price * (1 + asset.variation);
+      const price = asset.price;
       const value = h.quantity * price;
       const cost = h.quantity * h.avgPrice;
       const gain = value - cost;
@@ -1546,7 +1549,7 @@ export function InvestorLiveView({
               </StatBox>
               <StatBox label={selectedHolding.asset.isReal ? "Cotação atual" : "Preço de referência"}>
                 <p className={`${MONEY} text-base`}>
-                  {formatCurrency(selectedHolding.asset.price * (1 + selectedHolding.asset.variation))}
+                  {formatCurrency(selectedHolding.asset.price)}
                 </p>
               </StatBox>
               <StatBox label="Valor investido">
@@ -1584,7 +1587,7 @@ export function InvestorLiveView({
                 onClick={() => {
                   const { asset } = selectedHolding;
                   setSelectedTicker(null);
-                  setOrder({ mode: "compra", ticker: asset.ticker, name: asset.name, price: asset.price * (1 + asset.variation) });
+                  setOrder({ mode: "compra", ticker: asset.ticker, name: asset.name, price: asset.price });
                 }}
                 className={BTN_PRIMARY}
               >

@@ -56,6 +56,7 @@ export default function DashboardPage() {
   const [planGroups,  setPlanGroups]  = useState<PlanGroup[]>([]);
   const [planItems,   setPlanItems]   = useState<PlanItem[]>([]);
   const [parcelas,    setParcelas]    = useState<Parcelamento[]>([]);
+  const [proventos,   setProventos]   = useState<{ ticker: string; amount: number; payment_day?: number; type?: string }[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState("");
 
@@ -77,8 +78,9 @@ export default function DashboardPage() {
       fetch(`/api/plan-groups?user=${userId}`).then(r => r.json()).catch(() => []),
       fetch(`/api/plan-items?user=${userId}&month=${monthStr}`).then(r => r.json()).catch(() => []),
       fetch(`/api/parcelamentos?user=${userId}`).then(r => r.json()).catch(() => []),
+      fetch("/api/proventos").then(r => r.ok ? r.json() : []).catch(() => []),
     ])
-    .then(([a, i, st, sq, salaryData, groupsData, itemsData, parcData]) => {
+    .then(([a, i, st, sq, salaryData, groupsData, itemsData, parcData, provData]) => {
       setAccounts(Array.isArray(a) ? (a as InvestmentAccount[]) : []);
       setInvestments(Array.isArray(i) ? (i as Investment[]) : []);
       setStockTrades(Array.isArray(st) ? (st as StockTrade[]) : []);
@@ -98,6 +100,16 @@ export default function DashboardPage() {
           } as PlanItem))
         : []);
       setParcelas(Array.isArray(parcData) ? (parcData as Parcelamento[]) : []);
+      setProventos(
+        Array.isArray(provData)
+          ? (provData as Record<string, unknown>[]).map((p) => ({
+              ticker: String(p.ticker ?? ""),
+              amount: Number(p.amount) || 0,
+              payment_day: Number(p.payment_day) || undefined,
+              type: typeof p.type === "string" ? p.type : undefined,
+            }))
+          : [],
+      );
     })
     .catch(err => setError(String(err)))
     .finally(() => setLoading(false));
@@ -129,8 +141,8 @@ export default function DashboardPage() {
     .reduce((s, i) => s + i.amount, 0) + stockPurchases;
 
   const { sources: incomeSources, total: monthlyIncome } = useMemo(
-    () => computeMonthlyPassiveIncome(accounts, investments, stockTrades, cdiAnual),
-    [accounts, investments, stockTrades, cdiAnual],
+    () => computeMonthlyPassiveIncome(accounts, investments, stockTrades, cdiAnual, proventos),
+    [accounts, investments, stockTrades, cdiAnual, proventos],
   );
 
   /* ── Planejamento calculations ── */

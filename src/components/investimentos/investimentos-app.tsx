@@ -29,6 +29,7 @@ import { InvestmentRates } from "@/components/investment-rates";
 import { detectCategory, toMonthly, type RateCategory } from "@/lib/investment-rates";
 import { useMarketRates } from "@/lib/use-market-rates";
 import { getCurrentUser } from "@/lib/user";
+import { computeMonthlyPassiveIncome } from "@/lib/passive-income";
 import {
   accountBalance, detectAssetType, detectSector, computeStockPositions,
 } from "@/lib/stock-utils";
@@ -142,6 +143,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [stockTrades, setStockTrades] = useState<StockTrade[]>([]);
   const [stockQuotes, setStockQuotes] = useState<StockQuote[]>([]);
+  const [proventos, setProventos] = useState<{ ticker: string; amount: number; payment_day?: number; type?: string }[]>([]);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteForm, setQuoteForm] = useState({ ticker: "", price: "" });
   const [loading, setLoading] = useState(true);
@@ -243,6 +245,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         withTimeout(getStockQuotes()),
         withTimeout(getPortfolioSnapshots()),
         withTimeout(getScoreHistory()),
+        withTimeout(fetch("/api/proventos").then((r) => (r.ok ? r.json() : []))),
       ]);
       const value = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
         r.status === "fulfilled" ? r.value : fallback;
@@ -254,6 +257,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
         quotes: value(settled[3], [] as Awaited<ReturnType<typeof getStockQuotes>>),
         snapshots: value(settled[4], [] as Awaited<ReturnType<typeof getPortfolioSnapshots>>),
         scores: value(settled[5], [] as Awaited<ReturnType<typeof getScoreHistory>>),
+        proventos: value(settled[6], [] as Record<string, unknown>[]),
       };
     };
 
@@ -281,7 +285,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
 
       const failed = bundle.settled.filter((r) => r.status === "rejected").length;
       if (failed > 0) {
-        console.warn(`Investimentos: ${failed} de 6 buscas falharam ou estouraram o tempo.`);
+        console.warn(`Investimentos: ${failed} de 7 buscas falharam ou estouraram o tempo.`);
       }
 
       setPortfolioSnapshots(Array.isArray(bundle.snapshots) ? bundle.snapshots : []);
@@ -291,6 +295,16 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       setAccounts(accs);
       setInvestments(Array.isArray(bundle.investments) ? bundle.investments : []);
       setStockTrades(Array.isArray(bundle.stocks) ? bundle.stocks : []);
+      setProventos(
+        Array.isArray(bundle.proventos)
+          ? bundle.proventos.map((p) => ({
+              ticker: String(p.ticker ?? ""),
+              amount: Number(p.amount) || 0,
+              payment_day: Number(p.payment_day) || undefined,
+              type: typeof p.type === "string" ? p.type : undefined,
+            }))
+          : [],
+      );
       if (Array.isArray(bundle.stocks) && bundle.stocks.length > 0) {
         refreshStockQuotes(bundle.stocks, Array.isArray(bundle.quotes) ? bundle.quotes : [])
           .then(({ quotes }) => setStockQuotes(quotes))
@@ -497,81 +511,95 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
 
   const investorData = useMemo(() => {
     const CDI_MENSAL = toMonthly(marketRates.cdiAnual) / 100;
+    const { sources, total: totalRendaMensal } = computeMonthlyPassiveIncome(
+      accounts,
+      investments,
+      stockTrades,
+      marketRates.cdiAnual,
+      proventos,
+    );
 
-    const turboSources = accounts.filter((a) => a.is_turbo).map((a) => ({
-      nome: a.name,
-      instituicao: a.institution,
-      tipo: "TURBO" as const,
-      capital: a.current_balance,
-      rendaMensal: a.current_balance * ((a.cdi_percent ?? 115) / 100) * CDI_MENSAL,
-      cor: "#f5c425",
-      badge: "TURBO · " + (a.cdi_percent ?? 115) + "% CDI",
-      origem: "estimado" as const,
-    }));
+    const COLOR: Record<string, string> = {
+      turbo: "#f5c425",
+      fii: "#14b8a6",
+      rf: "#38bdf8",
+      dividendo: "#10b981",
+      provento: "#a78bfa",
+    };
+    const TIPO: Record<string, string> = {
+      turbo: "TURBO",
+      fii: "FII",
+      rf: "Renda Fixa",
+      dividendo: "Ação",
+      provento: "Provento",
+    };
 
-    const fiiPositions = stockPositions.filter((p) => detectAssetType(p.ticker) === "FII");
-    const fiiCapital = fiiPositions.reduce((s, p) => {
-      const cur = quoteMap.get(p.ticker);
-      return s + (cur !== undefined ? cur * p.quantity : p.totalInvested);
-    }, 0);
-    const fiiSources = fiiCapital > 0 ? [{
-      nome: "FIIs",
-      instituicao: fiiPositions.map((p) => p.ticker).join(", "),
-      tipo: "FII" as const,
-      capital: fiiCapital,
-      rendaMensal: fiiCapital * 0.0085,
-      cor: "#14b8a6",
-      badge: "~0,85%/mês (estimativa)",
-      origem: "estimado" as const,
-    }] : [];
+    const capitalOf = (src: (typeof sources)[number]): { capital: number; instituicao: string } => {
+      if (src.kind === "turbo") {
+        const a = accounts.find((x) => x.name === src.label && x.is_turbo);
+        return { capital: a?.current_balance ?? 0, instituicao: a?.institution ?? "" };
+      }
+      if (src.kind === "rf") {
+        const a = accounts.find((x) => x.name === src.label && !x.is_turbo);
+        return { capital: a ? accountBalance(investments, a.id) : 0, instituicao: a?.institution ?? "" };
+      }
+      if (src.kind === "provento") {
+        const pos = stockPositions.find((p) => p.ticker.toUpperCase() === src.label.toUpperCase());
+        if (!pos) return { capital: 0, instituicao: src.label };
+        const cur = quoteMap.get(pos.ticker);
+        return {
+          capital: cur !== undefined ? cur * pos.quantity : pos.totalInvested,
+          instituicao: src.label,
+        };
+      }
+      if (src.kind === "fii") {
+        const covered = new Set(proventos.map((p) => p.ticker.toUpperCase()));
+        const fiis = stockPositions.filter(
+          (p) => detectAssetType(p.ticker) === "FII" && !covered.has(p.ticker.toUpperCase()),
+        );
+        const capital = fiis.reduce((s, p) => {
+          const cur = quoteMap.get(p.ticker);
+          return s + (cur !== undefined ? cur * p.quantity : p.totalInvested);
+        }, 0);
+        return { capital, instituicao: fiis.map((p) => p.ticker).join(", ") };
+      }
+      // dividendos estimados
+      const covered = new Set(proventos.map((p) => p.ticker.toUpperCase()));
+      const divs = stockPositions.filter((p) => {
+        if (covered.has(p.ticker.toUpperCase())) return false;
+        const t = detectAssetType(p.ticker);
+        return t === "Ação" || t === "BDR" || t === "ETF";
+      });
+      const capital = divs.reduce((s, p) => {
+        const cur = quoteMap.get(p.ticker);
+        return s + (cur !== undefined ? cur * p.quantity : p.totalInvested);
+      }, 0);
+      return { capital, instituicao: divs.map((p) => p.ticker).join(", ") };
+    };
 
-    const dividendPositions = stockPositions.filter((p) => {
-      const t = detectAssetType(p.ticker);
-      return t === "Ação" || t === "BDR" || t === "ETF";
-    });
-    const dividendCapital = dividendPositions.reduce((s, p) => {
-      const cur = quoteMap.get(p.ticker);
-      return s + (cur !== undefined ? cur * p.quantity : p.totalInvested);
-    }, 0);
-    const dividendSources = dividendCapital > 0 ? [{
-      nome: "Dividendos de ações",
-      instituicao: dividendPositions.map((p) => p.ticker).join(", "),
-      tipo: "Ação" as const,
-      capital: dividendCapital,
-      rendaMensal: dividendCapital * 0.004,
-      cor: "#10b981",
-      badge: "~0,4%/mês (estimativa)",
-      origem: "estimado" as const,
-    }] : [];
-
-    const rfAccounts = accounts.filter((a) => !a.is_turbo);
-    const rfSources = rfAccounts.flatMap((a) => {
-      const rends = investments.filter((i) => i.account_id === a.id && i.type === "rendimento");
-      if (rends.length === 0) return [];
-      const byMonth = rends.reduce((acc, i) => {
-        const m = i.date.slice(0, 7);
-        acc[m] = (acc[m] ?? 0) + i.amount;
-        return acc;
-      }, {} as Record<string, number>);
-      const months = Object.values(byMonth);
-      const avg = months.reduce((s, v) => s + v, 0) / months.length;
-      const capital = accountBalance(investments, a.id);
-      return [{
-        nome: a.name,
-        instituicao: a.institution ?? "",
-        tipo: "Renda Fixa" as const,
+    const allSources = sources.map((src) => {
+      const { capital, instituicao } = capitalOf(src);
+      return {
+        nome: src.label,
+        instituicao,
+        tipo: TIPO[src.kind] ?? src.kind,
         capital,
-        rendaMensal: avg,
-        cor: "#38bdf8",
-        badge: `${months.length} mês${months.length !== 1 ? "es" : ""} registrado${months.length !== 1 ? "s" : ""}`,
-        origem: "registrado" as const,
-      }];
+        rendaMensal: src.value,
+        cor: COLOR[src.kind] ?? "#94a3b8",
+        badge: src.detail ?? "",
+        origem: src.origem,
+      };
     });
 
-    const allSources = [...turboSources, ...fiiSources, ...rfSources, ...dividendSources];
-    const totalRendaMensal = allSources.reduce((s, src) => s + src.rendaMensal, 0);
     const rendaRegistrada = allSources.filter((s) => s.origem === "registrado").reduce((s, src) => s + src.rendaMensal, 0);
     const rendaEstimada = allSources.filter((s) => s.origem === "estimado").reduce((s, src) => s + src.rendaMensal, 0);
+
+    const fiiCapital = stockPositions
+      .filter((p) => detectAssetType(p.ticker) === "FII")
+      .reduce((s, p) => {
+        const cur = quoteMap.get(p.ticker);
+        return s + (cur !== undefined ? cur * p.quantity : p.totalInvested);
+      }, 0);
 
     const allRendimentos = investments.filter((i) => i.type === "rendimento");
     const rendByMonth = allRendimentos.reduce((acc, i) => {
@@ -579,6 +607,12 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       acc[m] = (acc[m] ?? 0) + i.amount;
       return acc;
     }, {} as Record<string, number>);
+    // Inclui proventos cadastrados no gráfico do mês atual (marcador recorrente mensal).
+    const monthKey = new Date().toISOString().slice(0, 7);
+    const provTotal = proventos.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    if (provTotal > 0) {
+      rendByMonth[monthKey] = (rendByMonth[monthKey] ?? 0) + provTotal;
+    }
     const chartMonths = Object.entries(rendByMonth)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([m, v]) => ({
@@ -587,7 +621,7 @@ export function InvestimentosApp({ section }: { section: InvestimentosSection })
       }));
 
     return { allSources, totalRendaMensal, rendaRegistrada, rendaEstimada, chartMonths, fiiCapital, CDI_MENSAL };
-  }, [accounts, investments, stockPositions, quoteMap, marketRates.cdiAnual]);
+  }, [accounts, investments, stockTrades, stockPositions, quoteMap, marketRates.cdiAnual, proventos]);
 
   const portfolioVersion = `${accounts.length}|${investments.length}|${stockTrades.length}|${grandTotal.toFixed(2)}|${incomeGoal}|${goalDeadlineYear ?? ""}|${goalMonthlyContribution}`;
   const analysis = useRebalanceAnalysis(botEnabled && !loading, portfolioVersion);
