@@ -157,6 +157,9 @@ export function InvestorModeView({
     ? Math.min(100, (grandTotal / path.capitalNecessario) * 100)
     : 0;
   const capitalReached = path != null && path.meses === 0;
+  /** Progresso e “faltam” ficam sempre em valores de hoje (comparáveis ao patrimônio atual). */
+  const capitalAlvoHoje = path?.capitalNecessario ?? 0;
+  const capitalFalta = path == null ? 0 : Math.max(0, path.capitalNecessario - grandTotal);
   /** Mesma meta com o rendimento de um CDI líquido, para comparar com a carteira. */
   const conservador = useMemo(
     () => (path ? conservativeGoal(path, (Math.pow(1 + investorData.CDI_MENSAL, 12) - 1) * 100) : null),
@@ -431,11 +434,41 @@ export function InvestorModeView({
               ) : (
                 <>
                   <div className="rounded-2xl border border-border bg-card p-4">
-                    <p className="text-sm font-bold text-foreground">Progresso do capital</p>
-                    <p className="mt-1 font-display text-2xl font-black tabular-nums text-emerald-400">{capitalProgress.toFixed(0)}% já</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Falta acumular para gerar a renda desejada.</p>
+                    <div className="flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-foreground">Progresso do capital</p>
+                        <p className="mt-1 font-display text-2xl font-black tabular-nums text-emerald-400">
+                          {capitalProgress.toFixed(0)}% já
+                        </p>
+                      </div>
+                      <p className="pb-1 text-right text-xs text-muted-foreground tabular-nums">
+                        {formatCurrency(grandTotal)}
+                        <span className="text-muted-foreground/70"> de </span>
+                        {formatCurrency(capitalAlvoHoje)}
+                      </p>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                      {capitalFalta > 0.005 ? (
+                        <>
+                          Faltam{" "}
+                          <span className="font-bold tabular-nums text-foreground">
+                            {formatCurrency(capitalFalta)}
+                          </span>{" "}
+                          (valores de hoje) para o capital gerar {formatCurrency(incomeGoal)}/mês.
+                        </>
+                      ) : (
+                        <>Patrimônio próximo do capital necessário para a renda-meta.</>
+                      )}
+                    </p>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-border/60" aria-hidden="true">
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-border/60"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(capitalProgress)}
+                    aria-label={`Progresso do capital: ${capitalProgress.toFixed(0)}%. Você tem ${formatCurrency(grandTotal)}; faltam ${formatCurrency(capitalFalta)} de ${formatCurrency(capitalAlvoHoje)}.`}
+                  >
                     <div className="h-full rounded-full bg-foreground transition-all duration-500" style={{ width: `${Math.max(capitalProgress, 2)}%` }} />
                   </div>
                 </>
