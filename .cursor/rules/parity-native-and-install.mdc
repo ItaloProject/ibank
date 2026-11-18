@@ -14,3 +14,4 @@ Quando o usuário iterar UX/copy no **celular** (Metas, Live, Investir, chat, et
 3. Com `adb` conectado: `assembleDebug` + `adb install -r` — não pedir para o usuário instalar.
 4. iOS: push em `ios-kmp`; nesta máquina Windows não gera Xcode — avisar em uma linha.
 5. Mudanças **só de desktop/web** continuam no `ibank`; aí o espelhamento nativo só se ele pedir “no app também”.
+6. **Desktop tem layout próprio** (hub Investir, Carteira, etc.): não empilhar a UI do celular no meio da tela larga; use variante `desktop` / composição wide.

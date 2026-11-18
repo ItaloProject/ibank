@@ -495,6 +495,7 @@ export function InvestorLiveViewDesktop({
             className="pb-8"
           >
             <HoldingsPanel
+              variant="desktop"
               turbo={turboAccountsReal}
               emergencia={emergenciaAccountsReal}
               rendaFixa={investimentosAccountsReal}
@@ -508,42 +509,44 @@ export function InvestorLiveViewDesktop({
               onAdjustCash={openCashSheet}
             />
 
-            <section aria-labelledby="mov-heading" className="mx-auto w-full max-w-5xl space-y-3 px-6 pb-6">
-              {!movementsOpen ? (
+            <section aria-labelledby="mov-heading" className="mx-auto w-full max-w-6xl space-y-3 px-7 pb-10">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <SectionHeading id="mov-heading">Últimas movimentações</SectionHeading>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {actions.movements.length === 0
+                      ? "Nenhum lançamento ainda."
+                      : `${actions.movements.length} lançamento${actions.movements.length === 1 ? "" : "s"} · desfazer se errou`}
+                  </p>
+                </div>
+                {actions.movements.length > 0 && !movementsOpen ? (
+                  <button type="button" onClick={() => setMovementsOpen(true)} className={SMALL_BTN}>
+                    Ver todas
+                  </button>
+                ) : null}
+                {movementsOpen ? (
+                  <button type="button" onClick={() => setMovementsOpen(false)} className={SMALL_BTN}>
+                    Recolher
+                  </button>
+                ) : null}
+              </div>
+              {movementsOpen || actions.movements.length <= 4 ? (
+                <MovementsList
+                  movements={actions.movements.slice(0, movementsOpen ? 12 : 4)}
+                  onUndo={setUndoMovement}
+                />
+              ) : (
                 <button
                   type="button"
                   onClick={() => setMovementsOpen(true)}
                   className={`flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left hover:bg-muted/40 transition-colors ${FOCUS}`}
                 >
-                  <Receipt className="h-4 w-4 text-foreground/70 shrink-0" aria-hidden="true" />
-                  <span className="min-w-0 flex-1">
-                    <span id="mov-heading" className="block text-sm font-semibold text-foreground">
-                      Últimas movimentações
-                    </span>
-                    <span className="block text-[11px] text-muted-foreground mt-0.5">
-                      {actions.movements.length === 0
-                        ? "Nenhuma ainda · clique para ver"
-                        : `${actions.movements.length} lançamento${actions.movements.length === 1 ? "" : "s"} · clique para ver`}
-                    </span>
+                  <Receipt className="h-4 w-4 shrink-0 text-foreground/70" aria-hidden="true" />
+                  <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+                    Ver {actions.movements.length} movimentações
                   </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 </button>
-              ) : (
-                <>
-                  <div className="flex items-end justify-between gap-3">
-                    <div>
-                      <SectionHeading id="mov-heading">Últimas movimentações</SectionHeading>
-                      <p className="text-[11px] text-muted-foreground mt-1">Lançou algo errado? Use o botão de desfazer ao lado.</p>
-                    </div>
-                    <button type="button" onClick={() => setMovementsOpen(false)} className={SMALL_BTN}>
-                      Fechar
-                    </button>
-                  </div>
-                  <MovementsList
-                    movements={actions.movements.slice(0, 12)}
-                    onUndo={setUndoMovement}
-                  />
-                </>
               )}
             </section>
           </div>
