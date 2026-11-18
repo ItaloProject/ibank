@@ -574,243 +574,394 @@ function PlanejamentoContent({ userId }: { userId: string }) {
           ? "bg-amber-400"
           : "bg-foreground";
 
+  const monthNav = (
+    <div className="flex items-center rounded-2xl border bg-card">
+      <button
+        type="button"
+        onClick={goToPrev}
+        aria-label="Mês anterior"
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-l-2xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <span className="min-w-0 flex-1 text-center text-[15px] font-bold capitalize tracking-tight">
+        {monthLabel}
+      </span>
+      <button
+        type="button"
+        onClick={goToNext}
+        aria-label="Próximo mês"
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-r-2xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </div>
+  );
+
+  const groupsList = (desktop: boolean) => (
+    groups.length === 0 ? (
+      <motion.div
+        className="flex flex-col items-center justify-center py-20 gap-2"
+        initial={{ opacity: 0, scale: prefersReduced ? 1 : 0.92 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <Image src="/logo-dark.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30 dark:hidden" />
+        <Image src="/logo-white.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30 hidden dark:block" />
+        <p className="font-semibold text-foreground/70">Nenhum grupo criado</p>
+        <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
+      </motion.div>
+    ) : (
+      <div className={cn("space-y-3", desktop ? "pb-10" : "pt-4 pb-24 sm:pt-6")}>
+        <div className="flex items-end justify-between gap-2">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-foreground/55">
+              {groups.length} {groups.length === 1 ? "grupo" : "grupos"}
+              {doneCount > 0 && (
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  {" · "}{doneCount === groups.length ? "todos feitos" : `${doneCount} ${doneCount === 1 ? "feito" : "feitos"}`}
+                </span>
+              )}
+            </p>
+            {monthTotal > 0 && (
+              <p className="text-sm" aria-live="polite">
+                {pendingTotal > 0 ? (
+                  <>
+                    <span className="text-muted-foreground">Falta pagar </span>
+                    <span className="font-display font-black tabular-nums">{fmt(pendingTotal)}</span>
+                    <span className="text-muted-foreground">
+                      {" "}em {pendingGroups.size} {pendingGroups.size === 1 ? "grupo" : "grupos"}
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">Tudo pago neste mês</span>
+                )}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setAllCollapsed(!allCollapsed)}
+            className="min-h-9 rounded-lg px-2.5 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            {allCollapsed ? "Expandir todos" : "Recolher todos"}
+          </button>
+        </div>
+        {monthTotal > 0 && (
+          <div className="h-1 overflow-hidden rounded-full bg-border/60" aria-hidden="true">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-[width] duration-500"
+              style={{ width: `${((monthTotal - pendingTotal) / monthTotal) * 100}%` }}
+            />
+          </div>
+        )}
+        <div
+          className={cn(
+            desktop
+              ? "grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start"
+              : "mx-auto flex max-w-2xl flex-col gap-3",
+          )}
+        >
+          {orderedGroups.map((group) => (
+            <motion.div
+              key={group.id}
+              layout={prefersReduced ? false : "position"}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <GroupSection
+                group={group}
+                items={items.filter((i) => i.group_id === group.id)}
+                collapsed={collapsed.has(group.id)}
+                done={isDone(group)}
+                onToggle={() => toggleGroup(group.id)}
+                onToggleDone={() => toggleDone(group)}
+                onTogglePaid={togglePaid}
+                onAddItem={() => openNewItem(group.id)}
+                onShare={() => setShareGroupId(group.id)}
+                onEditGroup={() => openEditGroup(group)}
+                onDeleteGroup={() => openDeleteGroup(group)}
+                onEditItem={openEditItem}
+                onDeleteItem={openDeleteItem}
+                onActual={updateActual}
+              />
+            </motion.div>
+          ))}
+          <button
+            type="button"
+            onClick={openNewGroup}
+            className={cn(
+              "flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-dashed text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted/20 hover:text-foreground",
+              desktop && "xl:col-span-2",
+            )}
+          >
+            <FolderPlus className="h-4 w-4" />
+            Novo grupo
+          </button>
+        </div>
+      </div>
+    )
+  );
+
   return (
     <PageShell>
       <PageBody width="full" className="pt-0 space-y-0 md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
-        {/* Cabeçalho + resumo no padrão do app (Plano Android) */}
-        <div className={cn(PAGE_CONTENT, "pt-4 pb-3 space-y-3.5 shrink-0 sm:pt-6")}>
-          <div className="space-y-0.5">
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
-              Plano
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Organize o mês sem perder o que importa.
-            </p>
-          </div>
+        {/* ── MOBILE / PWA: coluna do app (intacta) ───────────────────────────── */}
+        <div className="md:hidden">
+          <div className={cn(PAGE_CONTENT, "pt-4 pb-3 space-y-3.5 shrink-0 sm:pt-6")}>
+            <div className="space-y-0.5">
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
+                Plano
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Organize o mês sem perder o que importa.
+              </p>
+            </div>
 
-          <div className="flex items-center rounded-2xl border bg-card">
-            <button
-              type="button"
-              onClick={goToPrev}
-              aria-label="Mês anterior"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-l-2xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <span className="min-w-0 flex-1 text-center text-[15px] font-bold capitalize tracking-tight">
-              {monthLabel}
-            </span>
-            <button
-              type="button"
-              onClick={goToNext}
-              aria-label="Próximo mês"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-r-2xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+            {monthNav}
 
-          <section className="rounded-2xl border bg-card p-[18px] space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <h2 className="text-base font-bold tracking-tight text-foreground">Resumo do mês</h2>
-                <p className="text-[11px] text-muted-foreground">
-                  {incomes.length === 0
-                    ? "Renda ainda não informada"
-                    : `${incomes.length} ${incomes.length === 1 ? "receita" : "receitas"} cadastradas`}
-                </p>
+            <section className="rounded-2xl border bg-card p-[18px] space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <h2 className="text-base font-bold tracking-tight text-foreground">Resumo do mês</h2>
+                  <p className="text-[11px] text-muted-foreground">
+                    {incomes.length === 0
+                      ? "Renda ainda não informada"
+                      : `${incomes.length} ${incomes.length === 1 ? "receita" : "receitas"} cadastradas`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSalaryOpen(true)}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border bg-foreground/[0.05] px-3.5 text-[12px] font-bold text-foreground/80 transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  {incomes.length === 0 ? "Informar renda" : "Ver receitas"}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setSalaryOpen(true)}
-                className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border bg-foreground/[0.05] px-3.5 text-[12px] font-bold text-foreground/80 transition-colors hover:bg-muted hover:text-foreground"
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Renda</p>
+                  <p className={cn(
+                    "font-display text-2xl font-black tabular-nums leading-none sm:text-[1.75rem]",
+                    salary > 0 ? "text-foreground" : "text-muted-foreground/50",
+                  )}>
+                    {salary > 0 ? fmt(salary) : "—"}
+                  </p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Sobra</p>
+                  <p className={cn(
+                    "font-display text-2xl font-black tabular-nums leading-none sm:text-[1.75rem]",
+                    salary <= 0
+                      ? "text-muted-foreground/50"
+                      : sobra >= 0
+                        ? "text-emerald-500 dark:text-emerald-400"
+                        : "text-destructive",
+                  )}>
+                    {salary > 0 ? fmt(sobra) : "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="h-[7px] overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-500", progressTone)}
+                    style={{ width: `${salary > 0 ? Math.min(100, (totalActual / salary) * 100) : 0}%` }}
+                  />
+                </div>
+                <div className="flex justify-between gap-3 text-[11px]">
+                  <span className="text-muted-foreground">
+                    {salary > 0 ? `${rendaUsadaPct}% da renda usada` : "Informe a renda para acompanhar o mês"}
+                  </span>
+                  <span className="shrink-0 font-semibold tabular-nums text-foreground">{fmt(totalActual)} gastos</span>
+                </div>
+              </div>
+
+              <div className="h-px bg-border" />
+
+              <div className="grid grid-cols-2 gap-0">
+                <div className="space-y-1.5 pr-4">
+                  <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-500">
+                    Fixos
+                    <HelpTip label="fixos">
+                      Soma do que você já gastou (valor real) nos itens fixos. O &quot;de R$&quot; é o planejado.
+                    </HelpTip>
+                  </p>
+                  <p className="font-display text-lg font-black tabular-nums leading-none">{fmt(totalFixoActual)}</p>
+                  <p className="text-[11px] text-muted-foreground tabular-nums">de {fmt(totalFixoPlanned)}</p>
+                </div>
+                <div className="space-y-1.5 border-l border-border pl-4">
+                  <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">
+                    Variáveis
+                    <HelpTip label="variáveis">
+                      Soma do que você já gastou (valor real) nos itens variáveis. O &quot;de R$&quot; é o planejado.
+                    </HelpTip>
+                  </p>
+                  <p className="font-display text-lg font-black tabular-nums leading-none">{fmt(totalVarActual)}</p>
+                  <p className="text-[11px] text-muted-foreground tabular-nums">de {fmt(totalVarPlanned)}</p>
+                </div>
+              </div>
+            </section>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <Button onClick={openNewGroup} className="min-h-11">
+                <FolderPlus className="h-4 w-4" />
+                Novo grupo
+              </Button>
+              <Button variant="outline" className="min-h-11" onClick={() => setCopyOpen(true)}>
+                <Copy className="h-4 w-4" />
+                Repetir mês
+              </Button>
+              <Button
+                variant="ghost"
+                className="min-h-11 col-span-2 sm:col-span-1"
+                onClick={exportPdf}
+                disabled={items.length === 0 || pdfBusy}
               >
-                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                {incomes.length === 0 ? "Informar renda" : "Ver receitas"}
-              </button>
+                {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                Gerar PDF
+              </Button>
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Renda</p>
-                <p className={cn(
-                  "font-display text-2xl font-black tabular-nums leading-none sm:text-[1.75rem]",
-                  salary > 0 ? "text-foreground" : "text-muted-foreground/50",
-                )}>
-                  {salary > 0 ? fmt(salary) : "—"}
-                </p>
-              </div>
-              <div className="space-y-1 text-right">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Sobra</p>
-                <p className={cn(
-                  "font-display text-2xl font-black tabular-nums leading-none sm:text-[1.75rem]",
-                  salary <= 0
-                    ? "text-muted-foreground/50"
-                    : sobra >= 0
-                      ? "text-emerald-500 dark:text-emerald-400"
-                      : "text-destructive",
-                )}>
-                  {salary > 0 ? fmt(sobra) : "—"}
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="h-[7px] overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn("h-full rounded-full transition-all duration-500", progressTone)}
-                  style={{ width: `${salary > 0 ? Math.min(100, (totalActual / salary) * 100) : 0}%` }}
-                />
-              </div>
-              <div className="flex justify-between gap-3 text-[11px]">
-                <span className="text-muted-foreground">
-                  {salary > 0 ? `${rendaUsadaPct}% da renda usada` : "Informe a renda para acompanhar o mês"}
-                </span>
-                <span className="shrink-0 font-semibold tabular-nums text-foreground">{fmt(totalActual)} gastos</span>
-              </div>
-            </div>
-
-            <div className="h-px bg-border" />
-
-            <div className="grid grid-cols-2 gap-0">
-              <div className="space-y-1.5 pr-4">
-                <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-500">
-                  Fixos
-                  <HelpTip label="fixos">
-                    Soma do que você já gastou (valor real) nos itens fixos. O &quot;de R$&quot; é o planejado.
-                  </HelpTip>
-                </p>
-                <p className="font-display text-lg font-black tabular-nums leading-none">{fmt(totalFixoActual)}</p>
-                <p className="text-[11px] text-muted-foreground tabular-nums">de {fmt(totalFixoPlanned)}</p>
-              </div>
-              <div className="space-y-1.5 border-l border-border pl-4">
-                <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">
-                  Variáveis
-                  <HelpTip label="variáveis">
-                    Soma do que você já gastou (valor real) nos itens variáveis. O &quot;de R$&quot; é o planejado.
-                  </HelpTip>
-                </p>
-                <p className="font-display text-lg font-black tabular-nums leading-none">{fmt(totalVarActual)}</p>
-                <p className="text-[11px] text-muted-foreground tabular-nums">de {fmt(totalVarPlanned)}</p>
-              </div>
-            </div>
-          </section>
-
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <Button onClick={openNewGroup} className="min-h-11">
-              <FolderPlus className="h-4 w-4" />
-              Novo grupo
-            </Button>
-            <Button variant="outline" className="min-h-11" onClick={() => setCopyOpen(true)}>
-              <Copy className="h-4 w-4" />
-              Repetir mês
-            </Button>
-            <Button
-              variant="ghost"
-              className="min-h-11 col-span-2 sm:col-span-1"
-              onClick={exportPdf}
-              disabled={items.length === 0 || pdfBusy}
-            >
-              {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-              Gerar PDF
-            </Button>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className={cn(PAGE_CONTENT)}>{groupsList(false)}</div>
           </div>
         </div>
 
-        {/* ── GRUPOS: lista vertical, todos visíveis ─────────────────────────────── */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          {groups.length === 0 ? (
-            <motion.div
-              className="flex flex-col items-center justify-center py-20 gap-2"
-              initial={{ opacity: 0, scale: prefersReduced ? 1 : 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <Image src="/logo-dark.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30 dark:hidden" />
-              <Image src="/logo-white.png" alt="" width={64} height={64} className="h-16 w-16 object-contain opacity-30 hidden dark:block" />
-              <p className="font-semibold text-foreground/70">Nenhum grupo criado</p>
-              <p className="text-sm text-muted-foreground/50">Clique em &quot;Novo grupo&quot; para começar</p>
-            </motion.div>
-          ) : (
-            <div className={cn(PAGE_CONTENT, "space-y-3 pt-4 pb-24 sm:pt-6")}>
-              <div className="flex items-end justify-between gap-2">
-                <div className="min-w-0 space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-foreground/55">
-                  {groups.length} {groups.length === 1 ? "grupo" : "grupos"}
-                  {doneCount > 0 && (
-                    <span className="text-emerald-600 dark:text-emerald-400">
-                      {" · "}{doneCount === groups.length ? "todos feitos" : `${doneCount} ${doneCount === 1 ? "feito" : "feitos"}`}
-                    </span>
-                  )}
-                </p>
-                {monthTotal > 0 && (
-                  <p className="text-sm" aria-live="polite">
-                    {pendingTotal > 0 ? (
-                      <>
-                        <span className="text-muted-foreground">Falta pagar </span>
-                        <span className="font-display font-black tabular-nums">{fmt(pendingTotal)}</span>
-                        <span className="text-muted-foreground">
-                          {" "}em {pendingGroups.size} {pendingGroups.size === 1 ? "grupo" : "grupos"}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Tudo pago neste mês</span>
-                    )}
-                  </p>
-                )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAllCollapsed(!allCollapsed)}
-                  className="min-h-9 rounded-lg px-2.5 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                >
-                  {allCollapsed ? "Expandir todos" : "Recolher todos"}
-                </button>
-              </div>
-              {monthTotal > 0 && (
-                <div className="h-1 overflow-hidden rounded-full bg-border/60" aria-hidden="true">
-                  <div
-                    className="h-full rounded-full bg-emerald-500 transition-[width] duration-500"
-                    style={{ width: `${((monthTotal - pendingTotal) / monthTotal) * 100}%` }}
-                  />
-                </div>
-              )}
-              <div className="mx-auto flex max-w-2xl flex-col gap-3">
-                {orderedGroups.map((group) => (
-                  <motion.div
-                    key={group.id}
-                    layout={prefersReduced ? false : "position"}
-                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        {/* ── DESKTOP: resumo à esquerda + grupos wide ────────────────────────── */}
+        <div className="hidden md:flex md:flex-1 md:min-h-0 md:flex-col md:overflow-hidden">
+          <header className="flex shrink-0 items-end justify-between gap-6 border-b border-border px-8 py-5">
+            <div className="min-w-0 space-y-1">
+              <h1 className="font-display text-[1.75rem] font-semibold tracking-tight text-foreground">
+                Plano
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Organize o mês sem perder o que importa.
+              </p>
+            </div>
+            <div className="w-full max-w-xs shrink-0">{monthNav}</div>
+          </header>
+
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+            <aside className="space-y-5 overflow-y-auto border-b border-border px-8 py-6 lg:border-b-0 lg:border-r lg:pr-7">
+              <section className="space-y-5" aria-labelledby="resumo-desktop">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-0.5">
+                    <h2 id="resumo-desktop" className="text-base font-bold tracking-tight text-foreground">
+                      Resumo do mês
+                    </h2>
+                    <p className="text-[11px] text-muted-foreground">
+                      {incomes.length === 0
+                        ? "Renda ainda não informada"
+                        : `${incomes.length} ${incomes.length === 1 ? "receita" : "receitas"} cadastradas`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSalaryOpen(true)}
+                    className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[12px] font-bold text-foreground/80 transition-colors hover:bg-muted hover:text-foreground"
                   >
-                  <GroupSection
-                    group={group}
-                    items={items.filter((i) => i.group_id === group.id)}
-                    collapsed={collapsed.has(group.id)}
-                    done={isDone(group)}
-                    onToggle={() => toggleGroup(group.id)}
-                    onToggleDone={() => toggleDone(group)}
-                    onTogglePaid={togglePaid}
-                    onAddItem={() => openNewItem(group.id)}
-                    onShare={() => setShareGroupId(group.id)}
-                    onEditGroup={() => openEditGroup(group)}
-                    onDeleteGroup={() => openDeleteGroup(group)}
-                    onEditItem={openEditItem}
-                    onDeleteItem={openDeleteItem}
-                    onActual={updateActual}
-                  />
-                  </motion.div>
-                ))}
-                <button
-                  type="button"
-                  onClick={openNewGroup}
-                  className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-dashed text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted/20 hover:text-foreground"
-                >
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                    {incomes.length === 0 ? "Informar" : "Receitas"}
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Renda</p>
+                    <p className={cn(
+                      "font-display text-3xl font-black tabular-nums leading-none",
+                      salary > 0 ? "text-foreground" : "text-muted-foreground/50",
+                    )}>
+                      {salary > 0 ? fmt(salary) : "—"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Sobra</p>
+                    <p className={cn(
+                      "font-display text-3xl font-black tabular-nums leading-none",
+                      salary <= 0
+                        ? "text-muted-foreground/50"
+                        : sobra >= 0
+                          ? "text-emerald-500 dark:text-emerald-400"
+                          : "text-destructive",
+                    )}>
+                      {salary > 0 ? fmt(sobra) : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="h-[7px] overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn("h-full rounded-full transition-all duration-500", progressTone)}
+                      style={{ width: `${salary > 0 ? Math.min(100, (totalActual / salary) * 100) : 0}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between gap-3 text-[11px]">
+                    <span className="text-muted-foreground">
+                      {salary > 0 ? `${rendaUsadaPct}% da renda usada` : "Informe a renda para acompanhar"}
+                    </span>
+                    <span className="shrink-0 font-semibold tabular-nums text-foreground">{fmt(totalActual)}</span>
+                  </div>
+                </div>
+
+                <dl className="space-y-3 border-t border-border pt-4">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-500">
+                      Fixos
+                      <HelpTip label="fixos">
+                        Soma do que você já gastou (valor real) nos itens fixos. O &quot;de R$&quot; é o planejado.
+                      </HelpTip>
+                    </dt>
+                    <dd className="text-right">
+                      <span className="font-display text-base font-black tabular-nums">{fmt(totalFixoActual)}</span>
+                      <span className="mt-0.5 block text-[11px] text-muted-foreground tabular-nums">de {fmt(totalFixoPlanned)}</span>
+                    </dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">
+                      Variáveis
+                      <HelpTip label="variáveis">
+                        Soma do que você já gastou (valor real) nos itens variáveis. O &quot;de R$&quot; é o planejado.
+                      </HelpTip>
+                    </dt>
+                    <dd className="text-right">
+                      <span className="font-display text-base font-black tabular-nums">{fmt(totalVarActual)}</span>
+                      <span className="mt-0.5 block text-[11px] text-muted-foreground tabular-nums">de {fmt(totalVarPlanned)}</span>
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <div className="flex flex-col gap-2">
+                <Button onClick={openNewGroup} className="min-h-10 w-full justify-start">
                   <FolderPlus className="h-4 w-4" />
                   Novo grupo
-                </button>
+                </Button>
+                <Button variant="outline" className="min-h-10 w-full justify-start" onClick={() => setCopyOpen(true)}>
+                  <Copy className="h-4 w-4" />
+                  Repetir mês
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="min-h-10 w-full justify-start"
+                  onClick={exportPdf}
+                  disabled={items.length === 0 || pdfBusy}
+                >
+                  {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                  Gerar PDF
+                </Button>
               </div>
-            </div>
-          )}
+            </aside>
+
+            <main className="min-h-0 overflow-y-auto px-8 py-6">
+              {groupsList(true)}
+            </main>
+          </div>
         </div>
       </PageBody>
 
