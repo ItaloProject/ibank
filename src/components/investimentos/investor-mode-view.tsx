@@ -160,6 +160,12 @@ export function InvestorModeView({
   /** Progresso e “faltam” ficam sempre em valores de hoje (comparáveis ao patrimônio atual). */
   const capitalAlvoHoje = path?.capitalNecessario ?? 0;
   const capitalFalta = path == null ? 0 : Math.max(0, path.capitalNecessario - grandTotal);
+  const capitalFaltaPct = Math.max(0, Math.min(100, 100 - capitalProgress));
+  /** Cor do que ainda falta: alto = vermelho, médio = âmbar, baixo (quase lá) = verde. */
+  const capitalFaltaTone =
+    capitalFaltaPct >= 60 ? "text-red-500 dark:text-red-400"
+      : capitalFaltaPct >= 30 ? "text-amber-500 dark:text-amber-400"
+        : "text-emerald-600 dark:text-emerald-400";
   /** Mesma meta com o rendimento de um CDI líquido, para comparar com a carteira. */
   const conservador = useMemo(
     () => (path ? conservativeGoal(path, (Math.pow(1 + investorData.CDI_MENSAL, 12) - 1) * 100) : null),
@@ -434,32 +440,19 @@ export function InvestorModeView({
               ) : (
                 <>
                   <div className="rounded-2xl border border-border bg-card p-4">
-                    <div className="flex items-end justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-bold text-foreground">Progresso do capital</p>
-                        <p className="mt-1 font-display text-2xl font-black tabular-nums text-emerald-400">
-                          {capitalProgress.toFixed(0)}% já
-                        </p>
-                      </div>
-                      <p className="pb-1 text-right text-xs text-muted-foreground tabular-nums">
-                        {formatCurrency(grandTotal)}
-                        <span className="text-muted-foreground/70"> de </span>
-                        {formatCurrency(capitalAlvoHoje)}
-                      </p>
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                      {capitalFalta > 0.005 ? (
-                        <>
-                          Faltam{" "}
-                          <span className="font-bold tabular-nums text-foreground">
-                            {formatCurrency(capitalFalta)}
-                          </span>{" "}
-                          (valores de hoje) para o capital gerar {formatCurrency(incomeGoal)}/mês.
-                        </>
-                      ) : (
-                        <>Patrimônio próximo do capital necessário para a renda-meta.</>
-                      )}
+                    <p className="text-sm font-bold text-foreground">Progresso do capital</p>
+                    <p className="mt-1 font-display text-2xl font-black tabular-nums text-emerald-400">
+                      {capitalProgress.toFixed(0)}% já
                     </p>
+                    {capitalFalta > 0.005 ? (
+                      <p className={`mt-2 text-sm font-bold tabular-nums ${capitalFaltaTone}`}>
+                        Faltam ainda {formatCurrency(capitalFalta)} · {capitalFaltaPct.toFixed(0)}%
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                        Quase no capital da meta
+                      </p>
+                    )}
                   </div>
                   <div
                     className="h-2 overflow-hidden rounded-full bg-border/60"
@@ -467,7 +460,7 @@ export function InvestorModeView({
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={Math.round(capitalProgress)}
-                    aria-label={`Progresso do capital: ${capitalProgress.toFixed(0)}%. Você tem ${formatCurrency(grandTotal)}; faltam ${formatCurrency(capitalFalta)} de ${formatCurrency(capitalAlvoHoje)}.`}
+                    aria-label={`Progresso do capital: ${capitalProgress.toFixed(0)}% já. Faltam ainda ${formatCurrency(capitalFalta)} (${capitalFaltaPct.toFixed(0)}%).`}
                   >
                     <div className="h-full rounded-full bg-foreground transition-all duration-500" style={{ width: `${Math.max(capitalProgress, 2)}%` }} />
                   </div>
