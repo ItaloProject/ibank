@@ -60,7 +60,8 @@ export async function syncInstallmentItems(userId: string, month: string) {
       )
     ON CONFLICT (installment_id, month) WHERE installment_id IS NOT NULL DO NOTHING
   `;
-  await syncInstallmentPaidFlags(userId);
+  // paid/actual de itens já existentes: só em syncInstallmentPaidFlags (PATCH parcelamentos).
+  // Rodar o UPDATE em todo GET /plan-items deixava o Plano lento no celular.
 }
 
 /**
