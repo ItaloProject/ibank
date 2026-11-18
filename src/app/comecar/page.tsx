@@ -191,9 +191,9 @@ export default function ComecarPage() {
               })}
             </div>
 
-            {/* Mockup: só em telas altas o bastante para não empurrar a barra */}
-            <div className="mt-6 hidden min-[900px]:flex justify-center pb-2">
-              <AppMockup compact />
+            {/* Mockup: tamanho de celular real; some se a altura for baixa demais */}
+            <div className="mt-6 hidden min-[820px]:flex justify-center pb-2">
+              <AppMockup />
             </div>
           </div>
 
@@ -629,64 +629,62 @@ function SocialProofBar() {
 }
 
 // ── Mockup do app ─────────────────────────────────────────────────────────────
-function AppMockup({ compact = false }: { compact?: boolean }) {
+function AppMockup() {
   return (
-    <div className={cn("shrink-0", compact ? "w-40 xl:w-44" : "w-48")}>
-      <div className="border-2 border-zinc-700 rounded-[2rem] bg-zinc-950 p-1.5 shadow-2xl shadow-black/60">
-        <div className="flex items-center justify-between px-4 py-1.5">
-          <span className="text-[9px] text-zinc-500 font-medium">9:41</span>
+    <div className="shrink-0 w-56 xl:w-60">
+      <div className="border-2 border-zinc-700 rounded-[2.25rem] bg-zinc-950 p-2 shadow-2xl shadow-black/60">
+        <div className="flex items-center justify-between px-4 py-2">
+          <span className="text-[10px] text-zinc-500 font-medium">9:41</span>
           <div className="flex gap-1">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-1 w-1 rounded-full bg-zinc-600" />
+              <div key={i} className="h-1.5 w-1.5 rounded-full bg-zinc-600" />
             ))}
           </div>
         </div>
 
-        <div className={cn("bg-zinc-900 rounded-[1.5rem] overflow-hidden px-3 py-3", compact ? "space-y-2" : "space-y-3")}>
+        <div className="bg-zinc-900 rounded-[1.75rem] overflow-hidden px-3.5 py-3.5 space-y-3">
           <div className="flex items-center justify-between">
-            <BrandLockup tone="onDark" className="h-5" />
-            <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center">
-              <span className="text-[7px] font-bold text-white">I</span>
+            <BrandLockup tone="onDark" className="h-6" />
+            <div className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center">
+              <span className="text-[9px] font-bold text-white">I</span>
             </div>
           </div>
 
-          <div className="bg-zinc-800/60 rounded-xl px-3 py-2.5">
-            <p className="text-[8px] text-zinc-500">Patrimônio total</p>
-            <p className="text-sm font-bold text-blue-400 tabular-nums">R$ 12.450,00</p>
-            <p className="text-[8px] text-zinc-600 mt-0.5">renda fixa + ações</p>
+          <div className="bg-zinc-800/60 rounded-xl px-3.5 py-3">
+            <p className="text-[10px] text-zinc-500">Patrimônio total</p>
+            <p className="text-lg font-bold text-blue-400 tabular-nums leading-tight">R$ 12.450,00</p>
+            <p className="text-[10px] text-zinc-600 mt-1">renda fixa + ações</p>
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[8px] text-zinc-500">Alocação atual</span>
-              <span className="text-[8px] text-emerald-400">68% RF</span>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] text-zinc-500">Alocação atual</span>
+              <span className="text-[10px] text-emerald-400 font-medium">68% RF</span>
             </div>
-            <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
+            <div className="flex h-2.5 rounded-full overflow-hidden gap-0.5">
               <div className="bg-emerald-500 rounded-l-full" style={{ width: "68%" }} />
               <div className="bg-blue-500 rounded-r-full flex-1" />
             </div>
           </div>
 
-          {!compact && (
-            <div className="space-y-1.5">
-              {[
-                { name: "TURBO", sub: "Nubank", val: "R$ 5.110", color: "text-green-400" },
-                { name: "MXRF11", sub: "FII",   val: "R$ 3.240", color: "text-green-400" },
-                { name: "PETR4",  sub: "Ação",  val: "R$ 2.100", color: "text-blue-400" },
-              ].map((a) => (
-                <div key={a.name} className="flex items-center justify-between bg-zinc-800/40 rounded-lg px-2 py-1.5">
-                  <div>
-                    <p className="text-[9px] font-bold text-zinc-200">{a.name}</p>
-                    <p className="text-[7px] text-zinc-600">{a.sub}</p>
-                  </div>
-                  <p className={cn("text-[9px] font-semibold tabular-nums", a.color)}>{a.val}</p>
+          <div className="space-y-1.5">
+            {[
+              { name: "TURBO", sub: "Nubank", val: "R$ 5.110", color: "text-green-400" },
+              { name: "MXRF11", sub: "FII",   val: "R$ 3.240", color: "text-green-400" },
+              { name: "PETR4",  sub: "Ação",  val: "R$ 2.100", color: "text-blue-400" },
+            ].map((a) => (
+              <div key={a.name} className="flex items-center justify-between bg-zinc-800/40 rounded-lg px-2.5 py-2">
+                <div>
+                  <p className="text-[11px] font-bold text-zinc-200">{a.name}</p>
+                  <p className="text-[9px] text-zinc-600">{a.sub}</p>
                 </div>
-              ))}
-            </div>
-          )}
+                <p className={cn("text-[11px] font-semibold tabular-nums", a.color)}>{a.val}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-      <p className="text-[10px] text-center text-zinc-600 mt-2">Dados ilustrativos</p>
+      <p className="text-[11px] text-center text-zinc-600 mt-2.5">Dados ilustrativos</p>
     </div>
   );
 }
