@@ -1,18 +1,16 @@
 ---
-description: Paridade web→Android/iOS e entrega no aparelho sem pedir
+description: Paridade nativa Android/iOS e entrega no aparelho sem pedir
 alwaysApply: true
 ---
 
-# Paridade nativa + instalar no aparelho
+# Android + iOS (não desktop, salvo pedido explícito)
 
-Quando mudar UX/copy/cálculo em **Investir, Live, Metas, Plano** (ou qualquer superfície que o app espelha):
+Quando o usuário iterar UX/copy no **celular** (Metas, Live, Investir, chat, etc.):
 
-1. **Espelhar no `muvo-android`** na mesma rodada — não deixar só no web.
-   - Android clássico: branch `main` (`app/…`).
+1. Aplicar em **Android e iOS** na mesma rodada — **não** espelhar no desktop/web do `ibank`, a menos que ele peça a página do computador.
+   - Android clássico: `muvo-android` branch `main` (`app/…`).
    - Android KMP + iOS: branch `ios-kmp` (`shared/…`).
-2. **Commit + push** nas branches tocadas (sem esperar “Suba”).
-3. **Build e instalar no celular** quando houver device `adb` conectado:
-   - `./gradlew :app:assembleDebug` (ou o módulo ativo da branch)
-   - `adb install -r` do APK gerado
-4. **iOS:** nesta máquina Windows não gera IPA/Xcode. Empurrar `ios-kmp` e dizer em uma linha que o build iOS precisa do Mac/Xcode; não pedir ao usuário para “rebuildar” o que você pode fazer no Android.
-5. Nunca terminar com “rebuild/instala aí” se o APK puder ser instalado agora.
+2. Commit + push nas branches tocadas (sem esperar “Suba”).
+3. Com `adb` conectado: `assembleDebug` + `adb install -r` — não pedir para o usuário instalar.
+4. iOS: push em `ios-kmp`; nesta máquina Windows não gera Xcode — avisar em uma linha.
+5. Mudanças **só de desktop/web** continuam no `ibank`; aí o espelhamento nativo só se ele pedir “no app também”.
