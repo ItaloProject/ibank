@@ -216,8 +216,9 @@ export async function upsertStockQuotes(quotes: { ticker: string; current_price:
   const data = await res.json();
   const rows = Array.isArray(data) ? data : data ? [data] : [];
   return rows.map((r: { ticker: string; current_price: number; updated_at?: string }) => ({
-    ...r,
+    ticker: r.ticker,
     current_price: Number(r.current_price),
+    updated_at: r.updated_at ?? new Date().toISOString(),
   }));
 }
 
