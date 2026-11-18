@@ -70,47 +70,63 @@ export async function syncInstallmentItems(userId: string, month: string) {
 export async function syncInstallmentPaidFlags(userId: string, installmentId?: string) {
   await ensureInstallmentSchema();
   await ensurePlanGroupSchema();
+  // Não usar LATERAL sobre o alias do UPDATE (pi): o Postgres rejeita
+  // "invalid reference to FROM-clause entry for table pi". Calculamos k no SELECT interno.
   if (installmentId) {
     await sql`
       UPDATE plan_items pi
       SET
-        paid = (m.k < ip.paid_installments),
-        actual = CASE
-          WHEN m.k < ip.paid_installments THEN ROUND(ip.total_amount / ip.installments, 2)
-          ELSE 0
-        END
-      FROM installment_plans ip
-      CROSS JOIN LATERAL (
-        SELECT (split_part(pi.month, '-', 1)::int - EXTRACT(YEAR FROM ip.start_date)::int) * 12
-             + (split_part(pi.month, '-', 2)::int - EXTRACT(MONTH FROM ip.start_date)::int) AS k
-      ) m
-      WHERE pi.installment_id = ip.id
-        AND pi.user_id = ${userId}
-        AND ip.user_id = ${userId}
-        AND ip.id = ${installmentId}::uuid
-        AND ip.start_date IS NOT NULL
-        AND m.k >= 0 AND m.k < ip.installments
+        paid = src.should_paid,
+        actual = src.new_actual
+      FROM (
+        SELECT
+          pi2.id AS item_id,
+          (m.k < ip.paid_installments) AS should_paid,
+          CASE
+            WHEN m.k < ip.paid_installments THEN ROUND(ip.total_amount / ip.installments, 2)
+            ELSE 0
+          END AS new_actual
+        FROM plan_items pi2
+        JOIN installment_plans ip ON pi2.installment_id = ip.id
+        CROSS JOIN LATERAL (
+          SELECT (split_part(pi2.month, '-', 1)::int - EXTRACT(YEAR FROM ip.start_date)::int) * 12
+               + (split_part(pi2.month, '-', 2)::int - EXTRACT(MONTH FROM ip.start_date)::int) AS k
+        ) m
+        WHERE pi2.user_id = ${userId}
+          AND ip.user_id = ${userId}
+          AND ip.id = ${installmentId}::uuid
+          AND ip.start_date IS NOT NULL
+          AND m.k >= 0 AND m.k < ip.installments
+      ) src
+      WHERE pi.id = src.item_id
     `;
     return;
   }
   await sql`
     UPDATE plan_items pi
     SET
-      paid = (m.k < ip.paid_installments),
-      actual = CASE
-        WHEN m.k < ip.paid_installments THEN ROUND(ip.total_amount / ip.installments, 2)
-        ELSE 0
-      END
-    FROM installment_plans ip
-    CROSS JOIN LATERAL (
-      SELECT (split_part(pi.month, '-', 1)::int - EXTRACT(YEAR FROM ip.start_date)::int) * 12
-           + (split_part(pi.month, '-', 2)::int - EXTRACT(MONTH FROM ip.start_date)::int) AS k
-    ) m
-    WHERE pi.installment_id = ip.id
-      AND pi.user_id = ${userId}
-      AND ip.user_id = ${userId}
-      AND ip.start_date IS NOT NULL
-      AND m.k >= 0 AND m.k < ip.installments
+      paid = src.should_paid,
+      actual = src.new_actual
+    FROM (
+      SELECT
+        pi2.id AS item_id,
+        (m.k < ip.paid_installments) AS should_paid,
+        CASE
+          WHEN m.k < ip.paid_installments THEN ROUND(ip.total_amount / ip.installments, 2)
+          ELSE 0
+        END AS new_actual
+      FROM plan_items pi2
+      JOIN installment_plans ip ON pi2.installment_id = ip.id
+      CROSS JOIN LATERAL (
+        SELECT (split_part(pi2.month, '-', 1)::int - EXTRACT(YEAR FROM ip.start_date)::int) * 12
+             + (split_part(pi2.month, '-', 2)::int - EXTRACT(MONTH FROM ip.start_date)::int) AS k
+      ) m
+      WHERE pi2.user_id = ${userId}
+        AND ip.user_id = ${userId}
+        AND ip.start_date IS NOT NULL
+        AND m.k >= 0 AND m.k < ip.installments
+    ) src
+    WHERE pi.id = src.item_id
   `;
 }
 
