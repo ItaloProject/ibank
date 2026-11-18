@@ -129,6 +129,13 @@ function ItemActions({
   return null;
 }
 
+/** Grupos da Carteira desktop — um bloco, um propósito. */
+const DESKTOP_GROUPS: { id: Filter; title: string; kinds: Kind[] }[] = [
+  { id: "caixinhas", title: "Caixinhas", kinds: ["turbo", "emergencia"] },
+  { id: "rendafixa", title: "Renda fixa", kinds: ["rendafixa"] },
+  { id: "bolsa", title: "Bolsa", kinds: ["bolsa"] },
+];
+
 export function HoldingsPanel({
   turbo,
   emergencia,
@@ -151,11 +158,9 @@ export function HoldingsPanel({
   onBuyStock: () => void;
   onSell: (ticker: string) => void;
   onNewCaixinha: (tipo: "turbo" | "emergencia" | "investimentos") => void;
-  /** Saldo parado em conta — entra no patrimônio, não nos filtros de investimento. */
   cashBalance: number;
   onInvestCash: () => void;
   onAdjustCash: () => void;
-  /** `desktop` = faixa + tabela wide; `stack` = coluna do celular. */
   variant?: "stack" | "desktop";
 }) {
   const [filter, setFilter] = useState<Filter>("all");
@@ -226,86 +231,58 @@ export function HoldingsPanel({
   const patrimonioTotal = investedTotal + cashBalance;
 
   if (desktop) {
+    const groupsToShow =
+      filter === "all" ? DESKTOP_GROUPS : DESKTOP_GROUPS.filter((g) => g.id === filter);
+
     return (
-      <div className="mx-auto w-full max-w-6xl space-y-8 px-7 py-8">
-        {/* Resumo em faixa wide — não a coluna do celular */}
-        <section aria-label="Resumo da carteira" className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)] lg:items-end">
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Patrimônio da carteira</p>
-            <p className={cn(MONEY, "text-4xl leading-none tracking-tight xl:text-5xl")}>
-              {formatCurrency(patrimonioTotal)}
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button type="button" onClick={onInvestCash} className={ACTION_BTN}>
-                <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
-                Investir
-              </button>
-              <button type="button" onClick={() => onNewCaixinha("investimentos")} className={ACTION_BTN}>
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                Nova caixinha
-              </button>
-            </div>
-          </div>
-
-          <dl className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-border bg-card px-4 py-3">
-              <dt className="text-[11px] font-bold text-muted-foreground">Investido</dt>
-              <dd className={cn(MONEY, "mt-1.5 text-lg leading-none")}>{formatCurrency(investedTotal)}</dd>
-            </div>
-            <div className="rounded-xl border border-border bg-card px-4 py-3">
-              <dt className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
-                Em conta
-                <SaldoEmContaHelp />
-              </dt>
-              <dd className="mt-1.5 flex items-baseline justify-between gap-2">
-                <span className={cn(MONEY, "text-lg leading-none")}>{formatCurrency(cashBalance)}</span>
-                <button
-                  type="button"
-                  onClick={onAdjustCash}
-                  className={`shrink-0 text-[11px] font-bold text-muted-foreground hover:text-foreground ${FOCUS}`}
-                >
-                  {cashBalance > 0 ? "Ajustar" : "Informar"}
-                </button>
-              </dd>
-            </div>
-            <div className="rounded-xl border border-border bg-card px-4 py-3">
-              <dt className="text-[11px] font-bold text-muted-foreground">Resultado em bolsa</dt>
-              <dd
-                className={cn(
-                  MONEY,
-                  "mt-1.5 text-lg leading-none",
-                  bolsaGain == null
-                    ? "text-muted-foreground"
-                    : bolsaGain.pct > 0.005
-                      ? GAIN
-                      : bolsaGain.pct < -0.005
-                        ? LOSS
-                        : "text-foreground",
-                )}
+      <div className="mx-auto w-full max-w-5xl space-y-10 px-8 py-8">
+        {/* 1. Um número dominante + contexto em linha (sem cartões competindo) */}
+        <header className="space-y-3 border-b border-border pb-8">
+          <p className="text-sm text-muted-foreground">Patrimônio</p>
+          <p className={cn(MONEY, "text-5xl leading-none tracking-tight")}>{formatCurrency(patrimonioTotal)}</p>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <span>
+              Investido{" "}
+              <span className="font-semibold tabular-nums text-foreground">{formatCurrency(investedTotal)}</span>
+            </span>
+            <span className="text-border" aria-hidden="true">
+              ·
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              Em conta{" "}
+              <span className="font-semibold tabular-nums text-foreground">{formatCurrency(cashBalance)}</span>
+              <SaldoEmContaHelp />
+              <button
+                type="button"
+                onClick={onAdjustCash}
+                className={`text-xs font-bold text-muted-foreground underline-offset-2 hover:text-foreground hover:underline ${FOCUS}`}
               >
-                {bolsaGain == null ? (
-                  "—"
-                ) : (
-                  <>
-                    {bolsaGain.amount > 0 ? "+" : bolsaGain.amount < 0 ? "−" : ""}
-                    {formatCurrency(Math.abs(bolsaGain.amount))}
-                    <span className="ml-1.5 text-xs font-semibold">{signed(bolsaGain.pct)}</span>
-                  </>
-                )}
-              </dd>
-            </div>
-          </dl>
-        </section>
+                {cashBalance > 0 ? "Ajustar" : "Informar"}
+              </button>
+            </span>
+            {bolsaGain !== null && (
+              <>
+                <span className="text-border" aria-hidden="true">
+                  ·
+                </span>
+                <span
+                  className={cn(
+                    "font-semibold tabular-nums",
+                    bolsaGain.pct > 0.005 ? GAIN : bolsaGain.pct < -0.005 ? LOSS : "text-foreground",
+                  )}
+                >
+                  Bolsa {bolsaGain.amount > 0 ? "+" : bolsaGain.amount < 0 ? "−" : ""}
+                  {formatCurrency(Math.abs(bolsaGain.amount))} ({signed(bolsaGain.pct)})
+                </span>
+              </>
+            )}
+          </p>
+        </header>
 
-        {/* Filtros: faixa segmentada, não grade de cartões grandes */}
-        <div
-          role="tablist"
-          aria-label="Filtrar por tipo"
-          className="flex flex-wrap items-center gap-1 rounded-full border border-border bg-muted/40 p-1"
-        >
+        {/* 2. Filtro só como navegação — sem valores misturados no chip */}
+        <div role="tablist" aria-label="Filtrar carteira" className="flex flex-wrap gap-1">
           {FILTERS.map((t) => {
             const active = filter === t.id;
-            const stats = totals[t.id];
             return (
               <button
                 key={t.id}
@@ -314,114 +291,129 @@ export function HoldingsPanel({
                 aria-selected={active}
                 onClick={() => chooseFilter(t.id)}
                 className={cn(
-                  "inline-flex min-h-10 items-center gap-2 rounded-full px-3.5 text-sm font-semibold transition-colors",
+                  "inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-colors",
                   FOCUS,
-                  active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                  active
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                <t.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{t.label}</span>
-                <span className="tabular-nums text-muted-foreground">{formatCurrency(stats.value)}</span>
+                {t.label}
               </button>
             );
           })}
         </div>
 
-        <section aria-label="Seus investimentos" className="space-y-3">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
-                {filter === "all" ? "Posições" : activeFilter.label}
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {visible.length} {visible.length === 1 ? "item" : "itens"}
-                {filter !== "all" ? ` · ${formatCurrency(visibleTotal)}` : ""}
-              </p>
-            </div>
-            {filter === "bolsa" ? (
-              <button type="button" onClick={onBuyStock} className={ACTION_BTN}>
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                Comprar ação
-              </button>
-            ) : filter === "caixinhas" || filter === "rendafixa" ? (
-              <button type="button" onClick={emptyAction.onClick} className={ACTION_BTN}>
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                Nova caixinha
-              </button>
-            ) : null}
+        {/* 3. Blocos por tipo — uma seção, um propósito */}
+        {items.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center space-y-4">
+            <p className="text-sm text-muted-foreground">Você ainda não tem investimentos.</p>
+            <button type="button" onClick={onInvestCash} className={ACTION_BTN}>
+              <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+              Começar a investir
+            </button>
           </div>
+        ) : (
+          <div className="space-y-10">
+            {groupsToShow.map((group) => {
+              const groupItems = items.filter((i) => group.kinds.includes(i.kind));
+              if (groupItems.length === 0 && filter === "all") return null;
+              const groupTotal = groupItems.reduce((s, i) => s + i.value, 0);
+              return (
+                <section key={group.id} aria-labelledby={`group-${group.id}`} className="space-y-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 id={`group-${group.id}`} className="font-display text-lg font-semibold tracking-tight text-foreground">
+                      {group.title}
+                    </h2>
+                    <p className="text-sm tabular-nums text-muted-foreground">
+                      {groupItems.length === 0 ? (
+                        "—"
+                      ) : (
+                        <>
+                          <span className="font-semibold text-foreground">{formatCurrency(groupTotal)}</span>
+                          <span className="mx-1.5 text-border">·</span>
+                          {groupItems.length} {groupItems.length === 1 ? "posição" : "posições"}
+                        </>
+                      )}
+                    </p>
+                  </div>
 
-          {visible.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center space-y-4">
-              <p className="text-sm text-muted-foreground">{activeFilter.empty}</p>
-              <button type="button" onClick={emptyAction.onClick} className={ACTION_BTN}>
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                {emptyAction.label}
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
-              <div
-                className="grid grid-cols-[minmax(0,1.4fr)_7rem_minmax(0,1.2fr)_5.5rem_7.5rem_minmax(12rem,auto)] gap-3 border-b border-border px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground"
-                aria-hidden="true"
-              >
-                <span>Ativo</span>
-                <span>Tipo</span>
-                <span>Detalhe</span>
-                <span className="text-right">Peso</span>
-                <span className="text-right">Valor</span>
-                <span className="text-right">Ações</span>
-              </div>
-              <ul key={filter} className="divide-y divide-border">
-                {visible.map((item, i) => {
-                  const Icon = KINDS[item.kind].icon;
-                  const share = allTotal > 0 ? (item.value / allTotal) * 100 : 0;
-                  return (
-                    <li
-                      key={item.key}
-                      className="lh-row grid grid-cols-[minmax(0,1.4fr)_7rem_minmax(0,1.2fr)_5.5rem_7.5rem_minmax(12rem,auto)] items-center gap-3 px-4 py-3.5 hover:bg-muted/30"
-                      style={{ "--i": i } as React.CSSProperties}
-                    >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
-                          <Icon className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                        <span className="min-w-0 truncate text-sm font-semibold text-foreground">{item.title}</span>
-                      </span>
-                      <span className="truncate text-xs text-muted-foreground">{KINDS[item.kind].label}</span>
-                      <span className="truncate text-xs text-muted-foreground">{item.detail}</span>
-                      <span className="flex items-center justify-end gap-2">
-                        <span className="h-1 w-10 overflow-hidden rounded-full bg-muted">
-                          <span
-                            className="lh-bar block h-full rounded-full bg-foreground/70"
-                            style={{ width: `${Math.max(share, 2)}%`, "--i": i } as React.CSSProperties}
-                          />
-                        </span>
-                        <span className="w-8 text-right text-[11px] tabular-nums text-muted-foreground">{pct(share, 0)}</span>
-                      </span>
-                      <span className="text-right">
-                        <span className={`${MONEY} block text-sm`}>{formatCurrency(item.value)}</span>
-                        {item.gainPct !== null && (
-                          <span
-                            className={cn(
-                              "block text-[11px] font-semibold tabular-nums",
-                              item.gainPct > 0.005 ? GAIN : item.gainPct < -0.005 ? LOSS : "text-muted-foreground",
-                            )}
-                          >
-                            {signed(item.gainPct)}
-                          </span>
-                        )}
-                      </span>
-                      <span className="flex flex-wrap items-center justify-end gap-1.5">
-                        <ItemActions item={item} handlers={handlers} onBuyStock={onBuyStock} onSell={onSell} dense />
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-        </section>
+                  {groupItems.length === 0 ? (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border px-4 py-5">
+                      <p className="text-sm text-muted-foreground">{filterMeta(group.id).empty}</p>
+                      <button
+                        type="button"
+                        onClick={
+                          group.id === "bolsa"
+                            ? onBuyStock
+                            : () => onNewCaixinha(group.id === "caixinhas" ? "turbo" : "investimentos")
+                        }
+                        className={ACTION_BTN_SM}
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        {group.id === "bolsa" ? "Comprar" : "Nova caixinha"}
+                      </button>
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+                      {groupItems.map((item, i) => {
+                        const open = openKey === item.key;
+                        const Icon = KINDS[item.kind].icon;
+                        return (
+                          <li key={item.key} className="lh-row" style={{ "--i": i } as React.CSSProperties}>
+                            <button
+                              type="button"
+                              aria-expanded={open}
+                              onClick={() => setOpenKey(open ? null : item.key)}
+                              className={`grid w-full grid-cols-[2.25rem_minmax(0,1fr)_auto_1rem] items-center gap-4 px-4 py-3.5 text-left transition-colors hover:bg-muted/35 ${FOCUS}`}
+                            >
+                              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground">
+                                <Icon className="h-4 w-4" aria-hidden="true" />
+                              </span>
+                              <span className="min-w-0">
+                                <span className="flex items-center gap-2">
+                                  <span className="truncate text-sm font-semibold text-foreground">{item.title}</span>
+                                  {(filter === "all" || group.id === "caixinhas") && (
+                                    <span className="shrink-0 text-[11px] text-muted-foreground">{KINDS[item.kind].label}</span>
+                                  )}
+                                </span>
+                                <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">{item.detail}</span>
+                              </span>
+                              <span className="text-right">
+                                <span className={`${MONEY} block text-sm`}>{formatCurrency(item.value)}</span>
+                                {item.gainPct !== null && (
+                                  <span
+                                    className={cn(
+                                      "block text-[11px] font-semibold tabular-nums",
+                                      item.gainPct > 0.005 ? GAIN : item.gainPct < -0.005 ? LOSS : "text-muted-foreground",
+                                    )}
+                                  >
+                                    {signed(item.gainPct)}
+                                  </span>
+                                )}
+                              </span>
+                              <ChevronDown
+                                className={cn("h-4 w-4 text-muted-foreground transition-transform duration-300", open && "rotate-180")}
+                                aria-hidden="true"
+                              />
+                            </button>
+                            <div className="lh-panel" data-open={open} inert={!open}>
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
+                                  <ItemActions item={item} handlers={handlers} onBuyStock={onBuyStock} onSell={onSell} dense />
+                                </div>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }

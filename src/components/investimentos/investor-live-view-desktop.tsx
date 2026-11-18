@@ -754,8 +754,9 @@ export function InvestorLiveViewDesktop({
             </button>
           </div>
           <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark">
-            <div className="mx-auto w-full max-w-2xl px-7 pt-4 pb-8">
+            <div className="mx-auto w-full max-w-5xl px-8 pt-6 pb-10">
               <SimulatorInvestFlow
+                variant="desktop"
                 suggestedAmount={suggestedAmount}
                 cash={cashBalance}
                 knownPrices={quoteMap}

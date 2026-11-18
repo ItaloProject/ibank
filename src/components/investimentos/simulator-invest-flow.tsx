@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ElementType } from "react";
 import { Building2, ChevronRight, Landmark, PiggyBank, TrendingUp, Zap, Shield, Plus } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { isEmergenciaProductName, isTesouroName, type FixedIncomeEntry } from "@/lib/fixed-income-catalog";
 import { FOCUS, LABEL, MONEY, ROW, BackLink } from "@/components/investimentos/live-ui";
 import { AmountSheet, FixedIncomeSheet, StockOrderSheet, type StockOrder } from "@/components/investimentos/live-money-sheets";
@@ -41,6 +41,8 @@ type Props = {
   onAdjustCash?: () => void;
   /** Valor sugerido pelo assistente: preenche o campo de valor; com uma só conta na seção, já abre a aplicação. */
   suggestedAmount?: number;
+  /** `desktop` = hub em grade wide; `stack` = lista do celular. */
+  variant?: "stack" | "desktop";
 };
 
 function CreateAccountButton({ label, onClick }: { label: string; onClick: () => void }) {
@@ -63,12 +65,37 @@ function DestCard({
   subtitle,
   icon: Icon,
   onClick,
+  desktop,
 }: {
   title: string;
   subtitle: string;
   icon: ElementType;
   onClick: () => void;
+  desktop?: boolean;
 }) {
+  if (desktop) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "flex min-h-[132px] flex-col items-start gap-3 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:bg-muted/30",
+          FOCUS,
+        )}
+      >
+        <span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-muted text-foreground">
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 space-y-1">
+          <span className="flex items-center justify-between gap-2">
+            <span className="text-[15px] font-semibold text-foreground">{title}</span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </span>
+          <span className="block text-[12px] leading-snug text-muted-foreground">{subtitle}</span>
+        </span>
+      </button>
+    );
+  }
   return (
     <button type="button" onClick={onClick} className={`${ROW} min-h-16 p-3.5 flex items-center gap-3`}>
       <span className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
@@ -138,7 +165,9 @@ export function SimulatorInvestFlow({
   onCreateAccount,
   onAdjustCash,
   suggestedAmount,
+  variant = "stack",
 }: Props) {
+  const desktop = variant === "desktop";
   const [order, setOrder] = useState<StockOrder | null>(null);
   const [amountTarget, setAmountTarget] = useState<AmountTarget | null>(null);
   const [fixedEntry, setFixedEntry] = useState<FixedIncomeEntry | null>(null);
@@ -156,8 +185,17 @@ export function SimulatorInvestFlow({
   const ownRendaFixa = rendaFixaAccounts.filter((a) => !isTesouroName(a.nome));
   const ownFixed = section === "tesouro" ? ownTesouro : ownRendaFixa;
 
+  const destinations: { section: Exclude<MarketSection, "hub">; title: string; subtitle: string; icon: ElementType }[] = [
+    { section: "acoes", title: "Ações", subtitle: "Empresas da bolsa — Petrobras, Itaú, Vale, WEG", icon: TrendingUp },
+    { section: "fiis", title: "Fundos imobiliários", subtitle: "Renda mensal de aluguéis e recebíveis", icon: Building2 },
+    { section: "tesouro", title: "Tesouro Direto", subtitle: "Selic, prefixado, IPCA+, Renda+ e Educa+", icon: Landmark },
+    { section: "rendafixa", title: "Renda fixa", subtitle: "CDB, LCI, LCA, debêntures, CRI e CRA", icon: PiggyBank },
+    { section: "turbo", title: "Caixinha Turbo", subtitle: "Rende acima do CDI até um teto", icon: Zap },
+    { section: "eme", title: "Reserva de emergência", subtitle: "Tesouro Selic / CDB diário — não poupança", icon: Shield },
+  ];
+
   return (
-    <div className="space-y-5">
+    <div className={cn("space-y-5", desktop && "space-y-8")}>
       <BackLink
         label={section === "hub" ? "Voltar" : "Outras opções"}
         onClick={() => {
@@ -166,10 +204,15 @@ export function SimulatorInvestFlow({
         }}
       />
 
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2">
+      <div
+        className={cn(
+          "flex items-center justify-between gap-3 rounded-lg border border-border bg-card",
+          desktop ? "px-5 py-3.5" : "px-3 py-2",
+        )}
+      >
         <div className="flex min-w-0 items-baseline gap-2">
           <span className={LABEL}>Saldo em conta</span>
-          <span className={`${MONEY} text-sm font-bold`}>{formatCurrency(cash)}</span>
+          <span className={cn(MONEY, desktop ? "text-lg font-bold" : "text-sm font-bold")}>{formatCurrency(cash)}</span>
         </div>
         {onAdjustCash && (
           <button
@@ -183,44 +226,27 @@ export function SimulatorInvestFlow({
       </div>
 
       {section === "hub" && (
-        <div className="space-y-2.5">
-          <h2 className={LABEL}>Onde você quer investir?</h2>
-          <DestCard
-            title="Ações"
-            subtitle="Empresas da bolsa, como Petrobras, Itaú, Vale e WEG"
-            icon={TrendingUp}
-            onClick={() => onSectionChange("acoes")}
-          />
-          <DestCard
-            title="Fundos imobiliários"
-            subtitle="Renda mensal de aluguéis de galpões, shoppings, escritórios e recebíveis"
-            icon={Building2}
-            onClick={() => onSectionChange("fiis")}
-          />
-          <DestCard
-            title="Tesouro Direto"
-            subtitle="Títulos do governo: Selic, prefixado, inflação, Renda+ e Educa+"
-            icon={Landmark}
-            onClick={() => onSectionChange("tesouro")}
-          />
-          <DestCard
-            title="Renda fixa"
-            subtitle="CDB, LCI, LCA, debêntures, CRI, CRA e poupança"
-            icon={PiggyBank}
-            onClick={() => onSectionChange("rendafixa")}
-          />
-          <DestCard
-            title="Caixinha Turbo"
-            subtitle="Contas que rendem acima do CDI até um teto"
-            icon={Zap}
-            onClick={() => onSectionChange("turbo")}
-          />
-          <DestCard
-            title="Reserva de emergência"
-            subtitle="Tesouro Selic / CDB diário — não poupança"
-            icon={Shield}
-            onClick={() => onSectionChange("eme")}
-          />
+        <div className={cn(desktop ? "space-y-4" : "space-y-2.5")}>
+          <div className={desktop ? "space-y-1" : undefined}>
+            <h2 className={desktop ? "font-display text-xl font-semibold tracking-tight text-foreground" : LABEL}>
+              Onde você quer investir?
+            </h2>
+            {desktop ? (
+              <p className="text-sm text-muted-foreground">Escolha o tipo de aplicação. O saldo em conta pode financiar o aporte.</p>
+            ) : null}
+          </div>
+          <div className={cn(desktop ? "grid grid-cols-2 gap-3 xl:grid-cols-3" : "space-y-2.5")}>
+            {destinations.map((d) => (
+              <DestCard
+                key={d.section}
+                title={d.title}
+                subtitle={d.subtitle}
+                icon={d.icon}
+                desktop={desktop}
+                onClick={() => onSectionChange(d.section)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
