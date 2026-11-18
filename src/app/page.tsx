@@ -249,7 +249,7 @@ export default function DashboardPage() {
           {/* Renda passiva */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardDescription>Renda passiva</CardDescription>
+              <CardDescription className="whitespace-nowrap">Renda passiva</CardDescription>
               <Wallet className="h-4 w-4 text-emerald-600" />
             </CardHeader>
             <CardContent>
@@ -281,12 +281,12 @@ export default function DashboardPage() {
         {/* ── Renda passiva detalhada ── */}
         <Card>
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between space-y-0">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-emerald-500" />
+            <div className="min-w-0">
+              <CardTitle className="flex items-center gap-2 whitespace-nowrap text-[clamp(1.1rem,6vw,1.5rem)]">
+                <Wallet className="h-5 w-5 shrink-0 text-emerald-500" />
                 Renda passiva mensal
               </CardTitle>
-              <CardDescription>Estimativa atual das suas fontes de renda</CardDescription>
+              <CardDescription className="whitespace-nowrap text-[clamp(0.7rem,3.4vw,0.875rem)]">Estimativa atual das suas fontes de renda</CardDescription>
             </div>
             <div className="text-left sm:text-right">
               <p className="text-2xl font-bold text-emerald-500 tabular-nums">{formatCurrency(monthlyIncome)}</p>
@@ -460,12 +460,12 @@ export default function DashboardPage() {
         {activeParcelas.length > 0 && (
           <Card>
             <CardHeader className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between space-y-0">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-muted-foreground" />
+              <div className="min-w-0">
+                <CardTitle className="flex items-center gap-2 whitespace-nowrap text-[clamp(1.1rem,6vw,1.5rem)]">
+                  <Layers className="h-4 w-4 shrink-0 text-muted-foreground" />
                   Parcelamentos ativos
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="whitespace-nowrap text-[clamp(0.7rem,3.4vw,0.875rem)]">
                   {activeParcelas.length} plano{activeParcelas.length !== 1 ? "s" : ""} · próxima parcela total: {formatCurrency(nextInstallmentTotal)}
                 </CardDescription>
               </div>
