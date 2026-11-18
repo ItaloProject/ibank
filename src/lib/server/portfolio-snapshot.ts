@@ -9,7 +9,7 @@ import { ensureBotSchema } from "@/lib/bot-schema";
 import { ensureOnboardingColumns } from "@/lib/onboarding";
 import { toAccount, toInvestment, toStockTrade } from "@/lib/normalize";
 import { fetchMarketRates, type MarketRates } from "@/lib/market-research";
-import { fetchDayMove, fetchYahooQuote, INDEX_SYMBOL } from "@/lib/market-quotes";
+import { dayMoveFromQuote, fetchDayMove, fetchYahooQuote, INDEX_SYMBOL } from "@/lib/market-quotes";
 import { buildPriceAlerts } from "@/lib/price-alerts";
 import { buildCurve, type Curve } from "@/lib/market-curve";
 import { buildPortfolio, type Portfolio } from "@/lib/portfolio-return";
@@ -220,9 +220,8 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
 
   const positions = computeStockPositions(trades).filter((p) => p.quantity > 0.0001);
   const tracked = positions.slice(0, 40);
-  const [market, dayMoves, indexMove] = await Promise.all([
+  const [market, indexMove] = await Promise.all([
     Promise.all(tracked.map((p) => fetchYahooQuote(p.ticker))),
-    Promise.all(tracked.map((p) => fetchDayMove(`${p.ticker}.SA`))),
     tracked.length > 0 ? fetchDayMove(INDEX_SYMBOL) : Promise.resolve(null),
   ]);
   const priceOf = new Map<string, number>(quoteRows.map((q) => [String(q.ticker), Number(q.current_price)]));
@@ -233,6 +232,7 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
     if (m.dy12m > 0) fiiDy[m.ticker] = m.dy12m;
   }
   const quotes = [...priceOf].map(([ticker, current_price]) => ({ ticker, current_price }));
+  const dayMoves = market.map((m) => dayMoveFromQuote(m));
 
   const curve = buildCurve({ selic: rates.selicAnual, cdi: rates.cdiAnual, ipca12m: rates.ipca12m ?? 4.5, focus: rates.focus }, 972);
   const portfolio = buildPortfolio(accounts, investments, trades, quotes, curve, fiiDy);

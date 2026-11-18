@@ -39,22 +39,49 @@ export async function GET() {
   }
 }
 
+type QuoteIn = { ticker: string; current_price: number };
+
+function parseQuotes(body: unknown): QuoteIn[] {
+  if (!body || typeof body !== "object") return [];
+  const o = body as { ticker?: unknown; current_price?: unknown; quotes?: unknown };
+  if (Array.isArray(o.quotes)) {
+    return o.quotes
+      .filter((q): q is QuoteIn => !!q && typeof q === "object" && typeof (q as QuoteIn).ticker === "string" && Number.isFinite(Number((q as QuoteIn).current_price)))
+      .map((q) => ({ ticker: String(q.ticker).toUpperCase(), current_price: Number(q.current_price) }))
+      .slice(0, 80);
+  }
+  if (typeof o.ticker === "string" && Number.isFinite(Number(o.current_price))) {
+    return [{ ticker: o.ticker.toUpperCase(), current_price: Number(o.current_price) }];
+  }
+  return [];
+}
+
 export async function POST(request: Request) {
   try {
     const auth = await requireUserId();
     if (auth instanceof NextResponse) return auth;
     const { userId } = auth;
     await ensureTable();
-    const { ticker, current_price } = await request.json();
+    const quotes = parseQuotes(await request.json());
+    if (quotes.length === 0) {
+      return NextResponse.json({ error: "Informe ticker e preço." }, { status: 400 });
+    }
 
-    const [row] = await sql`
-      INSERT INTO stock_quotes (user_id, ticker, current_price, updated_at)
-      VALUES (${userId}, ${ticker}, ${current_price}, NOW())
-      ON CONFLICT (user_id, ticker)
-      DO UPDATE SET current_price = ${current_price}, updated_at = NOW()
-      RETURNING *
-    `;
-    return NextResponse.json(row);
+    // Um upsert por vez na mesma request — evita N round-trips HTTP do cliente.
+    const rows = [];
+    for (const q of quotes) {
+      const [row] = await sql`
+        INSERT INTO stock_quotes (user_id, ticker, current_price, updated_at)
+        VALUES (${userId}, ${q.ticker}, ${q.current_price}, NOW())
+        ON CONFLICT (user_id, ticker)
+        DO UPDATE SET current_price = ${q.current_price}, updated_at = NOW()
+        RETURNING *
+      `;
+      if (row) rows.push(row);
+    }
+
+    // Compat: um único ticker continua devolvendo o objeto; lote devolve array.
+    return NextResponse.json(quotes.length === 1 ? rows[0] : rows);
   } catch (err) {
     return NextResponse.json({ error: "Erro interno. Tente novamente em instantes." }, { status: 500 });
   }

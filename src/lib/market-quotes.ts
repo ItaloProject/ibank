@@ -9,6 +9,10 @@ export type MarketQuote = {
   time: number | null;
   /** Variação do dia em relação ao fechamento anterior (%); ausente ou null se não houver. */
   changePct?: number | null;
+  /** Fechamento do pregão anterior; preenche day move sem segundo fetch. */
+  previousClose?: number | null;
+  /** Variação vs. fechamento de ~5 pregões atrás. */
+  weekChangePct?: number | null;
 };
 
 export const TICKER_RE = /^[A-Z0-9]{4,7}$/;
@@ -16,10 +20,13 @@ export const TICKER_RE = /^[A-Z0-9]{4,7}$/;
 /** O Yahoo já entrega a B3 com ~15 min de atraso; manter o cache curto evita somar mais defasagem. */
 const QUOTE_REVALIDATE_S = 120;
 
+/** Resposta do chart Yahoo (preço, histórico diário e eventos de dividendo). */
 type YahooChart = {
   chart?: {
     result?: {
       meta?: { regularMarketPrice?: number; regularMarketTime?: number; currency?: string };
+      timestamp?: number[];
+      indicators?: { quote?: { close?: (number | null)[] }[] };
       events?: { dividends?: Record<string, { amount?: number; date?: number }> };
     }[];
   };
@@ -39,15 +46,7 @@ export type DayMove = {
 /** Ibovespa no Yahoo. */
 export const INDEX_SYMBOL = "^BVSP";
 
-type YahooDaily = {
-  chart?: {
-    result?: {
-      meta?: { regularMarketPrice?: number; regularMarketTime?: number };
-      timestamp?: number[];
-      indicators?: { quote?: { close?: (number | null)[] }[] };
-    }[];
-  };
-};
+type YahooDaily = YahooChart;
 
 /** Dia no calendário de Brasília (AAAA-MM-DD); a B3 fecha no fuso de São Paulo. */
 export function brDay(ms: number): string {
@@ -87,6 +86,18 @@ export function parseDayMove(json: YahooDaily): DayMove | null {
 /** Evita que uma cotação travada do Yahoo segure o relatório e o WhatsApp para sempre. */
 const YAHOO_TIMEOUT_MS = 8_000;
 
+/** Converte a cotação enriquecida no day move usado pelos avisos de preço. */
+export function dayMoveFromQuote(q: MarketQuote | null | undefined): DayMove | null {
+  if (!q || q.previousClose == null || !(q.previousClose > 0) || q.changePct == null || q.time == null) return null;
+  return {
+    price: q.price,
+    previousClose: q.previousClose,
+    changePct: q.changePct,
+    time: q.time,
+    weekChangePct: q.weekChangePct ?? null,
+  };
+}
+
 /** `symbol` no formato do Yahoo: "ITUB4.SA" para um papel, INDEX_SYMBOL para o Ibovespa. */
 export async function fetchDayMove(symbol: string): Promise<DayMove | null> {
   try {
@@ -103,10 +114,14 @@ export async function fetchDayMove(symbol: string): Promise<DayMove | null> {
   }
 }
 
-/** `fresh` ignora o cache e consulta o Yahoo na hora (botão de atualizar). */
+/**
+ * Uma chamada ao Yahoo por ticker: preço, DY 12m e variação do dia.
+ * Usa intervalo diário para calcular o day move no mesmo JSON (antes eram 2 fetches).
+ * `fresh` ignora o cache e consulta na hora (botão de atualizar).
+ */
 export async function fetchYahooQuote(ticker: string, opts: { fresh?: boolean } = {}): Promise<MarketQuote | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}.SA?range=1y&interval=1mo&events=div`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}.SA?range=1y&interval=1d&events=div`;
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; MUVO/1.0)" },
       ...(opts.fresh ? { cache: "no-store" as const } : { next: { revalidate: QUOTE_REVALIDATE_S } }),
@@ -123,12 +138,16 @@ export async function fetchYahooQuote(ticker: string, opts: { fresh?: boolean } 
       .filter((d) => typeof d.amount === "number" && (d.date ?? 0) >= cutoff)
       .reduce((s, d) => s + (d.amount ?? 0), 0);
     const t = result?.meta?.regularMarketTime;
+    const day = parseDayMove(json);
     return {
       ticker,
       price,
       dividends12m,
       dy12m: (dividends12m / price) * 100,
-      time: typeof t === "number" && Number.isFinite(t) ? t * 1000 : null,
+      time: typeof t === "number" && Number.isFinite(t) ? t * 1000 : day?.time ?? null,
+      changePct: day?.changePct ?? null,
+      previousClose: day?.previousClose ?? null,
+      weekChangePct: day?.weekChangePct ?? null,
     };
   } catch {
     return null;

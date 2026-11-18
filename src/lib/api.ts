@@ -197,20 +197,33 @@ export async function refreshStockQuotes(trades: StockTrade[], stored: StockQuot
     const cur = byTicker.get(m.ticker);
     return !cur || Math.abs(cur.current_price - m.price) >= 0.005;
   });
-  await Promise.all(changed.map((m) => upsertStockQuote(m.ticker, m.price).catch(() => null)));
+  if (changed.length > 0) {
+    await upsertStockQuotes(changed.map((m) => ({ ticker: m.ticker, current_price: m.price }))).catch(() => null);
+  }
   const now = new Date().toISOString();
   for (const m of changed) byTicker.set(m.ticker, { ticker: m.ticker, current_price: m.price, updated_at: now });
   return { quotes: [...byTicker.values()], market };
 }
 
-export async function upsertStockQuote(ticker: string, current_price: number): Promise<StockQuote> {
+/** Grava várias cotações numa request só (evita N POSTs ao abrir Investimentos). */
+export async function upsertStockQuotes(quotes: { ticker: string; current_price: number }[]): Promise<StockQuote[]> {
+  if (quotes.length === 0) return [];
   const res = await fetch(`/api/stock-quotes?user=${uid()}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ticker, current_price }),
+    body: JSON.stringify(quotes.length === 1 ? quotes[0] : { quotes }),
   });
-  const r = await res.json();
-  return { ...r, current_price: Number(r.current_price) };
+  const data = await res.json();
+  const rows = Array.isArray(data) ? data : data ? [data] : [];
+  return rows.map((r: { ticker: string; current_price: number; updated_at?: string }) => ({
+    ...r,
+    current_price: Number(r.current_price),
+  }));
+}
+
+export async function upsertStockQuote(ticker: string, current_price: number): Promise<StockQuote> {
+  const [row] = await upsertStockQuotes([{ ticker, current_price }]);
+  return row;
 }
 
 // ─── Turbo History ────────────────────────────────────────────────────────────

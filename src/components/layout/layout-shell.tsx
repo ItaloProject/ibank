@@ -116,32 +116,28 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     <AlertsProvider>
     <div className="flex h-[100dvh] overflow-hidden">
       <NavigationSplash />
-      {!isPwa && mobileOpen && (
+      {mobileOpen && (
         <div
           className="fixed inset-0 bg-black/60 z-[45] md:hidden animate-in fade-in-0 duration-200"
           onClick={() => setMobileOpen(false)}
           aria-hidden
         />
       )}
-      {!isPwa && (
-        <Sidebar
-          collapsed={collapsed}
-          onToggle={toggle}
-          mobileOpen={mobileOpen}
-          onMobileClose={() => setMobileOpen(false)}
-        />
-      )}
+      {/* PWA instalada usa o mesmo menu lateral do browser — sem isso só restava o bottom nav. */}
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={toggle}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
+      />
       <div
         className={cn(
           "flex flex-1 flex-col min-w-0 transition-[margin] duration-150 ease-out",
-          !isPwa && (collapsed ? "md:ml-[68px]" : "md:ml-60"),
+          collapsed ? "md:ml-[68px]" : "md:ml-60",
         )}
       >
         <header
-          className={cn(
-            "sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4 md:hidden safe-pt",
-            isPwa && "hidden",
-          )}
+          className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4 md:hidden safe-pt"
           style={{ height: "calc(3.5rem + var(--safe-top))" }}
         >
           <button
@@ -157,13 +153,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
           </div>
           <NotificationBell className="md:hidden" />
         </header>
-        <div
-          className={cn(
-            "h-14 shrink-0 items-center justify-end border-b bg-background px-4",
-            isPwa ? "flex safe-pt" : "hidden md:flex",
-          )}
-          style={isPwa ? { height: "calc(3.5rem + var(--safe-top))" } : undefined}
-        >
+        <div className="hidden h-14 shrink-0 items-center justify-end border-b bg-background px-4 md:flex">
           <NotificationBell />
         </div>
         <TrialBanner />
@@ -179,9 +169,9 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       <MoreNavSheet
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
-        onOpenFullMenu={isPwa ? undefined : () => setMobileOpen(true)}
+        onOpenFullMenu={() => setMobileOpen(true)}
       />
-      <PwaInstallPrompt />
+      {!isPwa && <PwaInstallPrompt />}
       <SessionTimeout />
     </div>
     </AlertsProvider>
