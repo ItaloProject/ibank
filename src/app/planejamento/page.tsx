@@ -23,14 +23,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Pencil, FolderPlus, TrendingUp, TrendingDown,
+  Pencil, FolderPlus, TrendingUp, TrendingDown,
   ChevronLeft, ChevronRight, Copy, FileDown, Loader2,
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { PlanReportGroup } from "@/lib/report/plan-share";
 import { USERS } from "@/lib/user";
-import { PageHeader, PageShell, PageBody } from "@/components/mobile";
+import { PageShell, PageBody } from "@/components/mobile";
 import { PAGE_CONTENT } from "@/components/mobile/page-shell";
 import { cn } from "@/lib/utils";
 import { SplashScreen } from "@/components/splash-screen";
@@ -481,7 +481,6 @@ function PlanejamentoContent({ userId }: { userId: string }) {
   const totalPlanned = totalFixoPlanned + totalVarPlanned;
   const totalActual  = totalFixoActual  + totalVarActual;
   const sobra        = salary - totalActual;
-  const sobraPlanned = salary - totalPlanned;
 
   // ── Relatórios ─────────────────────────────────────────────────────────────
 
@@ -565,182 +564,157 @@ function PlanejamentoContent({ userId }: { userId: string }) {
     try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
   }
 
+  const rendaUsadaPct = salary > 0 ? Math.min(100, Math.round((totalActual / salary) * 100)) : 0;
+  const progressTone =
+    salary <= 0
+      ? "bg-muted-foreground/40"
+      : totalActual > salary
+        ? "bg-destructive"
+        : rendaUsadaPct >= 85
+          ? "bg-amber-400"
+          : "bg-foreground";
+
   return (
     <PageShell>
-      {/* Desktop: full page header */}
-      <div className="hidden md:block sticky top-0 z-20 bg-background">
-        <PageHeader
-          width="full"
-          title="Planejamento"
-          description={undefined}
-          actions={
-            <>
-              <div className="flex items-center gap-0.5 mr-1">
-                <button type="button" onClick={goToPrev} aria-label="Mês anterior" className="flex min-h-11 min-w-11 h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <span className="text-sm font-semibold capitalize tracking-tight min-w-[148px] text-center">{monthLabel}</span>
-                <button type="button" onClick={goToNext} aria-label="Próximo mês" className="flex min-h-11 min-w-11 h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-              <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => setCopyOpen(true)}>
-                <Copy className="h-3.5 w-3.5" />
-                Copiar mês anterior
-              </Button>
-              {items.length > 0 && (
-                <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={exportPdf} disabled={pdfBusy}>
-                  {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
-                  Gerar PDF
-                </Button>
-              )}
-              <Button onClick={openNewGroup} size="sm" className="min-h-11 text-xs">
-                <FolderPlus className="h-3.5 w-3.5" />
-                Novo grupo
-              </Button>
-            </>
-          }
-        />
-      </div>
-
-      {/* Mobile: month navigation only — clean, no action clutter */}
-      <div className="md:hidden flex items-center px-2 h-14 border-b shrink-0">
-        <button type="button" onClick={goToPrev} aria-label="Mês anterior"
-          className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <span className="flex-1 text-center text-[15px] font-bold capitalize tracking-tight">{monthLabel}</span>
-        <button type="button" onClick={goToNext} aria-label="Próximo mês"
-          className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronRight className="h-5 w-5" />
-        </button>
-      </div>
-
       <PageBody width="full" className="pt-0 space-y-0 md:flex-1 md:min-h-0 md:flex md:flex-col md:overflow-hidden">
+        {/* Cabeçalho + resumo no padrão do app (Plano Android) */}
+        <div className={cn(PAGE_CONTENT, "pt-4 pb-3 space-y-3.5 shrink-0 sm:pt-6")}>
+          <div className="space-y-0.5">
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
+              Plano
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Organize o mês sem perder o que importa.
+            </p>
+          </div>
 
-        {/* ── BUDGET OVERVIEW — full width, mobile + desktop ──────────────────── */}
-        <div className="border-b bg-muted/10 shrink-0">
-        <div className={cn(PAGE_CONTENT, "pt-3 pb-3 space-y-2.5")}>
-          <button
-            type="button"
-            className="flex items-end justify-between w-full text-left group"
-            onClick={() => setSalaryOpen(true)}
-          >
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/55 mb-0.5">Renda do mês</p>
-              <p className={`text-2xl font-display font-black tabular-nums leading-none ${salary > 0 ? "text-foreground" : "text-muted-foreground/30"}`}>
-                {salary > 0 ? fmt(salary) : "— informar"}
-              </p>
+          <div className="flex items-center rounded-2xl border bg-card">
+            <button
+              type="button"
+              onClick={goToPrev}
+              aria-label="Mês anterior"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-l-2xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <span className="min-w-0 flex-1 text-center text-[15px] font-bold capitalize tracking-tight">
+              {monthLabel}
+            </span>
+            <button
+              type="button"
+              onClick={goToNext}
+              aria-label="Próximo mês"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-r-2xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+
+          <section className="rounded-2xl border bg-card p-[18px] space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <h2 className="text-base font-bold tracking-tight text-foreground">Resumo do mês</h2>
+                <p className="text-[11px] text-muted-foreground">
+                  {incomes.length === 0
+                    ? "Renda ainda não informada"
+                    : `${incomes.length} ${incomes.length === 1 ? "receita" : "receitas"} cadastradas`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSalaryOpen(true)}
+                className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border bg-foreground/[0.05] px-3.5 text-[12px] font-bold text-foreground/80 transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                {incomes.length === 0 ? "Informar renda" : "Ver receitas"}
+              </button>
             </div>
-            <div className="flex items-center gap-1 text-foreground/55 group-hover:text-foreground transition-colors pb-0.5">
-              {incomes.length > 0 ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-              <span className="text-[11px] font-medium">{incomes.length > 0 ? "detalhar" : "adicionar"}</span>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Renda</p>
+                <p className={cn(
+                  "font-display text-2xl font-black tabular-nums leading-none sm:text-[1.75rem]",
+                  salary > 0 ? "text-foreground" : "text-muted-foreground/50",
+                )}>
+                  {salary > 0 ? fmt(salary) : "—"}
+                </p>
+              </div>
+              <div className="space-y-1 text-right">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Sobra</p>
+                <p className={cn(
+                  "font-display text-2xl font-black tabular-nums leading-none sm:text-[1.75rem]",
+                  salary <= 0
+                    ? "text-muted-foreground/50"
+                    : sobra >= 0
+                      ? "text-emerald-500 dark:text-emerald-400"
+                      : "text-destructive",
+                )}>
+                  {salary > 0 ? fmt(sobra) : "—"}
+                </p>
+              </div>
             </div>
-          </button>
-          {incomes.length > 0 && (
-            <ul className="grid grid-cols-2 gap-1.5 md:grid-cols-4" aria-label="Receitas do mês">
-              {incomes.map((income) => (
-                <li
-                  key={income.id}
-                  className="flex min-w-0 items-center justify-between gap-2 rounded-lg border bg-background px-2.5 py-1.5"
-                >
-                  <span className="min-w-0 truncate text-[11px] text-muted-foreground">{income.description}</span>
-                  <span className="shrink-0 text-[11px] font-display font-black tabular-nums">{fmt(income.amount)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {salary > 0 && (
-            <div className="space-y-1">
-              <div className="h-1.5 rounded-full bg-border/60 overflow-hidden">
+
+            <div className="space-y-2">
+              <div className="h-[7px] overflow-hidden rounded-full bg-muted">
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${totalActual > salary ? "bg-destructive" : "bg-primary"}`}
-                  style={{ width: `${Math.min(100, (totalActual / salary) * 100)}%` }}
+                  className={cn("h-full rounded-full transition-all duration-500", progressTone)}
+                  style={{ width: `${salary > 0 ? Math.min(100, (totalActual / salary) * 100) : 0}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[10px] text-foreground/55">
-                <span>Gasto {fmt(totalActual)}</span>
-                <span className={sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive/70"}>
-                  {sobra >= 0 ? `Sobra ${fmt(sobra)}` : `Excedeu ${fmt(Math.abs(sobra))}`}
+              <div className="flex justify-between gap-3 text-[11px]">
+                <span className="text-muted-foreground">
+                  {salary > 0 ? `${rendaUsadaPct}% da renda usada` : "Informe a renda para acompanhar o mês"}
                 </span>
+                <span className="shrink-0 font-semibold tabular-nums text-foreground">{fmt(totalActual)} gastos</span>
               </div>
             </div>
-          )}
-          {/* Resumo: 2 colunas no celular, 4 no computador */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <div className="rounded-xl bg-background border border-blue-500/20 px-3 py-3 space-y-1.5">
-              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-500">
-                Fixos
-                <HelpTip label="fixos">
-                  Soma do que você já gastou (valor real) nos itens fixos. O &quot;de R$&quot; abaixo é o total planejado para eles.
-                </HelpTip>
-              </p>
-              <p className="text-base font-display font-black tabular-nums leading-none">{fmt(totalFixoActual)}</p>
-              <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(totalFixoPlanned)}</p>
-            </div>
-            <div className="rounded-xl bg-background border border-orange-400/20 px-3 py-3 space-y-1.5">
-              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-orange-400">
-                Variáveis
-                <HelpTip label="variáveis">
-                  Soma do que você já gastou (valor real) nos itens variáveis. O &quot;de R$&quot; abaixo é o total planejado para eles.
-                </HelpTip>
-              </p>
-              <p className="text-base font-display font-black tabular-nums leading-none">{fmt(totalVarActual)}</p>
-              <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(totalVarPlanned)}</p>
-            </div>
-            <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${totalPlanned > 0 && totalActual > totalPlanned ? "border-destructive/20" : "border-foreground/15"}`}>
-              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-foreground/80">
-                Gasto total
-                <HelpTip label="gasto total">
-                  Soma de tudo o que você já gastou (valor real) no mês, fixos e variáveis. O &quot;de R$&quot; abaixo é o total planejado.
-                </HelpTip>
-              </p>
-              <p className={`text-base font-display font-black tabular-nums leading-none ${totalPlanned > 0 && totalActual > totalPlanned ? "text-destructive" : ""}`}>{fmt(totalActual)}</p>
-              <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(totalPlanned)}</p>
-            </div>
-            <div className={`rounded-xl bg-background border px-3 py-3 space-y-1.5 ${sobra >= 0 ? "border-green-500/20" : "border-destructive/20"}`}>
-              <p className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>
-                Sobra
-                <HelpTip label="sobra">
-                  Renda do mês menos tudo o que você já gastou (valor real). O &quot;de R$&quot; abaixo é quanto sobraria se você gastasse exatamente o planejado. É o que fica livre para investir.
-                </HelpTip>
-              </p>
-              <p className={`text-base font-display font-black tabular-nums leading-none ${sobra >= 0 ? "text-green-500 dark:text-green-400" : "text-destructive"}`}>
-                {salary > 0 ? fmt(sobra) : "—"}
-              </p>
-              {salary > 0 && <p className="text-[10px] text-muted-foreground/65 tabular-nums">de {fmt(sobraPlanned)}</p>}
-            </div>
-          </div>
-        </div>
-        </div>
 
-        {/* ── MOBILE: ações do mês ─────────────────────────────────────────────── */}
-        <div className="md:hidden grid grid-cols-3 gap-1 border-b px-2 py-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={openNewGroup}
-            className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-foreground hover:bg-muted transition-colors"
-          >
-            <FolderPlus className="h-3.5 w-3.5" />
-            Novo grupo
-          </button>
-          <button
-            type="button"
-            onClick={() => setCopyOpen(true)}
-            className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <Copy className="h-3.5 w-3.5" />
-            Copiar mês
-          </button>
-          <button
-            type="button"
-            onClick={exportPdf}
-            disabled={items.length === 0 || pdfBusy}
-            className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
-          >
-            {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
-            PDF
-          </button>
+            <div className="h-px bg-border" />
+
+            <div className="grid grid-cols-2 gap-0">
+              <div className="space-y-1.5 pr-4">
+                <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-500">
+                  Fixos
+                  <HelpTip label="fixos">
+                    Soma do que você já gastou (valor real) nos itens fixos. O &quot;de R$&quot; é o planejado.
+                  </HelpTip>
+                </p>
+                <p className="font-display text-lg font-black tabular-nums leading-none">{fmt(totalFixoActual)}</p>
+                <p className="text-[11px] text-muted-foreground tabular-nums">de {fmt(totalFixoPlanned)}</p>
+              </div>
+              <div className="space-y-1.5 border-l border-border pl-4">
+                <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">
+                  Variáveis
+                  <HelpTip label="variáveis">
+                    Soma do que você já gastou (valor real) nos itens variáveis. O &quot;de R$&quot; é o planejado.
+                  </HelpTip>
+                </p>
+                <p className="font-display text-lg font-black tabular-nums leading-none">{fmt(totalVarActual)}</p>
+                <p className="text-[11px] text-muted-foreground tabular-nums">de {fmt(totalVarPlanned)}</p>
+              </div>
+            </div>
+          </section>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <Button onClick={openNewGroup} className="min-h-11">
+              <FolderPlus className="h-4 w-4" />
+              Novo grupo
+            </Button>
+            <Button variant="outline" className="min-h-11" onClick={() => setCopyOpen(true)}>
+              <Copy className="h-4 w-4" />
+              Repetir mês
+            </Button>
+            <Button
+              variant="ghost"
+              className="min-h-11 col-span-2 sm:col-span-1"
+              onClick={exportPdf}
+              disabled={items.length === 0 || pdfBusy}
+            >
+              {pdfBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              Gerar PDF
+            </Button>
+          </div>
         </div>
 
         {/* ── GRUPOS: lista vertical, todos visíveis ─────────────────────────────── */}
@@ -801,7 +775,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                   />
                 </div>
               )}
-              <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+              <div className="mx-auto flex max-w-2xl flex-col gap-3">
                 {orderedGroups.map((group) => (
                   <motion.div
                     key={group.id}
@@ -829,7 +803,7 @@ function PlanejamentoContent({ userId }: { userId: string }) {
                 <button
                   type="button"
                   onClick={openNewGroup}
-                  className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-dashed text-xs font-medium text-muted-foreground hover:border-foreground/30 hover:bg-muted/20 hover:text-foreground transition-colors"
+                  className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-dashed text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted/20 hover:text-foreground"
                 >
                   <FolderPlus className="h-4 w-4" />
                   Novo grupo
