@@ -26,22 +26,22 @@ interface LeadData {
 const SIDE_CONTENT = [
   {
     headline: "Feito para quem leva investimento a sério.",
-    sub: "Controle cartão, acompanhe FIIs, calcule IR e planeje metas — tudo num só lugar.",
+    sub: "Organize o cartão, acompanhe a carteira, calcule IR e planeje metas — tudo num só lugar.",
     stats: [
-      { icon: TrendingUp,    label: "Carteira com alocação ideal",    color: "text-emerald-400" },
-      { icon: Landmark,      label: "IR calculado automaticamente",    color: "text-violet-400" },
-      { icon: CalendarCheck, label: "Proventos e dividendos",          color: "text-blue-400" },
-      { icon: BarChart2,     label: "Rentabilidade vs CDI",            color: "text-amber-400" },
+      { icon: TrendingUp,    label: "Carteira com alocação sugerida", color: "text-emerald-400" },
+      { icon: Landmark,      label: "IR estimado dos investimentos", color: "text-violet-400" },
+      { icon: CalendarCheck, label: "Proventos e dividendos",         color: "text-blue-400" },
+      { icon: BarChart2,     label: "Rentabilidade vs CDI",           color: "text-amber-400" },
     ],
   },
   {
     headline: "Seus dados ficam só com você.",
-    sub: "Login com senha, acesso individual. Ninguém mais vê seus investimentos.",
+    sub: "Login com senha ou Google. Cada conta é individual — ninguém mais vê seus números.",
     stats: [
-      { icon: Shield,     label: "Acesso restrito por senha",    color: "text-emerald-400" },
-      { icon: Smartphone, label: "PWA — funciona como app",      color: "text-blue-400" },
-      { icon: Bot,        label: "Bot opcional com IA",          color: "text-violet-400" },
-      { icon: Wallet,     label: "Controle de cartão integrado", color: "text-amber-400" },
+      { icon: Shield,     label: "Acesso restrito por conta",     color: "text-emerald-400" },
+      { icon: Smartphone, label: "Site (PWA) e app Android",      color: "text-blue-400" },
+      { icon: Bot,        label: "Bot opcional com IA",           color: "text-violet-400" },
+      { icon: Wallet,     label: "Gastos do cartão no planejamento", color: "text-amber-400" },
     ],
   },
   {
@@ -58,7 +58,7 @@ const SIDE_CONTENT = [
     headline: "Simples de usar, poderoso para qualquer nível.",
     sub: "Do iniciante que quer organizar ao veterano que acompanha IR e rentabilidade vs CDI.",
     stats: [
-      { icon: Wallet,        label: "Controle de gastos no cartão", color: "text-emerald-400" },
+      { icon: Wallet,        label: "Gastos e cartão no mês",       color: "text-emerald-400" },
       { icon: CalendarCheck, label: "Calendário de proventos",      color: "text-blue-400" },
       { icon: BarChart2,     label: "Relatórios de desempenho",     color: "text-violet-400" },
       { icon: Bot,           label: "Pesquisa de mercado com IA",   color: "text-amber-400" },
@@ -83,34 +83,41 @@ const APORTE_OPTIONS: { id: Aporte; label: string }[] = [
 const FAQ_ITEMS = [
   {
     q: "Precisa instalar alguma coisa?",
-    a: "Não. O MUVO é um PWA — abre direto no navegador do celular ou computador. Você pode salvar na tela inicial como um app normal, sem precisar da App Store ou Play Store.",
+    a: "Não é obrigatório. No site o MUVO abre no navegador (dá para salvar na tela inicial como PWA). Também existe app Android; a publicação na Play Store está em testes fechados — peça acesso pelo WhatsApp se quiser testar o app.",
   },
   {
     q: "Como funciona o teste grátis de 3 dias?",
-    a: "Você recebe acesso completo por 3 dias sem pagar nada. Depois pode continuar no Muvo Grátis (com limites) ou assinar Assinante (R$ 30) / Completo com bot (R$ 35). Sem multa e sem burocracia.",
+    a: "No site, entre com Google (ou peça liberação no WhatsApp) e use tudo por 3 dias. Depois você pode ficar no Muvo Grátis (com limites) ou assinar Assinante (R$ 30) / Completo com bot (R$ 35). Sem multa e sem burocracia.",
   },
   {
     q: "Existe versão gratuita?",
-    a: "Sim. Depois do teste, você pode ficar no Muvo Grátis para sempre: planejamento e investimentos básicos, com limites. Bot com IA, pesquisa de mercado e IR completo ficam nos planos pagos.",
+    a: "Sim. Depois do teste, você pode ficar no Muvo Grátis para sempre: planejamento e investimentos básicos, com limites. Bot com IA, pesquisa de mercado e IR detalhado ficam nos planos pagos.",
   },
   {
-    q: "Meus investimentos ficam seguros?",
-    a: "Sim. Cada usuário tem login e banco de dados individual — ninguém mais acessa seus dados. Não integramos com corretoras nem movimentamos dinheiro: você registra os dados manualmente, como numa planilha, mas muito mais organizado.",
+    q: "Meus dados ficam seguros?",
+    a: "Cada conta tem login próprio — ninguém mais vê seus números. O MUVO não conecta na corretora nem movimenta dinheiro: você registra os dados, como numa planilha, com bem mais organização.",
   },
   {
     q: "Posso cancelar quando quiser?",
-    a: "Sim, a qualquer momento. É só mandar mensagem no WhatsApp. Não há contrato, fidelidade mínima ou taxa de cancelamento.",
+    a: "Sim. Assinatura pelo site: avise no WhatsApp. Assinatura pelo app Android: gerencie na Google Play. Sem fidelidade mínima nem taxa de cancelamento.",
   },
 ];
 
-function whatsappUrl(lead: LeadData, plan: "assinante" | "completo") {
+/** Play Store: só mostra botão se NEXT_PUBLIC_PLAY_STORE_URL estiver definido (app publicado ou link de teste interno). */
+const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL?.trim() || "";
+
+function whatsappUrl(lead: LeadData, plan: "assinante" | "completo" | "gratis" | "teste") {
   const raw = process.env.NEXT_PUBLIC_WHATSAPP ?? "5500000000000";
   const phone = raw.replace(/\D/g, "");
   const goalLabel = GOAL_OPTIONS.find((g) => g.id === lead.objetivo)?.label ?? lead.objetivo;
   const aporteLabel = APORTE_OPTIONS.find((a) => a.id === lead.aporte)?.label ?? lead.aporte;
-  const planLabel = plan === "completo" ? "Completo R$ 35 (app + bot)" : "Assinante R$ 30";
+  const planLabel =
+    plan === "completo" ? "Completo R$ 35 (app + bot)"
+    : plan === "assinante" ? "Assinante R$ 30"
+    : plan === "gratis" ? "Muvo Grátis"
+    : "teste grátis de 3 dias";
   const text = encodeURIComponent(
-    `Olá! Me chamo ${lead.nome} e tenho interesse no MUVO — plano ${planLabel}.\n\nMeu objetivo: ${goalLabel}\nInvisto: ${aporteLabel}\nWhatsApp: ${lead.whatsapp}\n\nPode me passar os detalhes para começar o teste grátis de 3 dias?`,
+    `Olá! Me chamo ${lead.nome} e tenho interesse no MUVO — ${planLabel}.\n\nMeu objetivo: ${goalLabel}\nInvisto: ${aporteLabel}\nWhatsApp: ${lead.whatsapp}\n\nPode me passar os próximos passos?`,
   );
   return `https://wa.me/${phone}?text=${text}`;
 }
@@ -383,16 +390,48 @@ export default function ComecarPage() {
                 <div className="h-9 w-9 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
                   <BadgeCheck className="h-5 w-5 text-emerald-400" />
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-emerald-400">Teste grátis de 3 dias — sem risco</p>
-                  <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                    Acesso completo por 3 dias. Depois continue no Muvo Grátis ou assine.
-                    <strong className="text-zinc-300"> Sem contrato.</strong>
-                  </p>
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div>
+                    <p className="text-sm font-bold text-emerald-400">Teste grátis de 3 dias — sem risco</p>
+                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                      Entre no site (Google ou liberação no WhatsApp), use tudo por 3 dias e depois escolha Grátis ou pago.
+                      <strong className="text-zinc-300"> Sem contrato.</strong>
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Link
+                      href="/"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors touch-manipulation"
+                    >
+                      Começar teste no site <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <a
+                      href={whatsappUrl(lead, "teste")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900/80 py-3 text-sm font-semibold text-zinc-200 hover:border-zinc-500 transition-colors touch-manipulation"
+                    >
+                      <MessageCircle className="h-4 w-4" /> Pedir pelo WhatsApp
+                    </a>
+                  </div>
+                  {PLAY_STORE_URL ? (
+                    <a
+                      href={PLAY_STORE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-800 py-2.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition-colors"
+                    >
+                      <Smartphone className="h-3.5 w-3.5" /> Baixar na Google Play
+                    </a>
+                  ) : (
+                    <p className="text-[11px] text-zinc-500 leading-relaxed">
+                      App Android em testes fechados — peça o convite no WhatsApp se quiser o APK/Play interno.
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {/* Planos primeiro — CTAs acima do FAQ */}
+              {/* Planos — CTAs acima do FAQ */}
               <div className="flex flex-col gap-3">
                 {/* Grátis */}
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 space-y-3">
@@ -417,8 +456,14 @@ export default function ComecarPage() {
                       </li>
                     ))}
                   </ul>
+                  <Link
+                    href="/"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 py-3 text-sm font-semibold text-zinc-200 hover:border-zinc-500 transition-colors touch-manipulation"
+                  >
+                    Entrar e usar o Grátis
+                  </Link>
                   <p className="text-[11px] text-zinc-500 leading-relaxed">
-                    No app (Play Store), após o teste você escolhe continuar grátis ou assinar.
+                    Após o teste, no app ou no site você escolhe continuar grátis ou assinar.
                   </p>
                 </div>
 
@@ -451,6 +496,9 @@ export default function ComecarPage() {
                   >
                     <MessageCircle className="h-4 w-4" /> Quero Assinante — R$ 30/mês
                   </a>
+                  <Link href="/" className="block text-center text-xs text-zinc-500 hover:text-zinc-300 transition-colors py-1">
+                    Ou começar o teste no site primeiro
+                  </Link>
                 </div>
 
                 {/* Completo */}
@@ -485,6 +533,9 @@ export default function ComecarPage() {
                   >
                     <Bot className="h-4 w-4" /> Quero Completo — R$ 35/mês
                   </a>
+                  <Link href="/" className="block text-center text-xs text-zinc-500 hover:text-zinc-300 transition-colors py-1">
+                    Ou começar o teste no site primeiro
+                  </Link>
                 </div>
               </div>
 
@@ -536,7 +587,7 @@ export default function ComecarPage() {
               </div>
 
               <p className="text-[11px] text-center text-zinc-600 leading-relaxed">
-                No site o acesso é liberado após confirmação do Pix; no app Android, pela Google Play.
+                Teste e plano Grátis no site; assinatura paga via Pix (WhatsApp) ou Google Play no app.
                 Estimativas não são recomendação de investimento (CVM). Cancelamento a qualquer momento.
               </p>
 
@@ -561,17 +612,17 @@ function SocialProofBar() {
       <div className="flex flex-col items-center justify-center py-3.5 px-2 text-center border-r border-zinc-800">
         <Users className="h-4 w-4 text-emerald-400 mb-1" />
         <p className="text-base font-bold text-white leading-none">3 dias</p>
-        <p className="text-[10px] text-zinc-500 mt-0.5">de teste grátis</p>
+        <p className="text-[10px] text-zinc-500 mt-0.5">teste completo</p>
       </div>
       <div className="flex flex-col items-center justify-center py-3.5 px-2 text-center border-r border-zinc-800">
         <Zap className="h-4 w-4 text-amber-400 mb-1" />
-        <p className="text-base font-bold text-white leading-none">Suporte</p>
-        <p className="text-[10px] text-zinc-500 mt-0.5">direto via WhatsApp</p>
+        <p className="text-base font-bold text-white leading-none">Grátis</p>
+        <p className="text-[10px] text-zinc-500 mt-0.5">plano permanente</p>
       </div>
       <div className="flex flex-col items-center justify-center py-3.5 px-2 text-center">
         <Lock className="h-4 w-4 text-violet-400 mb-1" />
         <p className="text-base font-bold text-white leading-none">Privado</p>
-        <p className="text-[10px] text-zinc-500 mt-0.5">só você acessa</p>
+        <p className="text-[10px] text-zinc-500 mt-0.5">só a sua conta</p>
       </div>
     </div>
   );

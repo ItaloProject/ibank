@@ -20,7 +20,7 @@ MUVO é o único app de finanças pessoais onde seus dados ficam no seu próprio
 
 ## Operating Context
 
-- Acesso via PWA no celular (uso principal) e desktop (análise e planejamento)
+- Acesso via site/PWA no celular e desktop; app Android em testes (Play Store)
 - Usuário registra gastos após compras ou no fechamento do cartão
 - Consulta investimentos e rentabilidade mensalmente
 - Planeja orçamento no início de cada mês copiando o mês anterior
