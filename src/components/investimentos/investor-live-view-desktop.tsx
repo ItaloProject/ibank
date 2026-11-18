@@ -2,11 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { X, Plus, Wallet, Calculator, Receipt, ChevronRight } from "lucide-react";
-import { Icon3D } from "@/components/investimentos/live-icons-3d";
-import { WalletIcon } from "@/components/icons/wallet";
-import { GaugeIcon } from "@/components/icons/gauge";
+import { X, Plus, Wallet, Calculator, Receipt, ChevronRight, Scale, Check } from "lucide-react";
 import { HoldingsPanel } from "@/components/investimentos/live-holdings-panel";
+import { LiveHubMenu } from "@/components/investimentos/live-hub-menu";
 import { PlanLeftoverOffer } from "@/components/investimentos/plan-leftover-offer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { detectAssetType } from "@/lib/stock-utils";
@@ -43,6 +41,8 @@ import {
   BTN_DANGER,
   INPUT_BOX,
   LOSS,
+  GAIN,
+  ATTENTION,
   LiveSheet,
 } from "./live-ui";
 import { CdiHelp, TetoHelp, TipoCaixinhaHelp } from "./help-texts";
@@ -105,8 +105,8 @@ export function InvestorLiveViewDesktop({
   onClose,
   liveAction,
 }: InvestorLiveViewProps) {
-  // Começa sem seção: só aparece algo depois que o usuário escolhe um grupo.
-  const [tab, setTab] = useState<"investimentos" | "simular" | null>(null);
+  // Começa no hub; só entra em seção depois da escolha (padrão do app Android).
+  const [tab, setTab] = useState<"investimentos" | "rebalancear" | "simular" | null>(null);
 
   /* ── Market / buy flow ────────────────────────────────────────── */
   const [marketOpen, setMarketOpen] = useState(false);
@@ -175,6 +175,50 @@ export function InvestorLiveViewDesktop({
   const emergenciaTotal = emergenciaAccountsReal.reduce((s, a) => s + a.valor, 0);
   const investimentosTotal = investimentosAccountsReal.reduce((s, a) => s + a.valor, 0);
   const patrimonioTotal = turboTotal + emergenciaTotal + investimentosTotal + investedValue + cashBalance;
+
+  const fiiValue = useMemo(
+    () => holdingRows.filter((h) => h.type === "FII").reduce((s, h) => s + h.value, 0),
+    [holdingRows],
+  );
+  const acoesValue = investedValue - fiiValue;
+
+  /** Alocação atual vs. ideal (mesma referência 40/30/30 do Modo Investidor / app). */
+  const allocationRecommendations = useMemo(() => {
+    const total = patrimonioTotal;
+    const pct = (v: number) => (total > 0 ? (v / total) * 100 : 0);
+    return [
+      {
+        id: "fii",
+        label: "Fundos imobiliários",
+        atual: pct(fiiValue),
+        ideal: 40,
+        desc: "Renda mensal sem Imposto de Renda",
+        action: "fiis" as MarketSection,
+      },
+      {
+        id: "turbo",
+        label: "Turbo e renda fixa",
+        atual: pct(turboTotal + investimentosTotal),
+        ideal: 30,
+        desc: "Segurança e rendimento do CDI",
+        action: "turbo" as MarketSection,
+      },
+      {
+        id: "acoes",
+        label: "Ações",
+        atual: pct(acoesValue),
+        ideal: 30,
+        desc: "Crescimento e dividendos",
+        action: "acoes" as MarketSection,
+      },
+    ];
+  }, [patrimonioTotal, fiiValue, turboTotal, investimentosTotal, acoesValue]);
+
+  const rebalancePendentes = allocationRecommendations.filter((r) => Math.abs(r.ideal - r.atual) >= 1).length;
+  const allocationOutside = Math.max(
+    0,
+    100 - allocationRecommendations.reduce((s, r) => s + r.atual, 0),
+  );
 
   function openSell(ticker: string) {
     const h = holdingRows.find((x) => x.ticker === ticker);
@@ -302,8 +346,9 @@ export function InvestorLiveViewDesktop({
 
   /* ── Tabs ─────────────────────────────────────────────────────── */
   const tabs = [
-    { id: "investimentos" as const, label: "Carteira", short: "Carteira", icon: Wallet, menuIcon: WalletIcon },
-    { id: "simular" as const, label: "Simulador", short: "Simular", icon: Calculator, menuIcon: GaugeIcon },
+    { id: "investimentos" as const, label: "Carteira", short: "Carteira", icon: Wallet },
+    { id: "rebalancear" as const, label: "Rebalancear", short: "Rebalancear", icon: Scale },
+    { id: "simular" as const, label: "Simulador", short: "Simular", icon: Calculator },
   ];
 
   function openMarket(section: MarketSection) {
@@ -337,24 +382,24 @@ export function InvestorLiveViewDesktop({
       {/* ── Header ────────────────────────────────────────────────── */}
       <header className="flex items-center justify-between gap-4 px-7 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-6 min-w-0">
-          <h1 className="text-sm font-black uppercase tracking-[0.2em] text-foreground shrink-0">
+          <h1 className="font-display text-lg font-semibold tracking-tight text-foreground shrink-0">
             {tab === null ? (
-              "MUVO Live"
+              "Investir"
             ) : (
               <button
                 type="button"
                 onClick={() => setTab(null)}
-                aria-label="MUVO Live: voltar ao menu"
-                className={`rounded-md uppercase tracking-[0.2em] hover:text-muted-foreground transition-colors ${FOCUS}`}
+                aria-label="Investir: voltar ao menu"
+                className={`rounded-md hover:text-muted-foreground transition-colors ${FOCUS}`}
               >
-                MUVO Live
+                Investir
               </button>
             )}
           </h1>
           {tab !== null && (
           <div
             role="tablist"
-            aria-label="Seções do MUVO Live"
+            aria-label="Seções de Investir"
             onKeyDown={(e) => {
               const idx = tabs.findIndex((t) => t.id === tab);
               if (e.key === "ArrowRight") { e.preventDefault(); setTab(tabs[(idx + 1) % tabs.length].id); }
@@ -414,7 +459,7 @@ export function InvestorLiveViewDesktop({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Fechar MUVO Live"
+              aria-label="Fechar Investir"
               className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${FOCUS}`}
             >
               <X className="h-5 w-5" />
@@ -426,17 +471,16 @@ export function InvestorLiveViewDesktop({
       {/* ── Content area ──────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto">
 
-        {/* ═══ MENU: escolha da seção ═══════════════════════════════ */}
+        {/* ═══ HUB: padrão do app Android ═══════════════════════════ */}
         {tab === null && (
-          <nav aria-label="Escolha uma seção do MUVO Live" className="flex h-full items-center justify-center p-8">
-            <ul className="flex flex-col items-center gap-2">
-              {tabs.map((t, i) => (
-                <li key={t.id}>
-                  <Icon3D icon={t.menuIcon} label={t.label} index={i} onSelect={() => setTab(t.id)} />
-                </li>
-              ))}
-            </ul>
-          </nav>
+          <LiveHubMenu
+            patrimonio={patrimonioTotal}
+            rebalancePendentes={rebalancePendentes}
+            onSelect={(destino) => {
+              if (destino === "aplicar") openMarket("hub");
+              else setTab(destino);
+            }}
+          />
         )}
 
         {/* ═══ CARTEIRA ═════════════════════════════════════════════ */}
@@ -499,6 +543,92 @@ export function InvestorLiveViewDesktop({
                 </>
               )}
             </section>
+          </div>
+        )}
+
+        {/* ═══ REBALANCEAR ══════════════════════════════════════════ */}
+        {tab === "rebalancear" && (
+          <div
+            role="tabpanel"
+            id="live-panel-rebalancear"
+            aria-labelledby="live-tab-rebalancear"
+            className="mx-auto w-full max-w-2xl space-y-5 px-7 py-8"
+          >
+            <div>
+              <SectionHeading id="rebalance-heading">Alocação atual vs. referência</SectionHeading>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Referência: FIIs 40% · Turbo e renda fixa 30% · ações 30%.
+              </p>
+            </div>
+
+            <div className="space-y-5 rounded-xl border border-border bg-card p-5">
+              {allocationRecommendations.map((r) => {
+                const gap = r.ideal - r.atual;
+                const status =
+                  gap > 2 ? "falta" : gap < -2 ? "excede" : "ok";
+                const gapPts = Math.abs(gap).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+                return (
+                  <div key={r.id} className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-bold text-foreground">{r.label}</span>
+                      <div className="flex shrink-0 items-baseline gap-2 text-xs">
+                        <span className={`${MONEY} text-sm`}>
+                          {r.atual.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%
+                        </span>
+                        <span className="text-muted-foreground">alvo {r.ideal}%</span>
+                      </div>
+                    </div>
+                    <div
+                      className="relative h-2 rounded-full bg-muted"
+                      role="img"
+                      aria-label={`${r.label}: ${r.atual.toFixed(0)}% atual, alvo ${r.ideal}%`}
+                    >
+                      <div
+                        className="absolute inset-y-0 left-0 rounded-full bg-foreground/80 transition-[width] duration-700 motion-reduce:transition-none"
+                        style={{ width: `${Math.min(r.atual, 100)}%` }}
+                      />
+                      <div
+                        className="absolute -top-1 -bottom-1 w-0.5 rounded-full bg-foreground ring-2 ring-card"
+                        style={{ left: `${Math.min(r.ideal, 100)}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] text-muted-foreground">{r.desc}</p>
+                      {status === "ok" && (
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${GAIN}`}>
+                          <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                          No alvo
+                        </span>
+                      )}
+                      {status === "falta" && (
+                        <span className="text-[11px] font-bold text-foreground/80">Faltam {gapPts} pontos</span>
+                      )}
+                      {status === "excede" && (
+                        <span className={`text-[11px] font-bold ${ATTENTION}`}>
+                          {gapPts} pontos acima
+                        </span>
+                      )}
+                    </div>
+                    {status === "falta" && (
+                      <button
+                        type="button"
+                        onClick={() => openMarket(r.action)}
+                        className={`${BTN_SECONDARY} min-h-11 text-xs`}
+                      >
+                        Investir em {r.label}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {allocationOutside >= 1 ? (
+              <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+                Saldo em conta e Emergência somam{" "}
+                {allocationOutside.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% e ficam fora da referência.
+              </p>
+            ) : null}
           </div>
         )}
 

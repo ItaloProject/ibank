@@ -7,7 +7,7 @@ import {
   ArrowUpRight, ArrowDownRight, ArrowRight, Check, Pencil, ChevronRight,
   CalendarRange, Layers, TrendingUp, Receipt, Scale, Plus, Trash2,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { PlanLeftoverOffer } from "@/components/investimentos/plan-leftover-offer";
 import { CdiHelp, TetoHelp, TipoCaixinhaHelp } from "./help-texts";
 import {
@@ -29,10 +29,7 @@ import {
 } from "@/components/investimentos/simulator-invest-flow";
 import { EMPTY_RATE_DRAFT, RateFields, rateFromDraft, type RateDraft } from "@/components/investimentos/rate-fields";
 import { BankPicker } from "@/components/investimentos/bank-picker";
-import { Icon3D } from "@/components/investimentos/live-icons-3d";
-import { WalletIcon } from "@/components/icons/wallet";
-import { GaugeIcon } from "@/components/icons/gauge";
-import { SlidersHorizontalIcon } from "@/components/icons/sliders-horizontal";
+import { LiveHubMenu } from "@/components/investimentos/live-hub-menu";
 import { SaldoEmContaHelp } from "@/components/investimentos/help-texts";
 import { InicialShortcuts, SimChart, SimLegend, SimParam, SimRateParam, simRateText, useSimulation } from "@/components/investimentos/sim-controls";
 import { liveBotContext } from "@/components/investimentos/live-bot-context";
@@ -800,6 +797,9 @@ export function InvestorLiveView({
     0,
     100 - allocationRecommendations.reduce((s, r) => s + r.atual, 0)
   );
+  const rebalancePendentes = allocationRecommendations.filter(
+    (r) => Math.abs(r.ideal - r.atual) >= REBALANCE_TOLERANCE,
+  ).length;
 
   function goToTab(id: typeof tab) {
     setTab(id);
@@ -840,16 +840,16 @@ export function InvestorLiveView({
   );
 
   const LIVE_TABS = [
-    { id: "investimentos" as const, label: "Carteira", short: "Carteira", icon: Wallet, menuIcon: WalletIcon },
-    { id: "rebalancear" as const, label: "Rebalancear", short: "Rebalancear", icon: Scale, menuIcon: SlidersHorizontalIcon },
-    { id: "simular" as const, label: "Simulador", short: "Simular", icon: Calculator, menuIcon: GaugeIcon },
+    { id: "investimentos" as const, label: "Carteira", short: "Carteira", icon: Wallet },
+    { id: "rebalancear" as const, label: "Rebalancear", short: "Rebalancear", icon: Scale },
+    { id: "simular" as const, label: "Simulador", short: "Simular", icon: Calculator },
   ];
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="MUVO Live"
+      aria-label="Investir"
       className="fixed inset-0 z-[200] bg-background text-foreground select-none"
     >
       <div className="relative h-full flex flex-col">
@@ -861,24 +861,24 @@ export function InvestorLiveView({
           {tab === null ? (
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
-              <span className={LABEL}>MUVO · Live</span>
+              <span className="font-display text-base font-semibold tracking-tight text-foreground">Investir</span>
             </div>
           ) : (
             <button
               type="button"
               onClick={() => goToTab(null)}
-              aria-label="MUVO Live: voltar ao menu"
+              aria-label="Investir: voltar ao menu"
               className={`-ml-2 flex min-h-11 items-center gap-2 rounded-lg px-2 ${FOCUS}`}
             >
               <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
-              <span className={LABEL}>MUVO · Live</span>
+              <span className="font-display text-base font-semibold tracking-tight text-foreground">Investir</span>
             </button>
           )}
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              aria-label="Fechar MUVO Live"
+              aria-label="Fechar Investir"
               className={`h-11 w-11 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground ${FOCUS}`}
             >
               <X className="h-5 w-5" />
@@ -887,17 +887,19 @@ export function InvestorLiveView({
         </header>
 
         {/* Conteúdo scrollável */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark px-5 pt-4 pb-6">
+        <main className={cn(
+          "flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin-dark pb-6",
+          tab === null ? "px-0 pt-0" : "px-5 pt-4",
+        )}>
           {tab === null && (
-            <nav aria-label="Escolha uma seção do MUVO Live" className="flex min-h-[calc(100dvh-8rem)] items-center justify-center">
-              <ul className="flex flex-col items-center gap-2">
-                {LIVE_TABS.map((t, i) => (
-                  <li key={t.id}>
-                    <Icon3D icon={t.menuIcon} label={t.label} index={i} onSelect={() => goToTab(t.id)} />
-                  </li>
-                ))}
-              </ul>
-            </nav>
+            <LiveHubMenu
+              patrimonio={patrimonioTotal}
+              rebalancePendentes={rebalancePendentes}
+              onSelect={(destino) => {
+                if (destino === "aplicar") openMarket("hub");
+                else goToTab(destino);
+              }}
+            />
           )}
 
           {tab === "investimentos" && financePanel && (
@@ -1318,7 +1320,7 @@ export function InvestorLiveView({
         {/* Barra de abas: só depois que o usuário escolhe uma seção no menu */}
         {tab !== null && (
         <nav
-          aria-label="Seções do MUVO Live"
+          aria-label="Seções de Investir"
           className="grid grid-cols-3 border-t border-border bg-background px-2 pt-1 shrink-0"
           style={{ paddingBottom: "calc(0.25rem + var(--safe-bottom))" }}
         >
