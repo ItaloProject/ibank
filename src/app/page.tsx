@@ -27,6 +27,8 @@ import { useUser } from "@/context/user-context";
 import { PageHeader, PageShell, PageBody } from "@/components/mobile";
 import { SplashScreen } from "@/components/splash-screen";
 import { ChartFrame } from "@/components/mobile/chart-frame";
+import { DollarCard } from "@/components/dollar-card";
+import { DailyTipButton } from "@/components/daily-tip-button";
 
 interface PlanGroup { id: string; name: string; color: string; }
 interface PlanItem  { id: string; name: string; type: string; planned: number; actual: number; group_id: string; }
@@ -179,12 +181,15 @@ export default function DashboardPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Dashboard" description="Visão geral das suas finanças" />
+      <PageHeader title="Dashboard" description="Visão geral das suas finanças" actions={<DailyTipButton />} />
 
       <PageBody>
 
         {/* ── KPI Cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+
+          {/* Dólar hoje (rato na borda superior direita) */}
+          <DollarCard />
 
           {/* Planejamento do mês */}
           <Card>
