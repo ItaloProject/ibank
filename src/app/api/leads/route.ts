@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { limitar } from "@/lib/rate-limit";
+import { atribuicaoDaRequisicao, ensureLeadsAtribuicaoColumns } from "@/lib/server/atribuicao";
 
 export async function POST(request: Request) {
   try {
@@ -38,13 +39,20 @@ export async function POST(request: Request) {
       )
     `;
 
+    await ensureLeadsAtribuicaoColumns();
+    const origem = atribuicaoDaRequisicao(request);
+
     await sql`
-      INSERT INTO leads (nome, whatsapp, objetivo, aporte)
+      INSERT INTO leads (nome, whatsapp, objetivo, aporte, utm_source, utm_medium, utm_campaign, utm_content)
       VALUES (
         ${nomeLimpo},
         ${zapLimpo},
         ${String(objetivo ?? "").slice(0, 50)},
-        ${String(aporte ?? "").slice(0, 30)}
+        ${String(aporte ?? "").slice(0, 30)},
+        ${origem.utm_source},
+        ${origem.utm_medium},
+        ${origem.utm_campaign},
+        ${origem.utm_content}
       )
     `;
 

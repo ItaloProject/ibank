@@ -24,6 +24,33 @@ interface AppUser {
   plan?: string | null;
   email?: string | null;
   via_google?: boolean;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  utm_content?: string | null;
+}
+
+/** "instagram · pago · 13o · a5": de onde a conta veio (só aparece se o cadastro veio de um link com utm). */
+function origemTexto(u: AppUser): string | null {
+  if (!u.utm_source && !u.utm_campaign && !u.utm_content && !u.utm_medium) return null;
+  const meio = u.utm_medium === "paid" ? "pago" : u.utm_medium;
+  return [u.utm_source, meio, u.utm_campaign, u.utm_content].filter(Boolean).join(" · ");
+}
+
+/** Cadastros por campanha e anúncio, com quantos já assinam. */
+function resumoDeOrigem(users: AppUser[]) {
+  const mapa = new Map<string, { campanha: string; anuncio: string; cadastros: number; pagos: number }>();
+  for (const u of users) {
+    if (!origemTexto(u)) continue;
+    const campanha = u.utm_campaign ?? "sem campanha";
+    const anuncio = u.utm_content ?? "sem anúncio";
+    const chave = `${campanha}|${anuncio}`;
+    const linha = mapa.get(chave) ?? { campanha, anuncio, cadastros: 0, pagos: 0 };
+    linha.cadastros += 1;
+    if (!u.is_admin && (u.plan === "assinante" || u.plan === "completo")) linha.pagos += 1;
+    mapa.set(chave, linha);
+  }
+  return [...mapa.values()].sort((a, b) => b.cadastros - a.cadastros);
 }
 
 const COLORS = ["#3b82f6","#ec4899","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#f97316"];
@@ -178,6 +205,7 @@ export default function UsuariosPage() {
   const inactive = users.filter((u) => !u.is_active).length;
   const googleCount = users.filter((u) => u.via_google).length;
   const visiveis = soGoogle ? users.filter((u) => u.via_google) : users;
+  const origens = resumoDeOrigem(users);
 
   if (!isAdmin) return null;
 
@@ -233,6 +261,28 @@ export default function UsuariosPage() {
             {loading ? "" : `${googleCount} de ${users.length} entraram com o Google`}
           </span>
         </div>
+
+        {/* Origem dos cadastros (utm dos anúncios e do link da bio) */}
+        {!loading && origens.length > 0 && (
+          <div className="rounded-2xl border bg-card overflow-hidden">
+            <div className="px-4 py-3 border-b">
+              <p className="text-sm font-semibold">Origem dos cadastros</p>
+              <p className="text-[11px] text-muted-foreground">Por campanha e anúncio (utm). Pagos: contas Assinante ou Completo.</p>
+            </div>
+            <div className="divide-y">
+              {origens.map((o) => (
+                <div key={`${o.campanha}|${o.anuncio}`} className="px-4 py-2.5 flex items-center gap-3 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{o.campanha}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{o.anuncio}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground tabular-nums">{o.cadastros} {o.cadastros === 1 ? "cadastro" : "cadastros"}</span>
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{o.pagos} {o.pagos === 1 ? "pago" : "pagos"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Lista */}
         <div className="rounded-2xl border bg-card overflow-hidden">
@@ -293,6 +343,11 @@ export default function UsuariosPage() {
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-xs text-muted-foreground">@{u.username}</span>
+                          {origemTexto(u) && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400" title="Origem do cadastro">
+                              {origemTexto(u)}
+                            </span>
+                          )}
                           <button type="button" onClick={() => editEmail(u)} className="text-xs font-semibold text-muted-foreground underline underline-offset-2 hover:text-foreground">
                             {u.email ? u.email : "definir e-mail"}
                           </button>

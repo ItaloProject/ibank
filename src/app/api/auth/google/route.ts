@@ -10,6 +10,7 @@ import { abrirSessao } from "@/lib/server/abrir-sessao";
 import { avisarBloqueioLogin } from "@/lib/server/alerta-login";
 import { idsDeClienteGoogle, usuarioInternoDe, verificarIdTokenGoogle } from "@/lib/server/google-auth";
 import { fimDoTeste, PLANO_TESTE } from "@/lib/trial";
+import { atribuicaoDaRequisicao, ensureAtribuicaoColumns } from "@/lib/server/atribuicao";
 
 /**
  * Entrar com o Google. Recebe o ID token (do app Android ou do botão do site).
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
     await ensureSubscriptionColumns();
     await ensureOnboardingColumns();
     await ensureSessionColumns();
+    await ensureAtribuicaoColumns();
 
     const existentes = await sql`SELECT * FROM app_users WHERE google_sub = ${perfil.sub}`;
     if (existentes.length > 0) {
@@ -76,6 +78,8 @@ export async function POST(request: Request) {
     // Conta nova com 3 dias de teste. A senha é aleatória e ninguém a conhece: a entrada é pelo Google.
     const senhaInutilizavel = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
     const fim = fimDoTeste();
+    // Origem do cadastro (utm do anúncio), lida do cookie do navegador. Sem cookie, fica vazia.
+    const origem = atribuicaoDaRequisicao(request);
     let criada: Record<string, unknown> | undefined;
     for (let tentativa = 0; tentativa < 3 && !criada; tentativa++) {
       const usuario = usuarioInternoDe(perfil.email, randomBytes(3).toString("hex"));
@@ -83,10 +87,12 @@ export async function POST(request: Request) {
         const rows = await sql`
           INSERT INTO app_users (
             user_id, username, name, password_hash, is_active, is_admin,
-            bot_enabled, plan, paid_until, trial_ends_at, email, google_sub, terms_accepted_at
+            bot_enabled, plan, paid_until, trial_ends_at, email, google_sub, terms_accepted_at,
+            utm_source, utm_medium, utm_campaign, utm_content
           ) VALUES (
             ${usuario}, ${usuario}, ${perfil.nome}, ${senhaInutilizavel}, true, false,
-            true, ${PLANO_TESTE}, NULL, ${fim.toISOString()}, ${perfil.email}, ${perfil.sub}, NOW()
+            true, ${PLANO_TESTE}, NULL, ${fim.toISOString()}, ${perfil.email}, ${perfil.sub}, NOW(),
+            ${origem.utm_source}, ${origem.utm_medium}, ${origem.utm_campaign}, ${origem.utm_content}
           )
           RETURNING *
         `;

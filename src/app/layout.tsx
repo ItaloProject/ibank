@@ -5,6 +5,7 @@ import { LayoutShell } from "@/components/layout/layout-shell";
 import { UserProvider } from "@/context/user-context";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
+import { AtribuicaoCapture } from "@/components/atribuicao-capture";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -69,6 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${dmSans.variable} ${funnelDisplay.variable} font-sans antialiased`}>
+        <AtribuicaoCapture />
         <ThemeProvider>
           <UserProvider>
             <LayoutShell>{children}</LayoutShell>

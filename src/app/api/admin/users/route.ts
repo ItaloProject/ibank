@@ -4,16 +4,19 @@ import { requireAdmin } from "@/lib/auth";
 import sql from "@/lib/db";
 import { addDaysISO, ensureSubscriptionColumns } from "@/lib/subscription";
 import { normalizarEmail } from "@/lib/email-usuario";
+import { ensureAtribuicaoColumns } from "@/lib/server/atribuicao";
 
 export async function GET() {
   const admin = await requireAdmin();
   if (admin instanceof NextResponse) return admin;
 
   await ensureSubscriptionColumns();
+  await ensureAtribuicaoColumns();
 
   const rows = await sql`
     SELECT id, user_id, username, name, color, is_active, is_admin, created_at,
            bot_enabled, paid_until, plan, email, trial_ends_at,
+           utm_source, utm_medium, utm_campaign, utm_content,
            (google_sub IS NOT NULL) AS via_google
     FROM app_users ORDER BY created_at ASC
   `;
