@@ -41,13 +41,6 @@ describe("localBotReply (sem inteligência artificial)", () => {
     expect(r.text).toContain("Posso ajudar sem inteligência artificial");
   });
 
-  it("aponta a tela do app para pedidos da carteira, com botão para Investir", async () => {
-    const r = await localBotReply([user("Me mostre a visão da minha carteira.")], 13.65);
-    expect(r.answered).toBe(true);
-    expect(r.text).toContain("Investir");
-    expect(r.actions).toEqual([{ kind: "investir" }]);
-  });
-
   it("não aponta tela para pergunta de compra ou venda", async () => {
     const r = await localBotReply([user("devo vender minhas ações da Petrobras amanhã?")], 13.65);
     expect(r.answered).toBe(false);

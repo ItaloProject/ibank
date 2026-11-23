@@ -69,6 +69,13 @@ export type UserSnapshot = {
   movements: SnapshotMovement[];
   alerts: BotAlert[];
   proventos: SnapshotProvento[];
+  /** Linhas cruas para a renda por fonte: o mesmo cálculo da tela Investir (computeMonthlyPassiveIncome). */
+  raw: {
+    accounts: InvestmentAccount[];
+    investments: Investment[];
+    trades: StockTrade[];
+    proventos: { ticker: string; amount: number; payment_day?: number; type?: string }[];
+  };
   history: SnapshotHistoryPoint[];
   goal: GoalProjection | null;
   rates: MarketRates;
@@ -328,6 +335,17 @@ export async function loadUserSnapshot(userId: string): Promise<UserSnapshot> {
     movements: recentMovements(accounts, investments, trades),
     alerts,
     proventos: proventoRows.map((p) => ({ ticker: String(p.ticker), valor: r2(Number(p.amount)), diaPagamento: Number(p.payment_day), tipo: String(p.type) })),
+    raw: {
+      accounts,
+      investments,
+      trades,
+      proventos: proventoRows.map((p) => ({
+        ticker: String(p.ticker ?? ""),
+        amount: Number(p.amount) || 0,
+        payment_day: Number(p.payment_day) || undefined,
+        type: typeof p.type === "string" ? p.type : undefined,
+      })),
+    },
     history: historyRows.map((h) => ({ mes: String(h.mes), patrimonio: r2(Number(h.total)), investido: r2(Number(h.invested)) })),
     goal,
     rates,
