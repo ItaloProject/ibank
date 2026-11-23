@@ -39,6 +39,25 @@ describe("detectIntent", () => {
     expect(profileTarget("rebalancear")).toBeNull();
   });
 
+  it("visão da carteira abre a visão, mesmo com frase completa ou pergunta", () => {
+    expect(detectIntent("Quero a visão completa da carteira")).toBe("visao");
+    expect(detectIntent("quero ver a visão da carteira")).toBe("visao");
+    expect(detectIntent("qual a visão da carteira?")).toBe("visao");
+    expect(detectIntent("visão da carteira")).toBe("visao");
+    expect(detectIntent("rebalancear a visão da carteira")).toBe("rebal");
+  });
+
+  it("perguntas sobre reserva, Turbo, renda e perfil caem na tela certa", () => {
+    expect(detectIntent("meta")).toBe("meta");
+    expect(detectIntent("meu perfil")).toBe("perfil");
+    expect(detectIntent("qual meu perfil?")).toBe("perfil");
+    expect(keywordIntent("quanto tenho na reserva?")).toBe("visao");
+    expect(keywordIntent("quanto tenho na turbo")).toBe("visao");
+    expect(keywordIntent("quanto recebo por mês")).toBe("visao");
+    expect(keywordIntent("minhas ações")).toBe("visao");
+    expect(keywordIntent("como investir em ações?")).toBeNull();
+  });
+
   it("palavra-chave serve de reserva sem inteligência artificial", () => {
     expect(keywordIntent("o que é perfil de risco?")).toBe("perfil");
     expect(keywordIntent("LCA ou CDB")).toBeNull();

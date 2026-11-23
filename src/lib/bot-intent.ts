@@ -21,6 +21,8 @@ const DEFINITION = /^(o que|oque|qual a diferenca|diferenca|explica|me explica)\
 /** Assunto indicado por palavra-chave, sem olhar se é pergunta ou pedido. */
 export function keywordIntent(raw: string): Intent | null {
   const t = normalize(raw);
+  // Só "meta" ou "minha meta de renda", sem outras palavras.
+  if (/^(minha |a )?meta( de renda)?$/.test(t)) return "meta";
   // Quanto aportar para chegar até um ano: "aporte para 2027", "em 2027 preciso aumentar meu aporte para quanto".
   if (/\b(?:aporte|aportar|aportes)\b/.test(t) && /\b20\d{2}\b/.test(t) && (/quanto|preciso|precis|aument|devo|chegar/.test(t) || t.split(" ").length <= 4)) return "aporte_prazo";
   if (/\bmeta\b/.test(t) && /explic|explique|explica|como (funciona|e calculad|eh calculad)|como voce calcula|de onde vem|por que/.test(t)) return "explica_meta";
@@ -41,7 +43,14 @@ export function keywordIntent(raw: string): Intent | null {
   ) {
     return "rebal";
   }
+  // "Quero a visão completa da carteira", "quero ver a visão da carteira": o pedido pode começar com qualquer verbo.
+  if (/\bvisao\b/.test(t) && /carteira/.test(t)) return "visao";
   if (/^(visao|resumo|diagnostico|score|minha carteira)/.test(t)) return "visao";
+  // Reserva, Turbo, caixinhas, saldo, renda e bolsa: a visão da carteira mostra tudo isso com os números.
+  if (
+    /reserva|emergencia|turbo|caixinha|saldo|patrimonio|renda passiva|quanto (eu )?(recebo|tenho)|proventos|dividend|bolsa|minhas acoes|meus fiis/.test(t) &&
+    !/expli|o que|oque|como|por ?que|significa|diferenca/.test(t)
+  ) return "visao";
   return null;
 }
 
@@ -49,7 +58,7 @@ const QUESTION = /\?\s*$|^(o que|oque|como|por ?que|pq|qual|quais|quanto|quando|
 
 /** Perguntas que as respostas prontas respondem melhor que a IA (números já calculados). */
 const TEMPLATE_QUESTION =
-  /quanto falta|qnto falta|quando chego|que ano chego|onde (devo |posso )?(aportar|investir|aplicar|colocar)|(o que|oque) (devo |posso )?(aportar|investir|aplicar)|(aportar|investir|aplicar).{0,24}(este|esse|hoje|agora)|tenho (algum )?aviso|tem (algum )?(aviso|alerta)|avisos?\b|alerta|como rebalanc|equilibrar|alocar|fundos? imobili|\bfiis?\b|manda no (zap|wpp|whats)|baixar|gera o pdf|meu pdf/;
+  /quanto falta|qnto falta|quando chego|que ano chego|onde (devo |posso )?(aportar|investir|aplicar|colocar)|(o que|oque) (devo |posso )?(aportar|investir|aplicar)|(aportar|investir|aplicar).{0,24}(este|esse|hoje|agora)|tenho (algum )?aviso|tem (algum )?(aviso|alerta)|avisos?\b|alerta|como rebalanc|equilibrar|alocar|fundos? imobili|\bfiis?\b|manda no (zap|wpp|whats)|baixar|gera o pdf|meu pdf|\bvisao\b|\bmeu perfil\b/;
 
 /**
  * Atalhos para pedidos curtos e diretos ("rebalancear", "meu PDF"); perguntas e mensagens longas vão para a IA ("help").

@@ -7,7 +7,7 @@ import { chatTopic } from "./chat";
 import { findTerms } from "@/lib/glossary";
 
 const FINANCE: GenieCommand["kind"][] = [
-  "netYield", "dayYield", "compareYield", "equivalent", "realReturn", "freedom", "budgetRule",
+  "calc", "netYield", "dayYield", "compareYield", "equivalent", "realReturn", "freedom", "budgetRule",
   "debt", "payOrInvest", "amortization", "compound", "installment",
 ];
 

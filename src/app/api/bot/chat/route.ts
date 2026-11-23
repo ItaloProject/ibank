@@ -48,12 +48,12 @@ export async function POST(request: Request) {
   try {
     const rates = await fetchMarketRates().catch(() => null);
     const cdi = rates?.cdiAnual ?? FALLBACK_CDI;
-    const { text, answered } = await localBotReply(messages, cdi);
+    const { text, answered, actions } = await localBotReply(messages, cdi);
     if (!answered || looksUnanswered(text)) {
       const question = feedbackText(messages[messages.length - 1].content);
       void recordBotFeedback(auth.userId, "sem_resposta", question, feedbackText(text)).catch(() => {});
     }
-    return NextResponse.json({ reply: text, actions: [] });
+    return NextResponse.json({ reply: text, actions: actions ?? [] });
   } catch (err) {
     console.error("[POST /api/bot/chat]", err);
     return NextResponse.json({ error: "O assistente está indisponível agora. Tente de novo em instantes." }, { status: 502 });
